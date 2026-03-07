@@ -3,28 +3,23 @@ import streamlit as st
 # --- 1. ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="ڕێبەری گشتگیری تاقیگە", layout="centered")
 
-# --- 2. سیستەمی Dark Mode (Toggle) بە ئایکۆن ---
+# --- 2. سیستەمی Dark Mode (Toggle) بە ئایکۆن لە Sidebar ---
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
 
 with st.sidebar:
-    # بەکارهێنانی ئایکۆنی مانگ بە تەنها و بچووککردنەوەی جێگاکەی
-    st.markdown('<h3 style="text-align:right; margin-bottom:10px;">⚙️</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 style="text-align:right;">⚙️</h3>', unsafe_allow_html=True)
     
     st.markdown("""
         <style>
-        /* لابردنی نووسینی تەنیشت چەکبۆکس و بچووککردنەوەی */
+        /* لابردنی نووسینی تەنیشت Toggle و بچووککردنەوەی */
         div[data-testid="stCheckbox"] p { font-size: 0px !important; }
         div[data-testid="stCheckbox"] { width: fit-content !important; margin-left: auto !important; }
-        .dev-footer { font-size: 10px; color: #888; border-top: 1px solid #444; padding-top: 10px; margin-top: 30px; text-align: center; }
         </style>
     """, unsafe_allow_html=True)
 
-    # لێرەدا ئایکۆنی مانگ وەک نووسینی دوگمەکە دانراوە بەڵام بە ستایل شاراوەتەوە
     mode = st.toggle("🌙", value=st.session_state.dark_mode)
     st.session_state.dark_mode = mode
-    
-    st.markdown('<p class="dev-footer">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
 
 # ڕێکخستنی ڕەنگەکان
 if st.session_state.dark_mode:
@@ -60,6 +55,8 @@ st.markdown(f"""
     """, unsafe_allow_html=True)
 
 # --- 4. شاشەی سەرەکی ---
+# گەڕاندنەوەی ناوی گەشەپێدەر بۆ سەرەوەی لاپەڕەکە بە جیا
+st.markdown('<p style="text-align:center; color:#888; font-size: 14px; margin-bottom:5px;">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
 st.markdown(f'<h1 style="text-align:center; margin-top:0; color:#3e7e69;">🏥 ڕێبەری گشتگیری تاقیگە</h1>', unsafe_allow_html=True)
 
 # --- 5. بەشی گەڕان ---
@@ -68,17 +65,17 @@ search_query = st.text_input("🔎 گەڕان بۆ پشکنین...")
 # --- 6. بنکەدراوەی پشکنینەکان ---
 full_lab_data = {
     "1. Hematology (خوێن زانی)": {
-        "CBC": "پشکنینی گشتی خوێن بۆ زانینی ئاستی Hb, WBC, RBC, و Plt.",
-        "ESR": "ڕێژەی نیشتنی خڕۆکە سوورەکان، نیشاندەرە بۆ بوونی هەوکردن.",
-        "PT & PTT": "بۆ پێوانەی کاتی مەیینی خوێن، گرنگ بۆ پێش نەشتەرگەری.",
+        "CBC": "پشکنینی گشتی خوێن بۆ زانینی ئاستی Hb, WBC, RBC, و Plt. بۆ دەستنیشانکردنی ئەنیمیا و هەوکردن.",
+        "ESR": "ڕێژەی نیشتنی خڕۆکە سوورەکان، نیشاندەرە بۆ بوونی هەوکردن یان ڕۆماتیزم.",
+        "PT & PTT": "بۆ پێوانەی کاتی مەیینی خوێن، گرنگ بۆ پێش نەشتەرگەری یان بەکارهێنانی وارفارین.",
         "PCV": "ڕێژەی قەبارەی خڕۆکە سوورەکان لە خوێندا.",
-        "Reticulocyte Count": "بۆ زانینی ڕێژەی بەرهەمهێنانی خڕۆکە سوورە نوێیەکان."
+        "Reticulocyte Count": "بۆ زانینی ڕێژەی بەرهەمهێنانی خڕۆکە سوورە نوێیەکان لە مۆخی ئێسکدا."
     },
     "2. Clinical Chemistry": {
-        "Blood Sugar (FBS/HbA1c)": "شەکری بەڕۆژوو و تێکڕای ٣ مانگ.",
-        "ALT & AST": "ئەنزیمەکانی جگەر، بەرزبوونیان نیشانەی زیانی جگەرە.",
-        "Creatinine & Urea": "پشکنینی سەرەکی بۆ توانای گورچیلەکان.",
-        "Lipid Profile": "Cholesterol, TG, HDL, LDL بۆ زانینی ئاستی چەورییەکان.",
+        "Blood Sugar (FBS/HbA1c)": "شەکری بەڕۆژوو و تێکڕای ٣ مانگ. باشترینە بۆ چاودێری نەخۆشی شەکرە.",
+        "ALT & AST": "ئەنزیمەکانی جگەر، بەرزبوونیان نیشانەی زیانی خانەکانی جگەرە.",
+        "Creatinine & Urea": "پشکنینی سەرەکی بۆ توانای گورچیلەکان. بەرزبوونیان نیشانەی تەمەڵی گورچیلەیە.",
+        "Lipid Profile": "Cholesterol, TG, HDL, LDL بۆ زانینی ئاستی چەورییەکان و پاراستنی دڵ.",
         "S.Calcium": "پشکنینی کالسیۆم بۆ تەندروستی ئێسک.",
         "S.Uric Acid": "بۆ دەستنیشانکردنی نەخۆشی پادشا (Gout).",
         "Bilirubin (T/D)": "پشکنینی زەردەویی (Jaundice)."
@@ -86,27 +83,27 @@ full_lab_data = {
     "3. Microbiology": {
         "Urine Culture": "چاندنی میز بۆ دۆزینەوەی باکتریای زیانبەخش.",
         "Antibiogram": "دیاریکردنی کاریگەرترین دەرمانی دژەباکتریا.",
-        "GSE (Stool Exam)": "پشکنینی گشتی پیسایی."
+        "GSE (Stool Exam)": "پشکنینی گشتی پیسایی بۆ دۆزینەوەی پاراسایت."
     },
     "4. Urinalysis": {
-        "General Urine (U/A)": "پشکنینی گشتی میز بۆ بینینی شەکر و کریستاڵ."
+        "General Urine (U/A)": "پشکنینی گشتی میز بۆ بینینی شەکر، پڕۆتین، کێم و کریستاڵەکان."
     },
     "5. Serology & Immunology": {
         "CRP Test": "لە کاتی هەوکردنی تونددا بەرز دەبێتەوە.",
         "Widal Test": "بۆ دەستنیشانکردنی تای تیفۆید.",
         "HBsAg & HCV": "پشکنینی ڤایرۆسی جگەری جۆری B و C.",
-        "Toxoplasmosis": "نەخۆشی پشیلە.",
+        "Toxoplasmosis": "نەخۆشی پشیلە، گرنگ بۆ ئافرەتی دووگیان.",
         "RF & Anti-CCP": "بۆ دەستنیشانکردنی ڕۆماتیزمی جومگەکان."
     },
     "6. Pathology (Tumor Markers)": {
         "PSA": "بۆ پڕۆستاتی پیاوان.",
-        "CA-125": "بۆ شێرپەنجەی هێلکەدان.",
+        "CA-125": "بۆ شێرپەنجەی هێلکەدان لە ئافرەتان.",
         "AFP": "نیشاندەر بۆ شێرپەنجەی جگەر.",
         "CEA": "نیشاندەر بۆ شێرپەنجەی کۆڵۆن."
     },
     "7. Molecular & Viral": {
         "PCR Test": "بۆ دەستنیشانکردنی وردی ڤایرۆسەکان.",
-        "Karyotyping": "پشکنینی کرۆمۆسۆمەکان.",
+        "Karyotyping": "پشکنینی کرۆمۆسۆمەکان بۆ کێشە بۆماوەییەکان.",
         "ANA": "بۆ گومانی نەخۆشییەکانی بەرگری جەستە."
     }
 }
@@ -122,7 +119,7 @@ if search_query:
     if not found:
         st.warning("نەدۆزرایەوە.")
 
-# --- 8. لیستەکان ---
+# --- 8. نیشاندانی لیستەکان ---
 for category, tests in full_lab_data.items():
     with st.expander(category):
         for test_name, content in tests.items():
