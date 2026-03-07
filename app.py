@@ -3,85 +3,75 @@ import streamlit as st
 # --- ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="ڕێبەری گشتگیری تاقیگە", layout="centered")
 
-# --- دیزاینی CSS بۆ Dark Mode و فۆنت ---
+# --- دیزاینی CSS بۆ ڕێککردنەوەی پیتەکان و ستایلی ئەپەکە ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn&display=swap');
-    
-    /* ڕێکخستنی گشتی و فۆنت */
     html, body, [class*="css"] { 
         direction: rtl; text-align: right; font-family: 'Vazirmatn', sans-serif; 
     }
-
-    /* پشتێنەی تاریک بۆ هەموو ئەپەکە */
-    .stApp {
-        background-color: #0e1117;
-        color: #ffffff;
-    }
-
-    /* چاککردنی خانەی گەڕان */
-    .stTextInput input { 
-        direction: rtl; 
-        text-align: right; 
-        background-color: #262730 !important;
-        color: white !important;
-        border: 1px solid #3e7e69 !important;
-        border-radius: 10px;
-    }
-
-    /* دوگمە سەوزەکان بە ستایلی تاریک */
+    .stTextInput input { direction: rtl; text-align: right; font-size: 18px !important; }
     .stButton>button {
         width: 100%; border-radius: 12px; height: 3.5rem;
-        background-color: #3e7e69; color: white; font-size: 18px; 
-        border: none; margin-bottom: 8px; transition: 0.3s;
+        background-color: #3e7e69; color: white; font-size: 18px; border: none; margin-bottom: 8px;
     }
-    .stButton>button:hover {
-        background-color: #4ea88d;
-        box-shadow: 0px 4px 15px rgba(62, 126, 105, 0.4);
-    }
-
-    /* سندوقی زانیارییەکان (Dark Info Box) */
     .info-box { 
-        padding: 15px; border-radius: 12px; 
-        background-color: #1d2129; 
-        color: #e0e0e0;
-        border-right: 5px solid #3e7e69; 
-        margin-top: 5px; line-height: 1.8;
-    }
-
-    /* ڕێکخستنی Expander (لیستەکان) */
-    .streamlit-expanderHeader {
-        background-color: #1d2129 !important;
-        color: white !important;
-        border-radius: 10px !important;
+        padding: 15px; border-radius: 12px; background-color: #f0f7f4; 
+        border-right: 5px solid #3e7e69; margin-top: 5px; line-height: 1.8;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- بەشی سەرەوە ---
-st.markdown('<p style="text-align:center; color:#aaa; margin-bottom:0;">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
-st.markdown('<h1 style="text-align:center; color:#3e7e69; margin-top:0;">🏥 ڕێبەری گشتگیری تاقیگە (Dark Edition)</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align:center; color:#888; margin-bottom:0;">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
+st.markdown('<h1 style="text-align:center; margin-top:0;">🏥 ڕێبەری گشتگیری تاقیگە</h1>', unsafe_allow_html=True)
 
-# --- بەشی گەڕان ---
-search_query = st.text_input("🔎 گەڕان بۆ پشکنین...")
+# --- بەشی گەڕانی خێرا ---
+search_query = st.text_input("🔎 ناوی پشکنین بنووسە بۆ گەڕان...")
 
-# --- داتاکان (هەمان لیستە گەورەکە) ---
+# --- بنکەدراوەی گەورەی پشکنینەکان ---
 full_lab_data = {
     "1. Hematology (خوێن زانی)": {
-        "CBC": "پشکنینی گشتی خوێن (Hb, WBC, RBC, Plt).",
-        "ESR": "نیشاندەری هەوکردن و ڕۆماتیزم.",
-        "PT & PTT": "بۆ پێوانەی کاتی مەیینی خوێن."
+        "CBC": "پشکنینی گشتی خوێن بۆ زانینی ئاستی Hb, WBC, RBC, و Plt. بۆ دەستنیشانکردنی ئەنیمیا و هەوکردن.",
+        "ESR": "ڕێژەی نیشتنی خڕۆکە سوورەکان، نیشاندەرە بۆ بوونی هەوکردن یان ڕۆماتیزم.",
+        "PT & PTT": "بۆ پێوانەی کاتی مەیینی خوێن، گرنگ بۆ پێش نەشتەرگەری یان بەکارهێنانی وارفارین.",
+        "PCV": "ڕێژەی قەبارەی خڕۆکە سوورەکان لە خوێندا، بۆ زانینی چڕی خوێن بەکاردێت.",
+        "Reticulocyte Count": "بۆ زانینی ڕێژەی بەرهەمهێنانی خڕۆکە سوورە نوێیەکان لە مۆخی ئێسکدا."
     },
     "2. Clinical Chemistry": {
-        "Blood Sugar": "FBS و HbA1c بۆ چاودێری شەکرە.",
-        "LFT (جگەر)": "ALT, AST, ALP بۆ جگەر.",
-        "KFT (گورچیلە)": "Creatinine و Urea بۆ گورچیلە."
+        "Blood Sugar (FBS/HbA1c)": "شەکری بەڕۆژوو و تێکڕای ٣ مانگ. باشترینە بۆ چاودێری نەخۆشی شەکرە.",
+        "ALT & AST": "ئەنزیمەکانی جگەر، بەرزبوونیان نیشانەی زیانی خانەکانی جگەرە.",
+        "Creatinine & Urea": "پشکنینی سەرەکی بۆ توانای گورچیلەکان. بەرزبوونیان نیشانەی تەمەڵی گورچیلەیە.",
+        "Lipid Profile": "Cholesterol, TG, HDL, LDL بۆ زانینی ئاستی چەورییەکان و پاراستنی دڵ.",
+        "S.Calcium": "پشکنینی کالسیۆم بۆ تەندروستی ئێسک و فرمانەکانی دەمار.",
+        "S.Uric Acid": "بۆ دەستنیشانکردنی نەخۆشی پادشا (Gout) و بەردی گورچیلە.",
+        "Bilirubin (T/D)": "پشکنینی زەردەویی (Jaundice). نیشانەی کێشەی جگەر یان تێکشکانی خوێنە."
     },
     "3. Microbiology": {
         "Urine Culture": "چاندنی میز بۆ دۆزینەوەی باکتریای زیانبەخش.",
-        "GSE": "پشکنینی پیسایی بۆ پاراسایت و کرم."
+        "Antibiogram": "دیاریکردنی کاریگەرترین دەرمانی دژەباکتریا (Antibiotic) بۆ نەخۆشەکە.",
+        "GSE (Stool Exam)": "پشکنینی گشتی پیسایی بۆ دۆزینەوەی پاراسایت و کرم."
+    },
+    "4. Urinalysis": {
+        "General Urine (U/A)": "پشکنینی گشتی میز بۆ بینینی شەکر، پڕۆتین، کێم و کریستاڵەکان."
+    },
+    "5. Serology & Immunology": {
+        "CRP Test": "لە کاتی هەوکردنی توند یان بەکتریاییدا بەرز دەبێتەوە.",
+        "Widal Test": "بۆ دەستنیشانکردنی تای تیفۆید.",
+        "HBsAg & HCV": "پشکنینی ڤایرۆسی جگەری جۆری B و C.",
+        "Toxoplasmosis": "نەخۆشی پشیلە، گرنگ بۆ ئافرەتی دووگیان.",
+        "RF & Anti-CCP": "بۆ دەستنیشانکردنی ڕۆماتیزمی جومگەکان."
+    },
+    "6. Pathology (Tumor Markers)": {
+        "PSA": "بۆ پڕۆستاتی پیاوان.",
+        "CA-125": "بۆ شێرپەنجەی هێلکەدان لە ئافرەتان.",
+        "AFP": "نیشاندەر بۆ شێرپەنجەی جگەر.",
+        "CEA": "نیشاندەر بۆ شێرپەنجەی کۆڵۆن."
+    },
+    "7. Molecular & Viral": {
+        "PCR Test": "بۆ دەستنیشانکردنی وردی ڤایرۆسەکان و بڕەکەیان لە خوێندا.",
+        "Karyotyping": "پشکنینی کرۆمۆسۆمەکان بۆ کێشە بۆماوەییەکان.",
+        "ANA": "بۆ گومانی نەخۆشییەکانی بەرگری جەستە (وەک لوپس)."
     }
-    # دەتوانیت هەموو لیستەکانی تر لێرە دابنێیتەوە
 }
 
 # --- ئەنجامی گەڕان ---
@@ -90,16 +80,16 @@ if search_query:
     for cat, tests in full_lab_data.items():
         for t_name, t_cont in tests.items():
             if search_query.lower() in t_name.lower():
-                st.markdown(f'<div class="info-box"><b style="color:#4ea88d;">🧪 {t_name}</b><br>{t_cont}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-box"><b>🧪 {t_name} ({cat})</b><br>{t_cont}</div>', unsafe_allow_html=True)
                 found = True
     if not found:
-        st.warning("نەدۆزرایەوە.")
+        st.warning("ئەم پشکنینە نەدۆزرایەوە.")
     st.write("---")
 
-# --- نیشاندانی لیستەکان ---
+# --- نیشاندانی لیستەکان بە شێوەی دوگمە (Expander) ---
 for category, tests in full_lab_data.items():
     with st.expander(category):
         for test_name, content in tests.items():
-            st.markdown(f"<b style='color:#4ea88d;'>🧪 {test_name}</b>", unsafe_allow_html=True)
+            st.markdown(f"**🧪 {test_name}**")
             st.markdown(f'<div class="info-box">{content}</div>', unsafe_allow_html=True)
             st.write("")
