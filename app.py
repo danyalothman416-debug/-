@@ -7,78 +7,79 @@ st.set_page_config(page_title="ڕێبەری گشتگیری تاقیگە", layout
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
 
-# دروستکردنی دوگمەی گۆڕین لە لای چەپ (Sidebar)
 with st.sidebar:
-    st.title("⚙️ ڕێکخستن")
-    mode = st.radio("شێوازی بینین هەڵبژێرە:", ["Light ☀️", "Dark 🌙"])
-    st.session_state.dark_mode = (mode == "Dark 🌙")
+    st.markdown('<h3 style="text-align:right;">⚙️ ڕێکخستن</h3>', unsafe_allow_html=True)
+    
+    # CSS بۆ بچووککردنەوەی دوگمەی Toggle و ڕێگریکردن لە درێژبوونەوەی
+    st.markdown("""
+        <style>
+        div[data-testid="stCheckbox"] {
+            width: fit-content !important;
+            margin-right: 0 !important;
+            margin-left: auto !important;
+        }
+        .dev-footer {
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-# دیاریکردنی ڕەنگەکان بەپێی دۆخی هەڵبژێردراو
+    mode = st.toggle("Dark Mode 🌙", value=st.session_state.dark_mode)
+    st.session_state.dark_mode = mode
+    
+    st.markdown('<p class="dev-footer">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
+
+# ڕێکخستنی ڕەنگەکان بەپێی دۆخی هەڵبژێردراو
 if st.session_state.dark_mode:
-    bg_color = "#0e1117"
-    text_color = "#ffffff"
-    card_bg = "#1d2129"
-    input_bg = "#262730"
-    border_color = "#3e7e69"
+    bg_color, text_color, card_bg, input_bg, label_color = "#0e1117", "#FFFFFF", "#1d2129", "#262730", "#4ea88d"
 else:
-    bg_color = "#ffffff"
-    text_color = "#000000"
-    card_bg = "#f0f7f4"
-    input_bg = "#ffffff"
-    border_color = "#3e7e69"
+    bg_color, text_color, card_bg, input_bg, label_color = "#ffffff", "#000000", "#f0f7f4", "#ffffff", "#3e7e69"
 
-# --- 3. دیزاینی CSS ---
+# --- 3. دیزاینی CSS گشتی ---
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
     
     html, body, .stApp {{ 
-        direction: rtl; 
-        text-align: right; 
-        font-family: 'Vazirmatn', sans-serif;
-        background-color: {bg_color};
-        color: {text_color};
+        direction: rtl; text-align: right; font-family: 'Vazirmatn', sans-serif;
+        background-color: {bg_color}; color: {text_color} !important;
     }}
     
+    p, span, label, div {{ color: {text_color} !important; }}
+
     .stTextInput input {{ 
-        direction: rtl; 
-        text-align: right; 
-        font-size: 18px !important;
-        background-color: {input_bg} !important;
-        color: {text_color} !important;
-        border: 1px solid {border_color} !important;
-    }}
-    
-    .stButton>button {{
-        width: 100%; border-radius: 12px; height: 3.5rem;
-        background-color: #3e7e69; color: white; font-size: 18px; border: none; margin-bottom: 8px;
+        direction: rtl; text-align: right; font-size: 18px !important;
+        background-color: {input_bg} !important; color: {text_color} !important;
+        border: 2px solid #3e7e69 !important;
     }}
     
     .info-box {{ 
-        padding: 15px; border-radius: 12px; 
-        background-color: {card_bg}; 
-        color: {text_color};
-        border-right: 5px solid #3e7e69; 
-        margin-top: 5px; line-height: 1.8;
+        padding: 15px; border-radius: 12px; background-color: {card_bg}; 
+        color: {text_color} !important; border-right: 6px solid #3e7e69; 
+        margin-top: 5px; line-height: 1.8; font-weight: 500;
     }}
 
-    /* چاککردنی ستایلی لیستەکان (Expander) */
+    .test-title {{ color: {label_color} !important; font-weight: bold; font-size: 19px; }}
+
     .streamlit-expanderHeader {{
-        background-color: {card_bg} !important;
-        color: {text_color} !important;
-        border-radius: 10px !important;
+        background-color: {card_bg} !important; color: {text_color} !important;
+        border-radius: 10px !important; font-weight: bold !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. بەشی سەرەوە ---
-st.markdown('<p style="text-align:center; color:#888; margin-bottom:0;">Developed by: Dr. Danyal</p>', unsafe_allow_html=True)
+# --- 4. شاشەی سەرەکی ---
 st.markdown(f'<h1 style="text-align:center; margin-top:0; color:#3e7e69;">🏥 ڕێبەری گشتگیری تاقیگە</h1>', unsafe_allow_html=True)
 
-# --- 5. بەشی گەڕانی خێرا ---
+# --- 5. بەشی گەڕان ---
 search_query = st.text_input("🔎 ناوی پشکنین بنووسە بۆ گەڕان...")
 
-# --- 6. بنکەدراوەی پشکنینەکان (هەموو پشکنینەکان وەک خۆیان) ---
+# --- 6. بنکەدراوەی پشکنینەکان (تەواوی پشکنینەکان) ---
 full_lab_data = {
     "1. Hematology (خوێن زانی)": {
         "CBC": "پشکنینی گشتی خوێن بۆ زانینی ئاستی Hb, WBC, RBC, و Plt. بۆ دەستنیشانکردنی ئەنیمیا و هەوکردن.",
@@ -130,16 +131,16 @@ if search_query:
     for cat, tests in full_lab_data.items():
         for t_name, t_cont in tests.items():
             if search_query.lower() in t_name.lower():
-                st.markdown(f'<div class="info-box"><b>🧪 {t_name} ({cat})</b><br>{t_cont}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-box"><span class="test-title">🧪 {t_name} ({cat})</span><br>{t_cont}</div>', unsafe_allow_html=True)
                 found = True
     if not found:
         st.warning("ئەم پشکنینە نەدۆزرایەوە.")
     st.write("---")
 
-# --- 8. نیشاندانی لیستەکان بە شێوەی دوگمە (Expander) ---
+# --- 8. نیشاندانی لیستەکان ---
 for category, tests in full_lab_data.items():
     with st.expander(category):
         for test_name, content in tests.items():
-            st.markdown(f"**🧪 {test_name}**")
+            st.markdown(f'<span class="test-title">🧪 {test_name}</span>', unsafe_allow_html=True)
             st.markdown(f'<div class="info-box">{content}</div>', unsafe_allow_html=True)
             st.write("")
