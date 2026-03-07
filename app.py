@@ -1,61 +1,50 @@
 import streamlit as st
+import pandas as pd
 
-# ڕێکخستنی سەرەکی بۆ مۆبایل
-st.set_page_config(page_title="ڕێبەری تاقیگە - د. دانیال", layout="centered")
+# ڕێکخستنی لاپەڕە
+st.set_page_config(page_title="ڕێبەری تاقیگە", layout="wide")
 
-# CSS بۆ ڕێکخستنی زمان و دوگمەکان کە لە مۆبایلدا تێک نەچن
+# ستایلی کوردی
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn&display=swap');
-    html, body, [class*="css"] {
-        direction: rtl;
-        text-align: right;
-        font-family: 'Vazirmatn', sans-serif;
-    }
-    /* چاککردنی دوگمەکان بۆ ئەوەی کلیک بکرێن */
-    .stButton > button {
-        width: 100%;
-        border-radius: 8px;
-        background-color: #007bff;
-        color: white;
-        height: 3em;
-        margin-top: 5px;
-        border: none;
-    }
-    /* ڕێگری لە تێکەڵبوونی نووسینەکان */
-    .stExpander {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        background-color: white;
-    }
+    html, body, [class*="css"] { direction: rtl; text-align: right; font-family: 'Vazirmatn', sans-serif; }
+    .stTextInput input { font-size: 22px !important; }
+    .result-card { border: 2px solid #e6e6e6; padding: 20px; border-radius: 15px; margin-bottom: 15px; background-color: #ffffff; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏥 ڕێبەری پشکنینەکان")
-st.subheader("پەرەپێدراوە لەلایەن: دکتۆر دانیال")
+st.title("🔬 بنکەدراوەی پشکنینەکان - د. دانیال")
 
-# داتاکان بە شێوازێکی سادەتر بۆ ئەوەی "کلیک" ئاسان بێت
-data = {
-    "🩸 پشکنینەکانی خوێن (Hematology)": {
-        "CBC": "🔬 CBC: پشکنینی گشتی خوێن بۆ ئەنیمیا و هەوکردن.",
-        "ESR": "🔬 ESR: نیشاندەری گشتی بۆ هەوکردن لە جەستەدا."
-    },
-    "🧪 کیمیای کلینیکی (Chemistry)": {
-        "Sugar": "🍬 Blood Sugar: بۆ دۆزینەوەی شەکرە.",
-        "LFT": "🧪 LFT: پشکنینی فرمانەکانی جگەر.",
-        "KFT": "🧪 KFT: پشکنینی فرمانەکانی گورچیلە.",
-        "Lipid": "🍔 Lipid Profile: پشکنینی چەوری خوێن."
+# خوێندنەوەی داتاکان (ئەگەر فایلەکە نەبوو، لیستێکی کاتی دروست دەکات)
+try:
+    df = pd.read_csv('tests.csv')
+except:
+    # داتای نموونەیی ئەگەر فایلەکەت هێشتا ئامادە نەبێت
+    data = {
+        'Test Name': ['CBC', 'ESR', 'HbA1c', 'Creatinine'],
+        'Information': ['پشکنینی خوێن', 'هەوکردنی گشتی', 'تێکڕای شەکرە', 'فرمانی گورچیلە']
     }
-}
+    df = pd.DataFrame(data)
 
-# دروستکردنی لیستەکە
-for cat, tests in data.items():
-    with st.expander(cat):
-        for t_name, t_info in tests.items():
-            # بەکارهێنانی columns بۆ ئەوەی دوگمەکە و نووسینەکە جیا ببنەوە
-            if st.button(f"بینینی زانیاری: {t_name}"):
-                st.info(t_info)
+# بەشی گەڕان
+search = st.text_input("🔎 ناوی پشکنینەکە بنووسە (بۆ نموونە: CBC)")
 
-st.divider()
-st.caption("ئەم ئەپە بۆ مەبەستی فێربوونە.")
+if search:
+    # گەڕان لەناو ناوەکاندا
+    results = df[df['Test Name'].str.contains(search, case=False, na=False)]
+    
+    if not results.empty:
+        for index, row in results.iterrows():
+            st.markdown(f"""
+                <div class="result-card">
+                    <h2 style="color: #007bff;">🧪 {row['Test Name']}</h2>
+                    <p style="font-size: 18px;">{row['Information']}</p>
+                </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.error("❌ ببورە، ئەم پشکنینە لە بنکەدراوەکەدا نییە.")
+else:
+    st.info("تکایە ناوی پشکنینەکە بنووسە بۆ نیشاندانی زانیارییەکان.")
+
+st.sidebar.write(f"کۆی پشکنینە بەردەستەکان: {len(df)}")
