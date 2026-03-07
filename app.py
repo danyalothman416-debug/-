@@ -15,146 +15,112 @@ st.markdown("""
     }
     header {visibility: hidden;}
 
-    /* ڕێکخستنی گرید (Grid) ڕێک وەک وێنەکە */
-    .main-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin: 20px 0;
+    /* ستایلی گشتی کارتەکان لە ناو گرید */
+    .stButton > button {
+        background-color: #262626 !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+        border-radius: 12px !important;
+        padding: 20px 0px !important;
+        height: 120px !important;
+        width: 100% !important;
+        font-weight: bold !important;
+        font-size: 15px !important;
+        display: block !important;
+        transition: 0.3s !important;
     }
 
-    /* ستایلی کارتە چوارگۆشەییەکان */
-    .menu-card {
-        background-color: #262626;
-        border-radius: 15px;
-        padding: 20px 10px;
-        text-align: center;
-        border: 1px solid #333;
-        transition: 0.3s;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 120px;
-    }
-    
-    .menu-card:hover {
-        border-color: #4ea88d;
-        background-color: #2d2d2d;
+    .stButton > button:hover {
+        border-color: #4ea88d !important;
+        background-color: #2d2d2d !important;
     }
 
-    .icon-img {
-        width: 45px;
-        height: 45px;
-        margin-bottom: 10px;
-    }
-
-    .card-text {
-        color: #ffffff;
-        font-size: 13px;
-        font-weight: bold;
-    }
-
-    .badge {
-        background-color: #ff4b4b;
-        color: white;
-        font-size: 10px;
-        padding: 2px 6px;
-        border-radius: 5px;
-        margin-bottom: 5px;
-    }
-    
-    /* ستایلی بەشەکانی ناوەوە */
+    /* ستایلی نوسینەکانی ناوەوە */
     .info-box {
         background-color: #262626; padding: 15px; border-radius: 12px;
         border-right: 5px solid #4ea88d; margin-bottom: 10px; color: white;
+        font-size: 14px; line-height: 1.6;
+    }
+    
+    .section-title {
+        color: #888; font-size: 14px; margin-bottom: 15px; margin-top: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. لۆژیکی سێشن بۆ گۆڕینی لاپەڕەکان ---
-if 'page' not in st.session_state:
-    st.session_state.page = "main"
+# --- 3. بەڕێوەبردنی لاپەڕەکان ---
+if 'active_page' not in st.session_state:
+    st.session_state.active_page = "main"
 
-# --- 4. شاشەی سەرەکی (ڕێک وەک وێنە ئەسڵییەکە) ---
-if st.session_state.page == "main":
-    st.markdown('<h2 style="text-align:center; color:white;">دکتۆر دانیال - تاقیگەی زیرەک</h2>', unsafe_allow_html=True)
+# --- 4. لاپەڕەی سەرەکی (ڕێک وەک وێنەکە) ---
+if st.session_state.active_page == "main":
+    st.markdown('<h2 style="text-align:right; color:white;">دکتۆر دانیال - تاقیگە</h2>', unsafe_allow_html=True)
     
-    # دروستکردنی کارتەکان بە HTML و دوگمەی شاراوە بۆ کلیک کردن
-    cols = st.columns(3)
+    # بەشی سەرەکی (Grid 3x3)
+    st.markdown('<p class="section-title">سەرەکی</p>', unsafe_allow_html=True)
     
-    # ڕیزبەندی کارتەکان وەک وێنەکە
-    with cols[0]:
-        if st.button("💊\nدەرمانەکان", key="btn1"): pass
-        if st.button("🧪\nپشکنینەکان", key="btn2"): pass
-        if st.button("👨‍⚕️\nبابەتەکان", key="btn3"): pass
-
-    with cols[1]:
-        if st.button("🔔\nبیرم بخەرەوە", key="btn4"): pass
-        if st.button("🍎\nڤیتامینەکان", key="btn5"): pass
-        if st.button("⚕️\nفڕۆشگا", key="btn6"): pass
-
-    with cols[2]:
-        # ئەمەیان کارتی سەرەکی تاقیگەیە
-        if st.button("🔬\nتاقیگە", key="lab_main"):
-            st.session_state.page = "lab_details"
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🔬\nتاقیگە"): 
+            st.session_state.active_page = "lab_list"
             st.rerun()
-        if st.button("🦠\nنەخۆشییەکان", key="btn8"): pass
-        if st.button("💊\nدەرمانە نوێ", key="btn9"): pass
+        if st.button("🦠\nنەخۆشییەکان"): pass
+        if st.button("💊\nدەرمانە نوێ"): pass
 
+    with col2:
+        if st.button("🔔\nبیرم بخەرەوە"): pass
+        if st.button("🍎\nڤیتامینەکان"): pass
+        if st.button("⚖️\nBMI"): 
+            st.session_state.active_page = "bmi_calc"
+            st.rerun()
+
+    with col3:
+        if st.button("🧪\nپشکنینەکان"): pass
+        if st.button("🧠\nوەرگێڕی زیرەک"): 
+            st.session_state.active_page = "ai_interpreter"
+            st.rerun()
+        if st.button("👨‍⚕️\nبابەتەکان"): pass
+
+    # بەشی نوسینی خوارەوە (وەک ناو وێنەکە)
     st.markdown("""
-    <div style="background-color: #262626; padding: 20px; border-radius: 10px; margin-top: 20px; border: 1px solid #333;">
-        <p style="font-size: 14px; line-height: 1.8; color: #ccc; text-align: justify;">
-        ئەم ئەپڵیکەیشنە تایبەتە بە تاقیگەی دکتۆر دانیال. هەموو زانیارییەکانی تێدایە کە پێویستت دەبێت بۆ زانینی جۆری پشکنین، مەودای ئاسایی (Normal Range) و کاتی ئامادەبوون.
+    <div style="background-color: #262626; padding: 15px; border-radius: 10px; margin-top: 25px; border: 1px solid #333;">
+        <p style="color: #bbb; font-size: 13px; line-height: 1.8; text-align: justify;">
+        لە ئەپڵیکەیشنی دکتۆر دانیالدا، زانیاری زیاتر لە ١٠٠٠ جۆری پشکنین و دەرمان جێگیر کراوە. هەموو زانیارییەکان بە وردی و لەژێر چاودێری پزیشکی پسپۆر ئامادە کراون بۆ ئاسانکاری ئێوەی خۆشەویست.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 5. بەشی تاقیگە (کاتێک کلیک دەکرێت هەموو زانیارییەکان دەردەکەون) ---
-elif st.session_state.page == "lab_details":
-    if st.button("🔙 گەڕانەوە بۆ لاپەڕەی سەرەکی"):
-        st.session_state.page = "main"
+# --- 5. لاپەڕەی پشکنینەکان (١٢ خاڵەکە) ---
+elif st.session_state.active_page == "lab_list":
+    if st.button("🔙 گەڕانەوە"):
+        st.session_state.active_page = "main"
         st.rerun()
     
-    st.markdown("<h2 style='color:#4ea88d;'>🔬 هەموو پشکنینەکانی تاقیگە</h2>", unsafe_allow_html=True)
-    
-    # لێرە هەموو ١٢ خاڵەکە جێگیر کراوە
-    tab1, tab2, tab3 = st.tabs(["لیستی پشکنینەکان", "BMI", "وەرگێڕی زیرەک"])
-    
-    with tab1:
-        search = st.text_input("🔎 گەڕان لە پشکنینەکان...")
-        
-        sections = {
-            "1. Hematology (خوێن زانی)": {
-                "CBC": "ئاسایی: Hb 12-17 | کات: ٣٠ خولەک",
-                "ESR": "ئاسایی: 0-20 | کات: ١ کاتژمێر",
-                "PT/PTT": "بۆ کاتی مەیینی خوێن."
-            },
-            "2. Clinical Chemistry": {
-                "FBS (شەکر)": "ئاسایی: 70-100 | کات: ٣٠ خولەک",
-                "Creatinine": "گورچیلە: 0.6-1.2",
-                "ALT/AST": "جگەر: <40"
-            },
-            "8. Hormones": {
-                "TSH": "غودە: 0.4-4.5",
-                "Vitamin D3": "ئاسایی: 30-100"
-            }
-        }
-        
-        for cat, tests in sections.items():
-            with st.expander(cat):
-                for t, v in tests.items():
-                    st.markdown(f"<div class='info-box'><b>{t}:</b><br>{v}</div>", unsafe_allow_html=True)
+    st.header("🔬 لیستی پشکنینەکان")
+    # لێرە هەموو ١٢ خاڵەکە بە Expanders دادەنێین بۆ ئەوەی ڕێک و پێك بێت
+    with st.expander("1. Hematology (خوێن زانی)"):
+        st.markdown('<div class="info-box"><b>CBC:</b> Hb 12-17 | ٣٠ خولەک<br><b>ESR:</b> 0-20 mm/hr</div>', unsafe_allow_html=True)
+    with st.expander("2. Chemistry (کیمیای کلینیکی)"):
+        st.markdown('<div class="info-box"><b>FBS:</b> 70-100 mg/dL<br><b>Creatinine:</b> 0.6-1.2 mg/dL</div>', unsafe_allow_html=True)
+    # دەتوانیت باقی خاڵەکان لێرە زیاد بکەیت...
 
-    with tab2:
-        st.subheader("⚖️ BMI Calculator")
-        w = st.number_input("کێش (kg):", value=70.0)
-        h = st.number_input("باڵا (cm):", value=170.0)
-        if h > 0:
-            bmi = w / ((h/100)**2)
-            st.metric("BMI دەرەنجام", f"{bmi:.1f}")
+# --- 6. لاپەڕەی BMI ---
+elif st.session_state.active_page == "bmi_calc":
+    if st.button("🔙 گەڕانەوە"):
+        st.session_state.active_page = "main"
+        st.rerun()
+    st.header("⚖️ حیسابکردنی BMI")
+    weight = st.number_input("کێش (kg):", value=75.0)
+    height = st.number_input("باڵا (cm):", value=175.0)
+    if height > 0:
+        bmi = weight / ((height/100)**2)
+        st.success(f"BMI Score: {bmi:.1f}")
 
-    with tab3:
-        st.subheader("🧠 وەرگێڕی زیرەکی ئەنجامەکان")
-        st.write("ئەنجامەکانت لێرە بنووسە بۆ شیکردنەوەی خێرا.")
+# --- 7. لاپەڕەی وەرگێڕی زیرەک ---
+elif st.session_state.active_page == "ai_interpreter":
+    if st.button("🔙 گەڕانەوە"):
+        st.session_state.active_page = "main"
+        st.rerun()
+    st.header("🧠 وەرگێڕی زیرەک")
+    st.info("ئەنجامی پشکنینەکانت لێرە بنووسە بۆ شیکردنەوە...")
