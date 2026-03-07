@@ -14,102 +14,127 @@ st.markdown("""
         font-family: 'Vazirmatn', sans-serif;
     }
     header {visibility: hidden;}
-    .main-grid {
-        display: grid; grid-template-columns: repeat(3, 1fr);
-        gap: 12px; padding: 10px;
+    
+    /* ستایلی دوگمەکان وەک کارت */
+    .stButton>button {
+        background-color: #262626 !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+        border-radius: 15px !important;
+        padding: 25px 10px !important;
+        font-size: 15px !important;
+        font-weight: bold !important;
+        width: 100% !important;
+        transition: 0.3s !important;
+        line-height: 1.5 !important;
     }
-    .menu-card {
-        background-color: #262626; border-radius: 15px;
-        padding: 20px 10px; text-align: center;
-        border: 1px solid #333; transition: 0.3s; color: white;
+    .stButton>button:hover {
+        border-color: #4ea88d !important;
+        background-color: #333 !important;
     }
-    .icon-container { font-size: 30px; margin-bottom: 8px; display: block; }
-    .card-text { font-size: 13px; font-weight: bold; }
-    h2, p, label, .stMarkdown { color: white !important; }
-    .stButton>button { width: 100%; background-color: #262626; color: white; border: 1px solid #4ea88d; }
+    
+    .info-box {
+        background-color: #262626; padding: 15px; border-radius: 12px;
+        border-right: 5px solid #4ea88d; margin-bottom: 10px; color: white;
+    }
+    h2, h3, p, label { color: white !important; }
+    .test-title { color: #4ea88d; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. بنکەدراوەی تەواوەتی پشکنینەکان ---
-full_data = {
-    "Hematology": {
-        "CBC": "پشکنینی گشتی خوێن. | ئاسایی: Hb 12-17 | کات: ٣٠ خولەک",
-        "ESR": "هەوکردنی گشتی. | ئاسایی: 0-20 | کات: ١ کاتژمێر",
-        "PT/PTT": "مەیینی خوێن. | کات: ١ کاتژمێر",
-        "PCV": "چڕی خوێن. | ئاسایی: 37-52%"
-    },
-    "Chemistry": {
-        "FBS": "شەکری بەڕۆژوو. | ئاسایی: 70-100 | کات: ٣٠ خولەک",
-        "Creatinine": "گورچیلە. | ئاسایی: 0.6-1.2 | کات: ١ کاتژمێر",
-        "ALT/AST": "جگەر. | ئاسایی: <40 | کات: ١ کاتژمێر",
-        "Lipids": "چەورییەکان. | ئاسایی: Chol <200"
-    }
-}
-
-# --- 4. سەردێڕ ---
+# --- 3. سەردێڕ ---
 st.markdown('<h2 style="text-align:right;">🏥 دکتۆر دانیال - تاقیگە</h2>', unsafe_allow_html=True)
 
-# --- 5. دروستکردنی گریدەکە (کارتەکان) ---
-# بەکارهێنانی دوگمە بۆ ئەوەی هەر کارتێک کار بکات
+# --- 4. دروستکردنی کارتەکان (3x3 Grid) ---
 col1, col2, col3 = st.columns(3)
+
 with col1:
-    btn_hem = st.button("🔬\nHematology")
-    btn_path = st.button("🧫\nPathology")
-    btn_bmi = st.button("⚖️\nBMI Calc")
+    btn_lab = st.button("🔬\nتاقیگە\n(پشکنینەکان)")
+    btn_bmi = st.button("⚖️\nکێشی گونجاو\n(BMI)")
+    btn_new_meds = st.button("💊\nدەرمانە\nنوێیەکان")
+
 with col2:
-    btn_chem = st.button("🧪\nChemistry")
-    btn_horm = st.button("⚠️\nHormones")
-    btn_ai = st.button("🧠\nAI Interpreter")
+    btn_ai = st.button("🧠\nوەرگێڕی\nزیرەک")
+    btn_vit = st.button("🍎\nڤیتامینەکان\n(بەردەستە)")
+    btn_tracker = st.button("📊\nچاودێری\nئەنجامەکان")
+
 with col3:
-    btn_micro = st.button("🦠\nMicrobiology")
-    btn_symp = st.button("🩺\nSymptom")
-    btn_guide = st.button("📲\nDownload App")
+    btn_guide = st.button("📋\nڕێنمایی\nپێش پشکنین")
+    btn_symp = st.button("🩺\nنیشانە و\nپشکنین")
+    btn_app = st.button("📲\nدابەزاندنی\nئەپ")
 
 st.divider()
 
-# --- 6. لۆژیکی کارکردنی کارتەکان (بێ کەمکردنەوەی زانیاری) ---
+# --- 5. بنکەدراوەی پشکنینەکان (١٢ خاڵەکە لێرەدا کۆکراوەتەوە) ---
+full_lab_data = {
+    "1. Hematology": {
+        "CBC": "Hb, WBC, RBC, Plt. | ئاسایی: Hb 12-17 | کات: ٣٠ خولەک",
+        "ESR": "نیشاندەری هەوکردن. | ئاسایی: 0-20 | کات: ١ کاتژمێر",
+        "PT & PTT": "مەیینی خوێن. | ئاسایی: PT 11-13s | کات: ١ کاتژمێر",
+        "PCV": "چڕی خوێن. | ئاسایی: 37-52% | کات: ٣٠ خولەک"
+    },
+    "2. Clinical Chemistry": {
+        "Blood Sugar (FBS)": "شەکری بەڕۆژوو. | ئاسایی: 70-100 | کات: ٣٠ خولەک",
+        "Creatinine": "فرمانی گورچیلە. | ئاسایی: 0.6-1.2 | کات: ١ کاتژمێر",
+        "ALT & AST": "ئەنزیمەکانی جگەر. | ئاسایی: <40 | کات: ١ کاتژمێر",
+        "Lipid Profile": "چەوری خوێن. | ئاسایی: Chol <200 | کات: ٢ کاتژمێر"
+    },
+    "3. Microbiology": {"Urine Culture": "کات: ٣ ڕۆژ", "GSE": "پیسایی گشتی. | ٣٠ خولەک"},
+    "4. Urinalysis": {"GUE": "میزی گشتی. | کات: ٣٠ خولەک"},
+    "5. Serology": {"CRP": "هەوکردن. | ئاسایی: <6", "Widal": "تیفۆید. | <1/80"},
+    "6. Tumor Markers": {"PSA": "پڕۆستات. | <4 ng/ml", "CA-125": "هێلکەدان. | <35"},
+    "7. Molecular": {"PCR": "ڤایرۆسەکان. | کات: ٢ ڕۆژ"},
+    "8. Hormones": {"TSH": "غودە. | 0.4-4.5", "Vit D3": "ڤیتامین. | 30-100"}
+}
 
-if btn_hem:
-    st.subheader("🔬 بەشی Hematology")
-    for t, v in full_data["Hematology"].items():
-        st.markdown(f"**{t}**: {v}")
+# --- 6. لۆژیکی کارکردنی کارتەکان ---
 
-elif btn_chem:
-    st.subheader("🧪 بەشی Clinical Chemistry")
-    for t, v in full_data["Chemistry"].items():
-        st.markdown(f"**{t}**: {v}")
+# ئەگەر کلیکی لەسەر تاقیگە کرد (هەموو پشکنینەکان)
+if btn_lab:
+    st.subheader("🔬 هەموو بەشەکانی تاقیگە")
+    search = st.text_input("🔎 گەڕان لە ناو پشکنینەکان...")
+    for cat, tests in full_lab_data.items():
+        with st.expander(cat):
+            for t_name, t_cont in tests.items():
+                st.markdown(f'<div class="info-box"><span class="test-title">🧪 {t_name}</span><br>{t_cont}</div>', unsafe_allow_html=True)
 
+# ئەگەر کلیکی لەسەر BMI کرد
 elif btn_bmi:
     st.subheader("⚖️ BMI Calculator")
     w = st.number_input("کێش (kg):", value=70.0)
     h = st.number_input("باڵا (cm):", value=170.0)
     if h > 0:
         bmi = w / ((h/100)**2)
-        st.success(f"BMI Score: {bmi:.1f}")
+        st.success(f"دەرەنجام: {bmi:.1f}")
         if bmi < 18.5: st.warning("کێشت کەمە")
         elif bmi < 25: st.info("کێشت ئاساییە")
         else: st.error("کێشت زیادەیە")
 
+# ئەگەر کلیکی لەسەر وەرگێڕی زیرەک کرد
 elif btn_ai:
-    st.subheader("🧠 وەرگێڕی زیرەک")
-    test_sel = st.selectbox("پشکنین:", ["FBS", "Hb"])
-    val = st.number_input("ئەنجامەکە:")
+    st.subheader("🧠 وەرگێڕی زیرەکی ئەنجامەکان")
+    test_type = st.selectbox("پشکنین:", ["شەکری بەڕۆژوو (FBS)", "S. Creatinine", "Hemoglobin (Hb)"])
+    val = st.number_input("ئەنجامەکە بنووسە:", value=0.0)
     if val > 0:
-        if test_sel == "FBS" and val > 100: st.error("بەرزە")
-        elif test_sel == "Hb" and val < 12: st.error("کەمخوێنی")
-        else: st.success("ئاساییە")
+        if test_type == "شەکری بەڕۆژوو (FBS)":
+            if val <= 100: st.success("ئاساییە")
+            else: st.error("بەرزە")
 
-elif btn_symp:
-    st.subheader("🩺 ڕێبەری نیشانەکان")
-    sym = st.selectbox("نیشانە:", ["ماندوێتی", "ئازاری جومگە"])
-    if sym == "ماندوێتی": st.info("پشکنین: CBC, Ferritin, Vit D3, TSH")
-
+# ئەگەر کلیکی لەسەر ڕێنماییەکان کرد
 elif btn_guide:
-    st.subheader("📲 دابەزاندنی ئەپ")
-    st.write("لەسەر ئایفۆن Share و پاشان Add to Home Screen دابگرە.")
+    st.subheader("📋 ڕێنماییەکانی پێش پشکنین")
+    st.markdown('<div class="info-box">١. بەڕۆژووبوون بۆ شەکرە و چەوری.<br>٢. ئاگادارکردنەوە لە دەرمانەکان.</div>', unsafe_allow_html=True)
 
-# ئەگەر هیچیان کلیک نەکرابوو، بەشی گەڕانەکە نیشان بدە
-if not (btn_hem or btn_chem or btn_bmi or btn_ai or btn_symp or btn_guide):
-    search = st.text_input("🔎 گەڕانی خێرا لە پشکنینەکان...")
-    if search:
-        st.write(f"ئەنجامی گەڕان بۆ: {search}")
+# ئەگەر کلیکی لەسەر نیشانەکان کرد
+elif btn_symp:
+    st.subheader("🩺 پشکنین بەپێی نیشانەکان")
+    sym = st.selectbox("نیشانە:", ["ماندوێتی زۆر", "کێشەی هەرس"])
+    if sym == "ماندوێتی زۆر": st.info("پێشنیار: CBC, TSH, Vit D3")
+
+# ئەگەر کلیکی لەسەر دابەزاندن کرد
+elif btn_app:
+    st.subheader("📲 دابەزاندنی ئەپ")
+    st.write("لە وێبگەڕەکەتدا Add to Home Screen دابگرە.")
+
+# --- بەشی خوارەوە ---
+st.markdown('<p style="text-align:center; font-size:12px; color:#666;">هەموو مافێکی پارێزراوە بۆ دکتۆر دانیال</p>', unsafe_allow_html=True)
