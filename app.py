@@ -8,15 +8,13 @@ if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
 
 with st.sidebar:
-    st.markdown('<h3 style="text-align:right;">⚙️</h3>', unsafe_allow_html=True)
-    
+    st.markdown('<h3 style="text-align:right;">⚙️ Settings</h3>', unsafe_allow_html=True)
     st.markdown("""
         <style>
         div[data-testid="stCheckbox"] p { font-size: 0px !important; }
         div[data-testid="stCheckbox"] { width: fit-content !important; margin-left: auto !important; }
         </style>
     """, unsafe_allow_html=True)
-
     mode = st.toggle("🌙", value=st.session_state.dark_mode)
     st.session_state.dark_mode = mode
 
@@ -35,10 +33,9 @@ st.markdown(f"""
         background-color: {bg_color}; color: {text_color} !important;
     }}
     p, span, label, div {{ color: {text_color} !important; }}
-    .stTextInput input, .stNumberInput input {{ 
+    .stTextInput input, .stNumberInput input, .stSelectbox [data-testid="stMarkdownContainer"] p {{ 
         direction: rtl; text-align: right; font-size: 18px !important;
         background-color: {input_bg} !important; color: {text_color} !important;
-        border: 2px solid #3e7e69 !important;
     }}
     .info-box {{ 
         padding: 15px; border-radius: 12px; background-color: {card_bg}; 
@@ -58,103 +55,59 @@ st.markdown('<p style="text-align:center; color:#888; font-size: 14px; margin-bo
 st.markdown(f'<h1 style="text-align:center; margin-top:0; color:#3e7e69;">🏥 ڕێبەری گشتگیری تاقیگە</h1>', unsafe_allow_html=True)
 
 # --- 5. بەشی گەڕان ---
-search_query = st.text_input("🔎 ناوی پشکنین بنووسە بۆ گەڕان...")
+search_query = st.text_input("🔎 گەڕان بۆ هەر شتێک...")
 
-# --- 6. بنکەدراوەی پشکنینەکان ---
+# --- 6. بنکەدراوەی پشکنینەکان (١ تا ٨) ---
 full_lab_data = {
-    "1. Hematology (خوێن زانی)": {
-        "CBC": "پشکنینی گشتی خوێن بۆ Hb, WBC, RBC, Plt.",
-        "ESR": "ڕێژەی نیشتنی خڕۆکە سوورەکان بۆ زانینی هەوکردن.",
-        "PT & PTT": "بۆ کاتی مەیینی خوێن.",
-        "PCV": "ڕێژەی قەبارەی خڕۆکە سوورەکان.",
-        "Reticulocyte Count": "بۆ زانینی ڕێژەی بەرهەمهێنانی خڕۆکە سوورە نوێیەکان."
-    },
-    "2. Clinical Chemistry": {
-        "Blood Sugar (FBS/HbA1c)": "شەکری بەڕۆژوو و تێکڕای ٣ مانگ.",
-        "ALT & AST": "ئەنزیمەکانی جگەر.",
-        "Creatinine & Urea": "پشکنینی سەرەکی بۆ توانای گورچیلەکان.",
-        "Lipid Profile": "Cholesterol, TG, HDL, LDL بۆ چەوری خوێن.",
-        "S.Calcium": "پشکنینی کالسیۆم بۆ تەندروستی ئێسک.",
-        "S.Uric Acid": "بۆ زانینی ئاستی یوریک ئەسید و نەخۆشی جومگە.",
-        "Bilirubin (T/D)": "پشکنینی زەردەویی."
-    },
-    "3. Microbiology": {
-        "Urine Culture": "چاندنی میز بۆ دۆزینەوەی باکتریای زیانبەخش.",
-        "Antibiogram": "دیاریکردنی دژەباکتریای گونجاو.",
-        "GSE (Stool Exam)": "پشکنینی گشتی پیسایی."
-    },
-    "4. Urinalysis": {
-        "General Urine (U/A)": "پشکنینی گشتی میز بۆ بینینی شەکر، پڕۆتین، کێم."
-    },
-    "5. Serology & Immunology": {
-        "CRP Test": "لە کاتی هەوکردندا بەرز دەبێتەوە.",
-        "Widal Test": "بۆ تای تیفۆید.",
-        "HBsAg & HCV": "ڤایرۆسی جگەری B و C.",
-        "Toxoplasmosis": "نەخۆشی پشیلە.",
-        "RF & Anti-CCP": "بۆ ڕۆماتیزمی جومگەکان."
-    },
-    "6. Pathology (Tumor Markers)": {
-        "PSA": "بۆ پڕۆستات.",
-        "CA-125": "بۆ هێلکەدان.",
-        "AFP": "بۆ شێرپەنجەی جگەر.",
-        "CEA": "بۆ شێرپەنجەی کۆڵۆن."
-    },
-    "7. Molecular & Viral": {
-        "PCR Test": "بۆ دەستنیشانکردنی وردی ڤایرۆسەکان.",
-        "Karyotyping": "پشکنینی کرۆمۆسۆمەکان.",
-        "ANA": "بۆ نەخۆشییەکانی بەرگری جەستە."
-    },
-    "8. Endocrinology & Hormones (هۆرمۆنەکان)": {
-        "Thyroid Profile (TSH, T3, T4)": "بۆ فرمانی ڕژێنە دەرەقییەکان.",
-        "Vitamin D3": "ڤیتامین D بۆ ئێسک و بەرگری.",
-        "Prolactin": "هۆرمۆنی شیر.",
-        "Testosterone": "هۆرمۆنی نێرینە.",
-        "Insulin Test": "بۆ بەرگری ئەنسۆلین.",
-        "Cortisol": "هۆرمۆنی سترێس."
-    }
+    "1. Hematology": {"CBC": "پشکنینی گشتی خوێن.", "ESR": "نیشاندەری هەوکردن.", "PT & PTT": "مەیینی خوێن.", "PCV": "چڕی خوێن.", "Reticulocyte": "بەرهەمهێنانی خوێن."},
+    "2. Clinical Chemistry": {"Blood Sugar": "شەکرە.", "ALT & AST": "جگەر.", "Creatinine": "گورچیلە.", "Lipids": "چەوری.", "S.Calcium": "کالسیۆم.", "Uric Acid": "جومگە."},
+    "3. Microbiology": {"Culture": "چاندنی میز.", "Antibiogram": "دژەباکتریا."},
+    "4. Urinalysis": {"GUE": "پشکنینی گشتی میز."},
+    "5. Serology": {"CRP": "هەوکردن.", "Widal": "تیفۆید.", "Hormones": "ڤایرۆسەکان."},
+    "6. Pathology": {"Tumors": "PSA, CA-125, AFP."},
+    "7. Molecular": {"PCR": "ڤایرۆسەکان."},
+    "8. Hormones": {"Thyroid": "TSH.", "Vitamin D3": "ڤیتامین D."}
 }
 
-# --- 7. ئەنجامی گەڕان ---
+# --- ئەنجامی گەڕان ---
 if search_query:
-    found = False
     for cat, tests in full_lab_data.items():
         for t_name, t_cont in tests.items():
             if search_query.lower() in t_name.lower():
-                st.markdown(f'<div class="info-box"><span class="test-title">🧪 {t_name} ({cat})</span><br>{t_cont}</div>', unsafe_allow_html=True)
-                found = True
-    if not found:
-        st.warning("ئەم پشکنینە نەدۆزرایەوە.")
+                st.markdown(f'<div class="info-box">🧪 {t_name}: {t_cont}</div>', unsafe_allow_html=True)
 
-# --- 8. نیشاندانی لیستەکان (خاڵی 1 تا 8) ---
+# --- نیشاندانی لیستەکان ---
 for category, tests in full_lab_data.items():
     with st.expander(category):
-        for test_name, content in tests.items():
-            st.markdown(f'<span class="test-title">🧪 {test_name}</span>', unsafe_allow_html=True)
-            st.markdown(f'<div class="info-box">{content}</div>', unsafe_allow_html=True)
+        for t_name, t_cont in tests.items():
+            st.markdown(f'<p class="test-title">🧪 {t_name}</p><div class="info-box">{t_cont}</div>', unsafe_allow_html=True)
 
-# --- 9. خاڵی نۆیەم: BMI Calculator ---
-with st.expander("9. BMI Calculator (دیاریکردنی کێشی گونجاو)"):
-    st.markdown('<div class="info-box">ئەم بەشە بەکارهێنەر دەتوانێت کێش و باڵای خۆی تێدا تاقی بکاتەوە بۆ زانینی تەندروستی کێشی.</div>', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        weight = st.number_input("کێش (kg):", min_value=1.0, value=70.0, step=0.1)
-    with col2:
-        height = st.number_input("باڵا (cm):", min_value=50.0, value=170.0, step=0.1)
-    if height > 0:
-        bmi = weight / ((height/100) ** 2)
-        st.markdown(f"### **BMI دەرەنجام: {bmi:.1f}**")
-        if bmi < 18.5: st.error("⚠️ کێشت کەمە")
-        elif 18.5 <= bmi < 25: st.success("✅ کێشت گونجاوە")
-        elif 25 <= bmi < 30: st.warning("🟠 کێشت زیادە")
-        else: st.error("🔴 قەڵەوی")
+# --- 9. BMI ---
+with st.expander("9. BMI Calculator"):
+    w = st.number_input("کێش (kg):", value=70.0)
+    h = st.number_input("باڵا (cm):", value=170.0)
+    if h > 0:
+        res = w / ((h/100)**2)
+        st.write(f"BMI: {res:.1f}")
 
-# --- 10. خاڵی دەیەم: ڕێنماییەکانی پێش پشکنین ---
+# --- 10. ڕێنماییەکان ---
+with st.expander("10. ڕێنماییەکانی پێش پشکنین"):
+    st.write("بەڕۆژووبوون، دەرمان، و کاتی پشکنین گرنگن.")
 
-with st.expander("10. ڕێنماییەکانی پێش پشکنین (Pre-test Instructions)"):
-    st.markdown('<div class="info-box">لێرەدا گرنگترین ئەو ڕێنماییانە دەبینیت کە پێویستە پێش ئەنجامدانی پشکنینەکان پەیڕەو بکرێن بۆ دەستکەوتنی وردترین ئەنجام.</div>', unsafe_allow_html=True)
-    st.markdown("""
-    - **بەڕۆژوو بوون (Fasting):** بۆ پشکنینەکانی شەکرە (8-10 کاتژمێر) و چەوری خوێن (12-14 کاتژمێر) پێویستە.
-    - **دەرمان:** ئاگادارکردنەوەی پزیشک یان تاقیگە لەو دەرمانانەی کە بەکاری دەهێنیت.
-    - **کات:** هەندێک پشکنینی هۆرمۆن پێویستە لە کاتژمێرەکانی سەرەتای بەیانی ئەنجام بدرێن.
-    - **وەرزش:** پێش پشکنینی پڕۆستات (PSA) یان هەندێک ئەنزیم، پێویستە بۆ ماوەی 24 کاتژمێر وەرزشی قورس نەکرێت.
-    """)
+# --- 11. وەرگێڕی زیرەک (Professional Feature) ---
+with st.expander("11. وەرگێڕی زیرەکی ئەنجامەکان (AI Interpreter)"):
+    st.markdown('<div class="info-box">جۆری پشکنینەکە هەڵبژێرە و ژمارەی ئەنجامەکە بنووسە:</div>', unsafe_allow_html=True)
+    test_type = st.selectbox("پشکنین:", ["شەکری بەڕۆژوو (FBS)", "S. Creatinine", "Hemoglobin (Hb)"])
+    val = st.number_input("ئەنجامەکە بنووسە:", value=0.0)
+    
+    if val > 0:
+        if test_type == "شەکری بەڕۆژوو (FBS)":
+            if val < 70: st.error("📉 نزمە (Hypoglycemia)")
+            elif val <= 100: st.success("✅ ئاساییە")
+            else: st.error("📈 بەرزە (Hyperglycemia)")
+        elif test_type == "S. Creatinine":
+            if val <= 1.3: st.success("✅ فرمانی گورچیلە ئاساییە")
+            else: st.error("⚠️ ئەنجامەکە بەرزە - پێویستی بە ڕاوێژی پزیشکە")
+        elif test_type == "Hemoglobin (Hb)":
+            if val < 12: st.error("🩸 کەمخوێنی (Anemia)")
+            else: st.success("✅ ئاستی خوێن ئاساییە")
