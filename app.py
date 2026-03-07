@@ -124,3 +124,11 @@ for category, tests in full_lab_data.items():
         for test_name, content in tests.items():
             st.markdown(f'<span class="test-title">🧪 {test_name}</span>', unsafe_allow_html=True)
             st.markdown(f'<div class="info-box">{content}</div>', unsafe_allow_html=True)
+    "8. Endocrinology & Hormones (هۆرمۆنەکان)": {
+        "Thyroid Profile (TSH, T3, T4)": "بۆ زانینی فرمانی ڕژێنە دەرەقییەکان و دەستنیشانکردنی تەمەڵی یان چالاکبوونی زۆری ڕژێنەکە.",
+        "Vitamin D3": "پشکنینی ئاستی ڤیتامین D، گرنگ بۆ تەندروستی ئێسک و بەرگری جەستە.",
+        "Prolactin": "هۆرمۆنی شیر، بەرزبوونی دەبێتە هۆی کێشە لە سوڕی مانگانە و منداڵبوون.",
+        "Testosterone": "هۆرمۆنی نێرینە، گرنگە بۆ زانینی توانای سێکسی و گەشەی ماسولکەکان.",
+        "Insulin Test": "بۆ زانینی بڕی هۆرمۆنی ئەنسۆلین و دیاریکردنی بەرگری ئەنسۆلین (Insulin Resistance).",
+        "Cortisol": "هۆرمۆنی سترێس، بۆ زانینی فرمانی ڕژێنی سەر گورچیلە بەکاردێت."
+    }
