@@ -2,27 +2,27 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
+import urllib.parse
 
-# ---------- ڕێکخستنی لاپەڕە ----------
+# Page config
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
-# ---------- Sidebar ----------
+# Sidebar
 with st.sidebar:
     st.title("📦 سیستەمی گەیاندنی کەرکوک")
     st.info("سیستەمی زیرەکی گەیاندنی وەسڵەکان لە کەرکوک")
 
-# ---------- بنکەی داتا ----------
+# Database
 if "deliveries" not in st.session_state:
     st.session_state.deliveries = []
 
-# ---------- سەردێڕ ----------
+# Title
 st.title("📦 سیستەمی گەیاندنی کەرکوک")
 
-# ---------- زیادکردنی وەسڵ ----------
+# Add Delivery
 with st.expander("➕ زیادکردنی وەسڵ"):
 
     with st.form("delivery_form"):
-
         col1, col2 = st.columns(2)
 
         with col1:
@@ -32,30 +32,8 @@ with st.expander("➕ زیادکردنی وەسڵ"):
 
         with col2:
             phone = st.text_input("ژمارەی مۆبایل")
-
-            st.markdown("**لە ماپەکە کلیک بکە بۆ دیاری کردنی شوێن**")
-            
-            # دروستکردنی Map بۆ کلیک
-            m_select = folium.Map(location=[35.4676,44.3921], zoom_start=13)
-
-            # Marker پێشتر
-            if 'click_location' in st.session_state:
-                folium.Marker(
-                    st.session_state.click_location,
-                    tooltip="شوێنی دیاری کراو",
-                    icon=folium.Icon(color='blue', icon='map-marker', prefix='fa')
-                ).add_to(m_select)
-
-            # نمایش Map و گرتنی کلیک
-            map_data = st_folium(m_select, height=300, width=500, returned_objects=["last_clicked"])
-
-            if map_data and map_data["last_clicked"]:
-                lat = map_data["last_clicked"]["lat"]
-                lon = map_data["last_clicked"]["lng"]
-                st.session_state.click_location = (lat, lon)
-            else:
-                lat = 35.4676
-                lon = 44.3921
+            lat = st.number_input("Latitude", value=35.4676, format="%.6f")
+            lon = st.number_input("Longitude", value=44.3921, format="%.6f")
 
         submit = st.form_submit_button("زیادکردنی وەسڵ")
 
@@ -70,7 +48,7 @@ with st.expander("➕ زیادکردنی وەسڵ"):
             })
             st.success("وەسڵ بە سەرکەوتوویی زیادکرا ✅")
 
-# ---------- Map ----------
+# Map
 if st.session_state.deliveries:
 
     st.subheader("🗺 نەخشەی گەیاندن (کەرکوک)")
@@ -78,12 +56,17 @@ if st.session_state.deliveries:
     m = folium.Map(location=[35.4676,44.3921], zoom_start=13, tiles="OpenStreetMap")
 
     for d in st.session_state.deliveries:
+        # Google Maps Link
+        query = urllib.parse.quote(f"{d['lat']},{d['lon']}")
+        gmaps_url = f"https://www.google.com/maps/dir/?api=1&destination={query}"
+
         folium.Marker(
             [d["lat"], d["lon"]],
             popup=f"""
             کڕیار: {d['کڕیار']} <br>
             دوکان: {d['دوکان']} <br>
-            نرخ: {d['نرخ']}
+            نرخ: {d['نرخ']} <br>
+            <a href="{gmaps_url}" target="_blank">🔗 لێرە کرتە بکە بۆ ڕێگای گەیاندن</a>
             """,
             tooltip=d["کڕیار"],
             icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
