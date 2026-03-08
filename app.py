@@ -3,29 +3,24 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-# Page
+# ---------- Page ----------
 st.set_page_config(page_title="Kirkuk Delivery", layout="wide")
 
-# Sidebar
+# ---------- Sidebar ----------
 with st.sidebar:
-    st.title("Kirkuk Delivery")
+    st.title("📦 Kirkuk Delivery System")
+    st.info("Smart delivery system for Kirkuk")
+    # هیچ ناو و ناوی کەس نەهاتووە، پاککراوە
 
-    st.write("Owner: Danyal")
-    st.write("Driver: Ali")
-
-    st.divider()
-
-    st.caption("Smart Delivery System")
-
-# Database
+# ---------- Database ----------
 if "deliveries" not in st.session_state:
     st.session_state.deliveries = []
 
-# Title
-st.title("Kirkuk Delivery System")
+# ---------- Title ----------
+st.title("📦 Kirkuk Delivery System")
 
-# Add delivery
-with st.expander("Add Delivery"):
+# ---------- Add Delivery ----------
+with st.expander("➕ Add Delivery"):
 
     with st.form("delivery_form"):
 
@@ -38,10 +33,10 @@ with st.expander("Add Delivery"):
 
         with col2:
             phone = st.text_input("Phone")
-            lat = st.number_input("Latitude", value=35.4676)
-            lon = st.number_input("Longitude", value=44.3921)
+            lat = st.number_input("Latitude", value=35.4676, format="%.6f")
+            lon = st.number_input("Longitude", value=44.3921, format="%.6f")
 
-        submit = st.form_submit_button("Add")
+        submit = st.form_submit_button("Add Delivery")
 
         if submit:
             st.session_state.deliveries.append({
@@ -52,34 +47,31 @@ with st.expander("Add Delivery"):
                 "lat": lat,
                 "lon": lon
             })
+            st.success("Delivery added successfully ✅")
 
-            st.success("Delivery Added")
-
-# Map
+# ---------- Map ----------
 if st.session_state.deliveries:
 
-    st.subheader("Delivery Map")
+    st.subheader("🗺 Delivery Map")
 
     m = folium.Map(location=[35.4676,44.3921], zoom_start=12)
 
     for d in st.session_state.deliveries:
-
         folium.Marker(
             [d["lat"], d["lon"]],
             popup=f"{d['Customer']} - {d['Price']}",
+            tooltip=d["Customer"]
         ).add_to(m)
 
     st_folium(m, height=500)
 
-    st.subheader("Delivery List")
-
+    st.subheader("📋 Delivery List")
     df = pd.DataFrame(st.session_state.deliveries)
-
     st.dataframe(df, use_container_width=True)
 
-    if st.button("Delete All"):
+    if st.button("🗑 Delete All Deliveries"):
         st.session_state.deliveries = []
-        st.rerun()
+        st.experimental_rerun()
 
 else:
     st.info("No deliveries yet")
