@@ -25,6 +25,13 @@ st.markdown("""
         margin-bottom: 20px;
         background-color: #e1f5fe;
     }
+    /* جێگیرکردنی ژمارەکان بۆ ئەوەی عەکس نەبنەوە */
+    .phone-number {
+        direction: ltr !important;
+        display: inline-block;
+        unicode-bidi: embed;
+        font-family: sans-serif;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -89,12 +96,12 @@ else:
             phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
             address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
         
-        # --- ژمارە تەلەفۆنەکان لێرەدا ڕێک لە ناو فۆرمەکە دانراون ---
+        # لێرەدا ژمارەکانم بە ستایلی ltr جێگیر کردووە بۆ ئەوەی عەکس نەبنەوە
         st.markdown("""
             <div class="phone-box">
                 <p style="margin:0; color:#0d47a1; font-weight:bold;">بۆ پەیوەندی و زانیاری زیاتر:</p>
-                <b style="font-size: 22px; color: #1565c0;">0772 195 9922</b><br>
-                <b style="font-size: 22px; color: #1565c0;">0780 135 2003</b>
+                <span class="phone-number" style="font-size: 22px; color: #1565c0; font-weight: bold;">0772 195 9922</span><br>
+                <span class="phone-number" style="font-size: 22px; color: #1565c0; font-weight: bold;">0780 135 2003</span>
             </div>
         """, unsafe_allow_html=True)
         
