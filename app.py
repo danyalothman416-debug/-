@@ -15,8 +15,7 @@ st.markdown("""
     }
     .stButton>button {
         width: 100%;
-        font-size: 20px !important;
-        height: 50px;
+        font-size: 18px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -32,20 +31,18 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. شریتی لای ڕاست ---
-if "auth" not in st.session_state:
-    st.session_state.auth = False
+# --- 2. لۆژیکی گەڕانەوە ---
+# ئەگەر دوگمەی گەڕانەوە داگیرا، هەموو شتێک سفر بکەرەوە
+if "back_to_home" in st.session_state and st.session_state.back_to_home:
+    st.session_state.clear() # پاککردنەوەی هەموو داتاکان بۆ گەڕانەوەی ڕاستەقینە
+    st.rerun()
 
+# --- 3. شریتی لای ڕاست ---
 with st.sidebar:
-    # ئەگەر دوگمەی گەڕانەوە داگیرا، ئەم خانەیە بەتاڵ دەبێتەوە
-    pwd_input = st.text_input("", type="password", placeholder="...", key="admin_pwd")
-    if pwd_input == ADMIN_PASSWORD:
-        st.session_state.auth = True
-    else:
-        st.session_state.auth = False
+    password = st.text_input("", type="password", placeholder="...", key="admin_pwd_main")
 
-# --- 3. لاپەڕەی سەرەکی ---
-if st.session_state.auth:
+# --- 4. لاپەڕەی سەرەکی ---
+if password == ADMIN_PASSWORD:
     st.header("👨‍⚕️ بەشی بەڕێوەبەر")
     df_to_show = load_data()
     
@@ -63,18 +60,14 @@ if st.session_state.auth:
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
     else:
-        # --- ئەم بەشە ڕێک ئەوەیە کە جەنابت داوات کردووە ---
         st.warning("⚠️ هیچ وەسڵێک لە لیستدا نەماوە.")
         
-        # دروستکردنی دوگمەی گەڕانەوە بە شێوەیەکی زەق
-        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی (تۆمارکردنی وەسڵ)"):
-            # شاردنەوەی بەشی ئەدمین بە گۆڕینی ستەیت
-            st.session_state.auth = False
-            st.info("تکایە کۆدەکە لە لای ڕاست بسڕەوە بۆ بینینی فۆرمەکە.")
+        # ئەم دوگمەیە ئیستا کار دەکات چونکە هەموو "ستەیتەکە" پاک دەکاتەوە
+        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
+            st.session_state.back_to_home = True
             st.rerun()
 
 else:
-    # لاپەڕەی فۆرمی وەسڵ (ئەوەی کڕیارەکان دەیبینن)
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
