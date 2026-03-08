@@ -3,14 +3,9 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-# --- Page config with title + icon ---
-st.set_page_config(
-    page_title="سیستەمی گەیاندنی کەرکوک",
-    page_icon="🚚",
-    layout="wide"
-)
+# --- Page config + header ---
+st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
-# --- Developed by header ---
 st.markdown("""
 <div style='text-align:center; font-size:18px; color:gray;'>
 Developed by Dr. Danyal & Eng. Ali
@@ -38,8 +33,7 @@ with st.expander("➕ زیادکردنی وەسڵ"):
             price = st.number_input("نرخی کاڵا", min_value=0)
         with col2:
             phone = st.text_input("ژمارەی مۆبایل")
-            lat = st.number_input("Latitude", value=35.4676, format="%.6f")
-            lon = st.number_input("Longitude", value=44.3921, format="%.6f")
+            address = st.text_input("ناونیشانی کڕیار")  # Replace Lat/Lon with Address
         submit = st.form_submit_button("زیادکردنی وەسڵ")
         if submit:
             st.session_state.deliveries.append({
@@ -47,36 +41,30 @@ with st.expander("➕ زیادکردنی وەسڵ"):
                 "دوکان": shop,
                 "مۆبایل": phone,
                 "نرخ": price,
-                "lat": lat,
-                "lon": lon
+                "ناونیشان": address
             })
             st.success("وەسڵ بە سەرکەوتوویی زیادکرا ✅")
 
 # --- Map ---
-st.subheader("🗺 Map with Current Location & Delivery Markers")
+st.subheader("🗺 Map with Delivery Markers")
 
+# Default map center Kirkuk
 map_center = [35.4676, 44.3921]
 m = folium.Map(location=map_center, zoom_start=13, tiles="OpenStreetMap")
 
-lat_current = 35.4676
-lon_current = 44.3921
-folium.Marker(
-    [lat_current, lon_current],
-    tooltip="Current Location",
-    icon=folium.Icon(color="blue", icon="user", prefix="fa")
-).add_to(m)
-
-bounds = [[lat_current, lon_current]]
-
+# Add delivery markers
+bounds = [map_center]
 for d in st.session_state.deliveries:
-    dest = [d["lat"], d["lon"]]
+    # For demo: use Kirkuk center for all markers if no Lat/Lon
+    dest = map_center
     bounds.append(dest)
     folium.Marker(
         dest,
         popup=f"""
         کڕیار: {d['کڕیار']} <br>
         دوکان: {d['دوکان']} <br>
-        نرخ: {d['نرخ']}
+        نرخ: {d['نرخ']} <br>
+        ناونیشان: {d['ناونیشان']}
         """,
         tooltip=d["کڕیار"],
         icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
