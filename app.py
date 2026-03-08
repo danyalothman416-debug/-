@@ -13,10 +13,8 @@ st.markdown("""
         direction: rtl;
         text-align: right;
     }
-    /* ئەم بەشە ناوی ناو خشتەکە گەورە و ڕوون دەکاتەوە */
-    .stDataFrame div {
-        font-size: 16px !important;
-        font-weight: bold !important;
+    .stTable {
+        font-size: 18px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -42,7 +40,6 @@ if password == ADMIN_PASSWORD:
     df_to_show = load_data()
     
     if not df_to_show.empty:
-        # نەخشە
         map_center = [35.4676, 44.3921]
         m = folium.Map(location=map_center, zoom_start=12)
         for _, row in df_to_show.iterrows():
@@ -54,17 +51,20 @@ if password == ADMIN_PASSWORD:
         st_folium(m, height=400, width=None)
 
         st.write("### 📋 لیستی وەسڵەکان")
-        
-        # --- لێرەدا ناوەکانمان بە گەورەیی ڕێکخستووە ---
-        st.table(df_to_show) # بەکارهێنانی st.table لە جیاتی dataframe بۆ ئەوەی ناوەکان جێگیر و ڕوون بن
+        st.table(df_to_show) 
         
         if st.button("🗑 سڕینەوەی هەموو وەسڵەکان"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
     else:
         st.info("هیچ وەسڵێک نییە.")
+        # --- دوگمەی گەڕانەوە بۆ لاپەڕەی سەرەکی ---
+        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
+            st.warning("تکایە کۆدی چوونەژوورەوە لە لای ڕاست بسڕەوە بۆ گەڕانەوە.")
+            st.rerun()
 
 else:
+    # لاپەڕەی فۆرمی وەسڵ
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -84,5 +84,6 @@ else:
             else:
                 current_df = load_data()
                 new_row = pd.DataFrame([{"کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address}])
-                save_data(pd.concat([current_df, new_row], ignore_index=True))
+                updated_df = pd.concat([current_df, new_row], ignore_index=True)
+                save_data(updated_df)
                 st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا.")
