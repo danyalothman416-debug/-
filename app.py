@@ -4,14 +4,32 @@ import folium
 from streamlit_folium import st_folium
 import os
 
-# --- 1. ڕێکخستنی شاشە ---
+# --- 1. ڕێکخستنی شاشە و ستایلی نووسین (بۆ ئەوەی بە جوانی دیار بێت) ---
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
-    html, body, [data-testid="stAppViewContainer"], .stTextInput, .stNumberInput, .stButton {
-        direction: rtl; text-align: right; font-family: 'Vazirmatn', sans-serif;
+    
+    html, body, [data-testid="stAppViewContainer"] {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Vazirmatn', sans-serif;
+    }
+    
+    /* چاککردنی خانەکانی نووسین بۆ ئەوەی بە جوانی دیار بن */
+    .stTextInput input, .stNumberInput input {
+        color: #000000 !important; /* ڕەنگی نووسینەکە ڕەش */
+        background-color: #ffffff !important; /* پاشبنەمای خانەکە سپی */
+        font-size: 18px !important;
+        font-weight: bold !important;
+    }
+    
+    /* ڕەنگی ناوی سەر خانەکان */
+    label {
+        color: #ffffff !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -26,9 +44,8 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. تەنها خانەیەکی بەتاڵ لە لای ڕاست (Sidebar) بێ هیچ نووسینێک ---
+# --- 2. شریتی لای ڕاست (Sidebar) - بە تەواوی شاردراوە ---
 with st.sidebar:
-    # لێرەدا هەموو ناونیشان و ئایکۆنەکانم سڕییەوە
     password = st.text_input("", type="password", placeholder="...")
 
 # --- 3. لاپەڕەی سەرەکی ---
@@ -47,6 +64,8 @@ if password == ADMIN_PASSWORD:
             st.rerun()
 else:
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
+    st.write("تکایە زانیارییەکان بە وردی پڕ بکەرەوە:")
+    
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -54,14 +73,14 @@ else:
             shop = st.text_input("ناوی دوکان / اسم المحل")
             price = st.number_input("نرخی کاڵا / سعر البضاعة", min_value=0)
         with col2:
-            phone = st.text_input("رقم الهاتف")
-            address = st.text_input("العنوان")
+            phone = st.text_input("رقم الهاتف / ژمارەی مۆبایل")
+            address = st.text_input("العنوان / ناونیشان")
         
         if st.form_submit_button("ناردنی وەسڵ ✅"):
             if customer and shop and phone and address:
                 df = load_data()
                 new_row = pd.DataFrame([{"کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address}])
                 save_data(pd.concat([df, new_row], ignore_index=True))
-                st.success("✅ وەسڵەکە نێردرا")
+                st.success("✅ وەسڵەکە بە سەرکەوتوویی نێردرا")
             else:
-                st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
+                st.error("⚠️ تکایە هەموو خانەکان بە جوانی پڕ بکەرەوە")
