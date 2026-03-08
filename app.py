@@ -4,7 +4,7 @@ import folium
 from streamlit_folium import st_folium
 import os
 
-# --- 1. ڕێکخستنی سەرەکی و زمان ---
+# --- 1. ڕێکخستنی شاشە و زمان ---
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
 st.markdown("""
@@ -15,7 +15,7 @@ st.markdown("""
         text-align: right;
         font-family: 'Vazirmatn', sans-serif;
     }
-    /* شاردنەوەی هەر نیشانەیەکی چوونەژوورەوە لە لاپەڕەی سەرەکی */
+    /* شاردنەوەی شریتی Sidebar بۆ کڕیارەکان ئەگەر پێویست نەبوو */
     </style>
     """, unsafe_allow_html=True)
 
@@ -30,15 +30,15 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. بەشی بەڕێوەبەر (تەنها لە ناو Sidebar) ---
+# --- 2. بەشی چوونەژوورەوە (تەنها لە شریتی لای ڕاست - Sidebar) ---
 with st.sidebar:
-    st.markdown("### ⚙️ ڕێکخستنی سیستەم")
-    # لێرەدا کۆدی چوونەژوورەوە تەنها لای ڕاست دەبێت
-    password = st.text_input("کۆدی چوونەژوورەوە:", type="password")
+    st.markdown("### 🔐 چوونەژوورەوە")
+    # ئەمە تەنها لای ڕاست دەردەکەوێت
+    password = st.text_input("کۆدی تایبەت بنووسە:", type="password")
 
-# --- 3. لاپەڕەی سەرەکی (تەنها فۆرمی وەسڵ) ---
-# ئەگەر کۆدەکە ڕاست بوو، داتاکان پیشان بدە، ئەگەر نا تەنها فۆرمەکە پیشان بدە
+# --- 3. ناوەڕۆکی لاپەڕە سەرەکییەکە ---
 if password == ADMIN_PASSWORD:
+    # ئەگەر کۆدەکە ڕاست بوو، لاپەڕە سەرەکییەکە دەبێتە بەشی بەڕێوەبەر
     st.header("👨‍⚕️ بەخێرهاتی دکتۆر دانیال")
     st.subheader("📊 داتاکانی گەیاندن و نەخشە")
     
@@ -51,27 +51,29 @@ if password == ADMIN_PASSWORD:
         for _, row in df_to_show.iterrows():
             folium.Marker(
                 location=map_center,
-                popup=f"کڕیار: {row['کڕیار']}<br>نرخ: {row['نرخ']}",
+                popup=f"کڕیار: {row['کڕیار']}<br>بڕ: {row['نرخ']}",
                 icon=folium.Icon(color="red")
             ).add_to(m)
-        st_folium(m, height=400, width=None)
+        st_folium(m, height=450, width=None)
 
-        st.write("### 📋 لیستی وەسڵە فەرمییەکان")
+        # خشتەی داتاکان
+        st.write("### 📋 لیستی هەموو وەسڵەکان")
         st.dataframe(df_to_show, use_container_width=True)
         
-        total_price = df_to_show["نرخ"].sum()
-        st.metric("کۆی گشتی (دینار)", f"{total_price:,}")
+        # کۆی گشتی
+        total = df_to_show["نرخ"].sum()
+        st.metric("کۆی گشتی داهات", f"{total:,} دینار")
         
-        if st.button("🗑 سڕینەوەی هەموو لیستەکە"):
+        if st.button("🗑 سڕینەوەی هەموو داتاکان"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
     else:
-        st.info("هیچ وەسڵێک تۆمار نەکراوە.")
+        st.info("تا ئێستا هیچ وەسڵێک تۆمار نەکراوە.")
 
 else:
-    # ئەم بەشە تەنها بۆ کڕیارەکانە
+    # ئەگەر کۆدەکە لێ نەدرابێت، لاپەڕە سەرەکییەکە تەنها فۆرمی وەسڵە
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
-    st.markdown("تکایە هەموو خانەکان بە دروستی پڕ بکەرەوە بۆ ئەوەی وەسڵەکەت تۆمار بکرێت.")
+    st.markdown("تکایە هەموو بەشەکان بە جوانی پڕ بکەرەوە بۆ ئەوەی وەسڵەکەت تۆمار بکرێت.")
     
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
@@ -95,4 +97,4 @@ else:
                 }])
                 updated_df = pd.concat([current_df, new_row], ignore_index=True)
                 save_data(updated_df)
-                st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا.")
+                st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا و تۆمارکرا.")
