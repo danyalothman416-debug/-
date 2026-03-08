@@ -3,20 +3,32 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
+# --- Page config with title + icon ---
+st.set_page_config(
+    page_title="سیستەمی گەیاندنی کەرکوک",
+    page_icon="🚚",
+    layout="wide"
+)
 
-# Sidebar
+# --- Developed by header ---
+st.markdown("""
+<div style='text-align:center; font-size:18px; color:gray;'>
+Developed by Dr. Danyal & Eng. Ali
+</div>
+""", unsafe_allow_html=True)
+
+# --- Sidebar ---
 with st.sidebar:
     st.title("📦 Delivery System - Kirkuk")
     st.info("GPS + Map + Delivery (route line temporarily disabled)")
 
-# Database
+# --- Database ---
 if "deliveries" not in st.session_state:
     st.session_state.deliveries = []
 
 st.title("📍 Delivery Map (Debug-ready)")
 
-# Add delivery
+# --- Add delivery ---
 with st.expander("➕ زیادکردنی وەسڵ"):
     with st.form("delivery_form"):
         col1, col2 = st.columns(2)
@@ -40,13 +52,12 @@ with st.expander("➕ زیادکردنی وەسڵ"):
             })
             st.success("وەسڵ بە سەرکەوتوویی زیادکرا ✅")
 
-# Map
+# --- Map ---
 st.subheader("🗺 Map with Current Location & Delivery Markers")
 
 map_center = [35.4676, 44.3921]
 m = folium.Map(location=map_center, zoom_start=13, tiles="OpenStreetMap")
 
-# Current location (default Kirkuk)
 lat_current = 35.4676
 lon_current = 44.3921
 folium.Marker(
@@ -55,10 +66,8 @@ folium.Marker(
     icon=folium.Icon(color="blue", icon="user", prefix="fa")
 ).add_to(m)
 
-# Fit bounds list
 bounds = [[lat_current, lon_current]]
 
-# Delivery markers
 for d in st.session_state.deliveries:
     dest = [d["lat"], d["lon"]]
     bounds.append(dest)
@@ -73,12 +82,10 @@ for d in st.session_state.deliveries:
         icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
     ).add_to(m)
 
-# Auto zoom / fit bounds
 m.fit_bounds(bounds)
-
 st_folium(m, height=600, width=900)
 
-# Delivery list
+# --- Delivery list ---
 st.subheader("📋 Delivery List")
 if st.session_state.deliveries:
     df = pd.DataFrame(st.session_state.deliveries)
@@ -86,7 +93,7 @@ if st.session_state.deliveries:
 else:
     st.info("هێشتا هیچ وەسڵێک تۆمار نەکراوە")
 
-# Clear button
+# --- Clear button ---
 if st.button("🗑 پاککردنەوەی هەموو وەسڵەکان"):
     st.session_state.deliveries = []
     st.success("هەموو وەسڵەکان پاککران ✅")
