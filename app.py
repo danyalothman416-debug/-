@@ -72,9 +72,6 @@ for d in st.session_state.deliveries:
         tooltip=d["کڕیار"],
         icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
     ).add_to(m)
-    
-    # Route line temporarily disabled to avoid crash
-    # Later you can enable with OpenRouteService or Google Maps Directions API
 
 # Auto zoom / fit bounds
 m.fit_bounds(bounds)
@@ -92,4 +89,4 @@ else:
 # Clear button
 if st.button("🗑 پاککردنەوەی هەموو وەسڵەکان"):
     st.session_state.deliveries = []
-    st.experimental_rerun()
+    st.success("هەموو وەسڵەکان پاککران ✅")
