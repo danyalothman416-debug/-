@@ -10,7 +10,7 @@ st.set_page_config(page_title="Kirkuk Delivery", layout="wide")
 with st.sidebar:
     st.title("📦 Kirkuk Delivery System")
     st.info("Smart delivery system for Kirkuk")
-    # هیچ ناو و ناوی کەس نەهاتووە، پاککراوە
+    # هیچ ناوی کەس نەهاتووە، پاککراوە
 
 # ---------- Database ----------
 if "deliveries" not in st.session_state:
@@ -33,6 +33,7 @@ with st.expander("➕ Add Delivery"):
 
         with col2:
             phone = st.text_input("Phone")
+            # Latitude & Longitude default to Kirkuk
             lat = st.number_input("Latitude", value=35.4676, format="%.6f")
             lon = st.number_input("Longitude", value=44.3921, format="%.6f")
 
@@ -52,18 +53,25 @@ with st.expander("➕ Add Delivery"):
 # ---------- Map ----------
 if st.session_state.deliveries:
 
-    st.subheader("🗺 Delivery Map")
+    st.subheader("🗺 Delivery Map (Kirkuk)")
 
-    m = folium.Map(location=[35.4676,44.3921], zoom_start=12)
+    # Create map centered on Kirkuk
+    m = folium.Map(location=[35.4676, 44.3921], zoom_start=13, tiles="OpenStreetMap")
 
     for d in st.session_state.deliveries:
         folium.Marker(
             [d["lat"], d["lon"]],
-            popup=f"{d['Customer']} - {d['Price']}",
-            tooltip=d["Customer"]
+            popup=f"""
+            Customer: {d['Customer']} <br>
+            Shop: {d['Shop']} <br>
+            Price: {d['Price']}
+            """,
+            tooltip=d["Customer"],
+            icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
         ).add_to(m)
 
-    st_folium(m, height=500)
+    # Show map in Streamlit
+    st_folium(m, height=500, width=900)
 
     st.subheader("📋 Delivery List")
     df = pd.DataFrame(st.session_state.deliveries)
