@@ -3,62 +3,84 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-# ڕێکخستنی لاپەڕە
-st.set_page_config(page_title="گەیاندنی کەرکوک 🚚", layout="wide")
+# --- ڕێکخستنی لاپەڕە ---
+st.set_page_config(page_title="گەیاندنی کەرکوک 🚚", layout="wide", initial_sidebar_state="expanded")
 
-# ناوی ئێوە وەک خاوەن بزنس
-st.sidebar.title("🛠 بەڕێوەبەران")
-st.sidebar.info(f"خاوەن کار: **خوێندکاری شیکاری**\n\nبەرپرسی گەیاندن: **کاک عەلی**")
+# --- ستایلی کوردی (RTL) ---
+st.markdown("""
+    <style>
+    .stApp { direction: rtl; text-align: right; }
+    div[data-testid="stForm"] { direction: rtl; }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("📍 سیستەمی گەیاندنی زیرەکی کەرکوک")
+# --- لای لایە (Sidebar) بۆ ناوی ئێوە ---
+st.sidebar.title("🏢 بەڕێوەبەرایەتی")
+st.sidebar.subheader("خاوەن کار:")
+st.sidebar.write("🧪 خوێندکاری شیکاری")
+st.sidebar.subheader("بەرپرسی گەیاندن:")
+st.sidebar.write("🚗 کاک عەلی")
+st.sidebar.divider()
+st.sidebar.info("ئەم ئەپڵیکەیشنە تایبەتە بە بەڕێوەبردنی وەسڵەکانی کەرکوک.")
 
-# لیستێک بۆ پاشەکەوتکردنی وەسڵەکان
+# --- بنکەی داتا لە میمۆریدا ---
 if 'deliveries' not in st.session_state:
     st.session_state.deliveries = []
 
-# --- بەشی داخڵکردنی وەسڵ ---
-with st.expander("📝 تۆمارکردنی وەسڵی نوێ (بۆ کاک عەلی)"):
-    with st.form("main_form"):
+st.title("📍 سیستەمی گەیاندنی زیرەکی کەرکوک")
+
+# --- بەشی داخڵکردنی وەسڵ (بۆ تۆ) ---
+with st.expander("➕ تۆمارکردنی وەسڵی نوێ"):
+    with st.form("add_delivery"):
         col1, col2 = st.columns(2)
         with col1:
-            c_name = st.text_input("ناوی کڕیار")
+            customer = st.text_input("ناوی کڕیار")
             shop = st.text_input("ناوی دوکان")
-            price = st.number_input("نرخی کاڵا", value=0)
+            price = st.number_input("نرخی کاڵا (دینار)", value=0, step=1000)
         with col2:
-            # لێرەدا دەبێت پۆتانەکان (Coordinates) دابنێیت
-            # دەتوانیت لە گۆگڵ ماپەوە وەری بگریت (بۆ نموونە: 35.46, 44.39)
+            phone = st.text_input("ژمارەی مۆبایل")
+            # پۆتانەکانی ناوەندی کەرکوک وەک دیفۆڵت
             lat = st.number_input("هێڵی پان (Latitude)", format="%.6f", value=35.4676)
             lon = st.number_input("هێڵی درێژ (Longitude)", format="%.6f", value=44.3921)
-            phone = st.text_input("ژمارەی مۆبایل")
         
-        btn = st.form_submit_button("تۆمارکردن ✅")
-        if btn:
+        submit = st.form_submit_button("تۆمارکردن لە لیستی کاک عەلی ✅")
+        
+        if submit:
             st.session_state.deliveries.append({
-                "کڕیار": c_name, "دوکان": shop, "نرخ": price,
-                "lat": lat, "lon": lon, "مۆبایل": phone
+                "کڕیار": customer,
+                "دوکان": shop,
+                "مۆبایل": phone,
+                "نرخ": price,
+                "lat": lat,
+                "lon": lon
             })
+            st.success(f"وەسڵی {customer} بە سەرکەوتوویی بۆ کاک عەلی ناردرا!")
 
-# --- بەشی نەخشە و لیست (بۆ کاک عەلی) ---
-st.subheader("🗺 نەخشەی وەسڵەکان لە کەرکوک")
-
+# --- نەخشە و لیست (بۆ کاک عەلی) ---
 if st.session_state.deliveries:
-    # دروستکردنی نەخشەکە لەسەر سێنتەری کەرکوک
-    m = folium.Map(location=[35.4676, 44.3921], zoom_start=12)
+    st.subheader("🗺 نەخشەی گەیاندن (کاک عەلی سەیری ئێرە بکە)")
     
-    # دانانی نیشانە (Marker) بۆ هەر وەسڵێک
+    # دروستکردنی نەخشە
+    m = folium.Map(location=[35.4676, 44.3921], zoom_start=13)
+    
     for d in st.session_state.deliveries:
         folium.Marker(
             [d['lat'], d['lon']],
-            popup=f"کڕیار: {d['کڕیار']}\nنرخ: {d['نرخ']}",
-            tooltip=d['کڕیار'],
-            icon=folium.Icon(color='red', icon='info-sign')
+            popup=f"کڕیار: {d['کڕیار']}\nدوکان: {d['دوکان']}\nنرخ: {d['نرخ']:,}",
+            tooltip=f"وەسڵی {d['کڕیار']}",
+            icon=folium.Icon(color='red', icon='car', prefix='fa')
         ).add_to(m)
     
-    # پیشاندانی نەخشەکە لە ناو ستریمڵیت
-    st_folium(m, width=1200, height=500)
+    # پیشاندانی نەخشەکە
+    st_folium(m, width="100%", height=500)
 
-    # پیشاندانی لیستەکە لە خوارەوە
+    # خشتەی وەسڵەکان
     st.subheader("📋 لیستی وەسڵەکان")
-    st.table(pd.DataFrame(st.session_state.deliveries)[["کڕیار", "دوکان", "نرخ", "مۆبایل"]])
+    df = pd.DataFrame(st.session_state.deliveries)
+    st.dataframe(df[["کڕیار", "دوکان", "مۆبایل", "نرخ"]], use_container_width=True)
+    
+    if st.button("پاککردنەوەی هەموو وەسڵەکان 🗑️"):
+        st.session_state.deliveries = []
+        st.rerun()
 else:
-    st.info("کاک عەلی گیان، هێشتا وەسڵ نییە بۆ گەیاندن.")
+    st.info("کاک عەلی گیان، هێشتا هیچ وەسڵێک تۆمار نەکراوە بۆ ئەمڕۆ.")
