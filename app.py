@@ -6,9 +6,9 @@ import urllib.parse
 # --- 1. ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
-# ستایلی سادە و گەرەنتی بۆ دیاربوونی نووسینەکان
 st.markdown("""
     <style>
+    /* ڕێکخستنی زمان بۆ ڕاست بۆ چەپ بۆ دەقەکان */
     html, body, [data-testid="stAppViewContainer"] {
         direction: rtl;
         text-align: right;
@@ -25,18 +25,19 @@ st.markdown("""
         color: #D4AF37;
         font-size: 32px;
         font-weight: bold;
-        margin-bottom: 10px;
-    }
-    .brand-desc {
-        color: #333;
-        font-size: 18px;
-        line-height: 1.5;
     }
     .footer-text {
         text-align: center;
-        font-size: 14px;
-        color: #888;
         margin-top: 30px;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        color: #666;
+    }
+    /* ئەم بەشە ڕێگری دەکات لە عەکس بوونەوەی ژمارەکان */
+    .num-fix {
+        direction: ltr !important;
+        unicode-bidi: bidi-override !important;
+        display: inline-block !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -53,31 +54,32 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. شریتی لای ڕاست ---
+# --- 2. شریتی لای ڕاست (تەنها لێرە کۆدەکە هەیە) ---
 with st.sidebar:
-    password = st.text_input("کۆدی چوونەژوورەوە", type="password", placeholder="...")
+    st.write("🔒 بەشی بەڕێوەبەر")
+    password = st.text_input("", type="password", placeholder="کۆد لێرە بنووسە...")
 
-# --- 3. لاپەڕەی سەرەکی ---
+# --- 3. لۆژیکی پیشاندان ---
 if password == ADMIN_PASSWORD:
     st.header("👨‍⚕️ بەشی بەڕێوەبەر")
     df_to_show = load_data()
     st.table(df_to_show)
-    if st.button("🗑 سڕینەوەی لیست"):
+    if st.button("🗑 سڕینەوەی هەموو داتاکان"):
         save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
         st.rerun()
 else:
-    # --- لێرەدا ناو و وەسفی کۆمپانیاکەت زۆر بە ڕوونی نووسراوە ---
+    # ڕووکاری سەرەکی بۆ کڕیار
     st.markdown("""
         <div class="brand-header">
             <div class="brand-title">GOLDEN DELIVERY ✨ گۆڵدن دێلیڤەری</div>
-            <div class="brand-desc">
-                <b>خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک. ئەمانەت و کات پاراستن ئامانجمانە.</b><br>
-                أسرع وأكثر خدمة توصيل موثوقة في كركوك. الأمانة والدقة في المواعيد هي هدفنا الأساسي.
+            <div style="font-size: 18px; color: #333; margin-top:10px;">
+                <b>خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک.</b><br>
+                أسرع وأكثر خدمة توصيل مووثوقة في كركوك.
             </div>
         </div>
     """, unsafe_allow_html=True)
     
-    with st.form("delivery_form"):
+    with st.form("delivery_form", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
             customer = st.text_input("ناوی کڕیار / اسم الزبون")
@@ -87,7 +89,7 @@ else:
             phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
             address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
         
-        submit = st.form_submit_button("تۆمارکردن و ناردنی وەسڵ ✅")
+        submit = st.form_submit_button("ناردنی وەسڵ / ارسال الوصل ✅")
         
         if submit:
             if not customer or not shop or not phone or not address:
@@ -104,8 +106,9 @@ else:
                 st.success("✅ وەسڵەکە تۆمارکرا.")
                 st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">ناردنی کۆتایی بۆ WhatsApp 💬</button></a>', unsafe_allow_html=True)
 
+    # ژمارە تەلەفۆنەکان بە ڕێکی (بچووک و بێ عەیب)
     st.markdown("""
         <div class="footer-text">
-            📞 0772 195 9922 | 0780 135 2003
+            📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span>
         </div>
     """, unsafe_allow_html=True)
