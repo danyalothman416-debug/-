@@ -17,6 +17,15 @@ st.markdown("""
         width: 100%;
         font-size: 18px !important;
     }
+    .phone-footer {
+        text-align: center;
+        padding: 20px;
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        margin-top: 20px;
+        font-weight: bold;
+        color: #1f77b4;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -32,14 +41,13 @@ def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
 # --- 2. لۆژیکی گەڕانەوە ---
-# ئەگەر دوگمەی گەڕانەوە داگیرا، هەموو شتێک سفر بکەرەوە
 if "back_to_home" in st.session_state and st.session_state.back_to_home:
-    st.session_state.clear() # پاککردنەوەی هەموو داتاکان بۆ گەڕانەوەی ڕاستەقینە
+    st.session_state.clear()
     st.rerun()
 
 # --- 3. شریتی لای ڕاست ---
 with st.sidebar:
-    password = st.text_input("", type="password", placeholder="...", key="admin_pwd_main")
+    password = st.text_input("", type="password", placeholder="...", key="admin_pwd_final")
 
 # --- 4. لاپەڕەی سەرەکی ---
 if password == ADMIN_PASSWORD:
@@ -59,10 +67,12 @@ if password == ADMIN_PASSWORD:
         if st.button("🗑 سڕینەوەی هەموو وەسڵەکان"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
+        
+        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
+            st.session_state.back_to_home = True
+            st.rerun()
     else:
         st.warning("⚠️ هیچ وەسڵێک لە لیستدا نەماوە.")
-        
-        # ئەم دوگمەیە ئیستا کار دەکات چونکە هەموو "ستەیتەکە" پاک دەکاتەوە
         if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
             st.session_state.back_to_home = True
             st.rerun()
@@ -90,3 +100,12 @@ else:
                 updated_df = pd.concat([current_df, new_row], ignore_index=True)
                 save_data(updated_df)
                 st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا.")
+
+    # --- زیادکردنی ژمارە تەلەفۆنەکان لە خوارەوەی فۆرمەکە ---
+    st.markdown(f"""
+        <div class="phone-footer">
+            📞 بۆ پەیوەندی و زانیاری زیاتر:<br>
+            <span style="font-size: 20px;">0772 195 9922</span><br>
+            <span style="font-size: 20px;">0780 135 2003</span>
+        </div>
+    """, unsafe_allow_html=True)
