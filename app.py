@@ -17,14 +17,13 @@ st.markdown("""
         width: 100%;
         font-size: 18px !important;
     }
-    .phone-footer {
+    .phone-box {
         text-align: center;
-        padding: 20px;
-        background-color: #f0f2f6;
+        padding: 15px;
+        border: 2px solid #1f77b4;
         border-radius: 10px;
-        margin-top: 20px;
-        font-weight: bold;
-        color: #1f77b4;
+        margin-bottom: 20px;
+        background-color: #e1f5fe;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -79,6 +78,7 @@ if password == ADMIN_PASSWORD:
 
 else:
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
+    
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -88,6 +88,15 @@ else:
         with col2:
             phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
             address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
+        
+        # --- ژمارە تەلەفۆنەکان لێرەدا ڕێک لە ناو فۆرمەکە دانراون ---
+        st.markdown("""
+            <div class="phone-box">
+                <p style="margin:0; color:#0d47a1; font-weight:bold;">بۆ پەیوەندی و زانیاری زیاتر:</p>
+                <b style="font-size: 22px; color: #1565c0;">0772 195 9922</b><br>
+                <b style="font-size: 22px; color: #1565c0;">0780 135 2003</b>
+            </div>
+        """, unsafe_allow_html=True)
         
         submit = st.form_submit_button("ناردنی وەسڵ ✅")
         
@@ -100,12 +109,3 @@ else:
                 updated_df = pd.concat([current_df, new_row], ignore_index=True)
                 save_data(updated_df)
                 st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا.")
-
-    # --- زیادکردنی ژمارە تەلەفۆنەکان لە خوارەوەی فۆرمەکە ---
-    st.markdown(f"""
-        <div class="phone-footer">
-            📞 بۆ پەیوەندی و زانیاری زیاتر:<br>
-            <span style="font-size: 20px;">0772 195 9922</span><br>
-            <span style="font-size: 20px;">0780 135 2003</span>
-        </div>
-    """, unsafe_allow_html=True)
