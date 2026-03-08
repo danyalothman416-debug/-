@@ -3,6 +3,7 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 import os
+import urllib.parse
 
 # --- 1. ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
@@ -13,30 +14,25 @@ st.markdown("""
         direction: rtl;
         text-align: right;
     }
-    .stButton>button {
-        width: 100%;
-        font-size: 18px !important;
-    }
-    .phone-box {
+    /* بچووککردنەوەی فۆنتی ژمارە تەلەفۆنەکان لە خوارەوە */
+    .footer-text {
         text-align: center;
-        padding: 15px;
-        border: 2px solid #1f77b4;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        background-color: #e1f5fe;
+        font-size: 14px;
+        color: #555;
+        margin-top: 30px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
     }
-    /* جێگیرکردنی ژمارەکان بۆ ئەوەی عەکس نەبنەوە */
     .phone-number {
         direction: ltr !important;
         display: inline-block;
-        unicode-bidi: embed;
-        font-family: sans-serif;
     }
     </style>
     """, unsafe_allow_html=True)
 
 ADMIN_PASSWORD = "dr_danyal_2024" 
 DB_FILE = "global_deliveries.csv"
+MY_WHATSAPP = "9647721959922"
 
 def load_data():
     if os.path.exists(DB_FILE):
@@ -51,42 +47,33 @@ if "back_to_home" in st.session_state and st.session_state.back_to_home:
     st.session_state.clear()
     st.rerun()
 
-# --- 3. شریتی لای ڕاست ---
+# --- 3. شریتی لای ڕاست (تەنها خانەی کۆد) ---
 with st.sidebar:
-    password = st.text_input("", type="password", placeholder="...", key="admin_pwd_final")
+    password = st.text_input("", type="password", placeholder="...", key="admin_pwd")
 
 # --- 4. لاپەڕەی سەرەکی ---
 if password == ADMIN_PASSWORD:
-    st.header("👨‍⚕️ بەشی بەڕێوەبەر")
+    st.header("👨‍⚕️ بەشی بەڕێوەبەر / قسم المدير")
     df_to_show = load_data()
-    
     if not df_to_show.empty:
-        map_center = [35.4676, 44.3921]
-        m = folium.Map(location=map_center, zoom_start=12)
-        for _, row in df_to_show.iterrows():
-            folium.Marker(location=map_center, popup=f"کڕیار: {row['کڕیار']}").add_to(m)
-        st_folium(m, height=400, width=None)
-
-        st.write("### 📋 لیستی وەسڵەکان")
         st.table(df_to_show) 
-        
-        if st.button("🗑 سڕینەوەی هەموو وەسڵەکان"):
+        if st.button("🗑 سڕینەوە / مسح"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
-        
-        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
+        if st.button("⬅️ گەڕانەوە"):
             st.session_state.back_to_home = True
             st.rerun()
     else:
-        st.warning("⚠️ هیچ وەسڵێک لە لیستدا نەماوە.")
-        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
+        st.info("هیچ وەسڵێک نییە.")
+        if st.button("⬅️ گەڕانەوە"):
             st.session_state.back_to_home = True
             st.rerun()
-
 else:
-    st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
+    # لاپەڕەی کڕیار
+    st.title("📦 فۆرمی تۆمارکردنی وەسڵ / استمارة الوصل")
     
-    with st.form("delivery_form", clear_on_submit=True):
+    # فۆرمی وەسڵەکە
+    with st.form("delivery_form", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
             customer = st.text_input("ناوی کڕیار / اسم الزبون")
@@ -96,23 +83,30 @@ else:
             phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
             address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
         
-        # لێرەدا ژمارەکانم بە ستایلی ltr جێگیر کردووە بۆ ئەوەی عەکس نەبنەوە
-        st.markdown("""
-            <div class="phone-box">
-                <p style="margin:0; color:#0d47a1; font-weight:bold;">بۆ پەیوەندی و زانیاری زیاتر:</p>
-                <span class="phone-number" style="font-size: 22px; color: #1565c0; font-weight: bold;">0772 195 9922</span><br>
-                <span class="phone-number" style="font-size: 22px; color: #1565c0; font-weight: bold;">0780 135 2003</span>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        submit = st.form_submit_button("ناردنی وەسڵ ✅")
+        # دوگمەی ناردن ڕێک لە ژێر خانەکانە
+        submit = st.form_submit_button("ناردنی وەسڵ / ارسال الوصل ✅")
         
         if submit:
             if not customer or not shop or not phone or not address:
-                st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە!")
+                st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
             else:
                 current_df = load_data()
                 new_row = pd.DataFrame([{"کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address}])
-                updated_df = pd.concat([current_df, new_row], ignore_index=True)
-                save_data(updated_df)
-                st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا.")
+                save_data(pd.concat([current_df, new_row], ignore_index=True))
+                
+                # ئامادەکردنی لینک بۆ واتسئەپ
+                message = f"وەسڵێکی نوێ 📦\n👤 کڕیار: {customer}\n🏪 دوکان: {shop}\n💰 نرخ: {price:,} د.ع\n📞 مۆبایل: {phone}\n📍 ناونیشان: {address}"
+                encoded_msg = urllib.parse.quote(message)
+                whatsapp_link = f"https://wa.me/{MY_WHATSAPP}?text={encoded_msg}"
+                
+                st.success("✅ وەسڵەکە تۆمارکرا.")
+                st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">کرتە بکە بۆ ناردنی کۆتایی (WhatsApp)</button></a>', unsafe_allow_html=True)
+
+    # ژمارە تەلەفۆنەکان لە خوارەوەی هەموو شتێک بە بچووکی
+    st.markdown("""
+        <div class="footer-text">
+            پەیوەندی: 
+            <span class="phone-number">0772 195 9922</span> | 
+            <span class="phone-number">0780 135 2003</span>
+        </div>
+    """, unsafe_allow_html=True)
