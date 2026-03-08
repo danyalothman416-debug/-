@@ -4,18 +4,15 @@ import folium
 from streamlit_folium import st_folium
 import os
 
-# --- 1. ڕێکخستنی شاشە و زمان ---
+# --- 1. ڕێکخستنی شاشە ---
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
     html, body, [data-testid="stAppViewContainer"], .stTextInput, .stNumberInput, .stButton {
-        direction: rtl;
-        text-align: right;
-        font-family: 'Vazirmatn', sans-serif;
+        direction: rtl; text-align: right; font-family: 'Vazirmatn', sans-serif;
     }
-    /* شاردنەوەی شریتی Sidebar بۆ کڕیارەکان ئەگەر پێویست نەبوو */
     </style>
     """, unsafe_allow_html=True)
 
@@ -23,78 +20,48 @@ ADMIN_PASSWORD = "dr_danyal_2024"
 DB_FILE = "global_deliveries.csv"
 
 def load_data():
-    if os.path.exists(DB_FILE):
-        return pd.read_csv(DB_FILE)
+    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE)
     return pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"])
 
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. بەشی چوونەژوورەوە (تەنها لە شریتی لای ڕاست - Sidebar) ---
+# --- 2. تەنها خانەیەکی بەتاڵ لە لای ڕاست (Sidebar) بێ هیچ نووسینێک ---
 with st.sidebar:
-    st.markdown("### 🔐 چوونەژوورەوە")
-    # ئەمە تەنها لای ڕاست دەردەکەوێت
-    password = st.text_input("کۆدی تایبەت بنووسە:", type="password")
+    # لێرەدا هەموو ناونیشان و ئایکۆنەکانم سڕییەوە
+    password = st.text_input("", type="password", placeholder="...")
 
-# --- 3. ناوەڕۆکی لاپەڕە سەرەکییەکە ---
+# --- 3. لاپەڕەی سەرەکی ---
 if password == ADMIN_PASSWORD:
-    # ئەگەر کۆدەکە ڕاست بوو، لاپەڕە سەرەکییەکە دەبێتە بەشی بەڕێوەبەر
-    st.header("👨‍⚕️ بەخێرهاتی دکتۆر دانیال")
-    st.subheader("📊 داتاکانی گەیاندن و نەخشە")
-    
+    st.header("👨‍⚕️ بەشی بەڕێوەبەر")
     df_to_show = load_data()
-    
     if not df_to_show.empty:
-        # نەخشە
         map_center = [35.4676, 44.3921]
         m = folium.Map(location=map_center, zoom_start=12)
         for _, row in df_to_show.iterrows():
-            folium.Marker(
-                location=map_center,
-                popup=f"کڕیار: {row['کڕیار']}<br>بڕ: {row['نرخ']}",
-                icon=folium.Icon(color="red")
-            ).add_to(m)
+            folium.Marker(location=map_center, popup=f"{row['کڕیار']}").add_to(m)
         st_folium(m, height=450, width=None)
-
-        # خشتەی داتاکان
-        st.write("### 📋 لیستی هەموو وەسڵەکان")
         st.dataframe(df_to_show, use_container_width=True)
-        
-        # کۆی گشتی
-        total = df_to_show["نرخ"].sum()
-        st.metric("کۆی گشتی داهات", f"{total:,} دینار")
-        
-        if st.button("🗑 سڕینەوەی هەموو داتاکان"):
+        if st.button("🗑 سڕینەوەی لیست"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
-    else:
-        st.info("تا ئێستا هیچ وەسڵێک تۆمار نەکراوە.")
-
 else:
-    # ئەگەر کۆدەکە لێ نەدرابێت، لاپەڕە سەرەکییەکە تەنها فۆرمی وەسڵە
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
-    st.markdown("تکایە هەموو بەشەکان بە جوانی پڕ بکەرەوە بۆ ئەوەی وەسڵەکەت تۆمار بکرێت.")
-    
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             customer = st.text_input("ناوی کڕیار / اسم الزبون")
             shop = st.text_input("ناوی دوکان / اسم المحل")
-            price = st.number_input("نرخی کاڵا (دینار) / سعر البضاعة", min_value=0, step=250)
+            price = st.number_input("نرخی کاڵا / سعر البضاعة", min_value=0)
         with col2:
-            phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
-            address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
+            phone = st.text_input("رقم الهاتف")
+            address = st.text_input("العنوان")
         
-        submit = st.form_submit_button("ناردنی وەسڵ ✅")
-        
-        if submit:
-            if not customer or not shop or not phone or not address or price == 0:
-                st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە!")
+        if st.form_submit_button("ناردنی وەسڵ ✅"):
+            if customer and shop and phone and address:
+                df = load_data()
+                new_row = pd.DataFrame([{"کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address}])
+                save_data(pd.concat([df, new_row], ignore_index=True))
+                st.success("✅ وەسڵەکە نێردرا")
             else:
-                current_df = load_data()
-                new_row = pd.DataFrame([{
-                    "کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address
-                }])
-                updated_df = pd.concat([current_df, new_row], ignore_index=True)
-                save_data(updated_df)
-                st.success("✅ وەسڵەکەت بە سەرکەوتوویی نێردرا و تۆمارکرا.")
+                st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
