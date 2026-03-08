@@ -6,15 +6,16 @@ import urllib.parse
 # --- 1. ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
+# CSS بۆ سڕینەوەی Sidebar و ڕاستکردنەوەی ژمارەکان
 st.markdown("""
     <style>
+    /* سڕینەوەی Sidebar و هەموو نیشانەکانی لای ڕاست و چەپ */
+    [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+        display: none !important;
+    }
     html, body, [data-testid="stAppViewContainer"] {
         direction: rtl;
         text-align: right;
-    }
-    /* شاردنەوەی تەواوی Sidebar بۆ ئەوەی کۆدەکە دیار نەبێت */
-    [data-testid="stSidebar"] {
-        display: none;
     }
     .brand-header {
         background-color: #f8f9fa;
@@ -28,19 +29,17 @@ st.markdown("""
         color: #D4AF37;
         font-size: 32px;
         font-weight: bold;
-        cursor: pointer;
-    }
-    .footer-text {
-        text-align: center;
-        margin-top: 30px;
-        padding: 10px;
-        border-top: 1px solid #eee;
-        color: #666;
     }
     .num-fix {
         direction: ltr !important;
         unicode-bidi: bidi-override !important;
         display: inline-block !important;
+    }
+    .footer-text {
+        text-align: center;
+        font-size: 13px;
+        color: #888;
+        margin-top: 50px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -57,30 +56,19 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# لۆژیکی شاردنەوەی خانەی ئەدمین
-if 'show_admin' not in st.session_state:
-    st.session_state.show_admin = False
+# --- 2. ڕووکاری سەرەکی (تەنها فۆرمەکە لێرەیە) ---
+st.markdown("""
+    <div class="brand-header">
+        <div class="brand-title">GOLDEN DELIVERY ✨ گۆڵدن دێلیڤەری</div>
+        <div style="font-size: 16px; color: #555; margin-top:10px;">
+            خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک<br>
+            أسرع وأكثر خدمة توصيل موثوقة في كركوك
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
-# --- 2. ڕووکاری سەرەکی ---
-st.markdown('<div class="brand-header"><div class="brand-title">GOLDEN DELIVERY ✨ گۆڵدن دێلیڤەری</div></div>', unsafe_allow_html=True)
-
-# دوگمەیەکی شاراوە بۆ جەنابت (بۆ چوونە ناو بەشی ئەدمین)
-if st.checkbox("چوونەژوورەوەی بەڕێوەبەر", value=False, key="admin_check", help="تەنها بۆ خاوەن کار"):
-    password = st.text_input("کۆدەکە بنووسە / ادخل الرمز", type="password")
-    
-    if password == ADMIN_PASSWORD:
-        st.header("👨‍⚕️ بەشی بەڕێوەبەر")
-        df_to_show = load_data()
-        st.table(df_to_show)
-        if st.button("🗑 سڕینەوەی لیست"):
-            save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
-            st.rerun()
-    elif password:
-        st.error("کۆدەکە هەڵەیە!")
-
-# --- 3. فۆرمی وەسڵ (هەمیشە دیارە) ---
-st.write("### تۆمارکردنی وەسڵ / تسجيل الوصل")
-with st.form("delivery_form", clear_on_submit=False):
+# فۆرمی تۆمارکردن
+with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
         customer = st.text_input("ناوی کڕیار / اسم الزبون")
@@ -90,7 +78,7 @@ with st.form("delivery_form", clear_on_submit=False):
         phone = st.text_input("ژمارەی مۆبایل / رقم الهاتف")
         address = st.text_input("ناونیشانی ورد / العنوان بالتفصيل")
     
-    submit = st.form_submit_button("ناردنی وەسڵ ✅")
+    submit = st.form_submit_button("ناردنی وەسڵ / ارسال الوصل ✅")
     
     if submit:
         if not customer or not shop or not phone or not address:
@@ -107,9 +95,24 @@ with st.form("delivery_form", clear_on_submit=False):
             st.success("✅ وەسڵەکە تۆمارکرا.")
             st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">ناردنی کۆتایی بۆ WhatsApp 💬</button></a>', unsafe_allow_html=True)
 
-# ژمارەکان بە ڕێکی لە خوارەوە
+# ژمارەکان لە خوارەوە بە ڕێکی
 st.markdown("""
     <div class="footer-text">
         📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span>
     </div>
 """, unsafe_allow_html=True)
+
+st.write("---")
+
+# --- 3. بەشی ئەدمین (شاراوە لە خوارەوەی هەموو شتێک) ---
+with st.expander("🛠 بەشی کارگێڕی (بۆ خاوەن کار)"):
+    admin_pass = st.text_input("کۆدی نهێنی بنووسە", type="password")
+    if admin_pass == ADMIN_PASSWORD:
+        st.write("### 📋 لیستی گشت وەسڵەکان")
+        df_admin = load_data()
+        st.dataframe(df_admin, use_container_width=True)
+        if st.button("🗑 سڕینەوەی هەموو داتاکان"):
+            save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
+            st.rerun()
+    elif admin_pass:
+        st.error("کۆدەکە هەڵەیە!")
