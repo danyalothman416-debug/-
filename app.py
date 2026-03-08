@@ -3,13 +3,13 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-# -------- Page Config --------
+# ---------- Page Config ----------
 st.set_page_config(
-    page_title="سیستەمی گەیاندنی کەرکوک 🚚",
+    page_title="Kirkuk Delivery",
     layout="wide"
 )
 
-# -------- Kurdish RTL Style --------
+# ---------- Style ----------
 st.markdown("""
 <style>
 
@@ -19,34 +19,34 @@ text-align:right;
 font-size:18px;
 }
 
-h1,h2,h3{
+h1{
 text-align:center;
-}
-
-.block-container{
-padding-top:2rem;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# -------- Sidebar --------
+# ---------- Sidebar ----------
 with st.sidebar:
-    st.title("🏢 بەڕێوەبەرایەتی")
-    st.write("🧪 خوێندکاری شیکاری")
-    st.write("🚚 بەرپرسی گەیاندن: کاک عەلی")
-    st.divider()
-    st.info("سیستەمی بەڕێوەبردنی وەسڵەکانی کەرکوک")
 
-# -------- Database --------
+    st.title("🚚 Kirkuk Delivery")
+
+    st.write("👤 Owner: **Danyal**")
+    st.write("🚗 Driver: **Ali**")
+
+    st.divider()
+
+    st.caption("Smart Delivery System")
+
+# ---------- Database ----------
 if "deliveries" not in st.session_state:
     st.session_state.deliveries = []
 
-# -------- Title --------
-st.title("🚚 سیستەمی گەیاندنی زیرەکی کەرکوک")
+# ---------- Title ----------
+st.title("📦 سیستەمی گەیاندنی کەرکوک")
 
-# -------- Add Delivery --------
-with st.expander("➕ تۆمارکردنی وەسڵی نوێ"):
+# ---------- Add Delivery ----------
+with st.expander("➕ تۆمارکردنی وەسڵ"):
 
     with st.form("delivery_form"):
 
@@ -55,10 +55,10 @@ with st.expander("➕ تۆمارکردنی وەسڵی نوێ"):
         with col1:
             customer = st.text_input("ناوی کڕیار")
             shop = st.text_input("ناوی دوکان")
-            price = st.number_input("نرخی کاڵا", min_value=0)
+            price = st.number_input("نرخ", min_value=0)
 
         with col2:
-            phone = st.text_input("ژمارەی مۆبایل")
+            phone = st.text_input("مۆبایل")
             lat = st.number_input("Latitude", value=35.4676, format="%.6f")
             lon = st.number_input("Longitude", value=44.3921, format="%.6f")
 
@@ -67,20 +67,20 @@ with st.expander("➕ تۆمارکردنی وەسڵی نوێ"):
         if submit:
 
             st.session_state.deliveries.append({
-                "کڕیار":customer,
-                "دوکان":shop,
-                "مۆبایل":phone,
-                "نرخ":price,
-                "lat":lat,
-                "lon":lon
+                "Customer": customer,
+                "Shop": shop,
+                "Phone": phone,
+                "Price": price,
+                "lat": lat,
+                "lon": lon
             })
 
-            st.success("وەسڵ بە سەرکەوتوویی تۆمارکرا ✅")
+            st.success("وەسڵ تۆمارکرا ✅")
 
-# -------- Map --------
+# ---------- Map ----------
 if st.session_state.deliveries:
 
-    st.subheader("🗺 نەخشەی گەیاندن")
+    st.subheader("🗺 Delivery Map")
 
     m = folium.Map(location=[35.4676,44.3921], zoom_start=12)
 
@@ -89,22 +89,22 @@ if st.session_state.deliveries:
         folium.Marker(
             [d["lat"], d["lon"]],
             popup=f"""
-            کڕیار: {d['کڕیار']} <br>
-            دوکان: {d['دوکان']} <br>
-            نرخ: {d['نرخ']}
+            Customer: {d['Customer']} <br>
+            Shop: {d['Shop']} <br>
+            Price: {d['Price']}
             """,
-            tooltip=d["کڕیار"]
+            tooltip=d["Customer"]
         ).add_to(m)
 
-    st_folium(m, height=500, width=900)
+    st_folium(m, height=500)
 
-    st.subheader("📋 لیستی وەسڵەکان")
+    st.subheader("📋 Delivery List")
 
     df = pd.DataFrame(st.session_state.deliveries)
 
     st.dataframe(df,use_container_width=True)
 
-    if st.button("🗑 پاککردنەوەی هەموو وەسڵەکان"):
+    if st.button("🗑 Delete All"):
         st.session_state.deliveries=[]
         st.experimental_rerun()
 
