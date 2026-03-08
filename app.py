@@ -4,58 +4,59 @@ from streamlit_folium import st_folium
 import pandas as pd
 from datetime import datetime
 
-# ڕێکخستنی لاپەڕەکە
-st.set_page_config(page_title="Delivery System", page_icon="📦")
+# ڕێکخستنی شێوەی ئەپەکە
+st.set_page_config(page_title="سیستەمی گەیاندن", page_icon="📦", layout="centered")
 
-st.title("📦 سیستەمی گەیاندنی زیرەک")
-st.write("زانیارییەکانی کڕیار و شوێنەکەی تۆمار بکە")
+# ستایلی کوردی (ڕاست بۆ چەپ)
+st.markdown("""
+    <style>
+    .main { text-align: right; direction: rtl; }
+    div.stButton > button:first-child { background-color: #00ff00; color: white; width: 100%; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# دروستکردنی فۆڕم بۆ زانیارییەکان
-with st.form("my_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        customer_name = st.text_input("ناوی کڕیار")
-        phone_number = st.text_input("ژمارەی مۆبایل")
-    with col2:
-        item_type = st.text_input("جۆری کاڵا")
-        price = st.number_input("نرخی گەیاندن (دینار)", value=5000, step=500)
+st.title("📦 سیستەمی تۆمارکردنی داواکاری")
+st.subheader("تایبەت بە گەنجانی خاوەن بزنس")
 
+# دروستکردنی فۆڕمی وەرگرتنی زانیاری
+with st.form("delivery_form"):
+    name = st.text_input("ناوی کڕیار:")
+    phone = st.text_input("ژمارەی مۆبایل:")
+    item = st.text_input("جۆری کاڵا:")
+    price = st.number_input("کۆی گشتی پارە (دینار):", value=0, step=250)
+    
     st.write("📍 لۆکەیشنی کڕیار لەسەر نەخشە دیاری بکە:")
     
-    # دروستکردنی نەخشەی سەرەتایی (ناوەندی کوردستان)
+    # دروستکردنی نەخشە
     m = folium.Map(location=[35.56, 45.42], zoom_start=12)
-    m.add_child(folium.LatLngPopup()) # بۆ ئەوەی لۆکەیشن پیشان بدات کاتێک کلیک دەکەیت
+    m.add_child(folium.LatLngPopup())
     
-    # پیشاندانی نەخشەکە لەناو ئەپەکەدا
+    # پیشاندانی نەخشە
     map_data = st_folium(m, height=350, width=700)
     
-    submitted = st.form_submit_button("تۆمارکردنی داواکاری")
+    submit = st.form_submit_button("تۆمارکردنی داواکاری ✅")
 
-# ئەگەر دوگمەی تۆمارکردن داگیرا
-if submitted:
+# ئەنجامی کلیک کردن
+if submit:
     if map_data['last_clicked']:
         lat = map_data['last_clicked']['lat']
         lng = map_data['last_clicked']['lng']
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        time_now = datetime.now().strftime("%Y-%m-%d %H:%M")
         
-        # پیشاندانی ئەنجام بۆ بەکارهێنەر
-        st.success(f"✅ داواکارییەکەی {customer_name} بە سەرکەوتووی تۆمارکرا!")
+        st.success(f"داواکارییەکە بۆ {name} تۆمارکرا!")
         
-        # دروستکردنی خشتەیەک بۆ زانیارییەکان
-        data = {
-            "کاتی تۆمارکردن": [current_time],
-            "ناوی کڕیار": [customer_name],
-            "مۆبایل": [phone_number],
-            "کاڵا": [item_type],
-            "Latitude": [lat],
-            "Longitude": [lng]
+        # دروستکردنی لینکی گوگڵ ماپ بۆ شۆفێر
+        g_link = f"https://www.google.com/maps?q={lat},{lng}"
+        
+        # پیشاندانی زانیارییەکان
+        res = {
+            "کاتی تۆمارکردن": [time_now],
+            "ناو": [name],
+            "مۆبایل": [phone],
+            "کاڵا": [item],
+            "پارە": [price]
         }
-        df = pd.DataFrame(data)
-        st.table(df)
-        
-        # دروستکردنی لینکی Google Maps بۆ ئەوەی شۆفێرەکە بەکاری بهێنێت
-        google_maps_link = f"https://www.google.com/maps?q={lat},{lng}"
-        st.markdown(f"🔗 [کردنەوەی لۆکەیشن لە Google Maps]({google_maps_link})")
+        st.table(pd.DataFrame(res))
+        st.markdown(f"🔗 [بۆ بینینی لۆکەیشن لێرە کلیک بکە]({g_link})")
     else:
-        st.error("⚠️ تکایە سەرەتا خاڵێک لەسەر نەخشەکە دیاری بکە بۆ لۆکەیشن!")
-
+        st.error("⚠️ تکایە سەرەتا شوێنەکە لەسەر نەخشەکە دیاری بکە!")
