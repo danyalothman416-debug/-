@@ -13,8 +13,10 @@ st.markdown("""
         direction: rtl;
         text-align: right;
     }
-    .stTable {
-        font-size: 18px !important;
+    .stButton>button {
+        width: 100%;
+        font-size: 20px !important;
+        height: 50px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -31,11 +33,19 @@ def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
 # --- 2. شریتی لای ڕاست ---
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
 with st.sidebar:
-    password = st.text_input("", type="password", placeholder="...")
+    # ئەگەر دوگمەی گەڕانەوە داگیرا، ئەم خانەیە بەتاڵ دەبێتەوە
+    pwd_input = st.text_input("", type="password", placeholder="...", key="admin_pwd")
+    if pwd_input == ADMIN_PASSWORD:
+        st.session_state.auth = True
+    else:
+        st.session_state.auth = False
 
 # --- 3. لاپەڕەی سەرەکی ---
-if password == ADMIN_PASSWORD:
+if st.session_state.auth:
     st.header("👨‍⚕️ بەشی بەڕێوەبەر")
     df_to_show = load_data()
     
@@ -43,11 +53,7 @@ if password == ADMIN_PASSWORD:
         map_center = [35.4676, 44.3921]
         m = folium.Map(location=map_center, zoom_start=12)
         for _, row in df_to_show.iterrows():
-            folium.Marker(
-                location=map_center,
-                popup=f"کڕیار: {row['کڕیار']}",
-                icon=folium.Icon(color="red")
-            ).add_to(m)
+            folium.Marker(location=map_center, popup=f"کڕیار: {row['کڕیار']}").add_to(m)
         st_folium(m, height=400, width=None)
 
         st.write("### 📋 لیستی وەسڵەکان")
@@ -57,14 +63,18 @@ if password == ADMIN_PASSWORD:
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
     else:
-        st.info("هیچ وەسڵێک نییە.")
-        # --- دوگمەی گەڕانەوە بۆ لاپەڕەی سەرەکی ---
-        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی"):
-            st.warning("تکایە کۆدی چوونەژوورەوە لە لای ڕاست بسڕەوە بۆ گەڕانەوە.")
+        # --- ئەم بەشە ڕێک ئەوەیە کە جەنابت داوات کردووە ---
+        st.warning("⚠️ هیچ وەسڵێک لە لیستدا نەماوە.")
+        
+        # دروستکردنی دوگمەی گەڕانەوە بە شێوەیەکی زەق
+        if st.button("⬅️ گەڕانەوە بۆ لاپەڕەی سەرەکی (تۆمارکردنی وەسڵ)"):
+            # شاردنەوەی بەشی ئەدمین بە گۆڕینی ستەیت
+            st.session_state.auth = False
+            st.info("تکایە کۆدەکە لە لای ڕاست بسڕەوە بۆ بینینی فۆرمەکە.")
             st.rerun()
 
 else:
-    # لاپەڕەی فۆرمی وەسڵ
+    # لاپەڕەی فۆرمی وەسڵ (ئەوەی کڕیارەکان دەیبینن)
     st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
     with st.form("delivery_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
