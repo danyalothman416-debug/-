@@ -7,10 +7,7 @@ import os
 # --- 1. ڕێکخستنی سەرەکی ---
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
-# وشەی نهێنی بۆ بەڕێوەبەر (ئەمە لای خۆت بێت)
 ADMIN_PASSWORD = "dr_danyal_2024" 
-
-# فایلی داتابەیس
 DB_FILE = "global_deliveries.csv"
 
 def load_data():
@@ -21,9 +18,8 @@ def load_data():
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
-# --- 2. ڕووکاری گشتی (بۆ هەمووان) ---
+# --- 2. فۆرمی وەسڵ (بۆ هەمووان) ---
 st.title("📦 فۆرمی تۆمارکردنی وەسڵ")
-st.info("تکایە زانیارییەکان بە دروستی پڕ بکەرەوە")
 
 with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
@@ -42,23 +38,21 @@ with st.form("delivery_form", clear_on_submit=True):
         new_row = pd.DataFrame([{"کڕیار": customer, "دوکان": shop, "مۆبایل": phone, "نرخ": price, "ناونیشان": address}])
         updated_df = pd.concat([current_df, new_row], ignore_index=True)
         save_data(updated_df)
-        st.success("وەسڵەکەت نێردرا بۆ دکتۆر دانیال. سوپاس!")
+        st.success("وەسڵەکەت بە سەرکەوتوویی نێردرا. سوپاس!")
 
-st.markdown("---")
-
-# --- 3. بەشی بەڕێوەبەر (تەنها بە وشەی نهێنی دەکرێتەوە) ---
+# --- 3. بەشی بەڕێوەبەر (بێ دەنگ و شاردراوە) ---
 with st.sidebar:
-    st.title("🔐 چوونەژوورەوەی بەڕێوەبەر")
-    password = st.text_input("وشەی نهێنی بنووسە:", type="password")
+    # لێرەدا ناوەکەمان گۆڕیوە بۆ شتێکی ئاسایی وەک 'تایبەتمەندی'
+    password = st.text_input("کۆد:", type="password", help="بۆ بەکارهێنانی تایبەت")
 
 if password == ADMIN_PASSWORD:
-    st.header("👨‍⚕️ بەخێرهاتی دکتۆر دانیال")
-    st.subheader("🗺 نەخشە و لیستی وەسڵە فەرمییەکان")
+    st.markdown("---")
+    st.header("👨‍⚕️ داتاکانی دکتۆر دانیال")
     
     df_to_show = load_data()
     
     if not df_to_show.empty:
-        # پیشاندانی نەخشە
+        # نەخشە
         map_center = [35.4676, 44.3921]
         m = folium.Map(location=map_center, zoom_start=12)
         for _, row in df_to_show.iterrows():
@@ -69,16 +63,13 @@ if password == ADMIN_PASSWORD:
             ).add_to(m)
         st_folium(m, height=400, width=None)
 
-        # پیشاندانی خشتە
+        # خشتە
         st.dataframe(df_to_show, use_container_width=True)
         
-        # دوگمەی سڕینەوە
-        if st.button("🗑 سڕینەوەی هەموو داتاکان"):
+        if st.button("🗑 سڕینەوەی هەموو وەسڵەکان"):
             save_data(pd.DataFrame(columns=["کڕیار", "دوکان", "مۆبایل", "نرخ", "ناونیشان"]))
             st.rerun()
     else:
-        st.write("هیچ وەسڵێکی نوێ نییە.")
-else:
-    if password != "":
-        st.sidebar.error("وشەی نهێنی هەڵەیە!")
-    st.write("🔒 ئەم بەشە تەنها بۆ خاوەن بەرنامەکەیە.")
+        st.write("لیستەکە خاڵییە.")
+
+# لێرەدا بەشە 'else'ەکەمان سڕیوەتەوە، کەواتە ئەگەر کۆدەکە هەڵە بێت یان بەتاڵ بێت، هیچی زیادە پیشان نادات
