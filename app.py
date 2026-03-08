@@ -2,25 +2,21 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-import requests
-
-# ---------- Configuration ----------
-ORS_API_KEY = "YOUR_OPENROUTESERVICE_API_KEY"  # Replace with your OpenRouteService API key
 
 st.set_page_config(page_title="سیستەمی گەیاندنی کەرکوک", layout="wide")
 
-# ---------- Sidebar ----------
+# Sidebar
 with st.sidebar:
     st.title("📦 Delivery System - Kirkuk")
-    st.info("GPS + Route line + Auto zoom")
+    st.info("GPS + Map + Delivery (route line temporarily disabled)")
 
-# ---------- Database ----------
+# Database
 if "deliveries" not in st.session_state:
     st.session_state.deliveries = []
 
-st.title("📍 Delivery Map with Real-Time GPS")
+st.title("📍 Delivery Map (Debug-ready)")
 
-# ---------- Add delivery ----------
+# Add delivery
 with st.expander("➕ زیادکردنی وەسڵ"):
     with st.form("delivery_form"):
         col1, col2 = st.columns(2)
@@ -44,25 +40,15 @@ with st.expander("➕ زیادکردنی وەسڵ"):
             })
             st.success("وەسڵ بە سەرکەوتوویی زیادکرا ✅")
 
-# ---------- Map ----------
-st.subheader("🗺 Map with Current Location & Routes")
+# Map
+st.subheader("🗺 Map with Current Location & Delivery Markers")
 
-# Default center Kirkuk
 map_center = [35.4676, 44.3921]
 m = folium.Map(location=map_center, zoom_start=13, tiles="OpenStreetMap")
 
-# ---------- Get current location ----------
-st.write("📌 کرتە بکە لە Map بۆ شوێنی ئێوە یا بە موبایل GPS فعاله دەکات.")
-clicked = st_folium(folium.Map(location=map_center, zoom_start=13), returned_objects=["last_clicked"])
-if clicked and clicked["last_clicked"]:
-    lat_current = clicked["last_clicked"]["lat"]
-    lon_current = clicked["last_clicked"]["lng"]
-else:
-    # Default if not clicked yet
-    lat_current = 35.4676
-    lon_current = 44.3921
-
-# Current location marker
+# Current location (default Kirkuk)
+lat_current = 35.4676
+lon_current = 44.3921
 folium.Marker(
     [lat_current, lon_current],
     tooltip="Current Location",
@@ -72,12 +58,10 @@ folium.Marker(
 # Fit bounds list
 bounds = [[lat_current, lon_current]]
 
-# ---------- Delivery markers and routes ----------
+# Delivery markers
 for d in st.session_state.deliveries:
     dest = [d["lat"], d["lon"]]
     bounds.append(dest)
-    
-    # Marker
     folium.Marker(
         dest,
         popup=f"""
@@ -89,23 +73,8 @@ for d in st.session_state.deliveries:
         icon=folium.Icon(color="red", icon="shopping-cart", prefix="fa")
     ).add_to(m)
     
-    # Route line via OpenRouteService API
-    coords = [[lon_current, lat_current], [d["lon"], d["lat"]]]
-    headers = {
-        "Authorization": ORS_API_KEY,
-        "Content-Type": "application/json"
-    }
-    body = {
-        "coordinates": coords,
-        "format": "geojson"
-    }
-    try:
-        res = requests.post("https://api.openrouteservice.org/v2/directions/driving-car/geojson", json=body, headers=headers)
-        if res.status_code == 200:
-            geojson = res.json()
-            folium.GeoJson(geojson, name="route").add_to(m)
-    except Exception as e:
-        st.error(f"Route API error: {e}")
+    # Route line temporarily disabled to avoid crash
+    # Later you can enable with OpenRouteService or Google Maps Directions API
 
 # Auto zoom / fit bounds
 m.fit_bounds(bounds)
