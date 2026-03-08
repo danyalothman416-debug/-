@@ -33,11 +33,12 @@ with st.expander("➕ زیادکردنی وەسڵ"):
         with col2:
             phone = st.text_input("ژمارەی مۆبایل")
 
-            st.markdown("**لە خوارەوە کرتە بکە بۆ دیاری کردنی شوێن**")
-            # دروستکردنی Map بۆ دیاری لۆکەیشن
+            st.markdown("**لە ماپەکە کلیک بکە بۆ دیاری کردنی شوێن**")
+            
+            # دروستکردنی Map بۆ کلیک
             m_select = folium.Map(location=[35.4676,44.3921], zoom_start=13)
 
-            # ئەگەر پێشتر کلیک کراوە، Marker زیاد بکە
+            # Marker پێشتر
             if 'click_location' in st.session_state:
                 folium.Marker(
                     st.session_state.click_location,
@@ -45,16 +46,14 @@ with st.expander("➕ زیادکردنی وەسڵ"):
                     icon=folium.Icon(color='blue', icon='map-marker', prefix='fa')
                 ).add_to(m_select)
 
-            # پیشاندانی Map
-            map_data = st_folium(m_select, height=300, width=500, returned_objects=[])
+            # نمایش Map و گرتنی کلیک
+            map_data = st_folium(m_select, height=300, width=500, returned_objects=["last_clicked"])
 
-            # گرتنی کلیک
-            if map_data and map_data['last_clicked']:
-                lat = map_data['last_clicked']['lat']
-                lon = map_data['last_clicked']['lng']
+            if map_data and map_data["last_clicked"]:
+                lat = map_data["last_clicked"]["lat"]
+                lon = map_data["last_clicked"]["lng"]
                 st.session_state.click_location = (lat, lon)
             else:
-                # Default بە کەرکوک
                 lat = 35.4676
                 lon = 44.3921
 
