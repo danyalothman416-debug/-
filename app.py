@@ -12,10 +12,9 @@ st.set_page_config(page_title="Golden Delivery", layout="wide")
 baghdad_tz = pytz.timezone('Asia/Baghdad')
 current_time = datetime.now(baghdad_tz).strftime("%Y-%m-%d | %I:%M %p")
 
-# --- ٢. سیستەمی زمان و دارک مۆد (State Management) ---
+# --- ٢. سیستەمی زمان و دارک مۆد ---
 if 'lang' not in st.session_state:
     st.session_state.lang = 'کوردی'
-
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
@@ -33,8 +32,8 @@ texts = {
         'price': '💰 نرخ',
         'submit': 'تۆمارکردن و ناردن ✅',
         'admin': '🛠 بەشی کارگێڕی',
-        'search': '🔍 گەڕان...',
-        'install': 'بۆ دابەزاندنی ئەپ: کلیک لە ⎙ بکە و Add to Home Screen هەڵبژێرە'
+        'install': 'بۆ دابەزاندنی ئەپ: کلیک لە ⎙ بکە و Add to Home Screen هەڵبژێرە',
+        'lang_label': 'زمان هەڵبژێرە / اختر اللغة'
     },
     'عربي': {
         'title': 'گۆڵدن دیلیڤەری ✨',
@@ -48,8 +47,8 @@ texts = {
         'price': '💰 السعر',
         'submit': 'تسجيل وإرسال ✅',
         'admin': '🛠 قسم الإدارة',
-        'search': '🔍 بحث...',
-        'install': 'لتثبيت التطبيق: اضغط على ⎙ واختر Add to Home Screen'
+        'install': 'لتثبيت التطبيق: اضغط على ⎙ واختر Add to Home Screen',
+        'lang_label': 'زمان هەڵبژێرە / اختر اللغة'
     },
     'English': {
         'title': 'GOLDEN DELIVERY ✨',
@@ -63,17 +62,17 @@ texts = {
         'price': '💰 Price',
         'submit': 'Save & Send ✅',
         'admin': '🛠 Admin Panel',
-        'search': '🔍 Search...',
-        'install': 'To install: Click ⎙ and select Add to Home Screen'
+        'install': 'To install: Click ⎙ and select Add to Home Screen',
+        'lang_label': 'Choose Language'
     }
 }
 
 L = texts[st.session_state.lang]
 
-# --- ٣. ستایلی CSS (داینامیک بۆ دارک مۆد) ---
-bg_color = "#1a1a1a" if st.session_state.theme == 'dark' else "#ffffff"
-text_color = "#ffffff" if st.session_state.theme == 'dark' else "#1a1a1a"
-card_bg = "#333333" if st.session_state.theme == 'dark' else "#f8f9fa"
+# --- ٣. ستایلی CSS مۆدێرن ---
+bg_color = "#121212" if st.session_state.theme == 'dark' else "#ffffff"
+text_color = "#e0e0e0" if st.session_state.theme == 'dark' else "#1a1a1a"
+card_bg = "#1e1e1e" if st.session_state.theme == 'dark' else "#f0f2f6"
 
 st.markdown(f"""
     <style>
@@ -85,13 +84,17 @@ st.markdown(f"""
     }}
     .brand-header {{
         background: linear-gradient(135deg, #1a1a1a 0%, #D4AF37 150%);
-        padding: 25px; border-radius: 15px; border-bottom: 4px solid #D4AF37;
-        text-align: center; margin-bottom: 20px;
+        padding: 30px; border-radius: 20px; border-bottom: 5px solid #D4AF37;
+        text-align: center; margin-bottom: 25px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }}
+    .selector-card {{
+        background-color: {card_bg}; padding: 15px; border-radius: 15px;
+        border: 1px solid #D4AF37; margin-bottom: 20px;
     }}
     .live-clock {{
-        background-color: {card_bg}; color: {text_color};
-        padding: 10px; border-radius: 10px; text-align: center;
-        border: 1px solid #D4AF37; margin-bottom: 15px;
+        background-color: {card_bg}; color: #D4AF37; padding: 12px;
+        border-radius: 12px; text-align: center; font-weight: bold;
+        border: 1px dashed #D4AF37; margin-bottom: 20px;
     }}
     .install-bar {{
         position: fixed; bottom: 0; left: 0; width: 100%;
@@ -101,29 +104,40 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ٤. کۆنتڕۆڵی سەرەوە (زمان و ڕەنگ) ---
-col_l, col_r = st.columns([2, 1])
-with col_l:
-    c1, c2, c3 = st.columns(3)
-    if c1.button("☀️ کوردی"): st.session_state.lang = 'کوردی'; st.rerun()
-    if c2.button("🇮🇶 عربي"): st.session_state.lang = 'عربي'; st.rerun()
-    if c3.button("🇺🇸 English"): st.session_state.lang = 'English'; st.rerun()
+# --- ٤. کۆنتڕۆڵەکان (زمان و ڕەنگ لە یەک چوارگۆشەدا) ---
+with st.container():
+    st.markdown(f'<div class="selector-card">', unsafe_allow_html=True)
+    c1, c2 = st.columns([3, 1])
+    
+    with c1:
+        # هەڵبژاردنی زمان بە ئاڵاکانەوە لە یەک ڕیزدا
+        new_lang = st.radio(
+            L['lang_label'],
+            options=['کوردی', 'عربي', 'English'],
+            index=['کوردی', 'عربي', 'English'].index(st.session_state.lang),
+            horizontal=True,
+            format_func=lambda x: "☀️💚🤍❤️ کوردی" if x == 'کوردی' else ("🇮🇶 عربي" if x == 'عربي' else "🇺🇸 English")
+        )
+        if new_lang != st.session_state.lang:
+            st.session_state.lang = new_lang
+            st.rerun()
 
-with col_r:
-    if st.button("🌓 Dark/Light"):
-        st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
-        st.rerun()
+    with c2:
+        if st.button("🌓 Mode"):
+            st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ٥. ڕووکاری سەرەکی ---
 st.markdown(f"""
     <div class="brand-header">
-        <div style="color:#D4AF37; font-size:32px; font-weight:bold;">{L['title']}</div>
-        <div style="color:white; font-size:16px;">{L['desc']}</div>
+        <div style="color:#D4AF37; font-size:38px; font-weight:bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">{L['title']}</div>
+        <div style="color:white; font-size:18px; opacity: 0.9;">{L['desc']}</div>
     </div>
     <div class="live-clock">{L['clock']} {current_time}</div>
 """, unsafe_allow_html=True)
 
-# فۆرمەکە
+# فۆرمەکە (بە داینامیکی بەپێی زمان)
 with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -136,13 +150,17 @@ with st.form("delivery_form", clear_on_submit=True):
         price = st.number_input(L['price'], min_value=0, step=250)
     
     if st.form_submit_button(L['submit']):
-        # لۆژیکی سەیڤکردن (هەمان کۆدی پێشوو)
-        st.success("✅ Done!")
+        if customer and shop_name and phone:
+            st.balloons()
+            st.success("✅ Done!")
+        else:
+            st.error("⚠️ Please fill all fields")
 
 # بەشی ئەدمین
+st.write("---")
 with st.expander(L['admin']):
-    pwd = st.text_input("Password", type="password")
+    pwd = st.text_input("🔑 Password", type="password")
     if pwd == "dr_danyal_2024":
-        st.write("Data loading...")
+        st.info("Admin Access Granted")
 
 st.markdown(f'<div class="install-bar">{L["install"]}</div>', unsafe_allow_html=True)
