@@ -3,15 +3,19 @@ import pandas as pd
 import os
 import urllib.parse
 from datetime import datetime
+import pytz # کتێبخانەی تایبەت بە کاتی وڵاتان
 
-# --- 1. ڕێکخستنی لاپەڕە و ستایل ---
+# --- 1. ڕێکخستنی لاپەڕە و کاتی بەغداد ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
+
+# ڕێکخستنی کات بەپێی ئاسیای بەغداد
+baghdad_tz = pytz.timezone('Asia/Baghdad')
+now_bgd = datetime.now(baghdad_tz)
+current_time = now_bgd.strftime("%Y-%m-%d | %I:%M %p")
 
 st.markdown("""
     <style>
-    /* شاردنەوەی Sidebar بە یەکجاری بۆ ئەوەی کۆدی ئەدمین دیار نەبێت */
     section[data-testid="stSidebar"] { display: none !important; }
-    
     html, body, [data-testid="stAppViewContainer"] { 
         direction: rtl; 
         text-align: right; 
@@ -24,19 +28,12 @@ st.markdown("""
     }
     .brand-title { color: #D4AF37; font-size: 32px; font-weight: bold; }
     .brand-desc { color: #ffffff; font-size: 16px; margin-top: 10px; line-height: 1.6; }
-    
-    /* ستایلی کات و بەروار لە سەرەوە */
     .live-clock {
         background-color: rgba(212, 175, 55, 0.1);
-        color: #1a1a1a;
-        padding: 10px;
-        border-radius: 10px;
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 15px;
-        border: 1px solid #D4AF37;
+        color: #1a1a1a; padding: 10px; border-radius: 10px;
+        text-align: center; font-weight: bold; margin-bottom: 15px;
+        border: 1px solid #D4AF37; font-size: 18px;
     }
-    
     .num-fix { direction: ltr !important; display: inline-block !important; color: #D4AF37; font-weight: bold; }
     .stat-card {
         background-color: #1a1a1a; color: #D4AF37; padding: 15px;
@@ -46,7 +43,6 @@ st.markdown("""
         position: fixed; bottom: 0; left: 0; width: 100%;
         background-color: #1a1a1a; color: white; padding: 12px;
         text-align: center; border-top: 3px solid #D4AF37; z-index: 9999;
-        font-size: 14px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,11 +71,10 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# نیشاندانی کات و بەرواری ئێستا لە سەرەوەی فۆرمەکە
-current_time = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
+# نیشاندانی کاتی بەغداد لە سەرەوەی فۆرمەکە
 st.markdown(f"""
     <div class="live-clock">
-        📅 کات و بەرواری ئێستا: {current_time}
+        🕒 کات و بەرواری ئێستا (بەغداد): {current_time}
     </div>
 """, unsafe_allow_html=True)
 
@@ -101,11 +96,16 @@ with st.form("delivery_form", clear_on_submit=True):
             st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
         else:
             df = load_data()
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-            new_row = pd.DataFrame([{"کات": now_str, "کڕیار": customer, "ناوی دوکان": shop_name, "ناونیشانی دوکان": shop_address, "مۆبایل": str(phone), "نرخ": price, "ناونیشانی کڕیار": customer_address}])
+            # کاتی تۆمارکردنی وەسڵەکە بە کاتی بەغداد
+            timestamp = datetime.now(baghdad_tz).strftime("%Y-%m-%d %H:%M")
+            new_row = pd.DataFrame([{
+                "کات": timestamp, "کڕیار": customer, "ناوی دوکان": shop_name, 
+                "ناونیشانی دوکان": shop_address, "مۆبایل": str(phone), 
+                "نرخ": price, "ناونیشانی کڕیار": customer_address
+            }])
             save_data(pd.concat([df, new_row], ignore_index=True))
             
-            msg = f"Golden Delivery ✨\n📦 وەسڵێکی نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop_name}\n💰 نرخ: {price:,}\n📅 کات: {now_str}"
+            msg = f"Golden Delivery ✨\n📦 وەسڵێکی نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop_name}\n💰 نرخ: {price:,} د.ع\n🕒 کات: {timestamp}"
             link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
             st.success(f"✅ تۆمارکرا")
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:15px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:18px;">ناردن بۆ WhatsApp 💬</button></a>', unsafe_allow_html=True)
