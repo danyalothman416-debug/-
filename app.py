@@ -1,171 +1,64 @@
 import streamlit as st
-import pandas as pd
-import os
-import urllib.parse
-from datetime import datetime
-import pytz
+from PIL import Image, ImageDraw, ImageFont
+import io
 
-# --- 1. ڕێکخستنی سەرەتایی ---
-st.set_page_config(page_title="Golden Delivery", layout="wide")
+# ڕێکخستنی لاپەڕەکە
+st.set_page_config(page_title="Golden Receipt", page_icon="📜")
 
-# کاتی بەغداد
-baghdad_tz = pytz.timezone('Asia/Baghdad')
-current_time = datetime.now(baghdad_tz).strftime("%Y-%m-%d | %I:%M %p")
+st.title("📜 دروستکەری وەسڵی گۆڵدن")
+st.write("وەسڵێکی پرۆفیشناڵ دروست بکە و بۆ کڕیارەکەی بنێرە")
 
-# وێنەی ئاڵاکان (لینکەکان)
-FLAG_KURD = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Flag_of_Kurdistan.svg/320px-Flag_of_Kurdistan.svg.png"
-FLAG_IRAQ = "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Flag_of_Iraq.svg/320px-Flag_of_Iraq.svg.png"
-FLAG_USA = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_the_United_States.svg/320px-Flag_of_the_United_States.svg.png"
-
-# --- ٢. سیستەمی زمان و دارک مۆد ---
-if 'lang' not in st.session_state:
-    st.session_state.lang = 'کوردی'
-if 'theme' not in st.session_state:
-    st.session_state.theme = 'dark'
-
-# فەرهەنگی زمانەکان
-texts = {
-    'کوردی': {
-        'title': 'GOLDEN DELIVERY ✨',
-        'desc': 'خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک.',
-        'clock': '🕒 کاتی ئێستا (بەغداد):',
-        'customer': '👤 ناوی کڕیار',
-        'shop': '🏪 ناوی دوکان',
-        'shop_addr': '📍 ناونیشانی دوکان',
-        'phone': '📞 ژمارەی مۆبایل',
-        'cust_addr': '🏘 ناونیشانی کڕیار',
-        'price': '💰 نرخ',
-        'submit': 'تۆمارکردن و ناردن ✅',
-        'admin': '🛠 بەشی کارگێڕی',
-        'install': 'بۆ دابەزاندنی ئەپ: کلیک لە ⎙ بکە و Add to Home Screen هەڵبژێرە',
-        'lang_label': 'زمان هەڵبژێرە / اختر اللغة'
-    },
-    'عربي': {
-        'title': 'گۆڵدن دیلیڤەری ✨',
-        'desc': 'أسرع وأكثر خدمة توصيل موثوقة في كركوك.',
-        'clock': '🕒 الوقت الحالي (بغداد):',
-        'customer': '👤 اسم الزبون',
-        'shop': '🏪 اسم المحل',
-        'shop_addr': '📍 عنوان المحل',
-        'phone': '📞 رقم الهاتف',
-        'cust_addr': '🏘 عنوان الزبون',
-        'price': '💰 السعر',
-        'submit': 'تسجيل وإرسال ✅',
-        'admin': '🛠 قسم الإدارة',
-        'install': 'لتثبيت التطبيق: اضغط على ⎙ واختر Add to Home Screen',
-        'lang_label': 'زمان هەڵبژێرە / اختر اللغة'
-    },
-    'English': {
-        'title': 'GOLDEN DELIVERY ✨',
-        'desc': 'The fastest and most reliable delivery service in Kirkuk.',
-        'clock': '🕒 Current Time (Baghdad):',
-        'customer': '👤 Customer Name',
-        'shop': '🏪 Shop Name',
-        'shop_addr': '📍 Shop Address',
-        'phone': '📞 Phone Number',
-        'cust_addr': '🏘 Customer Address',
-        'price': '💰 Price',
-        'submit': 'Save & Send ✅',
-        'admin': '🛠 Admin Panel',
-        'install': 'To install: Click ⎙ and select Add to Home Screen',
-        'lang_label': 'Choose Language'
-    }
-}
-
-L = texts[st.session_state.lang]
-
-# --- ٣. ستایلی CSS ---
-bg_color = "#121212" if st.session_state.theme == 'dark' else "#ffffff"
-text_color = "#e0e0e0" if st.session_state.theme == 'dark' else "#1a1a1a"
-card_bg = "#1e1e1e" if st.session_state.theme == 'dark' else "#f0f2f6"
-
-st.markdown(f"""
-    <style>
-    section[data-testid="stSidebar"] {{ display: none !important; }}
-    html, body, [data-testid="stAppViewContainer"] {{ 
-        direction: {"rtl" if st.session_state.lang != "English" else "ltr"}; 
-        text-align: {"right" if st.session_state.lang != "English" else "left"}; 
-        background-color: {bg_color}; color: {text_color};
-    }}
-    .brand-header {{
-        background: linear-gradient(135deg, #1a1a1a 0%, #D4AF37 150%);
-        padding: 30px; border-radius: 20px; border-bottom: 5px solid #D4AF37;
-        text-align: center; margin-bottom: 25px;
-    }}
-    .selector-card {{
-        background-color: {card_bg}; padding: 20px; border-radius: 15px;
-        border: 1px solid #D4AF37; margin-bottom: 20px;
-    }}
-    .flag-img {{ width: 25px; vertical-align: middle; margin: 0 5px; border-radius: 3px; }}
-    .install-bar {{
-        position: fixed; bottom: 0; left: 0; width: 100%;
-        background-color: #1a1a1a; color: white; padding: 12px;
-        text-align: center; border-top: 3px solid #D4AF37; z-index: 9999;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- ٤. کۆنتڕۆڵەکان (زمان و ڕەنگ بە وێنەی ئاڵاکانەوە) ---
-with st.container():
-    st.markdown('<div class="selector-card">', unsafe_allow_html=True)
-    col_lang, col_mode = st.columns([4, 1])
+# وەرگرتنی زانیارییەکان لە فرۆشیار
+with st.form("receipt_form"):
+    shop_name = st.text_input("ناوی دوکانەکەت", "Golden Shop")
+    customer_name = st.text_input("ناوی کڕیار")
+    item_name = st.text_input("ناوی کاڵا")
+    price = st.number_input("نرخ (دینار)", min_value=0, step=250)
+    delivery_fee = st.number_input("کرێی گەیاندن", min_value=0, step=250)
     
-    with col_lang:
-        st.write(f"**{L['lang_label']}**")
-        # دروستکردنی ٣ دوگمە بۆ زمانەکان بە وێنەی ئاڵاوە
-        c1, c2, c3 = st.columns(3)
-        if c1.button("☀️ کوردی"): 
-            st.session_state.lang = 'کوردی'; st.rerun()
-        if c2.button("🇮🇶 عربي"): 
-            st.session_state.lang = 'عربي'; st.rerun()
-        if c3.button("🇺🇸 English"): 
-            st.session_state.lang = 'English'; st.rerun()
+    submit = st.form_submit_button("دروستکردنی وەسڵ")
+
+if submit:
+    if not customer_name or not item_name:
+        st.error("تکایە هەموو زانیارییەکان پڕ بکەرەوە!")
+    else:
+        # دروستکردنی وێنەی وەسڵەکە
+        width, height = 400, 500
+        img = Image.new('RGB', (width, height), color=(255, 255, 255))
+        d = ImageDraw.Draw(img)
         
-        # پیشاندانی ئاڵا ڕاستەقینەکان لە ژێر دوگمەکان وەک هێما
-        st.markdown(f"""
-            <div style="margin-top: 5px;">
-                <img src="{FLAG_KURD}" class="flag-img"> <img src="{FLAG_IRAQ}" class="flag-img"> <img src="{FLAG_USA}" class="flag-img">
-            </div>
-        """, unsafe_allow_html=True)
+        # ڕەنگ و چوارچێوە
+        d.rectangle([10, 10, 390, 490], outline=(0, 51, 102), width=5)
+        
+        # نووسینی ناوەکان (لێرەدا وەک نموونە بە ئینگلیزی، چونکە پایتۆن فۆنتی کوردی تایبەتی دەوێت)
+        try:
+            # تێبینی: بۆ کوردی پێویستە فۆنتێکی وەک 'arial.ttf' لە تەنیشت کۆدەکە بێت
+            d.text((120, 30), "GOLDEN RECEIPT", fill=(0, 51, 102))
+            d.text((30, 80), f"Shop: {shop_name}", fill=(0, 0, 0))
+            d.text((30, 120), f"Customer: {customer_name}", fill=(0, 0, 0))
+            d.text((30, 180), "-"*40, fill=(200, 200, 200))
+            d.text((30, 220), f"Item: {item_name}", fill=(0, 0, 0))
+            d.text((30, 260), f"Price: {price:,} IQD", fill=(0, 0, 0))
+            d.text((30, 300), f"Delivery: {delivery_fee:,} IQD", fill=(0, 0, 0))
+            d.text((30, 340), "-"*40, fill=(200, 200, 200))
+            total = price + delivery_fee
+            d.text((30, 380), f"TOTAL: {total:,} IQD", fill=(204, 0, 0))
+            d.text((80, 440), "Thank you for your trust!", fill=(0, 102, 51))
+        except:
+            st.warning("کێشەیەک لە نووسیندا هەبوو، بەڵام وەسڵەکە دروست بوو.")
 
-    with col_mode:
-        if st.button("🌓 Mode"):
-            st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- ٥. ڕووکاری سەرەکی ---
-st.markdown(f"""
-    <div class="brand-header">
-        <div style="color:#D4AF37; font-size:38px; font-weight:bold;">{L['title']}</div>
-        <div style="color:white; font-size:18px;">{L['desc']}</div>
-    </div>
-    <div style="background-color:{card_bg}; padding:10px; border-radius:10px; text-align:center; border:1px solid #D4AF37; margin-bottom:20px;">
-        {L['clock']} <b>{current_time}</b>
-    </div>
-""", unsafe_allow_html=True)
-
-# فۆرمەکە
-with st.form("delivery_form", clear_on_submit=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        customer = st.text_input(L['customer'])
-        shop_name = st.text_input(L['shop'])
-        shop_address = st.text_input(L['shop_addr'])
-    with col2:
-        phone = st.text_input(L['phone'])
-        customer_address = st.text_input(L['cust_addr'])
-        price = st.number_input(L['price'], min_value=0, step=250)
-    
-    if st.form_submit_button(L['submit']):
-        if customer and shop_name and phone:
-            st.success("✅ Done!")
-        else:
-            st.error("⚠️ Fill all fields")
-
-# بەشی ئەدمین
-with st.expander(L['admin']):
-    if st.text_input("🔑 Password", type="password") == "dr_danyal_2024":
-        st.write("Admin access...")
-
-st.markdown(f'<div class="install-bar">{L["install"]}</div>', unsafe_allow_html=True)
+        # پیشاندانی وێنەکە لە سایتەکە
+        st.image(img, caption="وەسڵی ئامادەکراو", use_column_width=True)
+        
+        # دوگمەی داگرتن (Download)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        byte_im = buf.getvalue()
+        
+        st.download_button(
+            label="داگرتنی وەسڵ (Download)",
+            data=byte_im,
+            file_name=f"Receipt_{customer_name}.png",
+            mime="image/png",
+        )
+        st.success("وەسڵەکە ئامادەیە! دەتوانیت دایبەزێنیت و بە واتسئەپ بینێریت.")
