@@ -3,7 +3,7 @@ from PIL import Image
 import io
 from datetime import date
 
-# --- ١. ڕێکخستنی لاپەڕە و دیزاینی VIP ---
+# --- ١. ڕێکخستنی لاپەڕە و دیزاین ---
 st.set_page_config(page_title="Golden Receipt VIP", page_icon="📜", layout="centered")
 
 st.markdown("""
@@ -11,20 +11,16 @@ st.markdown("""
     .main { background-color: #f8f9fa; }
     .stButton>button { border-radius: 12px; background-color: #003366; color: white; font-weight: bold; height: 3.5em; border: 2px solid #d4af37; }
     .receipt-card { 
-        background: white; padding: 30px; border-radius: 20px; border: 5px solid #d4af37; 
-        box-shadow: 0px 15px 35px rgba(0,0,0,0.2); direction: rtl; font-family: 'Tahoma', sans-serif;
-        max-width: 550px; margin: auto; position: relative;
-    }
-    .watermark {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
-        font-size: 70px; color: rgba(255, 0, 0, 0.1); font-weight: bold; pointer-events: none;
+        background: white; padding: 25px; border-radius: 20px; border: 4px solid #d4af37; 
+        box-shadow: 0px 10px 25px rgba(0,0,0,0.1); direction: rtl; font-family: 'Tahoma', sans-serif;
+        margin: auto; position: relative; width: 90%;
     }
     .description-box {
         background: linear-gradient(135deg, #003366 0%, #001a33 100%);
         color: white; padding: 25px; border-radius: 15px; border-bottom: 5px solid #d4af37;
-        text-align: center; margin-bottom: 30px; direction: rtl;
+        text-align: center; margin-bottom: 20px; direction: rtl;
     }
-    .feature-list { text-align: right; font-size: 14px; list-style-type: '⭐'; padding-right: 20px; }
+    .sample-title { color: #003366; text-align: center; margin-top: 30px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,38 +34,35 @@ if 'valid_keys' not in st.session_state:
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
-# --- ٣. ڕووکاری پێشوازی و وەسفی بەرنامە ---
+# --- ٣. ڕووکاری پێشوازی و پێشانگای وەسڵە حازرەکان ---
 if not st.session_state['authenticated']:
-    # --- لێرەدا وەسفەکە زیاد کراوە بۆ ئەوەی لە سەرەتای سایتەکە دیار بێت ---
     st.markdown("""
     <div class="description-box">
         <h1 style="color: #d4af37; margin-bottom: 10px;">📜 سیستەمی وەسڵی گۆڵدن VIP</h1>
-        <p style="font-size: 18px;">سکرتێرێکی زیرەک بۆ ڕێکخستنی فرۆشتنی پەیج و بازرگانییەکان</p>
-        <hr style="border-color: rgba(212, 175, 55, 0.3);">
-        <div class="feature-list">
-            <li>دیزاینێکی شاهانە و پرۆفیشناڵ کە متمانەی کڕیار زیاد دەکات.</li>
-            <li>پشتیگیری تەواوی زمانی کوردی بە بێ تێکچوونی پیتەکان.</li>
-            <li>قوفڵکردنی کۆد لەسەر یەک مۆبایل بۆ پاراستنی مافی بەکارهێنەر.</li>
-            <li>سیستەمی تاقیکردنەوەی بێبەرامبەر پێش کڕینی کلیل.</li>
-        </div>
+        <p style="font-size: 18px;">پسپۆڕ لە دروستکردنی وەسڵی شیک بۆ پەیجەکان</p>
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["✨ تاقیکردنەوەی بێبەرامبەر", "🔐 چالاککردنی ئەژمار"])
+    tab1, tab2 = st.tabs(["🖼️ نموونەی وەسڵەکان", "🔐 چالاککردنی ئەژمار"])
     
     with tab1:
-        st.info("لێرەدا دەتوانیت وەسڵەکە تاقی بکەیتەوە")
-        t_shop = st.text_input("ناوی دوکان (تێست)")
-        if st.button("پێشبینینی وەسڵی تێست"):
-            st.markdown(f"""
-            <div class="receipt-card">
-                <div class="watermark">نموونە / TEST</div>
-                <h2 style="text-align:center; color:#003366;">{t_shop if t_shop else "ناوی دوکان"}</h2>
-                <p><b>کڕیار:</b> کڕیاری نموونە</p>
-                <hr>
-                <p style="text-align:center; color:red;">بۆ لابردنی ئەم نیشانەیە و داگرتنی وەسڵ، کۆد داخل بکە</p>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("<h3 class='sample-title'>سەیری کوالێتی وەسڵەکانمان بکە</h3>", unsafe_allow_html=True)
+        
+        # پیشاندانی وەسڵی حازر بە ناوی تۆوە
+        st.markdown(f"""
+        <div class="receipt-card">
+            <h2 style="text-align:center; color:#003366;">گۆڵدن دێلیڤەری (نموونە)</h2>
+            <p style="text-align:center; font-size:12px; color:#666;">کەرکوک - شەقامی سەرەکی | 07700000000</p>
+            <hr style="border: 1px solid #d4af37;">
+            <p><b>بۆ بەڕێز:</b> کڕیاری نموونەیی</p>
+            <p><b>کاڵا:</b> جلی پیاوان - مۆدێل ٢٠٢٦</p>
+            <h3 style="color:#cc0000; text-align:left;">کۆی گشتی: ٤٥,٠٠٠ دینار</h3>
+            <hr style="border: 0.5px dashed #ccc;">
+            <p style="text-align:center; font-size:11px;">ئەمە نموونەیەکە، دوای چالاککردن دەتوانیت وەسڵی تایبەت بەخۆت دروست بکەیت</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("💡 بۆ دروستکردنی وەسڵی هاوشێوە، کۆدی چالاککردن لە بەشی دووەم داخڵ بکە.")
 
     with tab2:
         user_key = st.text_input("کۆدی چالاککردن", type="password").strip().upper()
@@ -88,9 +81,9 @@ if not st.session_state['authenticated']:
     st.stop()
 
 # --- ٤. شاشەی کارکردن (دوای چوونەژوورەوە) ---
-st.success(f"🌟 بەخێربێیتەوە! پلانی تۆ: {st.session_state['user_info']['plan']}")
+st.success(f"🌟 پلانی چالاک: {st.session_state['user_info']['plan']}")
 
-with st.expander("📝 زانیارییەکان ڕێکبخە", expanded=True):
+with st.expander("📝 زانیاری وەسڵەکە پڕ بکەرەوە", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         shop_n = st.text_input("ناوی پەیج/دوکان", "گۆڵدن دێلیڤەری")
@@ -100,18 +93,22 @@ with st.expander("📝 زانیارییەکان ڕێکبخە", expanded=True):
         cust_n = st.text_input("ناوی کڕیار")
     
     item_n = st.text_input("جۆری کاڵا")
-    price = st.number_input("نرخی کۆتایی", step=250)
+    price = st.number_input("نرخی کۆتایی (دینار)", step=250)
 
-if st.button("✨ دروستکردنی وەسڵ"):
+if st.button("✨ دروستکردنی وەسڵی کۆتایی"):
     st.markdown(f"""
     <div class="receipt-card">
-        <h2 style="text-align:center; color:#003366;">{shop_n}</h2>
-        <p style="text-align:center; font-size:12px; color:#666;">{address} | {phone}</p>
+        <h2 style="text-align:center; color:#003366; margin-bottom:5px;">{shop_n}</h2>
+        <p style="text-align:center; font-size:13px; color:#666;">{address} | 📞 {phone}</p>
         <hr style="border: 1px solid #d4af37;">
-        <p><b>بۆ بەڕێز:</b> {cust_n}</p>
-        <p><b>کاڵا:</b> {item_n}</p>
-        <h3 style="color:#cc0000; text-align:left;">کۆی گشتی: {price:,} دینار</h3>
-        <hr style="border: 0.5px dashed #ccc;">
-        <p style="text-align:center; font-size:12px;">بەروار: {date.today()}</p>
+        <div style="display: flex; justify-content: space-between; margin-top:10px;">
+            <span><b>بەروار:</b> {date.today()}</span>
+            <span><b>بۆ بەڕێز:</b> {cust_n}</span>
+        </div>
+        <div style="margin-top:20px; padding:15px; background:#f9f9f9; border-radius:10px;">
+            <p><b>کاڵا:</b> {item_n}</p>
+            <h3 style="color:#cc0000; text-align:left;">کۆی گشتی: {price:,} دینار</h3>
+        </div>
     </div>
     """, unsafe_allow_html=True)
+    st.balloons()
