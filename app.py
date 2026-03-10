@@ -1,181 +1,94 @@
 import streamlit as st
-import json
+import pandas as pd
 import os
-from datetime import datetime, date
+import urllib.parse
 
-# --- ١. بەڕێوەبردنی کلیلەکان (٤٠ کلیل + ٢ نرخ) ---
-DB_FILE = "keys_database.json"
-
-def get_full_keys():
-    """دروستکردنی لیستی تەواوی ٤٠ کلیلەکە"""
-    keys = {}
-    # ٢٠ کلیلی مانگانە
-    for i in range(1, 21):
-        k = f"GOLD-MON-{i:02d}"
-        keys[k] = {"plan": "مانگانە", "expiry": "2026-04-10", "device": None}
-    # ٢٠ کلیلی ساڵانە
-    for i in range(1, 21):
-        k = f"GOLD-YEAR-{i:02d}"
-        keys[k] = {"plan": "ساڵانە", "expiry": "2027-03-10", "device": None}
-    # کلیلی بەڕێوەبەر
-    keys["DR-KIRKUK-2026"] = {"plan": "بەڕێوەبەر (VIP)", "expiry": "2030-01-01", "device": None}
-    return keys
-
-def load_db():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            current_db = json.load(f)
-        # ئەگەر کلیلە نوێیەکان لە فایلەکە نەبوون، زیادکرانیان بۆ بکە
-        full_keys = get_full_keys()
-        updated = False
-        for k, v in full_keys.items():
-            if k not in current_db:
-                current_db[k] = v
-                updated = True
-        if updated:
-            save_db(current_db)
-        return current_db
-    else:
-        db = get_full_keys()
-        save_db(db)
-        return db
-
-def save_db(db):
-    with open(DB_FILE, "w") as f:
-        json.dump(db, f)
-
-db_keys = load_db()
-
-# --- ٢. دیزاین و ڕووکاری شاهانە ---
-st.set_page_config(page_title="Golden Receipt VIP", page_icon="📜", layout="centered")
+# --- 1. ڕێکخستنی لاپەڕە و دیزاین ---
+st.set_page_config(page_title="Golden Delivery", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .hero-box {
-        background: linear-gradient(135deg, #001a33 0%, #003366 100%);
-        color: white; padding: 40px 25px; border-radius: 20px; border-bottom: 8px solid #d4af37;
-        text-align: center; direction: rtl; margin-bottom: 30px; box-shadow: 0px 10px 20px rgba(0,0,0,0.2);
+    section[data-testid="stSidebar"] { display: none !important; }
+    html, body, [data-testid="stAppViewContainer"] { direction: rtl; text-align: right; }
+    .brand-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%);
+        padding: 25px; border-radius: 15px; border-bottom: 4px solid #D4AF37;
+        text-align: center; margin-bottom: 20px;
     }
-    .price-card {
-        background: white; padding: 20px; border-radius: 15px; border: 2px solid #d4af37;
-        text-align: center; direction: rtl; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    .payment-info {
-        background: #fff3cd; color: #856404; padding: 25px; border-radius: 15px;
-        border: 2px dashed #d4af37; text-align: center; direction: rtl; font-weight: bold; margin-top: 20px;
-    }
-    .receipt-card { 
-        background: white; padding: 30px; border-radius: 20px; border: 4px solid #d4af37; 
-        box-shadow: 0px 15px 35px rgba(0,0,0,0.1); direction: rtl; font-family: 'Tahoma', sans-serif;
-    }
-    .stButton>button { 
-        border-radius: 12px; background-color: #003366; color: white; 
-        font-weight: bold; height: 3.5em; border: 2px solid #d4af37; width: 100%;
+    .brand-title { color: #D4AF37; font-size: 32px; font-weight: bold; }
+    .num-fix { direction: ltr !important; display: inline-block !important; color: #D4AF37; font-weight: bold; }
+    .install-bar {
+        position: fixed; bottom: 0; left: 0; width: 100%;
+        background-color: #1a1a1a; color: white; padding: 12px;
+        text-align: center; border-top: 3px solid #D4AF37; z-index: 9999;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ٣. ڕووکاری پێشوازی و کڕین ---
-if 'auth' not in st.session_state:
-    st.session_state['auth'] = False
+# --- ٢. لۆژیکی داتا ---
+ADMIN_PASSWORD = "dr_danyal_2024" 
+DB_FILE = "global_deliveries.csv"
+MY_WHATSAPP = "9647721959922"
 
-if not st.session_state['auth']:
-    st.markdown("""
-    <div class="hero-box">
-        <h1 style="color: #d4af37; font-size: 38px; margin-bottom: 15px;">📜 گۆڵدن ڕیسێت VIP</h1>
-        <p style="font-size: 21px; line-height: 1.7;">
-            ئێمە متمانە و شکۆ دەبەخشین بە بزنسەکەت. وەسڵەکانمان تەنها کاغەز نین، بەڵکو پەنجەمۆری پرۆفیشناڵی تۆن لەلای کڕیار.
-            بە سیستمێکی زیرەک و پارێزراو، کارەکانت ڕێکبخە و وەسڵی شاهانە ببڕە.
-        </p>
-        <p style="color: #d4af37; font-size: 16px;">💎 یەک مۆبایل | 💎 کاتی دیاریکراو | 💎 دیزاینی ناوازە</p>
+def load_data():
+    if os.path.exists(DB_FILE):
+        # لێرەدا dtype بەکاردێنین بۆ ئەوەی ژمارەی مۆبایل وەک دەق بخوێنێتەوە
+        df = pd.read_csv(DB_FILE, dtype={"مۆبایل": str})
+        return df
+    return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "ناونیشانی کڕیار"])
+
+def save_data(df):
+    df.to_csv(DB_FILE, index=False)
+
+# --- ٣. ڕووکاری سەرەکی ---
+st.markdown("""
+    <div class="brand-header">
+        <div class="brand-title">GOLDEN DELIVERY ✨</div>
+        <div style="color:white;">خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک</div>
     </div>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["🖼️ پێشانگای وەسڵ", "💰 کڕینی کلیل", "🔐 چالاککردنی ئەژمار"])
-    
-    with tab1:
-        st.markdown(f"""
-        <div class="receipt-card">
-            <h2 style="text-align:center; color:#003366; margin-bottom:5px;">گۆڵدن دێلیڤەری</h2>
-            <p style="text-align:center; font-size:12px; color:#666;">کەرکوک - گەڕەکی ئازادی | 📞 07801352003</p>
-            <hr style="border: 1px solid #d4af37;">
-            <p><b>بۆ بەڕێز:</b> کڕیاری نموونەیی</p>
-            <p><b>کاڵا:</b> وەسڵی ساڵانەی VIP</p>
-            <h3 style="color:#cc0000; text-align:left; font-size:24px;">کۆی گشتی: ١٥,٠٠٠ دینار</h3>
-            <hr style="border: 0.5px dashed #ccc;">
-            <p style="text-align:center; font-size:11px; color:#888;">ئەمە نموونەیەکە، وەسڵی تۆ بە لۆگۆ و ناوی خۆت دەبێت</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with tab2:
-        st.markdown("<h3 style='text-align:center;'>نرخی کلیلەکان</h3>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1: st.markdown("""<div class="price-card"><h3>مانگانە</h3><h2 style="color:#003366;">5,000 IQD</h2><p>٣٠ ڕۆژ</p></div>""", unsafe_allow_html=True)
-        with c2: st.markdown("""<div class="price-card"><h3>ساڵانە</h3><h2 style="color:#d4af37;">15,000 IQD</h2><p>٣٦٥ ڕۆژ</p></div>""", unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="payment-info">
-            💳 ناردنی باڵانسی (ئاسیا، کۆرەک، زین) بۆ ژمارەی:<br>
-            <span style="font-size: 26px; color: #003366;">07801352003</span><br>
-            <hr style="border-color:#d4af37;">
-            دوای ناردن، وێنەی پسوڵەکە بنێرە بۆ واتسئەپی هەمان ژمارە بۆ وەرگرتنی کلیلەکەت.
-        </div>
-        """, unsafe_allow_html=True)
-
-    with tab3:
-        user_key = st.text_input("کۆدی چالاککردن (Key)", type="password").strip().upper()
-        if st.button("چوونەژوورەوە"):
-            if user_key in db_keys:
-                k_data = db_keys[user_key]
-                expiry_dt = datetime.strptime(k_data["expiry"], "%Y-%m-%d").date()
-                dev_id = st.context.headers.get("User-Agent")
-                
-                if date.today() > expiry_dt:
-                    st.error(f"❌ ئەم کۆدە لە ڕێکەوتی {k_data['expiry']} بەسەرچووە.")
-                elif k_data["device"] is not None and k_data["device"] != dev_id:
-                    st.error("❌ ئەم کۆدە تەنها لەسەر یەک مۆبایل کار دەکات!")
-                else:
-                    db_keys[user_key]["device"] = dev_id
-                    save_db(db_keys)
-                    st.session_state['auth'] = True
-                    st.session_state['u_info'] = k_data
-                    st.rerun()
-            else:
-                st.error("❌ کۆدەکە هەڵەیە یان بوونی نییە.")
-    st.stop()
-
-# --- ٤. شاشەی کارکردنی سەرەکی ---
-st.success(f"🌟 بەخێربێیت! پلان: {st.session_state['u_info']['plan']} | بەسەرچوون: {st.session_state['u_info']['expiry']}")
-
-with st.expander("📝 زانیاری وەسڵ", expanded=True):
+with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
-        shop_n = st.text_input("ناوی دوکان", "گۆڵدن دێلیڤەری")
-        phone_n = st.text_input("مۆبایل", "07XXXXXXXXX")
+        customer = st.text_input("👤 ناوی کڕیار")
+        shop_name = st.text_input("🏪 ناوی دوکان")
+        shop_address = st.text_input("📍 ناونیشانی دوکان")
     with col2:
-        addr = st.text_input("ناونیشان", "کەرکوک")
-        cust_n = st.text_input("ناوی کڕیار")
-    item_n = st.text_input("کاڵا")
-    price_n = st.number_input("نرخ", min_value=0, step=250)
+        # لێرەدا دڵنیادەبینەوە کە مۆبایل بە دەق وەردەگیرێت
+        phone = st.text_input("📞 ژمارەی مۆبایل (بەتەواوی بنووسە)")
+        customer_address = st.text_input("🏘 ناونیشانی کڕیار")
+        price = st.number_input("💰 نرخ", min_value=0, step=250)
+    
+    submit = st.form_submit_button("تۆمارکردن و ناردنی وەسڵ ✅")
+    
+    if submit:
+        if not customer or not shop_name or not phone:
+            st.error("⚠️ تکایە زانیارییە سەرەکییەکان پڕ بکەرەوە")
+        else:
+            df = load_data()
+            new_row = pd.DataFrame([{
+                "کڕیار": customer, "ناوی دوکان": shop_name, "ناونیشانی دوکان": shop_address, 
+                "مۆبایل": str(phone), "نرخ": price, "ناونیشانی کڕیار": customer_address
+            }])
+            save_data(pd.concat([df, new_row], ignore_index=True))
+            
+            msg = f"Golden Delivery ✨\n📦 وەسڵێکی نوێ\n👤 کڕیار: {customer}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} د.ع"
+            link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
+            st.success("✅ تۆمارکرا")
+            st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">ناردن بۆ WhatsApp 💬</button></a>', unsafe_allow_html=True)
 
-if st.button("✨ دروستکردنی وەسڵ"):
-    if not cust_n: st.warning("ناوی کڕیار بنووسە")
-    else:
-        st.markdown(f"""
-        <div class="receipt-card">
-            <h2 style="text-align:center; color:#003366;">{shop_n}</h2>
-            <p style="text-align:center; font-size:13px; color:#666;">{addr} | 📞 {phone_n}</p>
-            <hr style="border: 1px solid #d4af37;">
-            <div style="display: flex; justify-content: space-between;">
-                <span><b>بەروار:</b> {date.today()}</span>
-                <span><b>بۆ بەڕێز:</b> {cust_n}</span>
-            </div>
-            <div style="margin-top:20px; padding:15px; background:#f9f9f9; border-radius:12px; border: 1px solid #eee;">
-                <p><b>کاڵا:</b> {item_n}</p>
-                <h3 style="color:#cc0000; text-align:left;">کۆی گشتی: {price_n:,} دینار</h3>
-            </div>
-            <p style="text-align:center; font-size:12px; margin-top:15px; color:#888;">سوپاس بۆ متمانەتان!</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.balloons()
+st.markdown(f'<div style="text-align:center; padding:20px;">📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span></div>', unsafe_allow_html=True)
+
+# --- ٤. بەشی ئەدمین (لێرەدا ژمارەکان چاک کراون) ---
+with st.expander("🛠 بەشی کارگێڕی"):
+    if st.text_input("کۆدی نهێنی", type="password", key="admin_final") == ADMIN_PASSWORD:
+        df_admin = load_data()
+        # بەکارهێنانی ستایلی تایبەت بۆ ئەوەی ژمارەکان کورت نەبنەوە
+        st.dataframe(df_admin.style.format({"مۆبایل": lambda x: str(x)}), use_container_width=True)
+        
+        if st.button("🗑 سڕینەوەی گشت داتاکان"):
+            save_data(pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "ناونیشانی کڕیار"]))
+            st.rerun()
+
+st.markdown("""<div class="install-bar">بۆ دابەزاندنی ئەپ: کلیک لە ⎙ یان ⋮ بکە و <b>Add to Home Screen</b> هەڵبژێرە</div>""", unsafe_allow_html=True)
