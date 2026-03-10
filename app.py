@@ -1,70 +1,58 @@
 import streamlit as st
 from PIL import Image, ImageDraw
 import io
-import datetime
 
-# --- داتابەیسی کلیلەکان (وەک نموونە) ---
-# لێرەدا دەتوانیت کلیلەکان دیاری بکەیت کە فرۆشتووتن
-VALID_KEYS = {
-    "GOLDEN-1M-123": "Monthly",
-    "GOLDEN-1Y-456": "Yearly",
-    "DR-KIRKUK-VIP": "Yearly"
-}
+# --- لیستێکی نموونەیی بۆ کلیلەکان (کە فرۆشتووتن) ---
+if 'active_keys' not in st.session_state:
+    st.session_state['active_keys'] = ["GOLDEN-780", "KIRKUK-2026", "VIP-USER"]
 
-st.set_page_config(page_title="Golden Receipt VIP", page_icon="🔑")
+st.set_page_config(page_config_title="Golden Receipt", page_icon="📜")
 
-# --- بەشی چوونە ژوورەوە و کلیل ---
+# --- بەشی پارەدان و چالاککردن ---
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 
 if not st.session_state['authenticated']:
-    st.title("🔑 چالاککردنی سیستەم")
+    st.title("🔑 چالاککردنی سیستەمی وەسڵی گۆڵدن")
     
-    st.info("بۆ بەکارهێنانی سیستەمەکە، دەبێت کلیلێکی چالاککردنت هەبێت.")
+    st.warning("⚠️ ئەم سیستەمە تەنها بۆ بەکارهێنەرە تایبەتەکانە.")
     
-    # پیشاندانی ئۆفەرەکان
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("📦 ئۆفەری مانگانە")
-        st.write("💰 ٥,٠٠٠ دینار")
-        st.write("✅ وەسڵی بێ سنوور")
-        st.write("✅ پشتگیری ٢٤ سەعات")
-        
-    with col2:
-        st.subheader("🌟 ئۆفەری ساڵانە")
-        st.write("💰 ٤٥,٠٠٠ دینار (٢ مانگ دیاری)")
-        st.write("✅ هەموو تایبەتمەندییەکان")
-        st.write("✅ لۆگۆی تایبەت بە خۆت")
+    # ڕونکردنەوەی شێوازی پارەدان
+    st.info("""
+    ### 💳 چۆن کلیل (Key) بەدەست دەهێنیت؟
+    ئێمە تەنها لە ڕێگەی **باڵانس (کارتی مۆبایل)** پارە وەردەگرین:
+    
+    * **📦 ئۆفەری مانگانە:** ٥,٠٠٠ باڵانس (ئاسیا یان کۆڕەکت)
+    * **🌟 ئۆفەری ساڵانە:** ٤٥,٠٠٠ باڵانس (٢ مانگ دیاری)
+    
+    **بۆ کڕینی کلیل:** وێنەی کارتەکە یان کۆدەکە بنێرە بۆ ئەم ژمارەیەی واتسئەپ:
+    👉 [**07801352003**](https://wa.me/9647801352003)
+    """)
 
-    key_input = st.text_input("کلیلەکەت لێرە بنووسە:")
-    if st.button("چالاککردن"):
-        if key_input in VALID_KEYS:
+    key_input = st.text_input("کلیلەکەت لێرە بنووسە (Activation Key):")
+    
+    if st.button("تەئکیدکردنەوە و چوونەژوورەوە"):
+        if key_input in st.session_state['active_keys']:
             st.session_state['authenticated'] = True
-            st.session_state['plan'] = VALID_KEYS[key_input]
-            st.success(f"بە سەرکەوتوویی چالاک بوو! جۆری بەشداریکردن: {VALID_KEYS[key_input]}")
+            st.success("بە سەرکەوتوویی چالاک بوو! بەخێربێیت.")
             st.rerun()
         else:
-            st.error("کلیلەکە هەڵەیە! تکایە پەیوەندی بە بەڕێوەبەر بکە بۆ کڕینی کلیل.")
-    
-    st.write("---")
-    st.write("بۆ کڕینی کلیل، نامە بنێرە بۆ تیکتۆک یان فاسێتپای بۆ ئەم ژمارەیە: `0750XXXXXXX`")
+            st.error("کلیلەکە هەڵەیە یان بەسەرچووە. تکایە پەیوەندی بە واتسئەپ بکە.")
     st.stop()
 
-# --- ئەگەر کلیلەکە ڕاست بوو، ئەم بەشەی خوارەوە دەردەکەوێت ---
+# --- ئەگەر کلیلەکە ڕاست بوو، ئەم بەشە دەکرێتەوە ---
 
-st.title("📜 وەسڵ بڕینی گۆڵدن")
-st.sidebar.success(f"پلانی ئێستا: {st.session_state['plan']}")
+st.title("📜 وەسڵ بڕینی دیجیتاڵی")
+st.sidebar.write("✅ سیستەم چالاکە")
 
-if st.sidebar.button("چوونە دەرەوە (Logout)"):
-    st.session_state['authenticated'] = False
-    st.rerun()
-
-with st.form("receipt_form"):
-    shop_name = st.text_input("ناوی دوکان", "Golden Shop")
-    customer_name = st.text_input("ناوی کڕیار")
-    item_name = st.text_input("ناوی کاڵا")
-    price = st.number_input("نرخ", min_value=0, step=250)
+with st.form("main_form"):
+    shop_name = st.text_input("ناوی دوکان/پەیج")
+    cust_name = st.text_input("ناوی کڕیار")
+    item = st.text_input("جۆری کاڵا")
+    price = st.number_input("نرخ (دینار)", step=250)
+    logo_file = st.file_uploader("لۆگۆی خۆت دابنێ (ئارەزوومەندانە)", type=['png', 'jpg'])
     
-    if st.form_submit_button("دروستکردن"):
-        # (هەمان کۆدی دروستکردنی وێنەکە لێرە دادەنرێت)
-        st.write(f"وەسڵ بۆ {customer_name} دروست کرا!")
+    if st.form_submit_button("دروستکردنی وەسڵ"):
+        # لێرەدا کۆدی دروستکردنی وێنەکە کار دەکات
+        st.success(f"وەسڵ بۆ {cust_name} بە سەرکەوتوویی دروست کرا!")
+        # (کۆدی ImageDraw لێرە زیاد دەبێت وەک پێشتر)
