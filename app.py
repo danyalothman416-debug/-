@@ -2,123 +2,93 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-# 1. ڕێکخستنی سەرەتایی لاپەڕە
-st.set_page_config(page_title="Golden Receipt", page_icon="📜", layout="centered")
+# --- 1. ڕێکخستنی شێوە و دیزاینی لاپەڕە ---
+st.set_page_config(page_title="Golden Receipt VIP", page_icon="📜", layout="centered")
 
-# 2. لیستی کلیلە چالاکەکان (مانگانە و ساڵانە)
+# ستایلێکی جوان بۆ نووسینەکان
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 20px; background-color: #003366; color: white; }
+    h1 { color: #003366; text-align: center; border-bottom: 2px solid #d4af37; padding-bottom: 10px; }
+    .stAlert { border-radius: 15px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. داتابەیسی کلیلەکان ---
 if 'valid_keys' not in st.session_state:
     st.session_state['valid_keys'] = {
-        # مانگانە - 5,000 باڵانس
-        "GOLD-MON-8821-X": "Monthly",
-        "GOLD-MON-4432-Y": "Monthly",
-        "GOLD-MON-1090-Z": "Monthly",
-        
-        # ساڵانە - 25,000 باڵانس (ئۆفەری تایبەت)
-        "GOLD-25K-YEAR-001": "Yearly VIP",
-        "GOLD-25K-YEAR-002": "Yearly VIP",
-        "GOLD-25K-YEAR-003": "Yearly VIP",
-        "DR-KIRKUK-2026": "Yearly VIP"
+        "GOLD-MON-1": "مانگانە", 
+        "GOLD-25K-YEAR-1": "ساڵانە",
+        "DR-KIRKUK-2026": "ساڵانە"
     }
 
-# 3. سیستەمی چوونەژوورەوە (Authentication)
-if 'authenticated' not in st.session_state:
-    st.session_state['authenticated'] = False
+# --- 3. قۆناغی یەکەم: قوفڵ و کلیل (Login) ---
+if 'auth' not in st.session_state:
+    st.session_state['auth'] = False
 
-if not st.session_state['authenticated']:
-    st.title("🔑 چالاککردنی وەسڵی گۆڵدن")
-    st.image("https://img.icons8.com/fluent/100/000000/key.png")
+if not st.session_state['auth']:
+    st.title("📜 سیستەمی وەسڵی گۆڵدن")
+    st.subheader("تکایە کلیلەکەت داخل بکە بۆ دەستپێکردن")
     
-    st.markdown("""
-    ### 💳 چۆن کلیل (Key) بەدەست دەهێنیت؟
-    ئێمە تەنها لە ڕێگەی **باڵانس (کارتی مۆبایل)** پارە وەردەگرین:
-    
-    * **📦 ئۆفەری مانگانە:** ٥,٠٠٠ باڵانس
-    * **🌟 ئۆفەری ساڵانە:** ٢٥,٠٠٠ باڵانس (داشکاندنی تایبەت)
-    
-    **بۆ کڕینی کلیل:** کۆدی کارتەکە بنێرە بۆ واتسئەپی ئەم ژمارەیە:
-    👉 **07801352003**
-    """)
-
-    key_input = st.text_input("کلیلەکەت لێرە بنووسە (Activation Key):", type="password")
-    
-    if st.button("تەئکیدکردنەوە و چوونەژوورەوە"):
-        if key_input in st.session_state['valid_keys']:
-            st.session_state['authenticated'] = True
-            st.session_state['user_plan'] = st.session_state['valid_keys'][key_input]
-            st.success(f"بە سەرکەوتوویی چالاک بوو! پلان: {st.session_state['user_plan']}")
-            st.rerun()
-        else:
-            st.error("کلیلەکە هەڵەیە! تکایە پەیوەندی بە واتسئەپ بکە بۆ کڕینی کلیل.")
+    with st.container():
+        st.info("💳 بۆ کڕینی کلیل، کارت بنێرە بۆ واتسئەپ: 07801352003")
+        user_key = st.text_input("Activation Key", type="password", placeholder="کلیلەکە لێرە بنووسە...")
+        
+        if st.button("پشکنینی کلیل"):
+            if user_key in st.session_state['valid_keys']:
+                st.session_state['auth'] = True
+                st.session_state['plan'] = st.session_state['valid_keys'][user_key]
+                st.success("بەخێربێیت! سیستەم چالاک بوو.")
+                st.rerun()
+            else:
+                st.error("کلیلەکە هەڵەیە!")
     st.stop()
 
-# 4. ئەگەر بەکارهێنەر چووە ژوورەوە، ئەم بەشە کار دەکات
+# --- 4. قۆناغی دووەم: ژووری کارکردن (Dashboard) ---
 st.title("📜 دروستکەری وەسڵی دیجیتاڵی")
-st.sidebar.write(f"✅ باری سیستەم: چالاک ({st.session_state['user_plan']})")
+st.sidebar.markdown(f"### 👤 جۆری بەژداری: \n **{st.session_state['plan']}**")
 
-if st.sidebar.button("Log out"):
-    st.session_state['authenticated'] = False
-    st.rerun()
+with st.expander("📝 پڕکردنەوەی زانیاری وەسڵ", expanded=True):
+    shop = st.text_input("ناوی دوکان/پەیج")
+    cust = st.text_input("ناوی کڕیار")
+    item = st.text_input("ناوی کاڵا")
+    price = st.number_input("نرخ (دینار)", step=250)
+    logo = st.file_uploader("بارکردنی لۆگۆ", type=['png', 'jpg'])
+    
+    btn_create = st.button("✨ دروستکردنی وەسڵی شیک")
 
-# فۆرمی وەرگرتنی زانیاری وەسڵ
-with st.form("receipt_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        shop_name = st.text_input("ناوی دوکان/پەیج", "Golden Shop")
-        cust_name = st.text_input("ناوی کڕیار")
-    with col2:
-        item_name = st.text_input("جۆری کاڵا")
-        price = st.number_input("نرخی کاڵا (دینار)", min_value=0, step=250)
-    
-    delivery_fee = st.number_input("کرێی گەیاندن (دینار)", min_value=0, step=250)
-    
-    # بارکردنی لۆگۆ (تەنها بۆ پلانی ساڵانە چالاکە بە کرداری، بەڵام لێرە بۆ هەمووان دام ناوە)
-    logo_file = st.file_uploader("لۆگۆی دوکانەکەت (ئارەزوومەندانە)", type=['png', 'jpg', 'jpeg'])
-    
-    submit = st.form_submit_button("دروستکردنی وەسڵ")
-
-if submit:
-    if not cust_name or not item_name:
-        st.warning("تکایە ناوی کڕیار و کاڵا بنووسە")
+# --- 5. قۆناغی سێیەم: دروستکردنی وێنەی وەسڵەکە ---
+if btn_create:
+    if not shop or not cust:
+        st.warning("تکایە ناوی دوکان و کڕیار بنووسە")
     else:
-        # دروستکردنی وێنەی وەسڵەکە
-        width, height = 500, 700
-        receipt = Image.new('RGB', (width, height), color=(255, 255, 255))
-        draw = ImageDraw.Draw(receipt)
+        # دروستکردنی وێنە بە قەبارەی وەسڵ
+        img = Image.new('RGB', (500, 700), color='#ffffff')
+        draw = ImageDraw.Draw(img)
         
-        # دیزاینی چوارچێوە
-        draw.rectangle([20, 20, 480, 680], outline=(0, 51, 102), width=8)
+        # دیزاینی چوارچێوەی زێڕین
+        draw.rectangle([15, 15, 485, 685], outline="#d4af37", width=10)
+        draw.rectangle([25, 25, 475, 675], outline="#003366", width=2)
         
-        # نووسینەکان (بە ئینگلیزی چونکە پایتۆن فۆنتی کوردی جیاوازی دەوێت)
-        draw.text((160, 50), "GOLDEN RECEIPT", fill=(0, 51, 102))
-        draw.text((50, 150), f"SHOP: {shop_name.upper()}", fill=(0, 0, 0))
-        draw.text((50, 200), f"CUSTOMER: {cust_name}", fill=(0, 0, 0))
-        draw.line((50, 250, 450, 250), fill=(200, 200, 200), width=2)
+        # نووسینەکان (بە ئینگلیزی بۆ تێست، دواتر فۆنتی کوردی دادەنێین)
+        draw.text((150, 50), "GOLDEN RECEIPT", fill="#003366")
+        draw.text((60, 150), f"FROM: {shop.upper()}", fill="#000000")
+        draw.text((60, 200), f"TO: {cust}", fill="#000000")
+        draw.line((60, 250, 440, 250), fill="#d4af37", width=2)
         
-        draw.text((50, 300), f"ITEM: {item_name}", fill=(0, 0, 0))
-        draw.text((50, 350), f"PRICE: {price:,} IQD", fill=(0, 0, 0))
-        draw.text((50, 400), f"DELIVERY: {delivery_fee:,} IQD", fill=(0, 0, 0))
+        draw.text((60, 320), f"ITEM: {item}", fill="#000000")
+        draw.text((60, 380), f"PRICE: {price:,} IQD", fill="#003366")
         
-        draw.line((50, 480, 450, 480), fill=(0, 51, 102), width=3)
-        total = price + delivery_fee
-        draw.text((50, 520), f"TOTAL AMOUNT: {total:,} IQD", fill=(204, 0, 0))
-        
-        draw.text((120, 620), "Thank you for choosing us!", fill=(100, 100, 100))
+        draw.text((130, 600), "Thank you for your business!", fill="#666666")
 
-        # ئەگەر لۆگۆی هەبوو، بیخە سەر وەسڵەکە
-        if logo_file:
-            user_logo = Image.open(logo_file).convert("RGBA")
-            user_logo = user_logo.resize((100, 100))
-            receipt.paste(user_logo, (350, 50), user_logo)
+        if logo:
+            user_l = Image.open(logo).resize((100, 100))
+            img.paste(user_l, (350, 40))
 
-        # پیشاندانی وێنەکە
-        st.image(receipt, caption="وەسڵەکەت ئامادەیە", use_container_width=True)
+        st.image(img, caption="ئەمە شێوەی وەسڵەکەتە")
         
         # دوگمەی داگرتن
         buf = io.BytesIO()
-        receipt.save(buf, format="PNG")
-        st.download_button(
-            label="💾 داگرتنی وەسڵ (Download)",
-            data=buf.getvalue(),
-            file_name=f"Receipt_{cust_name}.png",
-            mime="image/png"
-        )
+        img.save(buf, format="PNG")
+        st.download_button("💾 داگرتنی وەسڵ", buf.getvalue(), f"{cust}.png", "image/png")
