@@ -10,3 +10,4 @@ streamlit
 Pillow
 arabic-reshaper
 python-bidi
+js-eval
