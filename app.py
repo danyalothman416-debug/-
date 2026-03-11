@@ -2,244 +2,168 @@ import streamlit as st
 import pandas as pd
 import os
 import urllib.parse
-from datetime import datetime
-from fpdf import FPDF
-import folium
-from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Golden Delivery",layout="wide")
+# --- 1. ڕێکخستنی لاپەڕە و زمان ---
+st.set_page_config(page_title="Golden Delivery", layout="wide")
 
-DB="orders.csv"
+languages = {
+    "کوردی 🇭🇺": {
+        "dir": "rtl", "align": "right",
+        "title": "GOLDEN DELIVERY ✨",
+        "subtitle": "خíراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
+        "customer_name": "👤 ناوی کڕیار", 
+        "shop_name": "🏪 ناوی دوکان", 
+        "shop_addr": "📍 ناونیشانی دوکان",
+        "phone": "📞 ژمارەی مۆبایل", 
+        "area": "🏘 گەڕەکی کڕیار", 
+        "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
+        "price": "💰 نرخ (د.ع)",
+        "submit": "تۆمارکردن و ناردنی وەسڵ ✅", 
+        "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
+        "error": "⚠️ تکایە خانەکان پڕ بکەرەوە", 
+        "success": "✅ بە سەرکەوتوویی تۆمارکرا",
+        "admin_title": "🛠 پانێڵی بەڕێوەبەرایەتی", 
+        "admin_pass": "پاسۆرد داخڵ بکە",
+        "msg_delivered": "سڵاو، داواکارییەکەت گەیشت ✅", 
+        "msg_onway": "سڵاو، داواکارییەکەت لە ڕێگەیە 🚚",
+        "app_guide": "📲 بۆ ئەوەی وەک ئەپڵیکەیشن بەکاری بهێنیت: کلیک لە سێ خاڵەکە بکە و 'Add to Home Screen' دابگرە."
+    },
+    "العربية 🇮🇶": {
+        "dir": "rtl", "align": "right",
+        "title": "گولدن دليفري ✨",
+        "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
+        "customer_name": "👤 اسم الزبون", 
+        "shop_name": "🏪 اسم المحل", 
+        "shop_addr": "📍 عنوان المحل",
+        "phone": "📞 رقم الموبايل", 
+        "area": "🏘 منطقة الزبون", 
+        "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
+        "price": "💰 السعر (د.ع)",
+        "submit": "تسجيل وإرسال الوصل ✅", 
+        "wa_btn": "إرسال البيانات للمكتب 💬",
+        "error": "⚠️ يرجى ملء البيانات المطلوبة", 
+        "success": "✅ تم التسجيل بنجاح",
+        "admin_title": "🛠 لوحة التحكم", 
+        "admin_pass": "أدخل كلمة المرور",
+        "msg_delivered": "مرحباً، تم توصيل طلبيتك ✅", 
+        "msg_onway": "مرحباً، طلبيتك في الطريق 🚚",
+        "app_guide": "📲 لاستخدامه كتطبيق: اضغط على النقاط الثلاث واختر 'Add to Home Screen'."
+    },
+    "English 🇬🇧": {
+        "dir": "ltr", "align": "left",
+        "title": "GOLDEN DELIVERY ✨",
+        "subtitle": "Fastest and most reliable delivery service in Kirkuk",
+        "customer_name": "👤 Customer Name", 
+        "shop_name": "🏪 Shop Name", 
+        "shop_addr": "📍 Shop Address",
+        "phone": "📞 Phone Number", 
+        "area": "🏘 Customer Area", 
+        "full_addr": "🏠 Address Details",
+        "price": "💰 Price (IQD)",
+        "submit": "Register and Send ✅", 
+        "wa_btn": "Send to Office 💬",
+        "error": "⚠️ Please fill all fields", 
+        "success": "✅ Successfully Registered",
+        "admin_title": "🛠 Admin Panel", 
+        "admin_pass": "Enter Password",
+        "msg_delivered": "Hello, your order has arrived ✅", 
+        "msg_onway": "Hello, your order is on the way 🚚",
+        "app_guide": "📲 To use as an App: Click the three dots and select 'Add to Home Screen'."
+    }
+}
 
-# ---------------- Database ----------------
+if "selected_lang" not in st.session_state:
+    st.session_state.selected_lang = "کوردی 🇭🇺"
 
-def load_orders():
-    if os.path.exists(DB):
-        return pd.read_csv(DB)
-    return pd.DataFrame(columns=[
-        "time","customer","phone","area",
-        "address","price","status","driver",
-        "lat","lon"
-    ])
+# دوگمەی گۆڕینی زمان
+col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
+with col_ref:
+    if st.button("🔄"): st.rerun()
+with col_lang:
+    lang_choice = st.selectbox("🌐 Language", list(languages.keys()), index=list(languages.keys()).index(st.session_state.selected_lang))
+    st.session_state.selected_lang = lang_choice
 
-def save_orders(df):
-    df.to_csv(DB,index=False)
+L = languages[st.session_state.selected_lang]
 
-df=load_orders()
+# --- ٢. لیستی گەڕەکەکان ---
+KIRKUK_AREAS = sorted([
+    "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
+    "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
+    "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار", "ڕووناكی", "ئەحمەد ئاغا",
+    "ئیسکان", "قۆریە", "حەجیاوا", "برایەتی", "تەپەی مەلا عەبدوڵا", "بێستوون", 
+    "شۆراو نوێ", "کۆمەڵگای نیشتەجێبوون", "سەربازی", "ئەڵماس", "بەرلێمان", "دەروازەی باکور",
+    "کەنیسە", "حەی سەدام", "حەی مەنصور", "حەی ئەسرا و مەفقودین", "حەی بەعس",
+    "حەی عەدەن", "پەنجای نوێ", "شۆراوی کۆن", "قادسیە ١", "قادسیە ٢", "فەیلەق", 
+    "بڵاوەکان", "حەی حوسێن", "حەی ئەفسەران", "کۆمار", "شاتیلو", "تاریق", "حەی خەزرا", "ڕاپەڕین"
+])
 
-# ---------------- Header ----------------
+# --- ٣. بارکردنی داتا ---
+DB_FILE = "deliveries.csv"
+def load_data():
+    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
+    return pd.DataFrame(columns=["customer", "shop", "phone", "area", "address", "price"])
 
-st.title("GOLDEN DELIVERY ✨")
-st.caption("Professional Delivery System - Kirkuk")
+# --- ٤. ستایلی لاپەڕە ---
+st.markdown(f"""
+    <style>
+    html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
+    .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 20px; border-radius: 15px; border-bottom: 4px solid #D4AF37; text-align: center; margin-bottom: 15px; }}
+    .brand-title {{ color: #D4AF37; font-size: 28px; font-weight: bold; }}
+    .stForm {{ border: 1px solid #D4AF37 !important; border-radius: 15px; padding: 20px; }}
+    .num-fix {{ direction: ltr !important; display: inline-block; }}
+    .guide-box {{ background-color: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: center; color: #555; font-size: 14px; }}
+    </style>
+    """, unsafe_allow_html=True)
 
-# ---------------- Dashboard ----------------
+st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-col1,col2,col3,col4=st.columns(4)
-
-with col1:
-    st.metric("Total Orders",len(df))
-
-with col2:
-    if not df.empty:
-        st.metric("Revenue",int(df["price"].sum()))
-    else:
-        st.metric("Revenue",0)
-
-with col3:
-    if not df.empty:
-        delivered=len(df[df["status"]=="Delivered"])
-        st.metric("Delivered",delivered)
-    else:
-        st.metric("Delivered",0)
-
-with col4:
-    if not df.empty:
-        pending=len(df[df["status"]=="Pending"])
-        st.metric("Pending",pending)
-    else:
-        st.metric("Pending",0)
-
-st.divider()
-
-# ---------------- New Order ----------------
-
-st.subheader("➕ New Order")
-
-with st.form("order_form"):
-
-    col1,col2=st.columns(2)
-
+# --- ٥. فۆرمی کڕیار ---
+with st.form("delivery_form", clear_on_submit=True):
+    col1, col2 = st.columns(2)
     with col1:
-        customer=st.text_input("Customer Name")
-        phone=st.text_input("Phone")
-        area=st.text_input("Area")
-
+        customer = st.text_input(L['customer_name'])
+        shop = st.text_input(L['shop_name'])
+        shop_addr = st.text_input(L['shop_addr'])
     with col2:
-        address=st.text_input("Address")
-        price=st.number_input("Price",0)
-        driver=st.text_input("Driver")
-
-    st.write("Location (optional)")
-
-    col3,col4=st.columns(2)
-
-    with col3:
-        lat=st.number_input("Latitude",0.0)
-
-    with col4:
-        lon=st.number_input("Longitude",0.0)
-
-    submit=st.form_submit_button("Add Order")
-
+        phone = st.text_input(L['phone'])
+        selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
+        price = st.number_input(L['price'], min_value=0, step=250)
+    
+    full_addr = st.text_input(L['full_addr'])
+    
+    submit = st.form_submit_button(L['submit'])
+    
     if submit:
+        if not customer or not phone or "هەڵبژێرە" in selected_area:
+            st.error(L['error'])
+        else:
+            df = load_data()
+            new_row = pd.DataFrame([{"customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price}])
+            pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
+            
+            msg = f"Golden Delivery ✨\n📦 داواکاری نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
+            link = f"https://wa.me/9647801352003?text={urllib.parse.quote(msg)}"
+            st.success(L['success'])
+            st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-        new=pd.DataFrame([{
-            "time":datetime.now(),
-            "customer":customer,
-            "phone":phone,
-            "area":area,
-            "address":address,
-            "price":price,
-            "status":"Pending",
-            "driver":driver,
-            "lat":lat,
-            "lon":lon
-        }])
+# --- ٦. پانێڵی ئەدمین (ناردنی نامە بۆ کڕیار) ---
+if st.query_params.get("role") == "boss":
+    st.divider()
+    st.subheader(L['admin_title'])
+    if st.text_input(L['admin_pass'], type="password") == "dr_danyal_2024":
+        data = load_data()
+        if not data.empty:
+            st.dataframe(data, use_container_width=True)
+            for i, row in data.iterrows():
+                with st.expander(f"📦 {row['customer']} - {row['area']}"):
+                    c_del, c_onw = st.columns(2)
+                    with c_del:
+                        m1 = urllib.parse.quote(f"سڵاو {row['customer']}\n{L['msg_delivered']}\nGolden Delivery ✨")
+                        st.markdown(f'<a href="https://wa.me/{row["phone"]}?text={m1}" target="_blank"><button style="width:100%; background:#4CAF50; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">✅ گەیشت</button></a>', unsafe_allow_html=True)
+                    with c_onw:
+                        m2 = urllib.parse.quote(f"سڵاو {row['customer']}\n{L['msg_onway']}\nGolden Delivery ✨")
+                        st.markdown(f'<a href="https://wa.me/{row["phone"]}?text={m2}" target="_blank"><button style="width:100%; background:#FF9800; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🚚 لە ڕێگەیە</button></a>', unsafe_allow_html=True)
 
-        df=pd.concat([df,new])
-
-        save_orders(df)
-
-        msg=f"""
-Golden Delivery ✨
-
-Customer: {customer}
-Phone: {phone}
-Area: {area}
-Address: {address}
-Price: {price} IQD
-"""
-
-        wa=f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
-
-        st.success("Order Added")
-
-        st.link_button("Send WhatsApp",wa)
-
-st.divider()
-
-# ---------------- Search ----------------
-
-st.subheader("🔎 Search Orders")
-
-search=st.text_input("Search by Customer or Phone")
-
-if search:
-    df=df[
-        df["customer"].astype(str).str.contains(search,case=False) |
-        df["phone"].astype(str).str.contains(search,case=False)
-    ]
-
-# ---------------- Orders List ----------------
-
-st.subheader("📦 Orders")
-
-for i,row in df.iterrows():
-
-    with st.expander(f"{row['customer']} - {row['area']}"):
-
-        st.write("📞 Phone:",row["phone"])
-        st.write("🏠 Address:",row["address"])
-        st.write("💰 Price:",row["price"])
-        st.write("🚚 Driver:",row["driver"])
-        st.write("📊 Status:",row["status"])
-
-        col1,col2,col3=st.columns(3)
-
-        with col1:
-
-            status=st.selectbox(
-                "Change Status",
-                ["Pending","On the Way","Delivered"],
-                index=["Pending","On the Way","Delivered"].index(row["status"]),
-                key=i
-            )
-
-            if st.button("Update Status",key=f"u{i}"):
-
-                df.loc[i,"status"]=status
-                save_orders(df)
-
-                st.success("Updated")
-
-        with col2:
-
-            if st.button("Generate Receipt",key=f"p{i}"):
-
-                pdf=FPDF()
-
-                pdf.add_page()
-
-                pdf.set_font("Arial",size=14)
-
-                pdf.cell(200,10,"Golden Delivery Receipt",ln=True)
-
-                pdf.cell(200,10,f"Customer: {row['customer']}",ln=True)
-                pdf.cell(200,10,f"Phone: {row['phone']}",ln=True)
-                pdf.cell(200,10,f"Area: {row['area']}",ln=True)
-                pdf.cell(200,10,f"Price: {row['price']}",ln=True)
-
-                file=f"receipt_{i}.pdf"
-
-                pdf.output(file)
-
-                with open(file,"rb") as f:
-                    st.download_button(
-                        "Download PDF",
-                        f,
-                        file
-                    )
-
-        with col3:
-
-            if row["lat"]!=0 and row["lon"]!=0:
-
-                m=folium.Map(
-                    location=[row["lat"],row["lon"]],
-                    zoom_start=15
-                )
-
-                folium.Marker(
-                    [row["lat"],row["lon"]],
-                    tooltip="Customer"
-                ).add_to(m)
-
-                st_folium(m,width=400)
-
-st.divider()
-
-# ---------------- Statistics ----------------
-
-st.subheader("📊 Statistics")
-
-if not df.empty:
-
-    chart=df.groupby("status").size()
-
-    st.bar_chart(chart)
-
-st.divider()
-
-# ---------------- Footer ----------------
-
-st.markdown(
-"""
-<center>
-
-Golden Delivery System  
-Developed for Delivery Management
-
-</center>
-""",
-unsafe_allow_html=True
-)
+# --- ٧. ڕێنمایی ئەپڵیکەیشن و ژمارەکان ---
+st.markdown(f'<div class="guide-box">{L["app_guide"]}</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center; padding:10px;">📞 <span class="num-fix">0780 135 2003</span> | <span class="num-fix">0772 195 9922</span></div>', unsafe_allow_html=True)
