@@ -32,7 +32,6 @@ MY_WHATSAPP = "9647721959922"
 
 def load_data():
     if os.path.exists(DB_FILE):
-        # لێرەدا dtype بەکاردێنین بۆ ئەوەی ژمارەی مۆبایل وەک دەق بخوێنێتەوە
         df = pd.read_csv(DB_FILE, dtype={"مۆبایل": str})
         return df
     return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "ناونیشانی کڕیار"])
@@ -55,7 +54,6 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_name = st.text_input("🏪 ناوی دوکان")
         shop_address = st.text_input("📍 ناونیشانی دوکان")
     with col2:
-        # لێرەدا دڵنیادەبینەوە کە مۆبایل بە دەق وەردەگیرێت
         phone = st.text_input("📞 ژمارەی مۆبایل (بەتەواوی بنووسە)")
         customer_address = st.text_input("🏘 ناونیشانی کڕیار")
         price = st.number_input("💰 نرخ", min_value=0, step=250)
@@ -80,15 +78,23 @@ with st.form("delivery_form", clear_on_submit=True):
 
 st.markdown(f'<div style="text-align:center; padding:20px;">📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span></div>', unsafe_allow_html=True)
 
-# --- ٤. بەشی ئەدمین (لێرەدا ژمارەکان چاک کراون) ---
-with st.expander("🛠 بەشی کارگێڕی"):
-    if st.text_input("کۆدی نهێنی", type="password", key="admin_final") == ADMIN_PASSWORD:
-        df_admin = load_data()
-        # بەکارهێنانی ستایلی تایبەت بۆ ئەوەی ژمارەکان کورت نەبنەوە
-        st.dataframe(df_admin.style.format({"مۆبایل": lambda x: str(x)}), use_container_width=True)
-        
-        if st.button("🗑 سڕینەوەی گشت داتاکان"):
-            save_data(pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "ناونیشانی کڕیار"]))
-            st.rerun()
+# --- ٤. بەشی کارگێڕی زیرەک (تەنها بۆ بەڕێوبەر) ---
+# لێرەدا پشکنین دەکەین: ئایا لە لینکەکەدا نووسراوە role=boss ؟
+query_params = st.query_params
+is_admin_link = query_params.get("role") == "boss"
+
+if is_admin_link:
+    with st.expander("🛠 بەشی کارگێڕی (تەنها تۆ دەبینیت)"):
+        if st.text_input("کۆدی نهێنی", type="password", key="admin_final") == ADMIN_PASSWORD:
+            st.success("بەخێربێیت دکتۆر دانیال")
+            df_admin = load_data()
+            st.dataframe(df_admin.style.format({"مۆبایل": lambda x: str(x)}), use_container_width=True)
+            
+            if st.button("🗑 سڕینەوەی گشت داتاکان"):
+                save_data(pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "ناونیشانی کڕیار"]))
+                st.rerun()
+else:
+    # ئەگەر کەسێکی ئاسایی بێت، ئەم نیشانەیە دەبینێت بۆ متمانە
+    st.markdown('<div style="text-align:center; opacity:0.5; font-size:12px;">Golden Delivery v1.0 - Kirkuk</div>', unsafe_allow_html=True)
 
 st.markdown("""<div class="install-bar">بۆ دابەزاندنی ئەپ: کلیک لە ⎙ یان ⋮ بکە و <b>Add to Home Screen</b> هەڵبژێرە</div>""", unsafe_allow_html=True)
