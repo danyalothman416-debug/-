@@ -23,18 +23,29 @@ st.markdown("""
         text-align: center; border-top: 3px solid #D4AF37; z-index: 9999;
     }
     .stForm { border: 1px solid #D4AF37 !important; border-radius: 15px !important; padding: 20px !important; }
+    
+    /* ستایلی دوگمەی ڕیفرێش */
+    .refresh-btn {
+        float: left;
+        background-color: #D4AF37;
+        color: black;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- ٢. لۆژیکی داتا ---
 ADMIN_PASSWORD = "dr_danyal_2024" 
 DB_FILE = "global_deliveries.csv"
-MY_WHATSAPP = "9647801352003" # گۆڕدرا بۆ ژمارە نوێیەکە
+MY_WHATSAPP = "9647801352003" 
 
 def load_data():
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE, dtype={"مۆبایل": str})
-        # ئەگەر ستونی دۆخی داواکاری نەبوو، زیادی بکە
         if "دۆخی داواکاری" not in df.columns:
             df["دۆخی داواکاری"] = "وەرگیرا 📥"
         return df
@@ -44,6 +55,13 @@ def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
 # --- ٣. ڕووکاری سەرەکی ---
+
+# دوگمەی ڕیفرێش لە سەرەوەی لاپەڕەکە
+col_title, col_ref = st.columns([5, 1])
+with col_ref:
+    if st.button("🔄 Refresh"):
+        st.rerun()
+
 st.markdown("""
     <div class="brand-header">
         <div class="brand-title">GOLDEN DELIVERY ✨</div>
@@ -77,6 +95,7 @@ with st.form("delivery_form", clear_on_submit=True):
             save_data(pd.concat([df, new_row], ignore_index=True))
             
             msg = f"Golden Delivery ✨\n📦 وەسڵێکی نوێ\n👤 کڕیار: {customer}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} د.ع\n📍 دۆخ: وەرگیراوە"
+            # بەکارهێنانی wa.me کە باشترینە بۆ واتسئاپ بزنس
             link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
             st.success("✅ بە سەرکەوتوویی تۆمارکرا")
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">ناردنی زانیاری بۆ ئۆفیس 💬</button></a>', unsafe_allow_html=True)
@@ -86,7 +105,7 @@ st.markdown(f'<div style="text-align:center; padding:15px;">📞 <span class="nu
 with st.expander("📲 چۆن ئەپەکە دابەزێنم؟"):
     st.write("لە سەفاری نیشانەی Share دابگرە و Add to Home Screen هەڵبژێرە.")
 
-# --- ٤. بەشی ئەدمینی نهێنی لەگەڵ سیستەمی دۆخی داواکاری ---
+# --- ٤. بەشی ئەدمینی نهێنی ---
 query_params = st.query_params
 if query_params.get("role") == "boss":
     st.write("---")
@@ -107,9 +126,14 @@ if query_params.get("role") == "boss":
                             save_data(df_admin)
                             st.rerun()
                     with col_wa:
-                        # ئۆتۆماتیکردنی نامە بۆ کڕیار
                         cust_msg = f"سڵاو {row['کڕیار']} بەڕێز\nداواکارییەکەت لە Golden Delivery ✨\nئێستا لە دۆخی: {new_status} دایە."
-                        wa_link = f"https://wa.me/964{row['مۆبایل'][-10:]}?text={urllib.parse.quote(cust_msg)}"
+                        # ڕێکخستنی ژمارەی مۆبایل بۆ واتسئاپ
+                        clean_phone = str(row['مۆبایل']).strip().replace(" ", "")
+                        if not clean_phone.startswith("964"):
+                            if clean_phone.startswith("0"): clean_phone = "964" + clean_phone[1:]
+                            else: clean_phone = "964" + clean_phone
+                        
+                        wa_link = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(cust_msg)}"
                         st.markdown(f'<a href="{wa_link}" target="_blank">📲 نامە بۆ کڕیار</a>', unsafe_allow_html=True)
                 
                 st.write("---")
