@@ -12,8 +12,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "get_gps_btn": "📍 دیاریکردنی شوێنەکەم بە ئۆتۆماتیکی (وەک Baly)",
-        "gps_success": "✅ شوێنەکەت بە سەرکەوتوویی دیاریکرا!",
+        "get_gps_btn": "📍 کلیک لێرە بکە بۆ دۆزینەوەی شوێنەکەت",
+        "gps_success": "✅ شوێنەکەت دیاریکرا",
         "customer_name": "👤 ناوی کڕیار", 
         "shop_name": "🏪 ناوی دوکان", 
         "shop_addr": "📍 ناونیشانی دوکان",
@@ -34,8 +34,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "get_gps_btn": "📍 تحديد موقعي تلقائياً (مثل بلي)",
-        "gps_success": "✅ تم تحديد موقعك بنجاح!",
+        "get_gps_btn": "📍 اضغط هنا لتحديد موقعك",
+        "gps_success": "✅ تم تحديد موقعك",
         "customer_name": "👤 اسم الزبون", 
         "shop_name": "🏪 اسم المحل", 
         "shop_addr": "📍 عنوان المحل",
@@ -56,8 +56,8 @@ languages = {
         "dir": "ltr", "align": "left",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "Fastest and most reliable delivery service in Kirkuk",
-        "get_gps_btn": "📍 Get My Location Automatically (Like Baly)",
-        "gps_success": "✅ Location captured successfully!",
+        "get_gps_btn": "📍 Click here to get your location",
+        "gps_success": "✅ Location captured",
         "customer_name": "👤 Customer Name", 
         "shop_name": "🏪 Shop Name", 
         "shop_addr": "📍 Shop Address",
@@ -65,9 +65,9 @@ languages = {
         "area": "🏘 Customer Area", 
         "full_addr": "🏠 Address Details",
         "price": "💰 Price (IQD)",
-        "submit": "Register and Send Receipt ✅", 
-        "wa_btn": "Send Information to Office 💬",
-        "error": "⚠️ Please fill all required fields", 
+        "submit": "Register and Send ✅", 
+        "wa_btn": "Send to Office 💬",
+        "error": "⚠️ Please fill all fields", 
         "success": "✅ Successfully Registered",
         "admin_title": "🛠 Admin Panel", 
         "admin_pass": "Enter Password",
@@ -115,12 +115,25 @@ st.markdown(f"""
     .brand-title {{ color: #D4AF37; font-size: 28px; font-weight: bold; }}
     .stForm {{ border: 1px solid #D4AF37 !important; border-radius: 15px; padding: 20px; }}
     .num-fix {{ direction: ltr !important; display: inline-block; }}
+    .gps-box {{ background-color: #f0f2f6; padding: 15px; border-radius: 10px; border: 1px dashed #D4AF37; margin: 10px 0; }}
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-# --- ٥. فۆرمی کڕیار ---
+# --- ٥. بەشی GPS (لە دەرەوەی فۆرم بۆ ئەوەی کلیک بکات) ---
+st.markdown(f'<div class="gps-box">', unsafe_allow_html=True)
+loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
+gps_link = ""
+if loc:
+    lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
+    gps_link = f"https://www.google.com/maps?q={lat},{lon}"
+    st.success(L['gps_success'])
+else:
+    st.info(L['get_gps_btn'])
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- ٦. فۆرمی کڕیار ---
 with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -134,18 +147,6 @@ with st.form("delivery_form", clear_on_submit=True):
     
     full_addr = st.text_input(L['full_addr'])
     
-    st.write("---")
-    # --- بەشی GPS ئۆتۆماتیکی وەک Baly ---
-    loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
-    gps_link = ""
-    
-    if loc:
-        lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
-        gps_link = f"https://www.google.com/maps?q={lat},{lon}"
-        st.success(L['gps_success'])
-    else:
-        st.info(L['get_gps_btn'])
-
     submit = st.form_submit_button(L['submit'])
     
     if submit:
@@ -161,7 +162,7 @@ with st.form("delivery_form", clear_on_submit=True):
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-# --- ٦. پانێڵی بەڕێوەبەر ---
+# --- ٧. پانێڵی بەڕێوەبەر ---
 if st.query_params.get("role") == "boss":
     st.divider()
     st.subheader(L['admin_title'])
