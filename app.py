@@ -7,22 +7,19 @@ from streamlit_js_eval import streamlit_js_eval
 # --- 1. ڕێکخستنی لاپەڕە و زمان ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
-# فەرهەنگی وەرگێڕان (هەموو زمانەکان وەک خۆی)
 languages = {
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right",
-        "get_gps": "📍 دیاریکردنی شوێنی من (GPS)",
-        "gps_info": "تکایە کلیک لە 'Allow' بکە بۆ وەرگرتنی شوێنەکە.",
-        "gps_success": "✅ شوێنەکەت دیاریکرا!",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
+        "get_gps_btn": "📍 دیاریکردنی شوێنی من (GPS)",
+        "gps_success": "✅ شوێنەکەت دیاریکرا!",
         "customer_name": "👤 ناوی کڕیار", 
         "shop_name": "🏪 ناوی دوکان", 
         "shop_addr": "📍 ناونیشانی دوکان",
         "phone": "📞 ژمارەی مۆبایل", 
         "area": "🏘 گەڕەکی کڕیار", 
-        "full_addr": "🏠 وردەکاری ناونیشان",
-        "location_label": "📍 لینکی نەخشە (ئۆتۆماتیکی دروست دەبێت)", 
+        "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
         "price": "💰 نرخ (د.ع)",
         "submit": "تۆمارکردن و ناردنی وەسڵ ✅", 
         "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
@@ -37,20 +34,18 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "get_gps": "📍 تحديد موقعي (GPS)",
-        "gps_info": "يرجى الضغط على 'Allow' لتحديد موقعك.",
+        "get_gps_btn": "📍 تحديد موقعي (GPS)",
         "gps_success": "✅ تم تحديد موقعك!",
         "customer_name": "👤 اسم الزبون", 
         "shop_name": "🏪 اسم المحل", 
         "shop_addr": "📍 عنوان المحل",
         "phone": "📞 رقم الموبايل", 
         "area": "🏘 منطقة الزبون", 
-        "full_addr": "🏠 تفاصيل العنوان",
-        "location_label": "📍 رابط الخريطة (تلقائي)", 
+        "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
         "price": "💰 السعر (د.ع)",
         "submit": "تسجيل وإرسال الوصل ✅", 
         "wa_btn": "إرسال البيانات للمكتب 💬",
-        "error": "⚠️ يرجى ملء البيانات المطلوبة", 
+        "error": "⚠️ يرجى ملء اسم الزبون والموبايل والمنطقة", 
         "success": "✅ تم التسجيل بنجاح",
         "admin_title": "🛠 لوحة التحكم", 
         "admin_pass": "أدخل كلمة المرور",
@@ -60,30 +55,28 @@ languages = {
     "English 🇬🇧": {
         "dir": "ltr", "align": "left",
         "title": "GOLDEN DELIVERY ✨",
-        "subtitle": "Fastest Delivery Service in Kirkuk",
-        "get_gps": "📍 Get My Location (GPS)",
-        "gps_info": "Please click 'Allow' to share location.",
-        "gps_success": "✅ Location Captured!",
+        "subtitle": "Fastest and most reliable delivery service in Kirkuk",
+        "get_gps_btn": "📍 Get My Location (GPS)",
+        "gps_success": "✅ Location Identified!",
         "customer_name": "👤 Customer Name", 
         "shop_name": "🏪 Shop Name", 
         "shop_addr": "📍 Shop Address",
         "phone": "📞 Phone Number", 
         "area": "🏘 Customer Area", 
         "full_addr": "🏠 Address Details",
-        "location_label": "📍 Map Link (Automatic)", 
         "price": "💰 Price (IQD)",
-        "submit": "Register & Send Receipt ✅", 
-        "wa_btn": "Send to Office 💬",
-        "error": "⚠️ Please fill all required fields", 
-        "success": "✅ Registered Successfully",
+        "submit": "Register and Send Receipt ✅", 
+        "wa_btn": "Send Information to Office 💬",
+        "error": "⚠️ Please fill in customer name, phone, and area", 
+        "success": "✅ Successfully Registered",
         "admin_title": "🛠 Admin Panel", 
         "admin_pass": "Enter Password",
-        "msg_delivered": "Hello, your order has been delivered ✅", 
+        "msg_delivered": "Hello, your order has arrived ✅", 
         "msg_onway": "Hello, your order is on the way 🚚"
     }
 }
 
-if "selected_lang" not in st.session_state: 
+if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "کوردی 🇭🇺"
 
 # دوگمەی زمانەکان
@@ -96,16 +89,7 @@ with col_lang:
 
 L = languages[st.session_state.selected_lang]
 
-# --- ٢. جی پی ئێس (GPS) ئۆتۆماتیکی ---
-st.info(f"{L['get_gps']}: {L['gps_info']}")
-loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
-gps_link = ""
-if loc:
-    lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
-    gps_link = f"https://www.google.com/maps?q={lat},{lon}"
-    st.success(L['gps_success'])
-
-# --- ٣. هەموو گەڕەکەکانی کەرکوک (وەک خۆی) ---
+# --- ٢. هەموو گەڕەکەکانی کەرکوک (وەک خۆی و بێ کەمکردنەوە) ---
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
     "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
@@ -117,23 +101,25 @@ KIRKUK_AREAS = sorted([
     "بڵاوەکان", "حەی حوسێن", "حەی ئەفسەران", "کۆمار", "شاتیلو", "تاریق", "حەی خەزرا", "ڕاپەڕین"
 ])
 
-# --- ٤. داتا ---
+# --- ٣. داتا ---
 DB_FILE = "deliveries.csv"
 def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["customer", "shop", "phone", "area", "address", "price", "location"])
 
-# --- ٥. ستایل ---
-st.markdown(f"""<style>
+# --- ٤. ستایل ---
+st.markdown(f"""
+    <style>
     html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
     .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 20px; border-radius: 15px; border-bottom: 4px solid #D4AF37; text-align: center; margin-bottom: 15px; }}
     .brand-title {{ color: #D4AF37; font-size: 28px; font-weight: bold; }}
     .stForm {{ border: 1px solid #D4AF37 !important; border-radius: 15px; }}
-</style>""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-# --- ٦. فۆرمی کڕیار ---
+# --- ٥. فۆرمی کڕیار ---
 with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -143,26 +129,39 @@ with st.form("delivery_form", clear_on_submit=True):
     with col2:
         phone = st.text_input(L['phone'])
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
-        full_addr = st.text_input(L['full_addr'])
-        location = st.text_input(L['location_label'], value=gps_link)
         price = st.number_input(L['price'], min_value=0, step=250)
     
-    if st.form_submit_button(L['submit']):
+    full_addr = st.text_input(L['full_addr'])
+    
+    # --- بەشی GPS لە خوارەوەی فۆرمەکە ---
+    st.write("---")
+    # وەرگرتنی لوکەیشن ئۆتۆماتیکی (بێ ئەوەی کڕیار لینک بنوسێت)
+    loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
+    gps_link = ""
+    if loc:
+        lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
+        gps_link = f"https://www.google.com/maps?q={lat},{lon}"
+        st.success(L['gps_success'])
+    else:
+        st.info(L['get_gps_btn'])
+
+    submit = st.form_submit_button(L['submit'])
+    
+    if submit:
         if not customer or not phone or "هەڵبژێرە" in selected_area:
             st.error(L['error'])
         else:
             df = load_data()
-            new_row = pd.DataFrame([{"customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price, "location": location}])
+            new_row = pd.DataFrame([{"customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price, "location": gps_link}])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
             
-            wa_msg = f"Golden Delivery ✨\n👤 کڕیار: {customer}\n🏘 گەڕەک: {selected_area}\n📍 نەخشە: {location}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
-            link = f"https://wa.me/9647801352003?text={urllib.parse.quote(wa_msg)}"
+            msg = f"Golden Delivery ✨\n📦 داواکاری نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n📍 نەخشە: {gps_link}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
+            link = f"https://wa.me/9647801352003?text={urllib.parse.quote(msg)}"
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-# --- ٧. پانێڵی بەڕێوەبەر (تەنها بە لینک دەردەکەوێت) ---
-query_params = st.query_params
-if query_params.get("role") == "boss":
+# --- ٦. پانێڵی بەڕێوەبەر (تەنها بۆ Boss) ---
+if st.query_params.get("role") == "boss":
     st.divider()
     st.subheader(L['admin_title'])
     if st.text_input(L['admin_pass'], type="password") == "dr_danyal_2024":
@@ -170,7 +169,7 @@ if query_params.get("role") == "boss":
         if not data.empty:
             st.dataframe(data, use_container_width=True)
             for i, row in data.iterrows():
-                with st.expander(f"📦 {row['customer']} - {row['phone']}"):
+                with st.expander(f"📦 {row['customer']} - {row['area']}"):
                     c_del, c_onw = st.columns(2)
                     with c_del:
                         m1 = urllib.parse.quote(f"سڵاو {row['customer']}\n{L['msg_delivered']}\nGolden Delivery ✨")
@@ -178,3 +177,5 @@ if query_params.get("role") == "boss":
                     with c_onw:
                         m2 = urllib.parse.quote(f"سڵاو {row['customer']}\n{L['msg_onway']}\nGolden Delivery ✨")
                         st.markdown(f'<a href="https://wa.me/{row["phone"]}?text={m2}" target="_blank"><button style="width:100%; background:#FF9800; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🚚 لە ڕێگەیە</button></a>', unsafe_allow_html=True)
+
+st.markdown(f'<div style="text-align:center; padding:10px;">📞 0772 195 9922 | 0780 135 2003</div>', unsafe_allow_html=True)
