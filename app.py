@@ -12,8 +12,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "get_gps_btn": "📍 دۆزینەوەی شوێنەکەم (GPS ئۆتۆماتیکی)",
-        "gps_success": "✅ شوێنەکەت بە سەرکەوتوویی وەرگیرا",
+        "get_gps_btn": "📍 دیاریکردنی شوێنەکەم بە ئۆتۆماتیکی (وەک Baly)",
+        "gps_success": "✅ شوێنەکەت بە سەرکەوتوویی دیاریکرا!",
         "customer_name": "👤 ناوی کڕیار", 
         "shop_name": "🏪 ناوی دوکان", 
         "shop_addr": "📍 ناونیشانی دوکان",
@@ -34,8 +34,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "get_gps_btn": "📍 تحديد موقعي تلقائياً (GPS)",
-        "gps_success": "✅ تم تحديد موقعك بنجاح",
+        "get_gps_btn": "📍 تحديد موقعي تلقائياً (مثل بلي)",
+        "gps_success": "✅ تم تحديد موقعك بنجاح!",
         "customer_name": "👤 اسم الزبون", 
         "shop_name": "🏪 اسم المحل", 
         "shop_addr": "📍 عنوان المحل",
@@ -56,14 +56,14 @@ languages = {
         "dir": "ltr", "align": "left",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "Fastest and most reliable delivery service in Kirkuk",
-        "get_gps_btn": "📍 Get My Location Automatically (GPS)",
-        "gps_success": "✅ Location captured successfully",
+        "get_gps_btn": "📍 Get My Location Automatically (Like Baly)",
+        "gps_success": "✅ Location captured successfully!",
         "customer_name": "👤 Customer Name", 
         "shop_name": "🏪 Shop Name", 
         "shop_addr": "📍 Shop Address",
         "phone": "📞 Phone Number", 
         "area": "🏘 Customer Area", 
-        "full_addr": "🏠 Address Details (Near by?)",
+        "full_addr": "🏠 Address Details",
         "price": "💰 Price (IQD)",
         "submit": "Register and Send Receipt ✅", 
         "wa_btn": "Send Information to Office 💬",
@@ -79,7 +79,7 @@ languages = {
 if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "کوردی 🇭🇺"
 
-# دوگمەی زمانەکان
+# هەڵبژاردنی زمان
 col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
 with col_ref:
     if st.button("🔄"): st.rerun()
@@ -89,7 +89,7 @@ with col_lang:
 
 L = languages[st.session_state.selected_lang]
 
-# --- ٢. هەموو گەڕەکەکانی کەرکوک (وەک خۆی و بێ کەمکردنەوە) ---
+# --- ٢. هەموو گەڕەکەکانی کەرکوک (وەک خۆی) ---
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
     "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
@@ -113,7 +113,7 @@ st.markdown(f"""
     html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
     .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 20px; border-radius: 15px; border-bottom: 4px solid #D4AF37; text-align: center; margin-bottom: 15px; }}
     .brand-title {{ color: #D4AF37; font-size: 28px; font-weight: bold; }}
-    .stForm {{ border: 1px solid #D4AF37 !important; border-radius: 15px; }}
+    .stForm {{ border: 1px solid #D4AF37 !important; border-radius: 15px; padding: 20px; }}
     .num-fix {{ direction: ltr !important; display: inline-block; }}
     </style>
     """, unsafe_allow_html=True)
@@ -135,16 +135,16 @@ with st.form("delivery_form", clear_on_submit=True):
     full_addr = st.text_input(L['full_addr'])
     
     st.write("---")
-    # GPS ئۆتۆماتیکی
-    loc_data = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
+    # --- بەشی GPS ئۆتۆماتیکی وەک Baly ---
+    loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
     gps_link = ""
-    if loc_data:
-        lat = loc_data['coords']['latitude']
-        lon = loc_data['coords']['longitude']
+    
+    if loc:
+        lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
         gps_link = f"https://www.google.com/maps?q={lat},{lon}"
         st.success(L['gps_success'])
     else:
-        st.warning(L['get_gps_btn'])
+        st.info(L['get_gps_btn'])
 
     submit = st.form_submit_button(L['submit'])
     
