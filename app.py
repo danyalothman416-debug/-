@@ -2,24 +2,27 @@ import streamlit as st
 import pandas as pd
 import os
 import urllib.parse
+# پێویستە ئەمە لای خۆت دابەزێنیت: pip install streamlit-js-eval
+from streamlit_js_eval import streamlit_js_eval
 
 # --- 1. ڕێکخستنی لاپەڕە و زمان ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
-# فەرهەنگی وەرگێڕان لەگەڵ ئاڵاکان
+# فەرهەنگی وەرگێڕان لەگەڵ ئاڵاکان و تایبەتمەندی نوێ
 languages = {
     "کوردی 🇭🇺": {
         "id": "Kurdish", "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "refresh": "🔄",
+        "get_loc": "📍 دیاریکردنی شوێنەکەم (GPS)",
+        "loc_success": "✅ شوێنەکەت بە سەرکەوتوویی وەرگیرا",
         "customer_name": "👤 ناوی کڕیار",
         "shop_name": "🏪 ناوی دوکان",
         "shop_addr": "📍 ناونیشانی دوکان",
         "phone": "📞 ژمارەی مۆبایل",
         "area": "🏘 گەڕەکی کڕیار",
         "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
-        "location": "📍 لینکی ناردنی شوێن (Google Maps)",
+        "location": "🔗 لینکی نەخشە (ئۆتۆماتیکی دروست دەبێت)",
         "price": "💰 نرخ (د.ع)",
         "submit": "تۆمارکردن و ناردنی وەسڵ ✅",
         "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
@@ -31,39 +34,21 @@ languages = {
         "id": "Arabic", "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "refresh": "🔄",
+        "get_loc": "📍 تحديد موقعي (GPS)",
+        "loc_success": "✅ تم تحديد موقعك بنجاح",
         "customer_name": "👤 اسم الزبون",
         "shop_name": "🏪 اسم المحل",
         "shop_addr": "📍 عنوان المحل",
         "phone": "📞 رقم الموبايل",
         "area": "🏘 منطقة الزبون",
         "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
-        "location": "📍 رابط الموقع (Google Maps)",
+        "location": "🔗 رابط الخريطة (يتم إنشاؤه تلقائياً)",
         "price": "💰 السعر (د.ع)",
         "submit": "تسجيل وإرسال الوصل ✅",
         "wa_btn": "إرسال البيانات للمكتب 💬",
         "error": "⚠️ يرجى ملء اسم الزبون والموبايل والمنطقة",
         "success": "✅ تم التسجيل بنجاح",
         "footer": "لتثبيت التطبيق: اضغط على ⎙ أو ⋮ واختر Add to Home Screen"
-    },
-    "English 🇬🇧": {
-        "id": "English", "dir": "ltr", "align": "left",
-        "title": "GOLDEN DELIVERY ✨",
-        "subtitle": "Fastest and Most Reliable Delivery in Kirkuk",
-        "refresh": "🔄",
-        "customer_name": "👤 Customer Name",
-        "shop_name": "🏪 Shop Name",
-        "shop_addr": "📍 Shop Address",
-        "phone": "📞 Phone Number",
-        "area": "🏘 Customer Area",
-        "full_addr": "🏠 Address Details (Near what?)",
-        "location": "📍 Location Link (Google Maps)",
-        "price": "💰 Price (IQD)",
-        "submit": "Register & Send Receipt ✅",
-        "wa_btn": "Send to Office 💬",
-        "error": "⚠️ Please fill Name, Phone and Area",
-        "success": "✅ Registered Successfully",
-        "footer": "To install: click ⎙ or ⋮ and select Add to Home Screen"
     }
 }
 
@@ -80,6 +65,18 @@ with col_lang:
 
 L = languages[st.session_state.selected_lang]
 
+# --- وەرگرتنی GPS (لێرەدا جێگیر کراوە بۆ ئەوەی پێش فۆرمەکە ئامادە بێت) ---
+st.write(f"### {L['get_loc']}")
+# ئەم کۆدە داوا لە وێبگەڕ دەکات شوێنەکە وەرگرێت
+loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
+auto_loc_url = ""
+if loc:
+    lat = loc['coords']['latitude']
+    lon = loc['coords']['longitude']
+    auto_loc_url = f"https://www.google.com/maps?q={lat},{lon}"
+    st.success(L['loc_success'])
+
+# --- ستایلی لاپەڕە ---
 st.markdown(f"""
     <style>
     section[data-testid="stSidebar"] {{ display: none !important; }}
@@ -105,32 +102,19 @@ ADMIN_PASSWORD = "dr_danyal_2024"
 DB_FILE = "global_deliveries.csv"
 MY_WHATSAPP = "9647801352003" 
 
-KIRKUK_AREAS = sorted([
-    "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
-    "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
-    "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار", "ڕووناكی", "ئەحمەد ئاغا",
-    "ئیسکان", "قۆریە", "حەجیاوا", "برایەتی", "تەپەی مەلا عەبدوڵا", "بێستوون", 
-    "شۆراو نوێ", "کۆمەڵگای نیشتەجێبوون", "سەربازی", "ئەڵماس", "بەرلێمان", "دەروازەی باکور",
-    "کەنیسە", "حەی سەدام", "حەی مەنصور", "حەی ئەسرا و مەفقودین", "حەی بەعس",
-    "حەی عەدەن", "پەنجای نوێ", "شۆراوی کۆن", "قادسیە ١", "قادسیە ٢"
-])
+KIRKUK_AREAS = sorted(["ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار"])
 
 def load_data():
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE, dtype={"مۆبایل": str})
         return df
-    return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "گەڕەک", "ناونیشانی ورد", "شوێن", "دۆخی داواکاری"])
+    return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "مۆبایل", "نرخ", "گەڕەک", "شوێن", "دۆخی داواکاری"])
 
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
 
 # --- ٣. ڕووکاری سەرەکی ---
-st.markdown(f"""
-    <div class="brand-header">
-        <div class="brand-title">{L['title']}</div>
-        <div style="color:white; font-size:14px;">{L['subtitle']}</div>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown(f"""<div class="brand-header"><div class="brand-title">{L['title']}</div><div style="color:white; font-size:14px;">{L['subtitle']}</div></div>""", unsafe_allow_html=True)
 
 with st.form("delivery_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
@@ -140,9 +124,10 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_address = st.text_input(L['shop_addr'])
     with col2:
         phone = st.text_input(L['phone'])
-        selected_area = st.selectbox(L['area'], ["Select / هەڵبژاردن / اختر"] + KIRKUK_AREAS)
+        selected_area = st.selectbox(L['area'], ["Select / هەڵبژاردن"] + KIRKUK_AREAS)
         full_address = st.text_input(L['full_addr'])
-        loc_url = st.text_input(L['location'], placeholder="https://maps.google.com/...")
+        # ئۆتۆماتیکی لینکەکە لێرە دادەنرێت
+        loc_url = st.text_input(L['location'], value=auto_loc_url)
         price = st.number_input(L['price'], min_value=0, step=250)
     
     submit = st.form_submit_button(L['submit'])
@@ -152,37 +137,13 @@ with st.form("delivery_form", clear_on_submit=True):
             st.error(L['error'])
         else:
             df = load_data()
-            new_row = pd.DataFrame([{
-                "کڕیار": customer, "ناوی دوکان": shop_name, "ناونیشانی دوکان": shop_address, 
-                "مۆبایل": str(phone), "نرخ": price, "گەڕەک": selected_area, 
-                "ناونیشانی ورد": full_address, "شوێن": loc_url, "دۆخی داواکاری": "وەرگیرا 📥"
-            }])
+            new_row = pd.DataFrame([{"کڕیار": customer, "ناوی دوکان": shop_name, "مۆبایل": str(phone), "نرخ": price, "گەڕەک": selected_area, "شوێن": loc_url, "دۆخی داواکاری": "وەرگیرا 📥"}])
             save_data(pd.concat([df, new_row], ignore_index=True))
             
-            # زانیارییەکان بۆ واتسئاپ
-            loc_text = f"\n📍 Location: {loc_url}" if loc_url else ""
-            msg = (f"Golden Delivery ✨\n📦 New Order\n👤 Customer: {customer}\n"
-                   f"🏘 Area: {selected_area}\n🏠 Detail: {full_address}"
-                   f"{loc_text}\n📞 Tel: {phone}\n💰 Price: {price:,} IQD")
-            
+            msg = (f"Golden Delivery ✨\n👤 کڕیار: {customer}\n🏘 گەڕەک: {selected_area}\n📍 نەخشە: {loc_url}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} د.ع")
             link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
 st.markdown(f'<div style="text-align:center; padding:15px; color:#D4AF37;">📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span></div>', unsafe_allow_html=True)
-
-# --- ٤. بەشی ئەدمین ---
-query_params = st.query_params
-if query_params.get("role") == "boss":
-    with st.expander("🛠 Admin Control Panel"):
-        if st.text_input("Admin Password", type="password") == ADMIN_PASSWORD:
-            df_admin = load_data()
-            if not df_admin.empty:
-                st.metric("Total Revenue", f"{df_admin['نرخ'].sum():,} IQD")
-                st.dataframe(df_admin, use_container_width=True)
-                if st.button("Clear All Data"):
-                    if st.checkbox("Confirm Delete?"):
-                        save_data(pd.DataFrame(columns=df_admin.columns))
-                        st.rerun()
-
 st.markdown(f"""<div class="install-bar">{L['footer']}</div>""", unsafe_allow_html=True)
