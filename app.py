@@ -12,8 +12,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "get_gps_btn": "📍 دیاریکردنی شوێنی من (GPS)",
-        "gps_success": "✅ شوێنەکەت دیاریکرا!",
+        "get_gps_btn": "📍 کلیک لێرە بکە بۆ دیاریکردنی شوێنی من (GPS)",
+        "gps_success": "✅ شوێنەکەت بە سەرکەوتوویی دیاریکرا!",
         "customer_name": "👤 ناوی کڕیار", 
         "shop_name": "🏪 ناوی دوکان", 
         "shop_addr": "📍 ناونیشانی دوکان",
@@ -34,8 +34,8 @@ languages = {
         "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "get_gps_btn": "📍 تحديد موقعي (GPS)",
-        "gps_success": "✅ تم تحديد موقعك!",
+        "get_gps_btn": "📍 اضغط هنا لتحديد موقعك (GPS)",
+        "gps_success": "✅ تم تحديد موقعك بنجاح!",
         "customer_name": "👤 اسم الزبون", 
         "shop_name": "🏪 اسم المحل", 
         "shop_addr": "📍 عنوان المحل",
@@ -51,35 +51,13 @@ languages = {
         "admin_pass": "أدخل كلمة المرور",
         "msg_delivered": "مرحباً، تم توصيل طلبيتك ✅", 
         "msg_onway": "مرحباً، طلبيتك في الطريق 🚚"
-    },
-    "English 🇬🇧": {
-        "dir": "ltr", "align": "left",
-        "title": "GOLDEN DELIVERY ✨",
-        "subtitle": "Fastest and most reliable delivery service in Kirkuk",
-        "get_gps_btn": "📍 Get My Location (GPS)",
-        "gps_success": "✅ Location Identified!",
-        "customer_name": "👤 Customer Name", 
-        "shop_name": "🏪 Shop Name", 
-        "shop_addr": "📍 Shop Address",
-        "phone": "📞 Phone Number", 
-        "area": "🏘 Customer Area", 
-        "full_addr": "🏠 Address Details",
-        "price": "💰 Price (IQD)",
-        "submit": "Register and Send Receipt ✅", 
-        "wa_btn": "Send Information to Office 💬",
-        "error": "⚠️ Please fill in customer name, phone, and area", 
-        "success": "✅ Successfully Registered",
-        "admin_title": "🛠 Admin Panel", 
-        "admin_pass": "Enter Password",
-        "msg_delivered": "Hello, your order has arrived ✅", 
-        "msg_onway": "Hello, your order is on the way 🚚"
     }
 }
 
 if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "کوردی 🇭🇺"
 
-# دوگمەی زمانەکان
+# هەڵبژاردنی زمان
 col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
 with col_ref:
     if st.button("🔄"): st.rerun()
@@ -89,7 +67,7 @@ with col_lang:
 
 L = languages[st.session_state.selected_lang]
 
-# --- ٢. هەموو گەڕەکەکانی کەرکوک (وەک خۆی و بێ کەمکردنەوە) ---
+# --- ٢. هەموو گەڕەکەکانی کەرکوک (وەک خۆی) ---
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
     "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
@@ -133,17 +111,18 @@ with st.form("delivery_form", clear_on_submit=True):
     
     full_addr = st.text_input(L['full_addr'])
     
-    # --- بەشی GPS لە خوارەوەی فۆرمەکە ---
+    # --- بەشی GPS (بە دوگمە) ---
     st.write("---")
-    # وەرگرتنی لوکەیشن ئۆتۆماتیکی (بێ ئەوەی کڕیار لینک بنوسێت)
+    # لێرە دوگمەیەکمان داناوە کە کلیک دەکرێت بۆ وەرگرتنی لوکەیشن
     loc = streamlit_js_eval(data_key='pos', func_name='getCurrentPosition', component_value=None)
+    
     gps_link = ""
     if loc:
         lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
         gps_link = f"https://www.google.com/maps?q={lat},{lon}"
         st.success(L['gps_success'])
     else:
-        st.info(L['get_gps_btn'])
+        st.warning(L['get_gps_btn'])
 
     submit = st.form_submit_button(L['submit'])
     
@@ -155,12 +134,12 @@ with st.form("delivery_form", clear_on_submit=True):
             new_row = pd.DataFrame([{"customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price, "location": gps_link}])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
             
-            msg = f"Golden Delivery ✨\n📦 داواکاری نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n📍 نەخشە: {gps_link}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
+            msg = f"Golden Delivery ✨\n📦 داواکاری نوێ\n👤 کڕیار: {customer}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n📍 نەخشە: {gps_link}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
             link = f"https://wa.me/9647801352003?text={urllib.parse.quote(msg)}"
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-# --- ٦. پانێڵی بەڕێوەبەر (تەنها بۆ Boss) ---
+# --- ٦. پانێڵی بەڕێوەبەر (بەتەواوی وەک خۆی) ---
 if st.query_params.get("role") == "boss":
     st.divider()
     st.subheader(L['admin_title'])
