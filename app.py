@@ -4,22 +4,23 @@ import os
 import urllib.parse
 from streamlit_js_eval import streamlit_js_eval
 
-# --- 1. ڕێکخستنی لاپەڕە و زمان ---
+# --- Page Setup ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
 languages = {
     "کوردی 🇭🇺": {
-        "dir": "rtl", "align": "right",
+        "dir": "rtl",
+        "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "get_gps_btn": "📍 دۆزینەوەی شوێنەکەم (GPS ئۆتۆماتیکی)",
+        "get_gps_btn": "📍 دۆزینەوەی شوێنەکەم (GPS)",
         "gps_success": "✅ شوێنەکەت بە سەرکەوتوویی وەرگیرا",
         "customer_name": "👤 ناوی کڕیار",
         "shop_name": "🏪 ناوی دوکان",
         "shop_addr": "📍 ناونیشانی دوکان",
         "phone": "📞 ژمارەی مۆبایل",
         "area": "🏘 گەڕەکی کڕیار",
-        "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
+        "full_addr": "🏠 وردەکاری ناونیشان",
         "price": "💰 نرخ (د.ع)",
         "submit": "تۆمارکردن و ناردنی وەسڵ ✅",
         "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
@@ -35,19 +36,12 @@ languages = {
 if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "کوردی 🇭🇺"
 
-col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
-
-with col_ref:
-    if st.button("🔄"):
-        st.rerun()
-
-with col_lang:
-    lang_choice = st.selectbox("🌐 Language", list(languages.keys()))
-    st.session_state.selected_lang = lang_choice
+lang_choice = st.selectbox("🌐 Language", list(languages.keys()))
+st.session_state.selected_lang = lang_choice
 
 L = languages[st.session_state.selected_lang]
 
-# --- ٢. گەڕەکەکان ---
+# --- Areas ---
 KIRKUK_AREAS = sorted([
 "ڕەحیماوا","پەنجاعەلی","شۆراو","تەپە","ئیمام قاسم","ئازادی","شۆڕش",
 "ڕێگای بەغداد","موسەڵا","تسعین","واسطی","دۆمیز","غرناطة","حوزەیران",
@@ -59,7 +53,7 @@ KIRKUK_AREAS = sorted([
 "بڵاوەکان","حەی حوسێن","حەی ئەفسەران","کۆمار","شاتیلو","تاریق","حەی خەزرا","ڕاپەڕین"
 ])
 
-# --- ٣. داتا ---
+# --- Database ---
 DB_FILE="deliveries.csv"
 
 def load_data():
@@ -67,39 +61,15 @@ def load_data():
         return pd.read_csv(DB_FILE,dtype={"phone":str})
     return pd.DataFrame(columns=["customer","shop","phone","area","address","price","location"])
 
-# --- ٤. ستایل ---
+# --- Header ---
 st.markdown(f"""
-<style>
-html, body, [data-testid="stAppViewContainer"] {{
-direction:{L['dir']};
-text-align:{L['align']};
-}}
-
-.brand-header {{
-background: linear-gradient(135deg,#1a1a1a,#333333);
-padding:20px;
-border-radius:15px;
-border-bottom:4px solid #D4AF37;
-text-align:center;
-margin-bottom:15px;
-}}
-
-.brand-title {{
-color:#D4AF37;
-font-size:28px;
-font-weight:bold;
-}}
-</style>
-""",unsafe_allow_html=True)
-
-st.markdown(f"""
-<div class="brand-header">
-<div class="brand-title">{L["title"]}</div>
-<div style="color:white;">{L["subtitle"]}</div>
+<div style="background:#222;padding:20px;border-radius:15px;text-align:center">
+<h2 style="color:#D4AF37">{L['title']}</h2>
+<p style="color:white">{L['subtitle']}</p>
 </div>
 """,unsafe_allow_html=True)
 
-# --- ٥. فۆرم ---
+# --- Form ---
 with st.form("delivery_form",clear_on_submit=True):
 
     col1,col2=st.columns(2)
@@ -118,18 +88,19 @@ with st.form("delivery_form",clear_on_submit=True):
 
     st.write("---")
 
-    # --- GPS FIX ---
     gps_link=""
 
-    if st.button(L['get_gps_btn']):
+    gps_click=st.form_submit_button(L['get_gps_btn'])
+
+    if gps_click:
         loc_data = streamlit_js_eval(
             data_key='pos',
             func_name='getCurrentPosition'
         )
 
         if loc_data:
-            lat = loc_data['coords']['latitude']
-            lon = loc_data['coords']['longitude']
+            lat=loc_data['coords']['latitude']
+            lon=loc_data['coords']['longitude']
             gps_link=f"https://www.google.com/maps?q={lat},{lon}"
             st.success(L['gps_success'])
 
@@ -145,18 +116,19 @@ with st.form("delivery_form",clear_on_submit=True):
             df=load_data()
 
             new_row=pd.DataFrame([{
-            "customer":customer,
-            "shop":shop,
-            "phone":phone,
-            "area":selected_area,
-            "address":full_addr,
-            "price":price,
-            "location":gps_link
+                "customer":customer,
+                "shop":shop,
+                "phone":phone,
+                "area":selected_area,
+                "address":full_addr,
+                "price":price,
+                "location":gps_link
             }])
 
             pd.concat([df,new_row]).to_csv(DB_FILE,index=False)
 
-            msg=f"""Golden Delivery ✨
+            msg=f"""
+Golden Delivery ✨
 📦 داواکاری نوێ
 👤 کڕیار: {customer}
 🏘 گەڕەک: {selected_area}
@@ -170,11 +142,11 @@ with st.form("delivery_form",clear_on_submit=True):
             st.success(L['success'])
 
             st.markdown(
-            f'<a href="{link}" target="_blank"><button style="width:100%;background:#25D366;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;">{L["wa_btn"]}</button></a>',
+            f'<a href="{link}" target="_blank"><button style="width:100%;background:#25D366;color:white;border:none;padding:12px;border-radius:10px">{L["wa_btn"]}</button></a>',
             unsafe_allow_html=True
             )
 
-# --- ٦. Admin ---
+# --- Admin ---
 if st.query_params.get("role")=="boss":
 
     st.divider()
@@ -190,32 +162,32 @@ if st.query_params.get("role")=="boss":
 
             for i,row in data.iterrows():
 
-                with st.expander(f"📦 {row['customer']} - {row['area']}"):
+                with st.expander(f"{row['customer']} - {row['area']}"):
 
                     c1,c2=st.columns(2)
 
                     with c1:
-
                         m1=urllib.parse.quote(
-                        f"سڵاو {row['customer']}\n{L['msg_delivered']}\nGolden Delivery ✨")
+                        f"سڵاو {row['customer']}\n{L['msg_delivered']}"
+                        )
 
                         st.markdown(
-                        f'<a href="https://wa.me/{row["phone"]}?text={m1}" target="_blank"><button style="width:100%;background:#4CAF50;color:white;border:none;padding:8px;border-radius:5px;">✅ گەیشت</button></a>',
+                        f'<a href="https://wa.me/{row["phone"]}?text={m1}" target="_blank"><button style="width:100%">✅ گەیشت</button></a>',
                         unsafe_allow_html=True
                         )
 
                     with c2:
-
                         m2=urllib.parse.quote(
-                        f"سڵاو {row['customer']}\n{L['msg_onway']}\nGolden Delivery ✨")
+                        f"سڵاو {row['customer']}\n{L['msg_onway']}"
+                        )
 
                         st.markdown(
-                        f'<a href="https://wa.me/{row["phone"]}?text={m2}" target="_blank"><button style="width:100%;background:#FF9800;color:white;border:none;padding:8px;border-radius:5px;">🚚 لە ڕێگەیە</button></a>',
+                        f'<a href="https://wa.me/{row["phone"]}?text={m2}" target="_blank"><button style="width:100%">🚚 لە ڕێگەیە</button></a>',
                         unsafe_allow_html=True
                         )
 
 st.markdown("""
-<div style="text-align:center;padding:10px;">
+<center>
 📞 0780 135 2003 | 0772 195 9922
-</div>
+</center>
 """,unsafe_allow_html=True)
