@@ -6,13 +6,13 @@ import urllib.parse
 # --- 1. ڕێکخستنی لاپەڕە و زمان ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
-# فەرهەنگی وەرگێڕان
+# فەرهەنگی وەرگێڕان لەگەڵ ئاڵاکان
 languages = {
-    "Kurdish": {
-        "dir": "rtl", "align": "right",
+    "کوردی 🇭🇺": {
+        "id": "Kurdish", "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
-        "refresh": "🔄 نوێکردنەوە",
+        "refresh": "🔄",
         "customer_name": "👤 ناوی کڕیار",
         "shop_name": "🏪 ناوی دوکان",
         "shop_addr": "📍 ناونیشانی دوکان",
@@ -26,11 +26,11 @@ languages = {
         "success": "✅ بە سەرکەوتوویی تۆمارکرا",
         "footer": "بۆ دابەزاندنی ئەپ: کلیک لە ⎙ یان ⋮ بکە و Add to Home Screen هەڵبژێرە"
     },
-    "Arabic": {
-        "dir": "rtl", "align": "right",
+    "العربية 🇮🇶": {
+        "id": "Arabic", "dir": "rtl", "align": "right",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع وخدمة توصيل موثوقة في كركوك",
-        "refresh": "🔄 تحديث",
+        "refresh": "🔄",
         "customer_name": "👤 اسم الزبون",
         "shop_name": "🏪 اسم المحل",
         "shop_addr": "📍 عنوان المحل",
@@ -44,11 +44,11 @@ languages = {
         "success": "✅ تم التسجيل بنجاح",
         "footer": "لتثبيت التطبيق: اضغط على ⎙ أو ⋮ واختر Add to Home Screen"
     },
-    "English": {
-        "dir": "ltr", "align": "left",
+    "English 🇬🇧": {
+        "id": "English", "dir": "ltr", "align": "left",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "Fastest and Most Reliable Delivery in Kirkuk",
-        "refresh": "🔄 Refresh",
+        "refresh": "🔄",
         "customer_name": "👤 Customer Name",
         "shop_name": "🏪 Shop Name",
         "shop_addr": "📍 Shop Address",
@@ -65,17 +65,17 @@ languages = {
 }
 
 # هەڵبژاردنی زمان
-if "lang" not in st.session_state:
-    st.session_state.lang = "Kurdish"
+if "selected_lang" not in st.session_state:
+    st.session_state.selected_lang = "کوردی 🇭🇺"
 
-col_ref, col_lang, col_space = st.columns([1, 1, 4])
+col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
 with col_ref:
     if st.button("🔄"): st.rerun()
 with col_lang:
-    lang_choice = st.selectbox("🌐", ["Kurdish", "Arabic", "English"], index=["Kurdish", "Arabic", "English"].index(st.session_state.lang))
-    st.session_state.lang = lang_choice
+    lang_choice = st.selectbox("🌐 Language", list(languages.keys()), index=list(languages.keys()).index(st.session_state.selected_lang))
+    st.session_state.selected_lang = lang_choice
 
-L = languages[st.session_state.lang]
+L = languages[st.session_state.selected_lang]
 
 st.markdown(f"""
     <style>
@@ -102,7 +102,16 @@ ADMIN_PASSWORD = "dr_danyal_2024"
 DB_FILE = "global_deliveries.csv"
 MY_WHATSAPP = "9647801352003" 
 
-KIRKUK_AREAS = ["ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار"]
+# لیستی گشتگیر بۆ گەڕەکەکانی کەرکوک
+KIRKUK_AREAS = sorted([
+    "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
+    "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
+    "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار", "ڕووناكی", "ئەحمەد ئاغا",
+    "ئیسکان", "قۆریە", "حەجیاوا", "برایەتی", "تەپەی مەلا عەبدوڵا", "بێستوون", 
+    "شۆراو نوێ", "کۆمەڵگای نیشتەجێبوون", "سەربازی", "ئەڵماس", "بەرلێمان", "دەروازەی باکور",
+    "کەنیسە", "حەی سەدام", "حەی مەنصور", "حەی ئەسرا و مەفقودین", "حەی بەعس",
+    "حەی عەدەن", "پەنجای نوێ", "شۆراوی کۆن", "قادسیە ١", "قادسیە ٢"
+])
 
 def load_data():
     if os.path.exists(DB_FILE):
@@ -129,14 +138,14 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_address = st.text_input(L['shop_addr'])
     with col2:
         phone = st.text_input(L['phone'])
-        selected_area = st.selectbox(L['area'], ["Select..."] + KIRKUK_AREAS)
+        selected_area = st.selectbox(L['area'], ["Select / هەڵبژاردن / اختر"] + KIRKUK_AREAS)
         full_address = st.text_input(L['full_addr'])
         price = st.number_input(L['price'], min_value=0, step=250)
     
     submit = st.form_submit_button(L['submit'])
     
     if submit:
-        if not customer or not phone or selected_area == "Select...":
+        if not customer or not phone or "Select" in selected_area:
             st.error(L['error'])
         else:
             df = load_data()
@@ -147,21 +156,26 @@ with st.form("delivery_form", clear_on_submit=True):
             }])
             save_data(pd.concat([df, new_row], ignore_index=True))
             
+            # نامەکە بە یەک شێواز دەنێردرێت بۆ ئۆفیس
             msg = f"Golden Delivery ✨\n📦 New Order\n👤 Customer: {customer}\n🏘 Area: {selected_area}\n🏠 Detail: {full_address}\n📞 Tel: {phone}\n💰 Price: {price:,} IQD"
             link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-st.markdown(f'<div style="text-align:center; padding:15px;">📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center; padding:15px; color:#D4AF37;">📞 <span class="num-fix">0772 195 9922</span> | <span class="num-fix">0780 135 2003</span></div>', unsafe_allow_html=True)
 
 # --- ٤. بەشی ئەدمین ---
 query_params = st.query_params
 if query_params.get("role") == "boss":
-    with st.expander("🛠 Admin Control"):
-        if st.text_input("Password", type="password") == ADMIN_PASSWORD:
+    with st.expander("🛠 Admin Control Panel"):
+        if st.text_input("Admin Password", type="password") == ADMIN_PASSWORD:
             df_admin = load_data()
             if not df_admin.empty:
-                st.metric("Total IQD", f"{df_admin['نرخ'].sum():,} IQD")
+                st.metric("Total Revenue", f"{df_admin['نرخ'].sum():,} IQD")
                 st.dataframe(df_admin, use_container_width=True)
+                if st.button("Clear All Data"):
+                    if st.checkbox("Confirm Delete?"):
+                        save_data(pd.DataFrame(columns=df_admin.columns))
+                        st.rerun()
 
 st.markdown(f"""<div class="install-bar">{L['footer']}</div>""", unsafe_allow_html=True)
