@@ -19,6 +19,7 @@ languages = {
         "phone": "📞 ژمارەی مۆبایل",
         "area": "🏘 گەڕەکی کڕیار",
         "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
+        "location": "📍 لینکی ناردنی شوێن (Google Maps)",
         "price": "💰 نرخ (د.ع)",
         "submit": "تۆمارکردن و ناردنی وەسڵ ✅",
         "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
@@ -37,6 +38,7 @@ languages = {
         "phone": "📞 رقم الموبايل",
         "area": "🏘 منطقة الزبون",
         "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
+        "location": "📍 رابط الموقع (Google Maps)",
         "price": "💰 السعر (د.ع)",
         "submit": "تسجيل وإرسال الوصل ✅",
         "wa_btn": "إرسال البيانات للمكتب 💬",
@@ -55,6 +57,7 @@ languages = {
         "phone": "📞 Phone Number",
         "area": "🏘 Customer Area",
         "full_addr": "🏠 Address Details (Near what?)",
+        "location": "📍 Location Link (Google Maps)",
         "price": "💰 Price (IQD)",
         "submit": "Register & Send Receipt ✅",
         "wa_btn": "Send to Office 💬",
@@ -102,7 +105,6 @@ ADMIN_PASSWORD = "dr_danyal_2024"
 DB_FILE = "global_deliveries.csv"
 MY_WHATSAPP = "9647801352003" 
 
-# لیستی گشتگیر بۆ گەڕەکەکانی کەرکوک
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
     "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
@@ -117,7 +119,7 @@ def load_data():
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE, dtype={"مۆبایل": str})
         return df
-    return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "گەڕەک", "ناونیشانی ورد", "دۆخی داواکاری"])
+    return pd.DataFrame(columns=["کڕیار", "ناوی دوکان", "ناونیشانی دوکان", "مۆبایل", "نرخ", "گەڕەک", "ناونیشانی ورد", "شوێن", "دۆخی داواکاری"])
 
 def save_data(df):
     df.to_csv(DB_FILE, index=False)
@@ -140,6 +142,7 @@ with st.form("delivery_form", clear_on_submit=True):
         phone = st.text_input(L['phone'])
         selected_area = st.selectbox(L['area'], ["Select / هەڵبژاردن / اختر"] + KIRKUK_AREAS)
         full_address = st.text_input(L['full_addr'])
+        loc_url = st.text_input(L['location'], placeholder="https://maps.google.com/...")
         price = st.number_input(L['price'], min_value=0, step=250)
     
     submit = st.form_submit_button(L['submit'])
@@ -152,12 +155,16 @@ with st.form("delivery_form", clear_on_submit=True):
             new_row = pd.DataFrame([{
                 "کڕیار": customer, "ناوی دوکان": shop_name, "ناونیشانی دوکان": shop_address, 
                 "مۆبایل": str(phone), "نرخ": price, "گەڕەک": selected_area, 
-                "ناونیشانی ورد": full_address, "دۆخی داواکاری": "وەرگیرا 📥"
+                "ناونیشانی ورد": full_address, "شوێن": loc_url, "دۆخی داواکاری": "وەرگیرا 📥"
             }])
             save_data(pd.concat([df, new_row], ignore_index=True))
             
-            # نامەکە بە یەک شێواز دەنێردرێت بۆ ئۆفیس
-            msg = f"Golden Delivery ✨\n📦 New Order\n👤 Customer: {customer}\n🏘 Area: {selected_area}\n🏠 Detail: {full_address}\n📞 Tel: {phone}\n💰 Price: {price:,} IQD"
+            # زانیارییەکان بۆ واتسئاپ
+            loc_text = f"\n📍 Location: {loc_url}" if loc_url else ""
+            msg = (f"Golden Delivery ✨\n📦 New Order\n👤 Customer: {customer}\n"
+                   f"🏘 Area: {selected_area}\n🏠 Detail: {full_address}"
+                   f"{loc_text}\n📞 Tel: {phone}\n💰 Price: {price:,} IQD")
+            
             link = f"https://wa.me/{MY_WHATSAPP}?text={urllib.parse.quote(msg)}"
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
