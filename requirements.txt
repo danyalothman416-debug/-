@@ -12,4 +12,7 @@ arabic-reshaper
 python-bidi
 pandas
 streamlit-js-eval
-
+streamlit
+pandas
+fpdf
+streamlit-folium
