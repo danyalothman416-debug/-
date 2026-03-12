@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import urllib.parse
+from datetime import datetime
 
 # --- 1. ڕێکخستنی لاپەڕە و زمان ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
@@ -10,7 +11,7 @@ languages = {
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right",
         "title": "GOLDEN DELIVERY ✨",
-        "subtitle": "خíراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
+        "subtitle": "خێراترین و باوەڕپێکراوترین خزمەتگوزاری گەیاندن لە کەرکوک",
         "customer_name": "👤 ناوی کڕیار", 
         "shop_name": "🏪 ناوی دوکان", 
         "shop_addr": "📍 ناونیشانی دوکان",
@@ -18,12 +19,12 @@ languages = {
         "area": "🏘 گەڕەکی کڕیار", 
         "full_addr": "🏠 وردەکاری ناونیشان (نزیک کوێیە؟)",
         "price": "💰 نرخ (د.ع)",
-        "submit": "تۆمارکردن و ناردنی وەسڵ ✅", 
+        "submit": "تۆمارکردنی داواکاری ✅", 
         "wa_btn": "ناردنی زانیاری بۆ ئۆفیس 💬",
         "error": "⚠️ تکایە خانەکان پڕ بکەرەوە", 
         "success": "✅ بە سەرکەوتوویی تۆمارکرا",
         "admin_title": "🛠 پانێڵی بەڕێوەبەرایەتی", 
-        "admin_pass": "پاسۆرد داخڵ بکە",
+        "admin_pass": "پاسۆرد داخڵ بکە (English)",
         "msg_delivered": "سڵاو، داواکارییەکەت گەیشت ✅", 
         "msg_onway": "سڵاو، داواکارییەکەت لە ڕێگەیە 🚚",
         "app_guide": "📲 بۆ ئەوەی وەک ئەپڵیکەیشن بەکاری بهێنیت: کلیک لە سێ خاڵەکە بکە و 'Add to Home Screen' دابگرە."
@@ -39,7 +40,7 @@ languages = {
         "area": "🏘 منطقة الزبون", 
         "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
         "price": "💰 السعر (د.ع)",
-        "submit": "تسجيل وإرسال الوصل ✅", 
+        "submit": "تسجيل الطلبية ✅", 
         "wa_btn": "إرسال البيانات للمكتب 💬",
         "error": "⚠️ يرجى ملء البيانات المطلوبة", 
         "success": "✅ تم التسجيل بنجاح",
@@ -60,7 +61,7 @@ languages = {
         "area": "🏘 Customer Area", 
         "full_addr": "🏠 Address Details",
         "price": "💰 Price (IQD)",
-        "submit": "Register and Send ✅", 
+        "submit": "Register Order ✅", 
         "wa_btn": "Send to Office 💬",
         "error": "⚠️ Please fill all fields", 
         "success": "✅ Successfully Registered",
@@ -74,14 +75,6 @@ languages = {
 
 if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "کوردی 🇭🇺"
-
-# دوگمەی گۆڕینی زمان
-col_ref, col_lang, col_space = st.columns([0.5, 1.5, 4])
-with col_ref:
-    if st.button("🔄"): st.rerun()
-with col_lang:
-    lang_choice = st.selectbox("🌐 Language", list(languages.keys()), index=list(languages.keys()).index(st.session_state.selected_lang))
-    st.session_state.selected_lang = lang_choice
 
 L = languages[st.session_state.selected_lang]
 
@@ -100,8 +93,9 @@ KIRKUK_AREAS = sorted([
 # --- ٣. بارکردنی داتا ---
 DB_FILE = "deliveries.csv"
 def load_data():
-    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
-    return pd.DataFrame(columns=["customer", "shop", "phone", "area", "address", "price"])
+    if os.path.exists(DB_FILE): 
+        return pd.read_csv(DB_FILE, dtype={"phone": str})
+    return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "price"])
 
 # --- ٤. ستایلی لاپەڕە ---
 st.markdown(f"""
@@ -130,7 +124,6 @@ with st.form("delivery_form", clear_on_submit=True):
         price = st.number_input(L['price'], min_value=0, step=250)
     
     full_addr = st.text_input(L['full_addr'])
-    
     submit = st.form_submit_button(L['submit'])
     
     if submit:
@@ -138,7 +131,7 @@ with st.form("delivery_form", clear_on_submit=True):
             st.error(L['error'])
         else:
             df = load_data()
-            new_row = pd.DataFrame([{"customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price}])
+            new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "price": price}])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
             
             msg = f"Golden Delivery ✨\n📦 داواکاری نوێ\n👤 کڕیار: {customer}\n🏪 دوکان: {shop}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n📞 مۆبایل: {phone}\n💰 نرخ: {price:,} IQD"
@@ -146,14 +139,23 @@ with st.form("delivery_form", clear_on_submit=True):
             st.success(L['success'])
             st.markdown(f'<a href="{link}" target="_blank"><button style="width:100%; background-color:#25D366; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-# --- ٦. پانێڵی ئەدمین (ناردنی نامە بۆ کڕیار) ---
+# --- ٦. پانێڵی ئەدمین ---
 if st.query_params.get("role") == "boss":
     st.divider()
     st.subheader(L['admin_title'])
-    if st.text_input(L['admin_pass'], type="password") == "dr_danyal_2024":
+    
+    # پاسۆردی نوێ و سادە
+    pwd = st.text_input(L['admin_pass'], type="password")
+    
+    if pwd == "golden2024":
         data = load_data()
         if not data.empty:
+            col_a, col_b = st.columns(2)
+            col_a.metric("کۆی داواکارییەکان", len(data))
+            col_b.metric("کۆی پارە", f"{data['price'].sum():,} IQD")
+            
             st.dataframe(data, use_container_width=True)
+            
             for i, row in data.iterrows():
                 with st.expander(f"📦 {row['customer']} - {row['area']}"):
                     c_del, c_onw = st.columns(2)
@@ -163,7 +165,13 @@ if st.query_params.get("role") == "boss":
                     with c_onw:
                         m2 = urllib.parse.quote(f"سڵاو {row['customer']}\n{L['msg_onway']}\nGolden Delivery ✨")
                         st.markdown(f'<a href="https://wa.me/{row["phone"]}?text={m2}" target="_blank"><button style="width:100%; background:#FF9800; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🚚 لە ڕێگەیە</button></a>', unsafe_allow_html=True)
+    elif pwd != "":
+        st.error("❌ پاسۆردەکە هەڵەیە")
 
-# --- ٧. ڕێنمایی ئەپڵیکەیشن و ژمارەکان ---
+# --- ٧. ڕێنمایی ئەپڵیکەیشن ---
+st.sidebar.title("🌐 Language")
+lang = st.sidebar.selectbox("Select Language", list(languages.keys()), index=list(languages.keys()).index(st.session_state.selected_lang))
+st.session_state.selected_lang = lang
+
 st.markdown(f'<div class="guide-box">{L["app_guide"]}</div>', unsafe_allow_html=True)
 st.markdown(f'<div style="text-align:center; padding:10px;">📞 <span class="num-fix">0780 135 2003</span> | <span class="num-fix">0772 195 9922</span></div>', unsafe_allow_html=True)
