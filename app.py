@@ -90,7 +90,7 @@ languages = {
 lang_choice = st.selectbox("🌐 Language / زمان / Dil", list(languages.keys()))
 L = languages[lang_choice]
 
-# --- ٣. لیستی گەڕەکەکان بە ٤ زمان ---
+# --- ٣. لیستی گەڕەکەکان ---
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا / رحيماوة / Rahimawa / Rahimava", "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi",
     "ڕێگای بەغداد / طريق بغداد / Baghdad Road / Bağdat Yolu", "تسعین / تسعين / Taseen / Tisin",
@@ -119,12 +119,11 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایل بۆ چاککردنی ژمارەکان ---
+# --- ٥. ستایل ---
 st.markdown(f"""
     <style>
     html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
-    /* چاککردنی ژمارەکان */
-    input, .stNumberInput, .num-fix {{ direction: ltr !important; text-align: left !important; display: inline-block; }}
+    input, .stNumberInput, .num-fix {{ direction: ltr !important; text-align: left !important; }}
     .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px; border-radius: 15px; border-bottom: 5px solid #D4AF37; text-align: center; margin-bottom: 25px; }}
     .brand-title {{ color: #D4AF37; font-size: 35px; font-weight: bold; }}
     .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; }}
@@ -142,7 +141,6 @@ with st.form("delivery_form", clear_on_submit=True):
         shop = st.text_input(L['shop_name'])
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
-        # بەکارهێنانی text_input بۆ مۆبایل بۆ ئەوەی ڕێک بێت
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
         price = st.number_input(L['price'], min_value=0, step=250)
@@ -169,22 +167,25 @@ if st.button(L['track_btn']):
     res = df_track[df_track['phone'] == track_phone].tail(1)
     if not res.empty:
         st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
-    else: st.warning("Not Found / نەدۆزرایەوە")
+    else: st.warning("Not Found")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ٨. پانێڵی ئەدمین ---
-if st.query_params.get("role") == "boss":
+# --- ٨. پانێڵی ئەدمین (ڕێگەی نوێ و جێگیر) ---
+# بەکارهێنانی هەردوو ڕێگاکە بۆ ئەوەی ١٠٠٪ ئیش بکات
+query_params = st.query_params
+if "role" in query_params and query_params["role"] == "boss":
     st.divider()
-    if st.text_input(L['admin_pass'], type="password") == "golden2024":
+    st.subheader(L['admin_title'])
+    pwd = st.text_input(L['admin_pass'], type="password")
+    if pwd == "golden2024":
         data = load_data()
-        st.dataframe(data)
+        st.dataframe(data, use_container_width=True)
         for i, row in data.iterrows():
-            with st.expander(f"📦 {row['customer']}"):
-                ns = st.selectbox("Status", [L['status_pending'], L['status_onway'], L['status_delivered']], key=f"s_{i}")
-                if st.button("Update", key=f"b_{i}"):
+            with st.expander(f"📦 {row['customer']} - {row['status']}"):
+                ns = st.selectbox("Update Status", [L['status_pending'], L['status_onway'], L['status_delivered']], key=f"s_{i}")
+                if st.button("Save", key=f"b_{i}"):
                     data.at[i, 'status'] = ns
                     data.to_csv(DB_FILE, index=False)
                     st.rerun()
 
-# ژمارەکانی فووتەر بە ڕێکی
-st.markdown(f'<div style="text-align:center; padding:20px;">📞 <span class="num-fix">0780 135 2003</span> | <span class="num-fix">0772 195 9922</span></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center; padding:20px;">📞 0780 135 2003 | 0772 195 9922</div>', unsafe_allow_html=True)
