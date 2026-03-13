@@ -86,20 +86,31 @@ languages = {
     }
 }
 
-# --- ٢. هەڵبژاردنی زمان لە سەرەوە ---
+# --- ٢. هەڵبژاردنی زمان ---
 lang_choice = st.selectbox("🌐 Choose Language / زمان هەڵبژێرە / Dil Seçin", list(languages.keys()))
 L = languages[lang_choice]
 
-# --- ٣. لیستی تەواوی گەڕەکەکان (بێ کەموکوڕی) ---
+# --- ٣. لیستی گەڕەکەکان بە ٤ زمان ---
 KIRKUK_AREAS = sorted([
-    "ڕەحیماوا", "پەنجاعەلی", "شۆراو", "تەپە", "ئیمام قاسم", "ئازادی", "شۆڕش", 
-    "ڕێگای بەغداد", "موسەڵا", "تسعین", "واسطی", "دۆمیز", "غرناطة", "حوزەیران", 
-    "شیمال", "عرفە", "کوردستان", "دەروازە", "ناوەندی شار", "ڕووناكی", "ئەحمەد ئاغا",
-    "ئیسکان", "قۆریە", "حەجیاوا", "برایەتی", "تەپەی مەلا عەبدوڵا", "بێستوون", 
-    "شۆراو نوێ", "کۆمەڵگای نیشتەجێبوون", "سەربازی", "ئەڵماس", "بەرلێمان", "دەروازەی باکور",
-    "کەنیسە", "حەی سەدام", "حەی مەنصور", "حەی ئەسرا و مەفقودین", "حەی بەعس",
-    "حەی عەدەن", "پەنجای نوێ", "شۆراوی کۆن", "قادسیە ١", "قادسیە ٢", "فەیلەق", 
-    "بڵاوەکان", "حەی حوسێن", "حەی ئەفسەران", "کۆمار", "شاتیلو", "تاریق", "حەی خەزرا", "ڕاپەڕین"
+    "ڕەحیماوا / رحيماوة / Rahimawa / Rahimava", "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi",
+    "ڕێگای بەغداد / طريق بغداد / Baghdad Road / Bağdat Yolu", "تسعین / تسعين / Taseen / Tisin",
+    "واسطی / واسطي / Wasit / Vasit", "دۆمیز / دوميز / Domiz", "غرناطة / غرناطة / Gharnata",
+    "حوزەیران / حزيران / Huzairan / Haziran", "پەنجاعەلی / بنجة علي / Panja Ali / Pençe Ali",
+    "شۆراو / شوراو / Shoraw / Şorav", "تەپە / تبة / Tapa / Tepe", "ئیمام قاسم / امام قاسم / Imam Qasim",
+    "شۆڕش / شورش / Shorsh / Şuraş", "موسەڵا / مصلى / Musalla", "شیمال / شمال / Shimal / Şimal",
+    "عرفە / عرفة / Arafa / Arife", "کوردستان / كوردستان / Kurdistan", "دەروازە / دروازة / Darwaza / Dervaze",
+    "ناوەندی شار / مركز المدينة / City Center / Şehir Merkezi", "ڕووناكی / روناقي / Runaki",
+    "ئەحمەد ئاغا / احمد آغا / Ahmed Agha", "قۆریە / قورية / Qorya / Kurye", "حەجیاوا / حجياوة / Hajiawa / Hacıava",
+    "برایەتی / برايتي / Brayati", "تەپەی مەلا عەبدوڵا / تبة ملا عبدالله / Tapa Mala Abdulla",
+    "بێستوون / بيستون / Bestun", "شۆراو نوێ / شوراو الجديد / New Shoraw", "سەربازی / حي العسكري / Askari / Askeri",
+    "ئەڵماس / الماس / Almas", "بەرلێمان / برليمان / Barleman", "دەروازەی باکور / بوابة الشمال / North Gate",
+    "کەنیسە / كنيسة / Kanisa / Kilise", "حەی سەدام / حي صدام / Hai Saddam", "حەی مەنصور / حي المنصور / Mansour",
+    "حەی ئەسرا و مەفقودین / الاسرى والمفقودين / Asra o Mafqudin", "حەی بەعس / حي البعث / Baath",
+    "حەی عەدەن / حي عدن / Aden", "پەنجای نوێ / بنجة علي الجديد / New Panja Ali", "شۆراوی کۆن / شوراو القديم / Old Shoraw",
+    "قادسیە ١ / قادسية ١ / Qadisiya 1", "قادسیە ٢ / قادسية ٢ / Qadisiya 2", "فەیلەق / فيلق / Faylaq / Feylak",
+    "بڵاوەکان / حي البلديات / Baladiyat", "حەی حوسێن / حي الحسين / Hai Hussein", "حەی ئەفسەران / حي الضباط / Officers / Subaylar",
+    "کۆمار / جمهوري / Jumhuri / Cumhuriyeti", "شاتیلو / شاتلو / Shatilu", "تاریق / طارق / Tariq",
+    "حەی خەزرا / حي الخضراء / Khadra / Hazra", "ڕاپەڕین / رابرين / Raparin"
 ])
 
 # --- ٤. بارکردنی داتا ---
@@ -115,24 +126,13 @@ st.markdown(f"""
     .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px; border-radius: 15px; border-bottom: 5px solid #D4AF37; text-align: center; margin-bottom: 25px; }}
     .brand-title {{ color: #D4AF37; font-size: 35px; font-weight: bold; }}
     .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; }}
+    .track-section {{ background: #f9f9f9; padding: 20px; border-radius: 15px; border: 1px solid #ddd; margin-top: 30px; }}
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-# --- ٦. بەدواداچوون ---
-with st.expander(L['track_title']):
-    track_phone = st.text_input(f"{L['phone']}")
-    if st.button(L['track_btn']):
-        df_track = load_data()
-        res = df_track[df_track['phone'] == track_phone].tail(1)
-        if not res.empty:
-            st.info(f"📍 {L['customer_name']}: {res.iloc[0]['customer']} | 📊 Status: {res.iloc[0]['status']}")
-        else: st.warning("Not Found")
-
-st.divider()
-
-# --- ٧. فۆرمی تۆمارکردن ---
+# --- ٦. فۆرمی تۆمارکردن ---
 with st.form("delivery_form", clear_on_submit=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -157,6 +157,17 @@ with st.form("delivery_form", clear_on_submit=True):
             st.success("✅ Success")
             msg = f"Golden Delivery ✨\n📦 NEW ORDER\n👤 Name: {customer}\n🏪 Shop: {shop}\n🏘 Area: {selected_area}\n💰 Price: {price:,} IQD"
             st.markdown(f'<a href="https://wa.me/9647801352003?text={urllib.parse.quote(msg)}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
+
+# --- ٧. بەشی بەدواداچوون (لە خوارەوە) ---
+st.markdown(f'<div class="track-section"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
+track_phone = st.text_input(f"{L['phone']}", key="track_input")
+if st.button(L['track_btn']):
+    df_track = load_data()
+    res = df_track[df_track['phone'] == track_phone].tail(1)
+    if not res.empty:
+        st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
+    else: st.warning("Not Found / نەدۆزرایەوە")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ٨. پانێڵی ئەدمین ---
 if st.query_params.get("role") == "boss":
