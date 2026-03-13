@@ -87,7 +87,7 @@ languages = {
 }
 
 # --- ٢. هەڵبژاردنی زمان ---
-lang_choice = st.selectbox("🌐 Choose Language / زمان هەڵبژێرە / Dil Seçin", list(languages.keys()))
+lang_choice = st.selectbox("🌐 Language / زمان / Dil", list(languages.keys()))
 L = languages[lang_choice]
 
 # --- ٣. لیستی گەڕەکەکان بە ٤ زمان ---
@@ -119,10 +119,12 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایل ---
+# --- ٥. ستایل بۆ چاککردنی ژمارەکان ---
 st.markdown(f"""
     <style>
     html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
+    /* چاککردنی ژمارەکان */
+    input, .stNumberInput, .num-fix {{ direction: ltr !important; text-align: left !important; display: inline-block; }}
     .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px; border-radius: 15px; border-bottom: 5px solid #D4AF37; text-align: center; margin-bottom: 25px; }}
     .brand-title {{ color: #D4AF37; font-size: 35px; font-weight: bold; }}
     .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; }}
@@ -140,7 +142,8 @@ with st.form("delivery_form", clear_on_submit=True):
         shop = st.text_input(L['shop_name'])
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
-        phone = st.text_input(L['phone'])
+        # بەکارهێنانی text_input بۆ مۆبایل بۆ ئەوەی ڕێک بێت
+        phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
         price = st.number_input(L['price'], min_value=0, step=250)
     
@@ -183,4 +186,5 @@ if st.query_params.get("role") == "boss":
                     data.to_csv(DB_FILE, index=False)
                     st.rerun()
 
-st.markdown(f'<div style="text-align:center; padding:20px;">📞 0780 135 2003 | 0772 195 9922</div>', unsafe_allow_html=True)
+# ژمارەکانی فووتەر بە ڕێکی
+st.markdown(f'<div style="text-align:center; padding:20px;">📞 <span class="num-fix">0780 135 2003</span> | <span class="num-fix">0772 195 9922</span></div>', unsafe_allow_html=True)
