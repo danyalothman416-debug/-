@@ -94,13 +94,43 @@ with col_lang:
 with col_theme:
     theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
 
+# --- ٣. بەشی مەرجەکان لە سایدبار (Side Bar) ---
+with st.sidebar:
+    st.markdown(f"<h2 style='color:#D4AF37; text-align:center;'>📜 مەرج و ڕێساکان</h2>", unsafe_allow_html=True)
+    st.info("تکایە پێش تۆمارکردنی وەسڵ، ئەم خاڵانە بە وردی بخوێنەرەوە:")
+    
+    with st.expander("📦 پاراستنی کەلوپەل"):
+        st.write("""
+        * **دوکان:** بەرپرسە لە پێچانەوەی توندوتۆڵی کەلوپەل (وەک بەکارهێنانی کارتۆن و تەق تەقە).
+        * **شۆفێر:** بەرپرسە لە پاراستنی بارەکە لە هەر جۆرە شکان یان دڕانێکی دەرەکی.
+        """)
+
+    with st.expander("⏳ کاتەکانی گەیاندن"):
+        st.write("""
+        * کاتی گەیاندنی ئاسایی لە نێوان **٢ بۆ ٦ کاتژمێر** دەبێت.
+        * هەر وەسڵێک دوای سەعات ٤:٠٠ی ئێوارە تۆمار بکرێت، دەچێتە ڕۆژی دواتر.
+        """)
+
+    with st.expander("💰 گەڕانەوە (مەرتووع)"):
+        st.write("""
+        * ئەگەر کڕیار بارەکەی وەرنەگرت (وەڵامی نەدایەوە یان پەشیمان بووەوە)، دوکان بەرپرسە لە دابینکردنی حەقی ڕێگای شۆفێر (بۆ نموونە ٢,٠٠٠ د.ع).
+        * ئەگەر بارەکە کێشەی تێدا بوو (هەڵەی دوکان)، تەواوی تێچووی گەیاندنەکە لەسەر دوکان حیساب دەبێت.
+        """)
+
+    with st.expander("💵 تەسلیمکردنی پارە"):
+        st.write("""
+        * پارەی بارە کۆکراوەکان لە ماوەی ٢٤ بۆ ٤٨ کاتژمێردا تەسلیمی خاوەن دوکان دەکرێتەوە.
+        """)
+    
+    st.markdown("---")
+    st.caption("Golden Delivery - Kirkuk")
+
 is_dark = theme_choice == L['dark']
 bg_color = "#0e1117" if is_dark else "#f0f2f6"
 text_color = "#fafafa" if is_dark else "#31333F"
 card_bg = "#161b22" if is_dark else "#ffffff"
 
-# --- ٣. لیستی گەڕەکەکان و نرخەکان ---
-# لێرەدا ناوی گەڕەکەکان و نرخەکانیان دیاری کراوە
+# --- ٤. لیستی گەڕەکەکان و نرخەکان ---
 AREAS_WITH_PRICES = {
     "کوردستان / كوردستان / Kurdistan": 3000,
     "ڕەحیماوا / رحيماوة / Rahimawa / Rahimava": 3000,
@@ -155,16 +185,15 @@ AREAS_WITH_PRICES = {
     "ڕاپەڕین / رابرين / Raparin": 4000
 }
 
-# دروستکردنی لیستی گەڕەکەکان بۆ ناو Selectbox بە پیشاندانی نرخ
 display_areas = ["هەڵبژێرە..."] + [f"{area} - ({price:,} د.ع)" for area, price in AREAS_WITH_PRICES.items()]
 
-# --- ٤. بارکردنی داتا ---
+# --- ٥. بارکردنی داتا ---
 DB_FILE = "deliveries.csv"
 def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایل ---
+# --- ٦. ستایل ---
 st.markdown(f"""
     <style>
     #MainMenu {{visibility: hidden;}}
@@ -188,7 +217,7 @@ st.markdown(f"""
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-# --- ٦. فۆرمی تۆمارکردن ---
+# --- ٧. فۆرمی تۆمارکردن ---
 with st.form("delivery_form", clear_on_submit=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -197,10 +226,8 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
-        # هەڵبژاردنی گەڕەک
         area_selection = st.selectbox(L['area'], display_areas)
         
-        # دۆزینەوەی نرخەکە لە لیستەکە
         selected_price = 0
         pure_area_name = ""
         if area_selection != "هەڵبژێرە...":
@@ -223,7 +250,7 @@ with st.form("delivery_form", clear_on_submit=True):
             msg = f"Golden Delivery ✨\n📦 NEW ORDER\n👤 Name: {customer}\n🏪 Shop: {shop}\n🏘 Area: {pure_area_name}\n💰 Price: {price:,} IQD"
             st.markdown(f'<a href="https://wa.me/9647801352003?text={urllib.parse.quote(msg)}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
-# --- ٧. بەشی بەدواداچوون ---
+# --- ٨. بەشی بەدواداچوون ---
 st.markdown(f'<div style="background:{card_bg}; padding:20px; border-radius:15px; border:1px solid #D4AF37; margin-top:30px;"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
 track_phone = st.text_input(f"{L['phone']}", key="track_input")
 if st.button(L['track_btn']):
@@ -234,7 +261,7 @@ if st.button(L['track_btn']):
     else: st.warning("داواکارییەک بەم ژمارەیە نەدۆزرایەوە")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ٨. پانێڵی ئەدمین ---
+# --- ٩. پانێڵی ئەدمین ---
 if st.query_params.get("role") == "boss":
     st.divider()
     if st.text_input(L['admin_pass'], type="password") == "golden2024":
