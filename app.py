@@ -9,7 +9,7 @@ st.set_page_config(page_title="Golden Delivery", layout="wide")
 
 languages = {
     "کوردی 🇭🇺": {
-        "dir": "rtl", "align": "right",
+        "dir": "rtl", "align": "right", "theme_label": "ڕووکار", "light": "ڕوون ☀️", "dark": "تاریک 🌙",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "خێراترین خزمەتگوزاری گەیاندن لە کەرکوک",
         "customer_name": "👤 ناوی کڕیار", 
@@ -28,7 +28,7 @@ languages = {
         "status_pending": "⏳ چاوەڕوان", "status_onway": "🚚 لە ڕێگەیە", "status_delivered": "✅ گەیشت"
     },
     "العربية 🇮🇶": {
-        "dir": "rtl", "align": "right",
+        "dir": "rtl", "align": "right", "theme_label": "المظهر", "light": "فاتح ☀️", "dark": "داكن 🌙",
         "title": "گولدن دليفري ✨",
         "subtitle": "أسرع خدمة توصيل في كركوك",
         "customer_name": "👤 اسم الزبون", 
@@ -47,7 +47,7 @@ languages = {
         "status_pending": "⏳ قيد الانتظار", "status_onway": "🚚 في الطريق", "status_delivered": "✅ تم التوصيل"
     },
     "Türkmençe 🇮🇶": {
-        "dir": "ltr", "align": "left",
+        "dir": "ltr", "align": "left", "theme_label": "Tema", "light": "Açık ☀️", "dark": "Karanlık 🌙",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "Kerkük'te en hızlı teslimat hizmeti",
         "customer_name": "👤 Müşteri Adı", 
@@ -66,7 +66,7 @@ languages = {
         "status_pending": "⏳ Beklemede", "status_onway": "🚚 Yolda", "status_delivered": "✅ Teslim Edildi"
     },
     "English 🇬🇧": {
-        "dir": "ltr", "align": "left",
+        "dir": "ltr", "align": "left", "theme_label": "Theme", "light": "Light ☀️", "dark": "Dark 🌙",
         "title": "GOLDEN DELIVERY ✨",
         "subtitle": "Fastest delivery service in Kirkuk",
         "customer_name": "👤 Customer Name", 
@@ -86,9 +86,19 @@ languages = {
     }
 }
 
-# --- ٢. هەڵبژاردنی زمان ---
-lang_choice = st.selectbox("🌐 Language / زمان / Dil", list(languages.keys()))
-L = languages[lang_choice]
+# --- ٢. هەڵبژاردنی زمان و ڕووکار ---
+col_lang, col_theme = st.columns(2)
+with col_lang:
+    lang_choice = st.selectbox("🌐 Language / زمان", list(languages.keys()))
+    L = languages[lang_choice]
+with col_theme:
+    theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
+
+# دیاری کردنی ڕەنگەکان بەپێی هەڵبژاردن
+is_dark = theme_choice == L['dark']
+bg_color = "#0e1117" if is_dark else "#f0f2f6"
+text_color = "#fafafa" if is_dark else "#31333F"
+card_bg = "#161b22" if is_dark else "#ffffff"
 
 # --- ٣. لیستی گەڕەکەکان ---
 KIRKUK_AREAS = sorted([
@@ -119,60 +129,53 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایلی دارک مۆد و چاککردنی ژمارەکان ---
+# --- ٥. ستایلی داینامیکی ڕووکار ---
 st.markdown(f"""
     <style>
-    /* سیستەمی دارک مۆد و گشتی */
     html, body, [data-testid="stAppViewContainer"] {{ 
         direction: {L['dir']}; 
         text-align: {L['align']};
-        background-color: #0e1117; /* ڕەنگی ڕەشی دارک */
-        color: #fafafa;
+        background-color: {bg_color};
+        color: {text_color};
     }}
     
-    /* ڕێکخستنی ژمارەکان */
     [data-testid="stNumberInput"] input, 
     [data-testid="stTextInput"] input {{
         direction: ltr !important;
         text-align: left !important;
     }}
     
-    /* ستایلی سەرەوە (Header) */
     .brand-header {{ 
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); 
+        background: linear-gradient(135deg, {"#1a1a1a" if is_dark else "#D4AF37"} 0%, {"#2d2d2d" if is_dark else "#f39c12"} 100%); 
         padding: 30px; 
         border-radius: 15px; 
         border-bottom: 5px solid #D4AF37; 
         text-align: center; 
         margin-bottom: 25px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }}
     
-    .brand-title {{ color: #D4AF37; font-size: 35px; font-weight: bold; }}
+    .brand-title {{ color: {"#D4AF37" if is_dark else "white"}; font-size: 35px; font-weight: bold; }}
     
-    /* ستایلی فۆرمەکان لە دارک مۆددا */
     .stForm {{ 
         border: 2px solid #D4AF37 !important; 
         border-radius: 15px; 
         padding: 25px; 
-        background-color: #161b22 !important;
+        background-color: {card_bg} !important;
     }}
     
-    /* ستایلی بەشی بەدواداچوون */
     .track-section {{ 
-        background: #1c2128; 
+        background: {card_bg}; 
         padding: 20px; 
         border-radius: 15px; 
         border: 1px solid #D4AF37; 
         margin-top: 30px; 
     }}
 
-    /* چاککردنی ڕەنگی لیبڵەکان */
     label {{ color: #D4AF37 !important; font-weight: bold !important; }}
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:#e0e0e0;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
 # --- ٦. فۆرمی تۆمارکردن ---
 with st.form("delivery_form", clear_on_submit=True):
