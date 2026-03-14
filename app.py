@@ -129,9 +129,14 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایلی داینامیکی ڕووکار ---
+# --- ٥. ستایلی داینامیکی ڕووکار و لابردنی لۆگۆی Streamlit ---
 st.markdown(f"""
     <style>
+    /* لابردنی لۆگۆ و مێنیووی ستریملیت */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
+
     html, body, [data-testid="stAppViewContainer"] {{ 
         direction: {L['dir']}; 
         text-align: {L['align']};
