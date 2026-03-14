@@ -94,13 +94,20 @@ with col_lang:
 with col_theme:
     theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
 
-# دیاری کردنی ڕەنگەکان بەپێی هەڵبژاردن
 is_dark = theme_choice == L['dark']
 bg_color = "#0e1117" if is_dark else "#f0f2f6"
 text_color = "#fafafa" if is_dark else "#31333F"
 card_bg = "#161b22" if is_dark else "#ffffff"
 
-# --- ٣. لیستی گەڕەکەکان ---
+# --- ٣. لیستی گەڕەکەکان و سیستەمی نرخی زیرەک ---
+NEARBY_AREAS = [
+    "کوردستان / كوردستان / Kurdistan", "ڕەحیماوا / رحيماوة / Rahimawa / Rahimava", 
+    "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi", "شۆراو / شوراو / Shoraw / Şorav",
+    "ئەحمەد ئاغا / احمد آغا / Ahmed Agha", "ئەڵماس / الماس / Almas", "عرفە / عرفة / Arafa / Arife",
+    "فەیلەق / فيلق / Faylaq / Feylak", "شیمال / شمال / Shimal / Şimal", "ڕووناكی / روناقي / Runaki",
+    "برایەتی / برايتي / Brayati", "شۆڕش / شورش / Shorsh / Şuraş", "تەپە / تبة / Tapa / Tepe"
+]
+
 KIRKUK_AREAS = sorted([
     "ڕەحیماوا / رحيماوة / Rahimawa / Rahimava", "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi",
     "ڕێگای بەغداد / طريق بغداد / Baghdad Road / Bağdat Yolu", "تسعین / تسعين / Taseen / Tisin",
@@ -132,7 +139,6 @@ def load_data():
 # --- ٥. ستایلی داینامیکی ڕووکار و لابردنی لۆگۆی Streamlit ---
 st.markdown(f"""
     <style>
-    /* لابردنی لۆگۆ و مێنیووی ستریملیت */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
@@ -191,8 +197,17 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
+        # بەکارهێنانی selectbox بۆ گەڕەک
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
-        price = st.number_input(L['price'], min_value=0, step=250)
+        
+        # دیاریکردنی نرخ بەپێی گەڕەک (Smart Pricing)
+        default_price = 0
+        if selected_area in NEARBY_AREAS:
+            default_price = 3000
+        elif selected_area != "هەڵبژێرە...":
+            default_price = 4000
+            
+        price = st.number_input(L['price'], min_value=0, step=250, value=default_price)
     
     full_addr = st.text_input(L['full_addr'])
     submit = st.form_submit_button(L['submit'])
@@ -236,4 +251,4 @@ if st.query_params.get("role") == "boss":
 # --- ٩. فووتەر و ڤێرژن ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(f'<div style="text-align:center; padding:10px; color:#D4AF37;">📞 <span style="direction:ltr; display:inline-block;">0780 135 2003</span> | <span style="direction:ltr; display:inline-block;">0772 195 9922</span></div>', unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#666; font-size:12px; padding-bottom:20px;">Golden Delivery System - Version 1.1.0 Build 2024</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#666; font-size:12px; padding-bottom:20px;">Golden Delivery System - Version 1.2.0 Build 2024</div>', unsafe_allow_html=True)
