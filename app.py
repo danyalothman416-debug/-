@@ -119,26 +119,60 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٥. ستایلی چاککردنی ژمارەکان (گرنگترین بەش) ---
+# --- ٥. ستایلی دارک مۆد و چاککردنی ژمارەکان ---
 st.markdown(f"""
     <style>
-    html, body, [data-testid="stAppViewContainer"] {{ direction: {L['dir']}; text-align: {L['align']}; }}
+    /* سیستەمی دارک مۆد و گشتی */
+    html, body, [data-testid="stAppViewContainer"] {{ 
+        direction: {L['dir']}; 
+        text-align: {L['align']};
+        background-color: #0e1117; /* ڕەنگی ڕەشی دارک */
+        color: #fafafa;
+    }}
     
-    /* لێرەدا ژمارەکان وا لێ دەکەین هەمیشە لە چەپ بۆ ڕاست بن */
+    /* ڕێکخستنی ژمارەکان */
     [data-testid="stNumberInput"] input, 
     [data-testid="stTextInput"] input {{
         direction: ltr !important;
         text-align: left !important;
     }}
     
-    .brand-header {{ background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px; border-radius: 15px; border-bottom: 5px solid #D4AF37; text-align: center; margin-bottom: 25px; }}
+    /* ستایلی سەرەوە (Header) */
+    .brand-header {{ 
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); 
+        padding: 30px; 
+        border-radius: 15px; 
+        border-bottom: 5px solid #D4AF37; 
+        text-align: center; 
+        margin-bottom: 25px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }}
+    
     .brand-title {{ color: #D4AF37; font-size: 35px; font-weight: bold; }}
-    .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; }}
-    .track-section {{ background: #f9f9f9; padding: 20px; border-radius: 15px; border: 1px solid #ddd; margin-top: 30px; }}
+    
+    /* ستایلی فۆرمەکان لە دارک مۆددا */
+    .stForm {{ 
+        border: 2px solid #D4AF37 !important; 
+        border-radius: 15px; 
+        padding: 25px; 
+        background-color: #161b22 !important;
+    }}
+    
+    /* ستایلی بەشی بەدواداچوون */
+    .track-section {{ 
+        background: #1c2128; 
+        padding: 20px; 
+        border-radius: 15px; 
+        border: 1px solid #D4AF37; 
+        margin-top: 30px; 
+    }}
+
+    /* چاککردنی ڕەنگی لیبڵەکان */
+    label {{ color: #D4AF37 !important; font-weight: bold !important; }}
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:#e0e0e0;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
 # --- ٦. فۆرمی تۆمارکردن ---
 with st.form("delivery_form", clear_on_submit=True):
@@ -157,14 +191,14 @@ with st.form("delivery_form", clear_on_submit=True):
     
     if submit:
         if not customer or not phone or "هەڵبژێرە" in selected_area:
-            st.error("⚠️ Fill all fields")
+            st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
         else:
             df = load_data()
             new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "shop_addr": shop_addr, "price": price, "status": L['status_pending']}])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
-            st.success("✅ Success")
+            st.success("✅ بەسەرکەوتوویی تۆمارکرا")
             msg = f"Golden Delivery ✨\n📦 NEW ORDER\n👤 Name: {customer}\n🏪 Shop: {shop}\n🏘 Area: {selected_area}\n💰 Price: {price:,} IQD"
-            st.markdown(f'<a href="https://wa.me/9647801352003?text={urllib.parse.quote(msg)}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="https://wa.me/9647801352003?text={urllib.parse.quote(msg)}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
 
 # --- ٧. بەشی بەدواداچوون ---
 st.markdown(f'<div class="track-section"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
@@ -174,7 +208,7 @@ if st.button(L['track_btn']):
     res = df_track[df_track['phone'] == track_phone].tail(1)
     if not res.empty:
         st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
-    else: st.warning("Not Found")
+    else: st.warning("داواکارییەک بەم ژمارەیە نەدۆزرایەوە")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- ٨. پانێڵی ئەدمین ---
@@ -191,4 +225,7 @@ if st.query_params.get("role") == "boss":
                     data.to_csv(DB_FILE, index=False)
                     st.rerun()
 
-st.markdown(f'<div style="text-align:center; padding:20px;">📞 <span style="direction:ltr; display:inline-block;">0780 135 2003</span> | <span style="direction:ltr; display:inline-block;">0772 195 9922</span></div>', unsafe_allow_html=True)
+# --- ٩. فووتەر و ڤێرژن ---
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center; padding:10px; color:#D4AF37;">📞 <span style="direction:ltr; display:inline-block;">0780 135 2003</span> | <span style="direction:ltr; display:inline-block;">0772 195 9922</span></div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#666; font-size:12px; padding-bottom:20px;">Golden Delivery System - Version 1.1.0 Build 2024</div>', unsafe_allow_html=True)
