@@ -18,3 +18,9 @@ fpdf
 streamlit-folium
 streamlit
 plotly
+streamlit
+pandas
+plotly
+folium
+streamlit-folium
+geopy
