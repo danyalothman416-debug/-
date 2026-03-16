@@ -28,7 +28,8 @@ languages = {
         "track_btn": "بگەڕێ",
         "admin_title": "🛠 پانێڵی بەڕێوەبەرایەتی",
         "admin_pass": "پاسۆرد",
-        "status_pending": "⏳ چاوەڕوان", "status_onway": "🚚 لە ڕێگەیە", "status_delivered": "✅ گەیشت"
+        "status_pending": "⏳ چاوەڕوان", "status_onway": "🚚 لە ڕێگەیە", "status_delivered": "✅ گەیشت",
+        "nav_home": "سەرەکی", "nav_discount": "داشکاندن", "nav_profile": "هەژماری من"
     },
     "Türkmençe 🇮🇶": {
         "dir": "ltr", "align": "left", "theme_label": "Tema", "light": "Açık ☀️", "dark": "Karanlık 🌙",
@@ -47,7 +48,8 @@ languages = {
         "track_btn": "Ara",
         "admin_title": "🛠 Yönetici Paneli",
         "admin_pass": "Şifre",
-        "status_pending": "⏳ Beklemede", "status_onway": "🚚 Yolda", "status_delivered": "✅ Teslim Edildi"
+        "status_pending": "⏳ Beklemede", "status_onway": "🚚 Yolda", "status_delivered": "✅ Teslim Edildi",
+        "nav_home": "Ana Sayfa", "nav_discount": "İndirimler", "nav_profile": "Profilim"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right", "theme_label": "المظهر", "light": "فاتح ☀️", "dark": "داكن 🌙",
@@ -57,7 +59,7 @@ languages = {
         "shop_name": "🏪 اسم المحل", 
         "shop_addr": "📍 عنوان المحل",
         "phone": "📞 رقم الموبايل", 
-        "area": "🏘 منطقة الزبون", 
+        "area": "منطقة الزبون", 
         "full_addr": "🏠 تفاصيل العنوان (قرب ماذا؟)",
         "price": "💰 السعر (د.ع)",
         "submit": "تسجيل الطلبية ✅", 
@@ -66,7 +68,8 @@ languages = {
         "track_btn": "بحث",
         "admin_title": "🛠 لوحة التحكم",
         "admin_pass": "كلمة المرور",
-        "status_pending": "⏳ قيد الانتظار", "status_onway": "🚚 في الطريق", "status_delivered": "✅ تم التوصيل"
+        "status_pending": "⏳ قيد الانتظار", "status_onway": "🚚 في الطريق", "status_delivered": "✅ تم التوصيل",
+        "nav_home": "الرئيسية", "nav_discount": "خصومات", "nav_profile": "بلي الخاصة بي"
     },
     "English 🇬🇧": {
         "dir": "ltr", "align": "left", "theme_label": "Theme", "light": "Light ☀️", "dark": "Dark 🌙",
@@ -85,7 +88,8 @@ languages = {
         "track_btn": "Track",
         "admin_title": "🛠 Admin Panel",
         "admin_pass": "Password",
-        "status_pending": "⏳ Pending", "status_onway": "🚚 On the way", "status_delivered": "✅ Delivered"
+        "status_pending": "⏳ Pending", "status_onway": "🚚 On the way", "status_delivered": "✅ Delivered",
+        "nav_home": "Home", "nav_discount": "Offers", "nav_profile": "My Profile"
     }
 }
 
@@ -127,13 +131,14 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٤. ستایل ---
+# --- ٤. ستایل (لێرەدا بارەکەی خوارەوە زیاد کراوە) ---
 st.markdown(f"""
     <style>
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
     html, body, [data-testid="stAppViewContainer"] {{ 
         direction: {L['dir']}; text-align: {L['align']};
         background-color: {bg_color}; color: {text_color};
+        margin-bottom: 80px; /* جێگای بارەکە لە خوارەوە چۆڵ بکات */
     }}
     .brand-header {{ 
         background: linear-gradient(135deg, {"#1a1a1a" if is_dark else "#D4AF37"} 0%, {"#2d2d2d" if is_dark else "#f39c12"} 100%); 
@@ -142,7 +147,55 @@ st.markdown(f"""
     .brand-title {{ color: {"#D4AF37" if is_dark else "white"}; font-size: 35px; font-weight: bold; }}
     .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; background-color: {card_bg} !important; }}
     label {{ color: #D4AF37 !important; font-weight: bold !important; }}
+    
+    /* Navbar Style */
+    .navbar {{
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: {card_bg};
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 10px 0;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        border-top: 1px solid #D4AF37;
+    }}
+    .nav-item {{
+        text-align: center;
+        color: {text_color};
+        text-decoration: none;
+        font-size: 12px;
+        flex: 1;
+    }}
+    .nav-item i {{
+        font-size: 20px;
+        display: block;
+        margin-bottom: 2px;
+    }}
+    .nav-active {{
+        color: #D4AF37;
+    }}
     </style>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <div class="navbar">
+        <div class="nav-item">
+            <i class="fa-solid fa-user"></i>
+            {L['nav_profile']}
+        </div>
+        <div class="nav-item">
+            <i class="fa-solid fa-tag"></i>
+            {L['nav_discount']}
+        </div>
+        <div class="nav-item nav-active">
+            <i class="fa-solid fa-house"></i>
+            {L['nav_home']}
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
@@ -186,7 +239,7 @@ if st.session_state.submitted:
         st.session_state.submitted = False
         st.rerun()
 
-# --- ٦. بەشی بەدواداچوون ---
+# --- ٦. بەشی بەدوانداچوون ---
 st.markdown(f'<div style="background:{card_bg}; padding:20px; border-radius:15px; border:1px solid #D4AF37; margin-top:30px;"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
 track_phone = st.text_input(f"{L['phone']}", key="track_input")
 if st.button(L['track_btn']):
@@ -227,4 +280,4 @@ if st.query_params.get("role") == "boss":
 
 # --- ٨. فووتەر ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.7.0 | Multi-Language & Map Fix</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px; margin-bottom: 50px;">Golden Delivery System v1.7.0 | Multi-Language & Map Fix</div>', unsafe_allow_html=True)
