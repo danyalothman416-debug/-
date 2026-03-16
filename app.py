@@ -83,7 +83,7 @@ bg_color = "#0e1117" if is_dark else "#f0f2f6"
 text_color = "#fafafa" if is_dark else "#31333F"
 card_bg = "#161b22" if is_dark else "#ffffff"
 
-# پۆتانی وردی گەڕەکەکان بۆ نەخشە
+# پۆتانی وردی گەڕەکەکان بۆ نەخشە (تازەکرایەوە)
 AREA_COORDS = {
     "ڕەحیماوا / رحيماوة / Rahimawa": [35.4950, 44.3910],
     "ئیسکان / اسكان / Iskan": [35.4820, 44.3980],
@@ -93,11 +93,14 @@ AREA_COORDS = {
     "واسطی / واسطي / Wasit": [35.4180, 44.3620],
     "کوردستان / كوردستان / Kurdistan": [35.5050, 44.4010],
     "موسەڵا / مصلى / Musalla": [35.4650, 44.3950],
-    "عرفە / عرفة / Arafa": [35.4880, 44.3550]
+    "عرفە / عرفة / Arafa": [35.4880, 44.3550],
+    "دۆمیز / دوميز / Domiz": [35.4250, 44.3850],
+    "حوزەیران / حزيران / Huzairan": [35.4150, 44.3750],
+    "پەنجاعەلی / بنجة علي / Panja Ali": [35.4650, 44.4350]
 }
 
 NEARBY_AREAS = ["کوردستان / كوردستان / Kurdistan", "ڕەحیماوا / رحيماوة / Rahimawa", "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi"]
-KIRKUK_AREAS = sorted(list(AREA_COORDS.keys()) + ["دۆمیز / دوميز / Domiz", "حوزەیران / حزيران / Huzairan", "پەنجاعەلی / بنجة علي / Panja Ali"])
+KIRKUK_AREAS = sorted(list(AREA_COORDS.keys()))
 
 # --- ٣. بارکردنی داتا ---
 DB_FILE = "deliveries.csv"
@@ -168,7 +171,9 @@ if st.query_params.get("role") == "boss":
         data = load_data()
         
         # --- نەخشەی ڕێدۆزی (Navigation Map) ---
-        st.markdown("### 🗺️ نەخشەی گەیاندن و ڕێدۆزی")
+        st.markdown("### 🗺️ نەخشەی گەیاندن و ڕێدۆزی کەرکوک")
+        st.info("💡 کلیک لە هەر خاڵێک بکە بۆ بینینی زانیاری کڕیار و کردنەوەی GPS")
+        
         m = folium.Map(location=[35.4687, 44.3925], zoom_start=12)
         
         for i, row in data.iterrows():
@@ -177,27 +182,31 @@ if st.query_params.get("role") == "boss":
                 color = "green" if row['status'] == L['status_delivered'] else "orange" if row['status'] == L['status_onway'] else "red"
                 
                 # لێنکی گوگڵ ماپ بۆ شۆفێر
-                g_maps = f"https://www.google.com/maps?q={lat},{lon}"
+                g_maps = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
                 
-                popup_content = f"""
+                popup_html = f"""
                 <div style='font-family:Tahoma; text-align:{L["align"]}; direction:{L["dir"]};'>
                     <b style='color:#D4AF37;'>{row['customer']}</b><br>
-                    📞 {row['phone']}<br>
-                    💰 {row['price']:,} IQD<br><br>
+                    📍 {row['area']}<br>
+                    💰 {row['price']:,} IQD<br><hr>
                     <a href='{g_maps}' target='_blank'>
-                        <button style='background:#25D366; color:white; border:none; padding:8px; border-radius:5px; width:100%; cursor:pointer;'>🚗 Google Maps</button>
+                        <button style='background:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;'>🚗 کردنەوەی GPS</button>
                     </a>
                 </div>
                 """
-                folium.Marker([lat, lon], popup=folium.Popup(popup_content, max_width=200), icon=folium.Icon(color=color)).add_to(m)
+                folium.Marker(
+                    [lat, lon], 
+                    popup=folium.Popup(popup_html, max_width=250), 
+                    tooltip=row['customer'],
+                    icon=folium.Icon(color=color, icon='info-sign')
+                ).add_to(m)
         
-        st_folium(m, width="100%", height=450)
+        st_folium(m, width="100%", height=500, key="main_map")
 
         # --- گرافیکەکان ---
         st.markdown("### 📊 ئاماری گشتی")
         if not data.empty:
             c1, c2 = st.columns(2)
-            # بەکارهێنانی کۆدی ڕەنگی جێگیر بۆ ڕێگری لە AttributeError
             gold_colors = ["#D4AF37", "#FFD700", "#B8860B", "#DAA520", "#EEE8AA"]
             with c1: 
                 fig_pie = px.pie(data, names='area', title='دابەشبوونی گەڕەکەکان', color_discrete_sequence=gold_colors)
@@ -211,4 +220,4 @@ if st.query_params.get("role") == "boss":
 
 # --- ٨. فووتەر ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.5.1</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.6.0 | Kirkuk Map Ready</div>', unsafe_allow_html=True)
