@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import urllib.parse
 from datetime import datetime
+import plotly.express as px  # بۆ گرافیکەکان زیادکرا
 
 # --- 1. ڕێکخستنی لاپەڕە ---
 st.set_page_config(page_title="Golden Delivery", layout="wide")
@@ -197,10 +198,8 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
-        # بەکارهێنانی selectbox بۆ گەڕەک
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
         
-        # دیاریکردنی نرخ بەپێی گەڕەک (Smart Pricing)
         default_price = 0
         if selected_area in NEARBY_AREAS:
             default_price = 3000
@@ -234,15 +233,30 @@ if st.button(L['track_btn']):
     else: st.warning("داواکارییەک بەم ژمارەیە نەدۆزرایەوە")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ٨. پانێڵی ئەدمین ---
+# --- ٨. پانێڵی ئەدمین و گرافیکەکان ---
 if st.query_params.get("role") == "boss":
     st.divider()
     if st.text_input(L['admin_pass'], type="password") == "golden2024":
         data = load_data()
         st.dataframe(data, use_container_width=True)
+        
+        # --- بەشی گرافیکەکان (ئەمە ئەو بەشەیە کە بۆمان زیاد کردیت) ---
+        st.markdown("### 📊 ئاماری گشتی")
+        if not data.empty:
+            cg1, cg2 = st.columns(2)
+            with cg1:
+                # گرافیکی دابەشبوونی گەڕەکەکان
+                fig_area = px.pie(data, names='area', title='ڕێژەی داواکاری گەڕەکەکان', color_discrete_sequence=px.colors.sequential.Gold)
+                st.plotly_chart(fig_area, use_container_width=True)
+            with cg2:
+                # گرافیکی بارودۆخی وەسڵەکان
+                fig_status = px.bar(data, x='status', title='بارودۆخی گشتی وەسڵەکان', color='status', color_discrete_map={L['status_pending']: 'gray', L['status_onway']: 'blue', L['status_delivered']: 'green'})
+                st.plotly_chart(fig_status, use_container_width=True)
+        # ---------------------------------------------------------
+
         for i, row in data.iterrows():
             with st.expander(f"📦 {row['customer']}"):
-                ns = st.selectbox("Status", [L['status_pending'], L['status_onway'], L['status_delivered']], key=f"s_{i}")
+                ns = st.selectbox("Status", [L['status_pending'], L['status_onway'], L['status_delivered']], key=f"s_{i}", index=[L['status_pending'], L['status_onway'], L['status_delivered']].index(row['status']))
                 if st.button("Update", key=f"b_{i}"):
                     data.at[i, 'status'] = ns
                     data.to_csv(DB_FILE, index=False)
@@ -251,4 +265,4 @@ if st.query_params.get("role") == "boss":
 # --- ٩. فووتەر و ڤێرژن ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(f'<div style="text-align:center; padding:10px; color:#D4AF37;">📞 <span style="direction:ltr; display:inline-block;">0780 135 2003</span> | <span style="direction:ltr; display:inline-block;">0772 195 9922</span></div>', unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#666; font-size:12px; padding-bottom:20px;">Golden Delivery System - Version 1.2.0 Build 2024</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#666; font-size:12px; padding-bottom:20px;">Golden Delivery System - Version 1.3.0 Build 2024</div>', unsafe_allow_html=True)
