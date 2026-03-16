@@ -8,7 +8,11 @@ import folium
 from streamlit_folium import st_folium
 
 # --- 1. ڕێکخستنی لاپەڕە ---
-st.set_page_config(page_title="Golden Delivery", layout="wide")
+st.set_page_config(page_title="Golden Delivery", layout="wide", initial_sidebar_state="collapsed")
+
+# پاراستنی لاپەڕەی ئێستا (بۆ ئەوەی وەک ئەپ خێرا بێت)
+if 'page' not in st.session_state:
+    st.session_state.page = "home"
 
 languages = {
     "کوردی 🇭🇺": {
@@ -29,7 +33,7 @@ languages = {
         "admin_title": "🛠 پانێڵی بەڕێوەبەرایەتی",
         "admin_pass": "پاسۆرد",
         "status_pending": "⏳ چاوەڕوان", "status_onway": "🚚 لە ڕێگەیە", "status_delivered": "✅ گەیشت",
-        "nav_home": "🏠 ڕووکاری سەرەکی", "nav_discount": "🏷️ داشکاندنەکان", "nav_profile": "👤 هەژمار",
+        "nav_home": "🏠 سەرەکی", "nav_discount": "🏷️ داشکاندن", "nav_profile": "👤 هەژمار",
         "free_msg": "🎁 پیرۆزە! تۆ ٣ گەیاندنت هەبووە، ئەمەیان بە خۆڕاییە!",
         "need_more": "ماوەتە بۆ گەیاندنی خۆڕایی: ",
         "acc_info": "زانیاری هەژمار"
@@ -91,9 +95,9 @@ with col_theme:
     theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
 
 is_dark = theme_choice == L['dark']
-bg_color = "#0e1117" if is_dark else "#f0f2f6"
-text_color = "#fafafa" if is_dark else "#31333F"
-card_bg = "#161b22" if is_dark else "#ffffff"
+bg_color = "#121212" if is_dark else "#f7f9fc"
+text_color = "#ffffff" if is_dark else "#2c3e50"
+card_bg = "#1e1e1e" if is_dark else "#ffffff"
 
 # --- ٣. بارکردنی داتا ---
 DB_FILE = "deliveries.csv"
@@ -101,36 +105,61 @@ def load_data():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٤. ستایل ---
+# --- ٤. ستایل (بەشە مۆدێرنەکە) ---
 st.markdown(f"""
     <style>
-    #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
+    [data-testid="stHeader"] {{visibility: hidden;}}
+    #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}}
+    
     html, body, [data-testid="stAppViewContainer"] {{ 
         direction: {L['dir']}; text-align: {L['align']};
         background-color: {bg_color}; color: {text_color};
     }}
+
+    /* Header */
     .brand-header {{ 
-        background: linear-gradient(135deg, {"#1a1a1a" if is_dark else "#D4AF37"} 0%, {"#2d2d2d" if is_dark else "#f39c12"} 100%); 
-        padding: 30px; border-radius: 15px; border-bottom: 5px solid #D4AF37; text-align: center; margin-bottom: 25px; 
+        background: linear-gradient(135deg, #D4AF37 0%, #8A6D3B 100%); 
+        padding: 40px 20px; border-radius: 0 0 30px 30px; 
+        text-align: center; margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }}
-    .brand-title {{ color: {"#D4AF37" if is_dark else "white"}; font-size: 35px; font-weight: bold; }}
-    .stForm {{ border: 2px solid #D4AF37 !important; border-radius: 15px; padding: 25px; background-color: {card_bg} !important; }}
-    label {{ color: #D4AF37 !important; font-weight: bold !important; }}
+    .brand-title {{ color: white; font-size: 32px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }}
+
+    /* Form UI */
+    .stForm {{ border: none !important; border-radius: 20px; padding: 20px; background-color: {card_bg} !important; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }}
+    label {{ color: #D4AF37 !important; font-weight: 600 !important; font-size: 15px !important; }}
     
-    /* NavBar Style */
-    .nav-wrapper {{ 
-        position: fixed; bottom: 0; left: 0; width: 100%; 
-        background: {card_bg}; border-top: 2px solid #D4AF37; 
-        z-index: 999; display: flex; justify-content: space-around; padding: 10px 0; 
+    /* Modern Bottom Navigation */
+    .nav-container {{
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        width: 90%; max-width: 500px;
+        background: {"rgba(30, 30, 30, 0.9)" if is_dark else "rgba(255, 255, 255, 0.9)"};
+        backdrop-filter: blur(10px);
+        display: flex; justify-content: space-around; align-items: center;
+        padding: 12px 10px; border-radius: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        z-index: 9999;
+        border: 1px solid rgba(212, 175, 55, 0.3);
     }}
-    .nav-item {{ text-align: center; color: {text_color}; text-decoration: none; font-size: 14px; flex: 1; cursor: pointer; }}
+    .nav-link {{
+        text-decoration: none; color: {text_color};
+        display: flex; flex-direction: column; align-items: center;
+        transition: 0.3s all ease; flex: 1;
+    }}
+    .nav-item-active {{ color: #D4AF37 !important; font-weight: bold; transform: translateY(-5px); }}
+    .nav-icon {{ font-size: 22px; margin-bottom: 2px; }}
+    .nav-text {{ font-size: 11px; }}
+
+    /* Hide Streamlit default button styles in Nav */
+    div.stButton > button {{
+        background: transparent; border: none; color: inherit; padding: 0; height: auto; width: 100%;
+    }}
+    div.stButton > button:hover {{ background: transparent; color: #D4AF37; }}
     </style>
     """, unsafe_allow_html=True)
 
 # --- ٥. لۆژیکی لاپەڕەکان ---
-page = st.query_params.get("page", "home")
-
-if page == "offers":
+if st.session_state.page == "offers":
     st.markdown(f'<div class="brand-header"><div class="brand-title">{L["nav_discount"]}</div></div>', unsafe_allow_html=True)
     phone_check = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
     if phone_check:
@@ -142,7 +171,7 @@ if page == "offers":
         else:
             st.info(f"{L['need_more']} {3 - count}")
 
-elif page == "profile":
+elif st.session_state.page == "profile":
     st.markdown(f'<div class="brand-header"><div class="brand-title">{L["nav_profile"]}</div></div>', unsafe_allow_html=True)
     with st.container(border=True):
         st.subheader(L['acc_info'])
@@ -157,7 +186,7 @@ elif page == "profile":
                 st.warning("No data found")
 
 else: # Home Page
-    st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:white; opacity: 0.9;">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
     
     AREA_COORDS = {
         "ڕەحیماوا / رحيماوة / Rahimawa": [35.4950, 44.3910],
@@ -200,21 +229,44 @@ else: # Home Page
                 pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
                 st.success("✅ Registered Successfully")
 
-# --- ٦. NavBar (Bottom) ---
-nav_html = f"""
-<div class="nav-wrapper">
-    <a href="?page=profile" class="nav-item">{L['nav_profile']}</a>
-    <a href="?page=offers" class="nav-item">{L['nav_discount']}</a>
-    <a href="?page=home" class="nav-item" style="color:#D4AF37;">{L['nav_home']}</a>
-</div>
-"""
-st.markdown(nav_html, unsafe_allow_html=True)
-
-st.markdown("<br><br><br><br>", unsafe_allow_html=True)
-
-# --- ٧. پانێڵی ئەدمین ---
+# --- ٦. پانێڵی ئەدمین (وەک خۆی مۆدەکەت) ---
 if st.query_params.get("role") == "boss":
     st.divider()
     if st.text_input(L['admin_pass'], type="password") == "golden2024":
         data = load_data()
         st.dataframe(data, use_container_width=True)
+
+# --- ٧. دروستکردنی Bottom NavBar بە دوگمەی Streamlit ---
+# ئەم بەشە وادەکات کلیکەکە کاریگەر بێت و لاپەڕەکان بگۆڕێت
+st.markdown("<br><br><br><br><br>", unsafe_allow_html=True) # بۆشایی بۆ ئەوەی ناوەڕۆک نەچێتە ژێر Nav
+
+# دیزاینی CSS بۆ ئایکۆنەکان
+nav_home_class = "nav-item-active" if st.session_state.page == "home" else ""
+nav_off_class = "nav-item-active" if st.session_state.page == "offers" else ""
+nav_prof_class = "nav-item-active" if st.session_state.page == "profile" else ""
+
+# دروستکردنی کانتینەری ناو باڕ بە HTML و Button ی Streamlit لەناویدا
+st.markdown(f"""
+    <div class="nav-container">
+        <div id="nav-prof" class="nav-link {nav_prof_class}"></div>
+        <div id="nav-home" class="nav-link {nav_home_class}"></div>
+        <div id="nav-off" class="nav-link {nav_off_class}"></div>
+    </div>
+""", unsafe_allow_html=True)
+
+# دانانی دوگمەکان لەسەر کانتینەرەکان بە ئیفێکتێکی جوان
+nav_cols = st.columns([1, 1, 1])
+with nav_cols[0]:
+    if st.button(L['nav_profile'], key="btn_profile"):
+        st.session_state.page = "profile"
+        st.rerun()
+with nav_cols[1]:
+    if st.button(L['nav_home'], key="btn_home"):
+        st.session_state.page = "home"
+        st.rerun()
+with nav_cols[2]:
+    if st.button(L['nav_discount'], key="btn_offers"):
+        st.session_state.page = "offers"
+        st.rerun()
+
+# تێبینی: بەکارهێنانی st.session_state و st.rerun() وادەکات ئەپەکە Refresh نەبێت و تەنها ناوەڕۆکەکە بگۆڕێت
