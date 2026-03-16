@@ -195,12 +195,20 @@ if st.query_params.get("role") == "boss":
 
         # --- گرافیکەکان ---
         st.markdown("### 📊 ئاماری گشتی")
-        c1, c2 = st.columns(2)
-        with c1: st.plotly_chart(px.pie(data, names='area', title='گەڕەکەکان', color_discrete_sequence=px.colors.sequential.Gold), use_container_width=True)
-        with c2: st.plotly_chart(px.bar(data, x='status', title='بارودۆخ', color='status'), use_container_width=True)
+        if not data.empty:
+            c1, c2 = st.columns(2)
+            # بەکارهێنانی کۆدی ڕەنگی جێگیر بۆ ڕێگری لە AttributeError
+            gold_colors = ["#D4AF37", "#FFD700", "#B8860B", "#DAA520", "#EEE8AA"]
+            with c1: 
+                fig_pie = px.pie(data, names='area', title='دابەشبوونی گەڕەکەکان', color_discrete_sequence=gold_colors)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            with c2: 
+                fig_bar = px.bar(data, x='status', title='بارودۆخی گەیاندن', color='status', 
+                                 color_discrete_map={L['status_pending']:'red', L['status_onway']:'orange', L['status_delivered']:'green'})
+                st.plotly_chart(fig_bar, use_container_width=True)
 
         st.dataframe(data, use_container_width=True)
 
 # --- ٨. فووتەر ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.5.0</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.5.1</div>', unsafe_allow_html=True)
