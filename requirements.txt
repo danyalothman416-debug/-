@@ -16,3 +16,5 @@ streamlit
 pandas
 fpdf
 streamlit-folium
+streamlit
+plotly
