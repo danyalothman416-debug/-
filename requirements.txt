@@ -18,6 +18,3 @@ fpdf
 streamlit-folium
 streamlit
 plotly
-import plotly.express as px # بۆ گرافیکەکان
-import folium # بۆ دروستکردنی نەخشەکە
-from streamlit_folium import st_folium # بۆ ئەوەی نەخشەکە لەناو ستریملێت پیشان بدات
