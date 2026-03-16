@@ -30,6 +30,25 @@ languages = {
         "admin_pass": "پاسۆرد",
         "status_pending": "⏳ چاوەڕوان", "status_onway": "🚚 لە ڕێگەیە", "status_delivered": "✅ گەیشت"
     },
+    "Türkmençe 🇮🇶": {
+        "dir": "ltr", "align": "left", "theme_label": "Tema", "light": "Açık ☀️", "dark": "Karanlık 🌙",
+        "title": "GOLDEN DELIVERY ✨",
+        "subtitle": "Kerkük'te en hızlı teslimat hizmeti",
+        "customer_name": "👤 Müşteri Adı", 
+        "shop_name": "🏪 Mağaza Adı", 
+        "shop_addr": "📍 Mağaza Adresi",
+        "phone": "📞 Telefon Numarası", 
+        "area": "🏘 Bölge / Semt", 
+        "full_addr": "🏠 Adres Detayı (Nereye yakın?)",
+        "price": "💰 Fiyat (IQD)",
+        "submit": "Siparişi Kaydet ✅", 
+        "wa_btn": "Ofise Gönder 💬",
+        "track_title": "🔍 Sipariş Takibi",
+        "track_btn": "Ara",
+        "admin_title": "🛠 Yönetici Paneli",
+        "admin_pass": "Şifre",
+        "status_pending": "⏳ Beklemede", "status_onway": "🚚 Yolda", "status_delivered": "✅ Teslim Edildi"
+    },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right", "theme_label": "المظهر", "light": "فاتح ☀️", "dark": "داكن 🌙",
         "title": "گولدن دليفري ✨",
@@ -47,7 +66,7 @@ languages = {
         "track_btn": "بحث",
         "admin_title": "🛠 لوحة التحكم",
         "admin_pass": "كلمة المرور",
-        "status_pending": "قيد الانتظار ⏳", "status_onway": "في الطريق 🚚", "status_delivered": "تم التوصيل ✅"
+        "status_pending": "⏳ قيد الانتظار", "status_onway": "🚚 في الطريق", "status_delivered": "✅ تم التوصيل"
     },
     "English 🇬🇧": {
         "dir": "ltr", "align": "left", "theme_label": "Theme", "light": "Light ☀️", "dark": "Dark 🌙",
@@ -66,14 +85,14 @@ languages = {
         "track_btn": "Track",
         "admin_title": "🛠 Admin Panel",
         "admin_pass": "Password",
-        "status_pending": "Pending ⏳", "status_onway": "On the way 🚚", "status_delivered": "Delivered ✅"
+        "status_pending": "⏳ Pending", "status_onway": "🚚 On the way", "status_delivered": "✅ Delivered"
     }
 }
 
 # --- ٢. هەڵبژاردنی زمان و ڕووکار ---
 col_lang, col_theme = st.columns(2)
 with col_lang:
-    lang_choice = st.selectbox("🌐 Language / زمان", list(languages.keys()))
+    lang_choice = st.selectbox("🌐 Language", list(languages.keys()))
     L = languages[lang_choice]
 with col_theme:
     theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
@@ -83,7 +102,7 @@ bg_color = "#0e1117" if is_dark else "#f0f2f6"
 text_color = "#fafafa" if is_dark else "#31333F"
 card_bg = "#161b22" if is_dark else "#ffffff"
 
-# پۆتانی وردی گەڕەکەکان بۆ نەخشە (تازەکرایەوە)
+# پۆتانی وردی گەڕەکەکان
 AREA_COORDS = {
     "ڕەحیماوا / رحيماوة / Rahimawa": [35.4950, 44.3910],
     "ئیسکان / اسكان / Iskan": [35.4820, 44.3980],
@@ -129,6 +148,9 @@ st.markdown(f"""
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
 # --- ٥. فۆرمی تۆمارکردن ---
+if "submitted" not in st.session_state:
+    st.session_state.submitted = False
+
 with st.form("delivery_form", clear_on_submit=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -137,22 +159,32 @@ with st.form("delivery_form", clear_on_submit=True):
         shop_addr = st.text_input(L['shop_addr'])
     with c2:
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
-        selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
-        default_price = 3000 if selected_area in NEARBY_AREAS else 4000 if selected_area != "هەڵبژێرە..." else 0
+        selected_area = st.selectbox(L['area'], ["Select..."] + KIRKUK_AREAS)
+        default_price = 3000 if selected_area in NEARBY_AREAS else 4000 if selected_area != "Select..." else 0
         price = st.number_input(L['price'], min_value=0, step=250, value=default_price)
     
     full_addr = st.text_input(L['full_addr'])
     submit = st.form_submit_button(L['submit'])
     
     if submit:
-        if not customer or not phone or "هەڵبژێرە" in selected_area:
-            st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
+        if not customer or not phone or "Select" in selected_area:
+            st.error("⚠️ Please fill all fields")
         else:
             df = load_data()
             new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "shop_addr": shop_addr, "price": price, "status": L['status_pending']}])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
-            st.success("✅ بەسەرکەوتوویی تۆمارکرا")
-            st.rerun()
+            st.session_state.submitted = True
+            st.session_state.last_order = {"name": customer, "area": selected_area}
+            st.success("✅ Registered Successfully")
+
+# پیشاندانی دوگمەی واتسئاپ تەنها دوای تۆمارکردن
+if st.session_state.submitted:
+    msg = f"Golden Delivery ✨\n📦 New Order\n👤 Name: {st.session_state.last_order['name']}\n🏘 Area: {st.session_state.last_order['area']}"
+    wa_url = f"https://wa.me/9647801352003?text={urllib.parse.quote(msg)}"
+    st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:15px; border-radius:10px; cursor:pointer; font-weight:bold; margin-bottom:20px;">{L["wa_btn"]}</button></a>', unsafe_allow_html=True)
+    if st.button("Reset Form 🔄"):
+        st.session_state.submitted = False
+        st.rerun()
 
 # --- ٦. بەشی بەدواداچوون ---
 st.markdown(f'<div style="background:{card_bg}; padding:20px; border-radius:15px; border:1px solid #D4AF37; margin-top:30px;"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
@@ -161,63 +193,38 @@ if st.button(L['track_btn']):
     df_track = load_data()
     res = df_track[df_track['phone'] == track_phone].tail(1)
     if not res.empty: st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
-    else: st.warning("داواکارییەک نەدۆزرایەوە")
+    else: st.warning("No order found")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ٧. پانێڵی ئەدمین و نەخشەی زیرەک ---
+# --- ٧. پانێڵی ئەدمین ---
 if st.query_params.get("role") == "boss":
     st.divider()
     if st.text_input(L['admin_pass'], type="password") == "golden2024":
         data = load_data()
         
-        # --- نەخشەی ڕێدۆزی (Navigation Map) ---
-        st.markdown("### 🗺️ نەخشەی گەیاندن و ڕێدۆزی کەرکوک")
-        st.info("💡 کلیک لە هەر خاڵێک بکە بۆ بینینی زانیاری کڕیار و کردنەوەی GPS")
-        
+        # --- نەخشەی زیرەک ---
+        st.markdown("### 🗺️ Kirkuk Delivery Map")
         m = folium.Map(location=[35.4687, 44.3925], zoom_start=12)
         
         for i, row in data.iterrows():
             if row['area'] in AREA_COORDS:
                 lat, lon = AREA_COORDS[row['area']]
-                color = "green" if row['status'] == L['status_delivered'] else "orange" if row['status'] == L['status_onway'] else "red"
+                color = "green" if row['status'] in [L['status_delivered'], "✅ گەیشت", "✅ تم التوصيل"] else "orange" if row['status'] in [L['status_onway'], "🚚 لە ڕێگەیە"] else "red"
                 
-                # لێنکی گوگڵ ماپ بۆ شۆفێر
-                g_maps = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                g_maps = f"https://www.google.com/maps?q={lat},{lon}"
+                popup_html = f"<b>{row['customer']}</b><br>{row['area']}<br><a href='{g_maps}' target='_blank'>Open GPS</a>"
                 
-                popup_html = f"""
-                <div style='font-family:Tahoma; text-align:{L["align"]}; direction:{L["dir"]};'>
-                    <b style='color:#D4AF37;'>{row['customer']}</b><br>
-                    📍 {row['area']}<br>
-                    💰 {row['price']:,} IQD<br><hr>
-                    <a href='{g_maps}' target='_blank'>
-                        <button style='background:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;'>🚗 کردنەوەی GPS</button>
-                    </a>
-                </div>
-                """
-                folium.Marker(
-                    [lat, lon], 
-                    popup=folium.Popup(popup_html, max_width=250), 
-                    tooltip=row['customer'],
-                    icon=folium.Icon(color=color, icon='info-sign')
-                ).add_to(m)
+                folium.Marker([lat, lon], popup=folium.Popup(popup_html, max_width=200), icon=folium.Icon(color=color)).add_to(m)
         
         st_folium(m, width="100%", height=500, key="main_map")
 
         # --- گرافیکەکان ---
-        st.markdown("### 📊 ئاماری گشتی")
         if not data.empty:
             c1, c2 = st.columns(2)
-            gold_colors = ["#D4AF37", "#FFD700", "#B8860B", "#DAA520", "#EEE8AA"]
-            with c1: 
-                fig_pie = px.pie(data, names='area', title='دابەشبوونی گەڕەکەکان', color_discrete_sequence=gold_colors)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            with c2: 
-                fig_bar = px.bar(data, x='status', title='بارودۆخی گەیاندن', color='status', 
-                                 color_discrete_map={L['status_pending']:'red', L['status_onway']:'orange', L['status_delivered']:'green'})
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-        st.dataframe(data, use_container_width=True)
+            with c1: st.plotly_chart(px.pie(data, names='area', title='Areas', color_discrete_sequence=["#D4AF37", "#FFD700"]), use_container_width=True)
+            with c2: st.plotly_chart(px.bar(data, x='status', title='Status', color='status'), use_container_width=True)
+            st.dataframe(data, use_container_width=True)
 
 # --- ٨. فووتەر ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.6.0 | Kirkuk Map Ready</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.7.0 | Multi-Language & Map Fix</div>', unsafe_allow_html=True)
