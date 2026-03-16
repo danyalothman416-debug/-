@@ -24,3 +24,9 @@ plotly
 folium
 streamlit-folium
 geopy
+streamlit
+pandas
+plotly
+folium
+streamlit-folium
+streamlit-option-menu
