@@ -8,7 +8,7 @@ import folium
 from streamlit_folium import st_folium
 
 # --- 1. ڕێکخستنی لاپەڕە ---
-st.set_page_config(page_title="Golden Delivery", layout="wide")
+st.set_page_config(page_title="Golden Delivery", layout="wide", page_icon="✨")
 
 languages = {
     "کوردی 🇭🇺": {
@@ -70,7 +70,45 @@ languages = {
     }
 }
 
-# --- ٢. هەڵبژاردنی زمان و ڕووکار ---
+# --- ٢. لیستی گەڕەکەکانی کەرکوک (نوێکراوە) ---
+AREA_COORDS = {
+    # ناوەند و نزیک
+    "ئیسکان / اسكان": [35.4820, 44.3980],
+    "ڕەحیماوا / رحيماوة": [35.4950, 44.3910],
+    "ئازادی / ازادي": [35.4750, 44.4050],
+    "قۆریە / قورية": [35.4670, 44.3880],
+    "شۆرجە / شورجة": [35.4780, 44.4150],
+    "موسەڵا / مصلى": [35.4650, 44.3950],
+    "ئیمام قاسم / امام قاسم": [35.4850, 44.4080],
+    "تسعین / تسعين": [35.4510, 44.3750],
+    
+    # باشوور و ڕێگای بەغداد
+    "ڕێگای بەغداد / طريق بغداد": [35.4520, 44.3680],
+    "واسطی / واسطي": [35.4180, 44.3620],
+    "دۆمیز / دوميز": [35.4250, 44.3850],
+    "حوزەیران / حزيران": [35.4150, 44.3750],
+    "غرناطة / غرناطة": [35.4450, 44.3720],
+    "واحد اذار / ١ اذار": [35.4280, 44.3700],
+    
+    # باکوور و دەوروبەر
+    "کوردستان / كوردستان": [35.5050, 44.4010],
+    "عەرەفە / عرفة": [35.4880, 44.3550],
+    "ئەڵماس / الماس": [35.4720, 44.3780],
+    "سەربازی / معسكر": [35.4920, 44.4250],
+    
+    # ڕۆژهەڵات و گەڕەکەکانی تر
+    "پەنجاعەلی / بنجة علي": [35.4650, 44.4350],
+    "فەیلق / فيلق": [35.4900, 44.4450],
+    "باروتخانە / باروتخانة": [35.4820, 44.4150],
+    "تەپە / تبة": [35.4880, 44.3980],
+    "الحرية / الحرية": [35.4550, 44.4100]
+}
+
+# گەڕەکە نزیکەکان بۆ دیاریکردنی نرخ (3000 دینار)
+NEARBY_AREAS = ["ئیسکان / اسكان", "ڕەحیماوا / رحيماوة", "ئازادی / ازادي", "قۆریە / قورية", "شۆرجە / شورجة", "موسەڵا / مصلى"]
+KIRKUK_AREAS = sorted(list(AREA_COORDS.keys()))
+
+# --- ٣. هەڵبژاردنی زمان و ڕووکار ---
 col_lang, col_theme = st.columns(2)
 with col_lang:
     lang_choice = st.selectbox("🌐 Language / زمان", list(languages.keys()))
@@ -83,32 +121,14 @@ bg_color = "#0e1117" if is_dark else "#f0f2f6"
 text_color = "#fafafa" if is_dark else "#31333F"
 card_bg = "#161b22" if is_dark else "#ffffff"
 
-# پۆتانی وردی گەڕەکەکان بۆ نەخشە (تازەکرایەوە)
-AREA_COORDS = {
-    "ڕەحیماوا / رحيماوة / Rahimawa": [35.4950, 44.3910],
-    "ئیسکان / اسكان / Iskan": [35.4820, 44.3980],
-    "ئازادی / ازادي / Azadi": [35.4750, 44.4050],
-    "ڕێگای بەغداد / طريق بغداد / Baghdad Road": [35.4520, 44.3680],
-    "تسعین / تسعين / Taseen": [35.4510, 44.3750],
-    "واسطی / واسطي / Wasit": [35.4180, 44.3620],
-    "کوردستان / كوردستان / Kurdistan": [35.5050, 44.4010],
-    "موسەڵا / مصلى / Musalla": [35.4650, 44.3950],
-    "عرفە / عرفة / Arafa": [35.4880, 44.3550],
-    "دۆمیز / دوميز / Domiz": [35.4250, 44.3850],
-    "حوزەیران / حزيران / Huzairan": [35.4150, 44.3750],
-    "پەنجاعەلی / بنجة علي / Panja Ali": [35.4650, 44.4350]
-}
-
-NEARBY_AREAS = ["کوردستان / كوردستان / Kurdistan", "ڕەحیماوا / رحيماوة / Rahimawa", "ئیسکان / اسكان / Iskan", "ئازادی / ازادي / Azadi"]
-KIRKUK_AREAS = sorted(list(AREA_COORDS.keys()))
-
-# --- ٣. بارکردنی داتا ---
+# --- ٤. بارکردنی داتا ---
 DB_FILE = "deliveries.csv"
 def load_data():
-    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
+    if os.path.exists(DB_FILE): 
+        return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- ٤. ستایل ---
+# --- ٥. ستایلی CSS ---
 st.markdown(f"""
     <style>
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
@@ -128,7 +148,7 @@ st.markdown(f"""
 
 st.markdown(f'<div class="brand-header"><div class="brand-title">{L["title"]}</div><div style="color:{"#e0e0e0" if is_dark else "white"};">{L["subtitle"]}</div></div>', unsafe_allow_html=True)
 
-# --- ٥. فۆرمی تۆمارکردن ---
+# --- ٦. فۆرمی تۆمارکردن ---
 with st.form("delivery_form", clear_on_submit=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -138,7 +158,12 @@ with st.form("delivery_form", clear_on_submit=True):
     with c2:
         phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
         selected_area = st.selectbox(L['area'], ["هەڵبژێرە..."] + KIRKUK_AREAS)
-        default_price = 3000 if selected_area in NEARBY_AREAS else 4000 if selected_area != "هەڵبژێرە..." else 0
+        
+        # دیاریکردنی نرخ بەپێی گەڕەک
+        default_price = 0
+        if selected_area != "هەڵبژێرە...":
+            default_price = 3000 if selected_area in NEARBY_AREAS else 4000
+            
         price = st.number_input(L['price'], min_value=0, step=250, value=default_price)
     
     full_addr = st.text_input(L['full_addr'])
@@ -149,31 +174,42 @@ with st.form("delivery_form", clear_on_submit=True):
             st.error("⚠️ تکایە هەموو خانەکان پڕ بکەرەوە")
         else:
             df = load_data()
-            new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "shop_addr": shop_addr, "price": price, "status": L['status_pending']}])
+            new_row = pd.DataFrame([{
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                "customer": customer, 
+                "shop": shop, 
+                "phone": phone, 
+                "area": selected_area, 
+                "address": full_addr, 
+                "shop_addr": shop_addr, 
+                "price": price, 
+                "status": L['status_pending']
+            }])
             pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
             st.success("✅ بەسەرکەوتوویی تۆمارکرا")
             st.rerun()
 
-# --- ٦. بەشی بەدواداچوون ---
+# --- ٧. بەشی بەدواداچوون (Track) ---
 st.markdown(f'<div style="background:{card_bg}; padding:20px; border-radius:15px; border:1px solid #D4AF37; margin-top:30px;"><h3>{L["track_title"]}</h3>', unsafe_allow_html=True)
 track_phone = st.text_input(f"{L['phone']}", key="track_input")
 if st.button(L['track_btn']):
     df_track = load_data()
     res = df_track[df_track['phone'] == track_phone].tail(1)
-    if not res.empty: st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
-    else: st.warning("داواکارییەک نەدۆزرایەوە")
+    if not res.empty: 
+        st.success(f"📍 {res.iloc[0]['customer']} | Status: **{res.iloc[0]['status']}**")
+    else: 
+        st.warning("داواکارییەک نەدۆزرایەوە")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ٧. پانێڵی ئەدمین و نەخشەی زیرەک ---
+# --- ٨. پانێڵی بەڕێوەبەر (Admin) ---
 if st.query_params.get("role") == "boss":
     st.divider()
+    st.markdown(f"## {L['admin_title']}")
     if st.text_input(L['admin_pass'], type="password") == "golden2024":
         data = load_data()
         
-        # --- نەخشەی ڕێدۆزی (Navigation Map) ---
-        st.markdown("### 🗺️ نەخشەی گەیاندن و ڕێدۆزی کەرکوک")
-        st.info("💡 کلیک لە هەر خاڵێک بکە بۆ بینینی زانیاری کڕیار و کردنەوەی GPS")
-        
+        # --- نەخشەی ڕێدۆزی ---
+        st.markdown("### 🗺️ نەخشەی گەیاندن")
         m = folium.Map(location=[35.4687, 44.3925], zoom_start=12)
         
         for i, row in data.iterrows():
@@ -181,16 +217,15 @@ if st.query_params.get("role") == "boss":
                 lat, lon = AREA_COORDS[row['area']]
                 color = "green" if row['status'] == L['status_delivered'] else "orange" if row['status'] == L['status_onway'] else "red"
                 
-                # لێنکی گوگڵ ماپ بۆ شۆفێر
-                g_maps = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                g_maps = f"https://www.google.com/maps?q={lat},{lon}"
                 
                 popup_html = f"""
-                <div style='font-family:Tahoma; text-align:{L["align"]}; direction:{L["dir"]};'>
+                <div style='font-family:Tahoma; text-align:right; direction:rtl;'>
                     <b style='color:#D4AF37;'>{row['customer']}</b><br>
                     📍 {row['area']}<br>
-                    💰 {row['price']:,} IQD<br><hr>
+                    💰 {row['price']:,} د.ع<br><hr>
                     <a href='{g_maps}' target='_blank'>
-                        <button style='background:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;'>🚗 کردنەوەی GPS</button>
+                        <button style='background:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; cursor:pointer;'>🚗 کردنەوەی GPS</button>
                     </a>
                 </div>
                 """
@@ -203,21 +238,17 @@ if st.query_params.get("role") == "boss":
         
         st_folium(m, width="100%", height=500, key="main_map")
 
-        # --- گرافیکەکان ---
-        st.markdown("### 📊 ئاماری گشتی")
+        # --- داتا و گرافیک ---
         if not data.empty:
-            c1, c2 = st.columns(2)
-            gold_colors = ["#D4AF37", "#FFD700", "#B8860B", "#DAA520", "#EEE8AA"]
-            with c1: 
-                fig_pie = px.pie(data, names='area', title='دابەشبوونی گەڕەکەکان', color_discrete_sequence=gold_colors)
-                st.plotly_chart(fig_pie, use_container_width=True)
-            with c2: 
-                fig_bar = px.bar(data, x='status', title='بارودۆخی گەیاندن', color='status', 
-                                 color_discrete_map={L['status_pending']:'red', L['status_onway']:'orange', L['status_delivered']:'green'})
-                st.plotly_chart(fig_bar, use_container_width=True)
+            st.markdown("### 📊 ئاماری گشتی")
+            col_chart1, col_chart2 = st.columns(2)
+            with col_chart1:
+                st.plotly_chart(px.pie(data, names='area', title='دابەشبوونی گەڕەکەکان'), use_container_width=True)
+            with col_chart2:
+                st.plotly_chart(px.bar(data, x='status', title='بارودۆخی گەیاندن'), use_container_width=True)
+            
+            st.dataframe(data, use_container_width=True)
 
-        st.dataframe(data, use_container_width=True)
-
-# --- ٨. فووتەر ---
+# --- ٩. فووتەر ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v1.6.0 | Kirkuk Map Ready</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#D4AF37; font-size:12px;">Golden Delivery System v2.0 | Kirkuk City Map Update</div>', unsafe_allow_html=True)
