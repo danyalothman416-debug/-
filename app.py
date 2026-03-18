@@ -83,8 +83,66 @@ languages = {
     }
 }
 
-# --- 3. NEIGHBORHOODS ---
-KIRKUK_AREAS = sorted(["Arfa / عرفة", "Tis'in / تسعين", "Shoraw / شوراو", "Rahim Awa / رحيماوة", "Quraya / قورية", "Al-Wasiti / الواسطي", "Al-Nasr / النصر", "Azadi / ازادي", "Wahid Huzairan / واحد حزيران"])
+# --- 3. NEIGHBORHOODS (COMPLETE LIST) ---
+KIRKUK_AREAS = sorted([
+    # Main neighborhoods
+    "Arfa / عرفة", 
+    "Tis'in / تسعين", 
+    "Shoraw / شوراو", 
+    "Rahim Awa / رحيماوة", 
+    "Quraya / قورية", 
+    "Al-Wasiti / الواسطي", 
+    "Al-Nasr / النصر", 
+    "Azadi / ازادي", 
+    "Wahid Huzairan / واحد حزيران",
+    # Additional neighborhoods
+    "Al-Mas / المس",
+    "Al-Mithaq / الميثاق",
+    "Al-Ta'mim / التأميم",
+    "Al-Qadisiyah / القادسية",
+    "Al-Jamea / الجامعة",
+    "Al-Muhandiseen / المهندسين",
+    "Al-Andalus / الأندلس",
+    "Al-Jumhouriya / الجمهورية",
+    "Domeez / دوميز",
+    "Shorja / الشورجة",
+    "Al-Wafa / الوفاء",
+    "Al-Nour / النور",
+    "Al-Muthanna / المثنى",
+    "Al-Khadra / الخضراء",
+    "Sarchinar / سرچنار",
+    "Arafa / عرفة",
+    "Rahimawa / رحيم آوه",
+    "Qoraya / قوريه",
+    "Tisin / تسعين",
+    "Muhammad Ali / محمد علي",
+    "Al-Mashtal / المشتل",
+    "Al-Shuhada / الشهداء",
+    "Al-Shorija / الشورجة",
+    "Al-Hurriya / الحرية",
+    "Al-Sina'a / الصناعة",
+    "Al-Masbin / المسبين",
+    "Al-Sa'ad / السعد",
+    "Bakhtiari / بختياري",
+    "Bawer / باور",
+    "Camp / مخيم",
+    "Chay / جاي",
+    "Choman / جومان",
+    "Hasar / حصر",
+    "Kani Askan / كاني عسكر",
+    "Kani Qrzhala / كاني قرژالة",
+    "Laylan / ليلان",
+    "Musalla / مصلى",
+    "Nasr / نصر",
+    "Panja Ali / بنجة علي",
+    "Qadisiyah / قادسية",
+    "Rizgary / رزگاري",
+    "Shoraw / شوراو",
+    "Taza / طازة",
+    "Wasti / وسطي",
+    "Yarmuk / يرموك",
+    "Zab / زاب"
+])
 
 # --- 4. DATA LOGIC ---
 DB_FILE = "deliveries.csv"
@@ -105,11 +163,96 @@ with st.container():
     with c_logo:
         st.markdown(f"<h2 style='color:#D4AF37; margin:0;'>{L['title']}</h2>", unsafe_allow_html=True)
 
-# --- 6. CSS ENGINE ---
+# --- 6. CSS ENGINE (FIXED FOR DARK MODE) ---
 is_dark = st.session_state.theme_choice == "Dark 🌙"
 main_bg, card_bg, text_color, accent = ("#0f1116", "rgba(30, 34, 45, 0.9)", "#ffffff", "#D4AF37") if is_dark else ("#fdfdfd", "rgba(255, 255, 255, 0.98)", "#1a1a1a", "#D4AF37")
 
-st.markdown(f"""<style>[data-testid="stSidebar"] {{ display: none; }} html, body, [data-testid="stAppViewContainer"] {{ background: {main_bg}; color: {text_color} !important; direction: {L['dir']}; }} label, p, span, h1, h2, h3, div {{ color: {text_color} !important; }} .stForm {{ background: {card_bg} !important; border: 1px solid {accent}44 !important; border-radius: 20px !important; padding: 30px !important; }} .brand-header {{ background: linear-gradient(135deg, #D4AF37 0%, #8A6D3B 100%); padding: 40px; border-radius: 0 0 40px 40px; text-align: center; margin-bottom: 20px; }} .glass-card {{ background: {card_bg}; border-radius: 20px; padding: 25px; border: 1px solid {accent}22; }}</style>""", unsafe_allow_html=True)
+# Enhanced CSS with better color handling for dark mode
+st.markdown(f"""
+<style>
+    /* Hide sidebar */
+    [data-testid="stSidebar"] {{ display: none; }}
+    
+    /* Main container */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background: {main_bg};
+        color: {text_color} !important;
+        direction: {L['dir']};
+    }}
+    
+    /* Override all text elements */
+    label, p, span, h1, h2, h3, h4, h5, h6, div, .stMarkdown, .stText, .stCaption {{
+        color: {text_color} !important;
+    }}
+    
+    /* Fix for Streamlit components in dark mode */
+    .stSelectbox label, .stNumberInput label, .stTextInput label, .stTextArea label,
+    .stSelectbox div, .stNumberInput div, .stTextInput div, .stTextArea div {{
+        color: {text_color} !important;
+    }}
+    
+    /* Fix for selectbox dropdown */
+    .stSelectbox [data-baseweb="select"] span {{
+        color: {text_color if is_dark else '#000000'} !important;
+    }}
+    
+    /* Fix for form elements */
+    .stForm {{
+        background: {card_bg} !important;
+        border: 1px solid {accent}44 !important;
+        border-radius: 20px !important;
+        padding: 30px !important;
+    }}
+    
+    /* Fix for input fields */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {{
+        color: {text_color} !important;
+        background-color: {main_bg} !important;
+    }}
+    
+    /* Brand header */
+    .brand-header {{
+        background: linear-gradient(135deg, #D4AF37 0%, #8A6D3B 100%);
+        padding: 40px;
+        border-radius: 0 0 40px 40px;
+        text-align: center;
+        margin-bottom: 20px;
+    }}
+    
+    /* Glass card */
+    .glass-card {{
+        background: {card_bg};
+        border-radius: 20px;
+        padding: 25px;
+        border: 1px solid {accent}22;
+    }}
+    
+    /* Info and success messages */
+    .stAlert {{
+        color: {text_color} !important;
+    }}
+    
+    /* Button text */
+    .stButton button {{
+        color: {text_color if is_dark else '#000000'} !important;
+    }}
+    
+    /* DataFrame styling */
+    .dataframe {{
+        color: {text_color} !important;
+    }}
+    
+    /* Fix for expander */
+    .streamlit-expanderHeader {{
+        color: {text_color} !important;
+    }}
+    
+    /* Fix for radio buttons */
+    .stRadio label {{
+        color: {text_color} !important;
+    }}
+</style>
+""", unsafe_allow_html=True)
 
 # --- 7. PAGE ROUTING ---
 
