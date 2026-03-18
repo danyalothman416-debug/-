@@ -150,6 +150,24 @@ st.markdown(f"""
     .nav-item-active {{ color: #D4AF37 !important; font-weight: bold; transform: translateY(-5px); }}
     .nav-icon {{ font-size: 22px; margin-bottom: 2px; }}
     .nav-text {{ font-size: 11px; }}
+        # --- بەشی نەخشە لە ناو فۆرمەکە ---
+        st.write("📍 شوێنی وردی کڕیار لەسەر نەخشە دیاری بکە (کلیک بکە):")
+        
+        # دروستکردنی نەخشە لەسەر کەرکوک
+        m = folium.Map(location=[35.4687, 44.3933], zoom_start=12)
+        
+        # نیشاندانی نەخشەکە و وەرگرتنی زانیاری کلیک
+        map_data = st_folium(m, height=300, use_container_width=True, key="map_picker")
+        
+        lat_lng = ""
+        if map_data and map_data['last_clicked']:
+            lat = map_data['last_clicked']['lat']
+            lng = map_data['last_clicked']['lng']
+            lat_lng = f"{lat},{lng}"
+            st.info(f"📍 شوێن دیاریکرا: {lat_lng}")
+
+        # دوگمەی ناردن (کۆدەکەی خۆت)
+        submit = st.form_submit_button(L['submit'])
 
     /* Hide Streamlit default button styles in Nav */
     div.stButton > button {{
@@ -158,6 +176,27 @@ st.markdown(f"""
     div.stButton > button:hover {{ background: transparent; color: #D4AF37; }}
     </style>
     """, unsafe_allow_html=True)
+        if submit:
+            if not customer or not phone or "Select" in selected_area:
+                st.error("⚠️ Please fill all fields")
+            else:
+                # لێرەدا کۆدەکەی خۆت بۆ خەزنکردنی داتا هەیە (وەک خۆی بیهێڵەرەوە)
+                # ... کۆدەکەی خۆت ...
+                
+                # لێرەدا ئەم چەند هێڵە زیاد بکە بۆ ئەوەی دوگمەی واتسئاپ دەربکەوێت:
+                msg = f"داواکاری نوێ ✨\n👤 کڕیار: {customer}\n📞 مۆبایل: {phone}\n🏘 گەڕەک: {selected_area}\n💰 نرخ: {price}\n🏪 دوکان: {shop}"
+                wa_url = f"https://wa.me/9647700000000?text={urllib.parse.quote(msg)}"
+                
+                st.success("✅ Registered Successfully")
+                
+                # نیشاندانی دوگمەی واتسئاپ
+                st.markdown(f'''
+                    <a href="{wa_url}" target="_blank" style="text-decoration:none;">
+                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">
+                            {L['wa_btn']} 📲
+                        </div>
+                    </a>
+                ''', unsafe_allow_html=True)
 
 # --- ٥. لۆژیکی لاپەڕەکان ---
 if st.session_state.page == "offers":
