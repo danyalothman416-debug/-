@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -149,28 +150,6 @@ st.markdown(f"""
     .nav-item-active {{ color: #D4AF37 !important; font-weight: bold; transform: translateY(-5px); }}
     .nav-icon {{ font-size: 22px; margin-bottom: 2px; }}
     .nav-text {{ font-size: 11px; }}
-        if submit:
-            if not customer or not phone or "Select" in selected_area:
-                st.error("⚠️ Please fill all fields")
-            else:
-                # --- بەشی خەزنکردن (وەک خۆی بێ دەستکاری) ---
-                df = load_data()
-                new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone, "area": selected_area, "address": full_addr, "shop_addr": shop_addr, "price": price, "status": L['status_pending']}])
-                pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
-                
-                # --- زیادکراو: دروستکردنی وەسڵی واتسئاپ ---
-                msg = f"داواکاری نوێ ✨\n\n👤 کڕیار: {customer}\n📞 مۆبایل: {phone}\n🏘 گەڕەک: {selected_area}\n🏠 ناونیشان: {full_addr}\n💰 نرخ: {price} د.ع\n🏪 دوکان: {shop}"
-                wa_url = f"https://wa.me/9647700000000?text={urllib.parse.quote(msg)}" # لێرە ژمارەی ئۆفیس دابنێ
-                
-                st.success("✅ Registered Successfully")
-                # ئەم لینکە دوگمەیەکی سەوز دروست دەکات
-                st.markdown(f'''
-                    <a href="{wa_url}" target="_blank" style="text-decoration:none;">
-                        <div style="background-color:#25D366; color:white; padding:12px; border-radius:12px; text-align:center; font-weight:bold;">
-                            {L['wa_btn']} 📲
-                        </div>
-                    </a>
-                ''', unsafe_allow_html=True)
 
     /* Hide Streamlit default button styles in Nav */
     div.stButton > button {{
@@ -179,23 +158,6 @@ st.markdown(f"""
     div.stButton > button:hover {{ background: transparent; color: #D4AF37; }}
     </style>
     """, unsafe_allow_html=True)
-# --- بەشی گۆڕینی لاپەڕەکان (Navigation Logic) ---
-nav_cols = st.columns([1, 1, 1])
-
-with nav_cols[0]:
-    if st.button(L['nav_profile'], key="btn_profile"):
-        st.session_state.page = "profile"
-        st.rerun() # گرنگە بۆ ئەوەی یەکسەر لاپەڕەکە بگۆڕێت
-
-with nav_cols[1]:
-    if st.button(L['nav_home'], key="btn_home"):
-        st.session_state.page = "home"
-        st.rerun()
-
-with nav_cols[2]:
-    if st.button(L['nav_discount'], key="btn_offers"):
-        st.session_state.page = "offers"
-        st.rerun()
 
 # --- ٥. لۆژیکی لاپەڕەکان ---
 if st.session_state.page == "offers":
@@ -307,3 +269,4 @@ with nav_cols[2]:
     if st.button(L['nav_discount'], key="btn_offers"):
         st.session_state.page = "offers"
         st.rerun()
+
