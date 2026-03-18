@@ -39,18 +39,23 @@ languages = {
     }
 }
 
-# --- 3. NEIGHBORHOOD DATA ---
-# Expanded Kirkuk Neighborhoods
+# --- 3. UPDATED NEIGHBORHOOD DATA ---
+# Includes all requested areas
 KIRKUK_AREAS = sorted([
-    "ڕەحیماوا / رحيماوة", "ئیسکان / اسكان", "ئازادی / ازادي", "شۆرجە / شورجة",
-    "تەپە / تبة", "ئیمام قاسم / امام قاسم", "قۆریە / قورية", "تسعین / تسعين",
-    "طریق بغداد / ڕێگای بەغداد", "واسطی / واسطي", "دۆمیز / دوميز", "غرناطة / غەرناتە",
-    "حوزەیران / حزيران", "واحد اذار / یەکی ئازار", "پەنجاعەلی / بنجة علي", 
-    "فەیلەق / فيلق", "شۆراو / شوراو", "عرفە / عرفة", "العمل الشعبي", "روناكي / ڕووناکی",
-    "الخضراء / گەڕەکی سەوز", "بڕایەتی / برايتي", "الماس / ئەڵماس", "حی عەسکەری / الحي العسكري"
+    "Arfa / عرفة", "Tis'in / تسعين", "Binja Ali / بنجة علي", "Shoraw / شوراو",
+    "Rahim Awa / رحيماوة", "Laylawa / ليلان", "Wasit / واسطي", "Al-Musalla / مصلى",
+    "Quraya / قورية", "Dumiz / دوميز", "Al-Khadra / الخضراء", "Al-Wasiti / الواسطي",
+    "Al-Askari / الحي العسكري", "Al-Qadisiyya / القادسية", "Al-Nasr / النصر", 
+    "Azadi / ازادي", "Shura / شورى", "Al-Nabi Yunus / النبي يونس", "Al-Shorja / الشورجة",
+    "Wahid Huzairan / واحد حزيران", "Ronaki / رونكي", "Biriti / بريتي", "Sarhad / سرحد",
+    "Shahidan / شهيدان", "Tarkalan / تركلان", "Haidar Khana / حيدر خانة", "Sayyada / صيادة",
+    "Al-Mu'allimin / المعلمين", "Al-Muhandisin / المهندسين", "Al-Atibba / الاطباء",
+    "Al-Adala / العدالة", "Al-Salam / السلام", "Taza Khurmato / تازة خورماتو", 
+    "Yaychi / يايجي", "Daquq / داقوق", "Laylan / ليلان", "Malha / ملحة", 
+    "Bashir / بشير", "Tarjala / ترجلة"
 ])
 
-# --- 4. THEME & STYLING ---
+# --- 4. REFINED DARK MODE & THEME ---
 col_lang, col_theme = st.columns(2)
 with col_lang:
     lang_choice = st.selectbox("🌐 Language", list(languages.keys()))
@@ -60,117 +65,136 @@ with col_theme:
 
 is_dark = theme_choice == L['dark']
 
-# Refined Color Palette
-primary_gold = "#D4AF37"
-bg_color = "#1a1a1a" if is_dark else "#f0f2f6"
-card_bg = "#262626" if is_dark else "#ffffff"
-text_color = "#eeeeee" if is_dark else "#1f1f1f"
-input_bg = "#333333" if is_dark else "#ffffff"
+# Elegant Dark Mode Palette
+bg_color = "#121212" if is_dark else "#F4F7F9"
+card_bg = "#1E1E1E" if is_dark else "#FFFFFF"
+text_color = "#E0E0E0" if is_dark else "#2C3E50"
+accent_gold = "#D4AF37"
+input_fill = "#2D2D2D" if is_dark else "#F9F9F9"
 
 st.markdown(f"""
     <style>
     [data-testid="stHeader"] {{visibility: hidden;}}
+    .stApp {{ background-color: {bg_color}; }}
+    
     html, body, [data-testid="stAppViewContainer"] {{
         background-color: {bg_color};
         color: {text_color};
         direction: {L['dir']};
         text-align: {L['align']};
     }}
-    .stApp {{ background-color: {bg_color}; }}
-    
-    /* Header Card */
+
+    /* Header Styling */
     .brand-header {{
-        background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
-        padding: 30px; border-radius: 0 0 25px 25px;
-        text-align: center; margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        background: linear-gradient(135deg, {accent_gold} 0%, #8A6D3B 100%);
+        padding: 35px 20px; border-radius: 0 0 40px 40px;
+        text-align: center; margin-bottom: 20px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
     }}
     
-    /* Input Fields styling for Dark Mode */
-    div[data-baseweb="input"], div[data-baseweb="select"] {{
-        background-color: {input_bg} !important;
-        border-radius: 10px;
+    /* Inputs Styling */
+    div[data-baseweb="input"], div[data-baseweb="select"], .stTextArea textarea {{
+        background-color: {input_fill} !important;
+        border: 1px solid {accent_gold}33 !important;
+        border-radius: 12px !important;
+        color: {text_color} !important;
+    }}
+    
+    label {{ color: {accent_gold} !important; font-weight: bold !important; }}
+
+    /* Custom Form Card */
+    .stForm {{
+        background-color: {card_bg} !important;
+        border-radius: 20px !important;
+        padding: 25px !important;
+        border: 1px solid {accent_gold}22 !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
     }}
 
-    /* Bottom Navigation */
-    .nav-bar {{
+    /* Bottom Nav Bar */
+    .nav-container {{
         position: fixed; bottom: 0; left: 0; width: 100%;
-        background: {card_bg};
+        background-color: {card_bg};
         display: flex; justify-content: space-around;
-        padding: 10px 0; border-top: 2px solid {primary_gold};
-        z-index: 100;
-    }}
-    .stButton button {{
-        width: 100%; border-radius: 12px;
-        border: 1px solid {primary_gold};
-        background-color: {card_bg}; color: {text_color};
-    }}
-    .stButton button:hover {{
-        background-color: {primary_gold}; color: white;
+        padding: 15px 0; border-top: 2px solid {accent_gold};
+        z-index: 999;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. DATA LOGIC ---
+# --- 5. DATA MANAGEMENT ---
 DB_FILE = "deliveries.csv"
 def load_data():
-    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE, dtype={"phone": str})
+    if os.path.exists(DB_FILE): 
+        return pd.read_csv(DB_FILE, dtype={"phone": str})
     return pd.DataFrame(columns=["date", "customer", "shop", "phone", "area", "address", "shop_addr", "price", "status"])
 
-# --- 6. PAGE CONTENT ---
+# --- 6. PAGE LOGIC ---
 if st.session_state.page == "home":
-    st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0;">{L["title"]}</h1><p style="color:white; opacity:0.9;">{L["subtitle"]}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0; font-size: 2.5rem;">{L["title"]}</h1><p style="color:white; opacity:0.9;">{L["subtitle"]}</p></div>', unsafe_allow_html=True)
     
-    with st.container():
-        with st.form("main_form", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                cust = st.text_input(L['customer_name'])
-                ph = st.text_input(L['phone'])
-                area = st.selectbox(L['area'], ["---"] + KIRKUK_AREAS)
-            with col2:
-                sh = st.text_input(L['shop_name'])
-                sh_ad = st.text_input(L['shop_addr'])
-                pr = st.number_input(L['price'], step=500, value=3000)
+    with st.form("delivery_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            customer = st.text_input(L['customer_name'])
+            phone = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
+            area = st.selectbox(L['area'], ["-- Select Area --"] + KIRKUK_AREAS)
+        with c2:
+            shop = st.text_input(L['shop_name'])
+            shop_addr = st.text_input(L['shop_addr'])
+            price = st.number_input(L['price'], min_value=0, step=250, value=3000)
             
-            addr = st.text_area(L['full_addr'])
-            if st.form_submit_button(L['submit']):
-                if cust and ph and area != "---":
-                    df = load_data()
-                    new_data = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": cust, "shop": sh, "phone": ph, "area": area, "address": addr, "shop_addr": sh_ad, "price": pr, "status": L['status_pending']}])
-                    pd.concat([df, new_data]).to_csv(DB_FILE, index=False)
-                    st.success("✅ Saved!")
-                else:
-                    st.error("❌ Fill required fields")
+        full_addr = st.text_area(L['full_addr'])
+        
+        submit = st.form_submit_button(L['submit'], use_container_width=True)
+        
+        if submit:
+            if not customer or not phone or "--" in area:
+                st.error("⚠️ Please fill in the Customer, Phone, and Area.")
+            else:
+                df = load_data()
+                new_row = pd.DataFrame([{
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "customer": customer, "shop": shop, "phone": phone,
+                    "area": area, "address": full_addr, 
+                    "shop_addr": shop_addr, "price": price, 
+                    "status": L['status_pending']
+                }])
+                pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
+                st.success("✅ Order Registered!")
 
 elif st.session_state.page == "offers":
     st.markdown(f'<div class="brand-header"><h2 style="color:white;">{L["nav_discount"]}</h2></div>', unsafe_allow_html=True)
-    search_ph = st.text_input(L['phone'], key="search_off")
-    if search_ph:
+    search_p = st.text_input(L['phone'], key="search_loyalty")
+    if search_p:
         df = load_data()
-        count = len(df[df['phone'] == search_ph])
-        st.metric(label="Total Deliveries", value=count)
-        if count >= 5: st.balloons(); st.success(L['free_msg'])
-        else: st.info(f"{L['need_more']} {5 - count}")
+        count = len(df[df['phone'] == search_p])
+        st.subheader(f"Total Deliveries: {count}")
+        if count >= 3:
+            st.balloons()
+            st.success(L['free_msg'])
+        else:
+            st.info(f"{L['need_more']} {3 - count}")
 
 elif st.session_state.page == "profile":
     st.markdown(f'<div class="brand-header"><h2 style="color:white;">{L["nav_profile"]}</h2></div>', unsafe_allow_html=True)
-    admin_pass = st.text_input("Admin Access", type="password")
-    if admin_pass == "golden2026":
-        st.dataframe(load_data(), use_container_width=True)
+    pwd = st.text_input("Admin Password", type="password")
+    if pwd == "golden2024":
+        df = load_data()
+        st.dataframe(df, use_container_width=True)
 
-# --- 7. STICKY BOTTOM NAVIGATION ---
-st.markdown("<br><br><br>", unsafe_allow_html=True)
+# --- 7. STICKY NAVIGATION ---
+st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
 nav_cols = st.columns(3)
 with nav_cols[0]:
-    if st.button(f"🏠 {L['nav_home']}"):
+    if st.button(f"🏠 {L['nav_home']}", use_container_width=True):
         st.session_state.page = "home"
         st.rerun()
 with nav_cols[1]:
-    if st.button(f"🎁 {L['nav_discount']}"):
+    if st.button(f"🏷️ {L['nav_discount']}", use_container_width=True):
         st.session_state.page = "offers"
         st.rerun()
 with nav_cols[2]:
-    if st.button(f"👤 {L['nav_profile']}"):
+    if st.button(f"⚙️ {L['nav_profile']}", use_container_width=True):
         st.session_state.page = "profile"
         st.rerun()
