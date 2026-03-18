@@ -90,7 +90,7 @@ languages = {
         "desc": "Experience the gold standard of logistics in Kirkuk.",
         "nav_home": "Home", "nav_order": "Order", "nav_track": "Track",
         "nav_offers": "Offers", "nav_profile": "Account", "nav_terms": "Terms",
-        "nav_support": "Support", "nav_emergency": "Emergency",
+        "nav_support": "Support",
         "customer_name": "Customer Name", "shop_name": "Shop Name",
         "shop_addr": "Shop Address", "phone": "Phone Number",
         "area": "Neighborhood", "full_addr": "Address Details",
@@ -134,7 +134,8 @@ languages = {
         "rule4": "Delivery within 24 hours of order confirmation",
         "rule5": "Cash on delivery only",
         "rule6": "Free delivery promotion applies to orders over 3000 IQD",
-        "rule7": "Customer must be present at time of delivery"
+        "rule7": "Customer must be present at time of delivery",
+        "signed_in_as": "Logged in as"
     },
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right",
@@ -142,7 +143,7 @@ languages = {
         "desc": "بەرزترین کوالێتی گەیاندن لە کەرکوک. خێرا، پارێزراو، و هەمیشە لە کاتی خۆیدا.",
         "nav_home": "سەرەکی", "nav_order": "داواکردن", "nav_track": "شوێنکەوتن",
         "nav_offers": "پێشکەشکراوەکان", "nav_profile": "هەژمار", "nav_terms": "یاساکان",
-        "nav_support": "پاڵپشتی", "nav_emergency": "فریاکەوتن",
+        "nav_support": "پاڵپشتی",
         "customer_name": "ناوی کڕیار", "shop_name": "ناوی دوکان",
         "shop_addr": "ناونیشانی دوکان", "phone": "ژمارەی مۆبایل",
         "area": "گەڕەک", "full_addr": "وردەکاری ناونیشان",
@@ -186,7 +187,8 @@ languages = {
         "rule4": "گەیاندن لە ماوەی ٢٤ کاتژمێردا",
         "rule5": "تەنها پارەدان لە کاتی گەیاندن",
         "rule6": "پڕۆمۆشنی خۆڕایی بۆ داواکاری ٣٠٠٠ دینار",
-        "rule7": "کڕیار دەبێت لە کاتی گەیاندن ئامادە بێت"
+        "rule7": "کڕیار دەبێت لە کاتی گەیاندن ئامادە بێت",
+        "signed_in_as": "چوویتە ژوورەوە وەک"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right",
@@ -194,7 +196,7 @@ languages = {
         "desc": "المعيار الذهبي للخدمات اللوجستية في كركوك.",
         "nav_home": "الرئيسية", "nav_order": "طلب", "nav_track": "تتبع",
         "nav_offers": "العروض", "nav_profile": "الحساب", "nav_terms": "الشروط",
-        "nav_support": "الدعم", "nav_emergency": "طوارئ",
+        "nav_support": "الدعم",
         "customer_name": "اسم الزبون", "shop_name": "اسم المحل",
         "shop_addr": "عنوان المحل", "phone": "رقم الهاتف",
         "area": "المنطقة", "full_addr": "تفاصيل العنوان",
@@ -238,7 +240,8 @@ languages = {
         "rule4": "التوصيل خلال ٢٤ ساعة",
         "rule5": "الدفع عند الاستلام فقط",
         "rule6": "عرض التوصيل المجاني للطلبات فوق ٣٠٠٠ دينار",
-        "rule7": "يجب أن يكون الزبون حاضراً وقت التوصيل"
+        "rule7": "يجب أن يكون الزبون حاضراً وقت التوصيل",
+        "signed_in_as": "تم تسجيل الدخول باسم"
     }
 }
 
