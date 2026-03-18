@@ -85,17 +85,49 @@ languages = {
 
 # --- 3. NEIGHBORHOODS (COMPLETE LIST) ---
 KIRKUK_AREAS = sorted([
-    # Main neighborhoods
-    "Arfa / عرفة", 
-    "Tis'in / تسعين", 
-    "Shoraw / شوراو", 
-    "Rahim Awa / رحيماوة", 
-    "Quraya / قورية", 
-    "Al-Wasiti / الواسطي", 
-    "Al-Nasr / النصر", 
-    "Azadi / ازادي", 
+    # Original neighborhoods
+    "Arfa / عرفة",
+    "Tis'in / تسعين",
+    "Shoraw / شوراو",
+    "Rahim Awa / رحيماوة",
+    "Quraya / قورية",
+    "Al-Wasiti / الواسطي",
+    "Al-Nasr / النصر",
+    "Azadi / ازادي",
     "Wahid Huzairan / واحد حزيران",
-    # Additional neighborhoods
+    # Additional neighborhoods requested
+    "Kirkuk Citadel / قلعة كركوك",
+    "Musalla / مصلى",
+    "Imam Qasim / امام قاسم",
+    "Shorija / الشورجة",
+    "Hasiraka / حصيرةكة",
+    "Tapai Malla Abdulla / تبة ملا عبدulla",
+    "Rahimawa / رحيم آوه",
+    "Almas / الماس",
+    "Arafa / عرفة",
+    "Faylaq / فيلق",
+    "Panja Ali / بنجة علي",
+    "Darwaza / دروازة",
+    "Kurdistan Neighborhood / حي كردستان",
+    "Baghdad Road / طريق بغداد",
+    "Wasit / واسط",
+    "Domiz / دوميز",
+    "June 1st / ١ حزيران",
+    "Majidiya / المجيدية",
+    "Al-Beiji / البيجي",
+    "Mansour / المنصور",
+    "Razgari / رزگاري",
+    "Ghazna / غزنة",
+    "Hay Aden / حي عدن",
+    "Taseen / تسعين",
+    "Khazra / خضراء",
+    "Beiji / بيجي",
+    "Qadisiyah / قادسية",
+    "Panorama / بانوراما",
+    "Barutkhana / باروته خانه",
+    "Engineers Neighborhood / حي المهندسين",
+    "Teachers Neighborhood / حي المعلمين",
+    # Additional neighborhoods for completeness
     "Al-Mas / المس",
     "Al-Mithaq / الميثاق",
     "Al-Ta'mim / التأميم",
@@ -105,20 +137,14 @@ KIRKUK_AREAS = sorted([
     "Al-Andalus / الأندلس",
     "Al-Jumhouriya / الجمهورية",
     "Domeez / دوميز",
-    "Shorja / الشورجة",
     "Al-Wafa / الوفاء",
     "Al-Nour / النور",
     "Al-Muthanna / المثنى",
     "Al-Khadra / الخضراء",
     "Sarchinar / سرچنار",
-    "Arafa / عرفة",
-    "Rahimawa / رحيم آوه",
-    "Qoraya / قوريه",
-    "Tisin / تسعين",
     "Muhammad Ali / محمد علي",
     "Al-Mashtal / المشتل",
     "Al-Shuhada / الشهداء",
-    "Al-Shorija / الشورجة",
     "Al-Hurriya / الحرية",
     "Al-Sina'a / الصناعة",
     "Al-Masbin / المسبين",
@@ -132,14 +158,8 @@ KIRKUK_AREAS = sorted([
     "Kani Askan / كاني عسكر",
     "Kani Qrzhala / كاني قرژالة",
     "Laylan / ليلان",
-    "Musalla / مصلى",
-    "Nasr / نصر",
-    "Panja Ali / بنجة علي",
-    "Qadisiyah / قادسية",
     "Rizgary / رزگاري",
-    "Shoraw / شوراو",
     "Taza / طازة",
-    "Wasti / وسطي",
     "Yarmuk / يرموك",
     "Zab / زاب"
 ])
@@ -163,51 +183,73 @@ with st.container():
     with c_logo:
         st.markdown(f"<h2 style='color:#D4AF37; margin:0;'>{L['title']}</h2>", unsafe_allow_html=True)
 
-# --- 6. CSS ENGINE (FIXED FOR DARK MODE) ---
+# --- 6. CSS ENGINE (COMPLETELY REWRITTEN FOR DARK MODE) ---
 is_dark = st.session_state.theme_choice == "Dark 🌙"
-main_bg, card_bg, text_color, accent = ("#0f1116", "rgba(30, 34, 45, 0.9)", "#ffffff", "#D4AF37") if is_dark else ("#fdfdfd", "rgba(255, 255, 255, 0.98)", "#1a1a1a", "#D4AF37")
 
-# Enhanced CSS with better color handling for dark mode
+# Color scheme
+if is_dark:
+    main_bg = "#0a0c10"
+    card_bg = "#1e2329"
+    text_color = "#ffffff"
+    accent = "#D4AF37"
+    input_bg = "#2d333d"
+    border_color = "#3a404c"
+else:
+    main_bg = "#f5f7fa"
+    card_bg = "#ffffff"
+    text_color = "#1a1a2e"
+    accent = "#D4AF37"
+    input_bg = "#ffffff"
+    border_color = "#e0e0e0"
+
+# Comprehensive CSS for all elements
 st.markdown(f"""
 <style>
     /* Hide sidebar */
-    [data-testid="stSidebar"] {{ display: none; }}
-    
-    /* Main container */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background: {main_bg};
-        color: {text_color} !important;
-        direction: {L['dir']};
+    [data-testid="stSidebar"] {{
+        display: none;
     }}
     
-    /* Override all text elements */
-    label, p, span, h1, h2, h3, h4, h5, h6, div, .stMarkdown, .stText, .stCaption {{
+    /* Main container - FORCE ALL TEXT TO BE VISIBLE */
+    html, body, [data-testid="stAppViewContainer"], 
+    .main, .block-container, .stApp {{
+        background-color: {main_bg} !important;
         color: {text_color} !important;
     }}
     
-    /* Fix for Streamlit components in dark mode */
-    .stSelectbox label, .stNumberInput label, .stTextInput label, .stTextArea label,
-    .stSelectbox div, .stNumberInput div, .stTextInput div, .stTextArea div {{
+    /* Force ALL text elements to have proper color */
+    * {{
+        color: {text_color} !important;
+        border-color: {border_color} !important;
+    }}
+    
+    /* Override for input fields - keep them readable */
+    input, textarea, select, [data-baseweb="select"] * {{
+        background-color: {input_bg} !important;
+        color: {text_color} !important;
+        border-color: {accent}40 !important;
+    }}
+    
+    /* Dropdown menu items */
+    [data-baseweb="menu"] * {{
+        background-color: {card_bg} !important;
         color: {text_color} !important;
     }}
     
-    /* Fix for selectbox dropdown */
-    .stSelectbox [data-baseweb="select"] span {{
-        color: {text_color if is_dark else '#000000'} !important;
-    }}
-    
-    /* Fix for form elements */
+    /* Form container */
     .stForm {{
-        background: {card_bg} !important;
-        border: 1px solid {accent}44 !important;
+        background-color: {card_bg} !important;
+        border: 1px solid {accent}40 !important;
         border-radius: 20px !important;
         padding: 30px !important;
     }}
     
-    /* Fix for input fields */
-    .stTextInput input, .stNumberInput input, .stTextArea textarea {{
-        color: {text_color} !important;
-        background-color: {main_bg} !important;
+    /* Glass card */
+    .glass-card {{
+        background-color: {card_bg} !important;
+        border-radius: 20px !important;
+        padding: 25px !important;
+        border: 1px solid {accent}30 !important;
     }}
     
     /* Brand header */
@@ -219,37 +261,96 @@ st.markdown(f"""
         margin-bottom: 20px;
     }}
     
-    /* Glass card */
-    .glass-card {{
-        background: {card_bg};
-        border-radius: 20px;
-        padding: 25px;
-        border: 1px solid {accent}22;
+    /* Brand header text should be white regardless of theme */
+    .brand-header h1, .brand-header * {{
+        color: white !important;
     }}
     
-    /* Info and success messages */
-    .stAlert {{
-        color: {text_color} !important;
-    }}
-    
-    /* Button text */
+    /* Buttons */
     .stButton button {{
+        background-color: {accent} !important;
         color: {text_color if is_dark else '#000000'} !important;
+        border: none !important;
+        font-weight: bold !important;
     }}
     
-    /* DataFrame styling */
-    .dataframe {{
+    .stButton button:hover {{
+        background-color: {accent}dd !important;
+    }}
+    
+    /* Info boxes */
+    .stAlert {{
+        background-color: {card_bg} !important;
         color: {text_color} !important;
+        border-left-color: {accent} !important;
     }}
     
-    /* Fix for expander */
+    /* Success message */
+    .stSuccess {{
+        background-color: {card_bg} !important;
+        color: {accent} !important;
+    }}
+    
+    /* Expander */
     .streamlit-expanderHeader {{
+        background-color: {card_bg} !important;
         color: {text_color} !important;
     }}
     
-    /* Fix for radio buttons */
-    .stRadio label {{
+    /* DataFrame */
+    .dataframe, .stDataFrame {{
         color: {text_color} !important;
+    }}
+    
+    .dataframe td, .dataframe th {{
+        background-color: {card_bg} !important;
+        color: {text_color} !important;
+        border-color: {border_color} !important;
+    }}
+    
+    /* Radio buttons and checkboxes */
+    .stRadio label, .stCheckbox label {{
+        color: {text_color} !important;
+    }}
+    
+    /* Select box */
+    .stSelectbox label {{
+        color: {text_color} !important;
+    }}
+    
+    /* Number input */
+    .stNumberInput label {{
+        color: {text_color} !important;
+    }}
+    
+    /* Text input */
+    .stTextInput label {{
+        color: {text_color} !important;
+    }}
+    
+    /* Text area */
+    .stTextArea label {{
+        color: {text_color} !important;
+    }}
+    
+    /* Divider */
+    hr {{
+        border-color: {border_color} !important;
+    }}
+    
+    /* Sidebar (even though hidden) */
+    [data-testid="stSidebar"] * {{
+        color: {text_color} !important;
+    }}
+    
+    /* Links */
+    a {{
+        color: {accent} !important;
+    }}
+    
+    /* Direction handling */
+    [dir="{L['dir']}"] {{
+        text-align: {L['align']} !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -257,8 +358,31 @@ st.markdown(f"""
 # --- 7. PAGE ROUTING ---
 
 if st.session_state.page == "home":
-    st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0;">{L["title"]}</h1></div>', unsafe_allow_html=True)
-    st.markdown(f"<div style='text-align:center; padding:30px;'><h3>Kirkuk's Premiere Logistics</h3><p>{L['desc']}</p></div>", unsafe_allow_html=True)
+    st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0;">{L["title"]}</h1><p style="color:white; opacity:0.9;">{L["desc"]}</p></div>', unsafe_allow_html=True)
+    
+    # Add some decorative elements for home page
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="glass-card" style="text-align:center;">
+            <h3 style="color:{accent};">⚡ Fast</h3>
+            <p>Delivery within 24 hours</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="glass-card" style="text-align:center;">
+            <h3 style="color:{accent};">🔒 Secure</h3>
+            <p>Your packages are safe with us</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="glass-card" style="text-align:center;">
+            <h3 style="color:{accent};">🎁 Free Delivery</h3>
+            <p>1 in 3 deliveries free</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 elif st.session_state.page == "order":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_order']}</h2>", unsafe_allow_html=True)
@@ -273,21 +397,33 @@ elif st.session_state.page == "order":
     with st.form("order_form"):
         c1, c2 = st.columns(2)
         with c1:
-            customer, shop, area = st.text_input(L['customer_name']), st.text_input(L['shop_name']), st.selectbox(L['area'], ["-- Select --"] + KIRKUK_AREAS)
+            customer = st.text_input(L['customer_name'])
+            shop = st.text_input(L['shop_name'])
+            area = st.selectbox(L['area'], ["-- Select --"] + KIRKUK_AREAS)
         with c2:
-            shop_addr, full_addr, price = st.text_input(L['shop_addr']), st.text_area(L['full_addr']), st.number_input(L['price'], value=0 if is_free else 3000)
+            shop_addr = st.text_input(L['shop_addr'])
+            full_addr = st.text_area(L['full_addr'])
+            price = st.number_input(L['price'], value=0 if is_free else 3000)
         if st.form_submit_button(L['submit'], use_container_width=True):
             if customer and phone_input and "--" not in area:
                 new_row = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d"), "customer": customer, "shop": shop, "phone": phone_input, "area": area, "address": full_addr, "shop_addr": shop_addr, "price": price, "status": "Pending", "user_email": st.session_state.user_email}])
                 pd.concat([df, new_row]).to_csv(DB_FILE, index=False)
                 st.success("✅ Order Recorded!")
+                st.balloons()
 
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     if st.session_state.user_email is None:
+        st.markdown(f"""
+        <div class="glass-card" style="text-align:center;">
+            <p>Sign in to access your account and management features</p>
+        </div>
+        """, unsafe_allow_html=True)
         if st.button(L["google_btn"], use_container_width=True):
-            st.session_state.user_email = "verified_user@gmail.com"; st.rerun()
+            st.session_state.user_email = "verified_user@gmail.com"
+            st.rerun()
     else:
+        st.markdown(f"<p>Logged in as: <b>{st.session_state.user_email}</b></p>", unsafe_allow_html=True)
         # PASSWORD PROTECTION SECTION
         if not st.session_state.admin_authenticated:
             st.warning(L["admin_pass_label"])
@@ -313,16 +449,35 @@ elif st.session_state.page == "profile":
 
 elif st.session_state.page == "terms":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['terms_title']}</h2>", unsafe_allow_html=True)
-    st.markdown(f"<div class='glass-card'><h4>Golden Rules</h4><p>1. 1 out of 3 deliveries is free.<br>2. No illegal items.<br>3. Fast Kirkuk wide service.</p></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class='glass-card'>
+        <h4 style="color:{accent};">Golden Rules</h4>
+        <p>1. 1 out of 3 deliveries is free - automatically applied!</p>
+        <p>2. No illegal items - we comply with all local laws</p>
+        <p>3. Fast Kirkuk wide service - all neighborhoods covered</p>
+        <p>4. Delivery within 24 hours of order confirmation</p>
+        <p>5. Cash on delivery only</p>
+        <p>6. Free delivery promotion applies to orders over 3000 IQD</p>
+        <p>7. Customer must be present at time of delivery</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 8. BOTTOM NAVIGATION ---
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 n1, n2, n3, n4 = st.columns(4)
 with n1:
-    if st.button(f"🏠 {L['nav_home']}", use_container_width=True): st.session_state.page="home"; st.rerun()
+    if st.button(f"🏠 {L['nav_home']}", use_container_width=True): 
+        st.session_state.page="home"
+        st.rerun()
 with n2:
-    if st.button(f"🚚 {L['nav_order']}", use_container_width=True): st.session_state.page="order"; st.rerun()
+    if st.button(f"🚚 {L['nav_order']}", use_container_width=True): 
+        st.session_state.page="order"
+        st.rerun()
 with n3:
-    if st.button(f"📜 {L['nav_terms']}", use_container_width=True): st.session_state.page="terms"; st.rerun()
+    if st.button(f"📜 {L['nav_terms']}", use_container_width=True): 
+        st.session_state.page="terms"
+        st.rerun()
 with n4:
-    if st.button(f"👤 {L['nav_profile']}", use_container_width=True): st.session_state.page="profile"; st.rerun()
+    if st.button(f"👤 {L['nav_profile']}", use_container_width=True): 
+        st.session_state.page="profile"
+        st.rerun()
