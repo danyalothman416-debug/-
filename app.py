@@ -13,6 +13,22 @@ if 'user_email' not in st.session_state:
 
 # --- 2. MULTI-LANGUAGE & UI STRINGS ---
 languages = {
+    "English 🇬🇧": {
+        "dir": "ltr", "align": "left", "theme_label": "Theme", "light": "Light ☀️", "dark": "Dark 🌙",
+        "title": "GOLDEN DELIVERY ✨",
+        "desc": "Welcome to Golden Delivery! The fastest and most reliable delivery service in the beautiful city of Kirkuk. We are here to deliver your goods with maximum safety and speed. Your trust is our ultimate goal.",
+        "customer_name": "👤 Customer Name", "shop_name": "🏪 Shop Name", 
+        "shop_addr": "📍 Shop Address", "phone": "📞 Phone Number", 
+        "area": "🏘 Neighborhood / Area", "full_addr": "🏠 Address Details",
+        "price": "💰 Price (IQD)", "submit": "Register Order ✅", 
+        "status_pending": "⏳ Pending", "nav_home": "Home", 
+        "nav_order": "Delivery 🚚", "nav_profile": "Account 👤",
+        "free_info": "🎁 Special Offer: 1 out of every 3 deliveries is FREE!",
+        "free_success": "🎊 Congrats! This is your 3rd delivery, today you pay 0 IQD!",
+        "google_btn": "Sign in with Google", "logout": "Logout",
+        "login_req": "Please log in via the Account section.",
+        "fast": "Fast", "safe": "Safe", "affordable": "Affordable"
+    },
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right", "theme_label": "ڕووکار", "light": "ڕوون ☀️", "dark": "تاریک 🌙",
         "title": "GOLDEN DELIVERY ✨",
@@ -26,7 +42,8 @@ languages = {
         "free_info": "🎁 ئۆفەری تایبەت: لە هەر ٣ گەیاندن، یەکێکیان بە خۆڕاییە!",
         "free_success": "🎊 پیرۆزە! ئەمە سێیەم گەیاندنە و ئەمڕۆ بڕی ٠ دینار دەدەیت!",
         "google_btn": "چوونەژوورەوە بە Google", "logout": "چوونەدەرەوە",
-        "login_req": "تکایە لە بەشی هەژمار بچۆ ژوورەوە."
+        "login_req": "تکایە لە بەشی هەژمار بچۆ ژوورەوە.",
+        "fast": "خێرا", "safe": "پارێزراو", "affordable": "گونجاو"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right", "theme_label": "المظهر", "light": "فاتح ☀️", "dark": "داكن 🌙",
@@ -41,7 +58,8 @@ languages = {
         "free_info": "🎁 عرض خاص: واحدة من كل ٣ توصيلات مجانية تماماً!",
         "free_success": "🎊 مبروك! هذا هو التوصيل الثالث، ستدفع ٠ دينار اليوم!",
         "google_btn": "تسجيل الدخول عبر Google", "logout": "تسجيل الخروج",
-        "login_req": "يرجى تسجيل الدخول في قسم الحساب."
+        "login_req": "يرجى تسجيل الدخول في قسم الحساب.",
+        "fast": "سريع", "safe": "آمن", "affordable": "مناسب"
     }
 }
 
@@ -69,7 +87,7 @@ def load_data():
 # --- 5. THEME & STYLING ---
 col_lang, col_theme = st.columns(2)
 with col_lang:
-    lang_choice = st.selectbox("🌐", list(languages.keys()))
+    lang_choice = st.selectbox("🌐 Language", list(languages.keys()))
     L = languages[lang_choice]
 with col_theme:
     theme_choice = st.radio(L['theme_label'], [L['light'], L['dark']], horizontal=True)
@@ -83,15 +101,15 @@ accent_gold = "#D4AF37"
 st.markdown(f"""
     <style>
     [data-testid="stHeader"] {{visibility: hidden;}}
-    .stApp {{ background-color: {bg_color}; color: {text_color}; }}
+    .stApp {{ background-color: {bg_color}; color: {text_color}; direction: {L['dir']}; text-align: {L['align']}; }}
     .brand-header {{
         background: linear-gradient(135deg, {accent_gold} 0%, #B8860B 100%);
         padding: 40px 20px; border-radius: 0 0 40px 40px; text-align: center; margin-bottom: 25px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }}
-    .hero-text {{ font-size: 1.2rem; line-height: 1.6; opacity: 0.95; padding: 20px; }}
+    .hero-text {{ font-size: 1.1rem; line-height: 1.6; opacity: 0.95; padding: 15px; }}
     label {{ color: {accent_gold} !important; font-weight: bold !important; }}
-    .stForm {{ background-color: {card_bg} !important; border-radius: 20px; border: 1px solid {accent_gold}44; }}
+    .stForm {{ background-color: {card_bg} !important; border-radius: 20px; border: 1px solid {accent_gold}44; padding: 20px; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -105,10 +123,10 @@ if st.session_state.page == "home":
         <h2 style="color:{accent_gold};">Kirkuk's #1 Delivery Partner</h2>
         <p class="hero-text">{L["desc"]}</p>
         <hr style="border: 0.5px solid {accent_gold}55;">
-        <div style="display: flex; justify-content: space-around; margin-top: 20px;">
-            <div>🚀 <b>خێرا</b></div>
-            <div>🛡️ <b>پارێزراو</b></div>
-            <div>💰 <b>گونجاو</b></div>
+        <div style="display: flex; justify-content: space-around; margin-top: 20px; font-weight: bold;">
+            <div>🚀 {L['fast']}</div>
+            <div>🛡️ {L['safe']}</div>
+            <div>💰 {L['affordable']}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -117,7 +135,6 @@ if st.session_state.page == "home":
 elif st.session_state.page == "order":
     st.markdown(f'<div class="brand-header"><h2 style="color:white; margin:0;">{L["nav_order"]}</h2></div>', unsafe_allow_html=True)
     
-    # Loyalty Announcement
     st.info(L["free_info"])
     
     df = load_data()
@@ -143,7 +160,7 @@ elif st.session_state.page == "order":
             
         if st.form_submit_button(L['submit'], use_container_width=True):
             if not customer or not phone_input or "--" in area:
-                st.error("⚠️ Fill all required fields.")
+                st.error("⚠️ Please complete the form.")
             else:
                 new_row = pd.DataFrame([{
                     "date": datetime.now().strftime("%Y-%m-%d"),
@@ -155,14 +172,14 @@ elif st.session_state.page == "order":
                 st.balloons()
                 st.success("✅ Order Sent!")
 
-# PROFILE PAGE
+# ACCOUNT PAGE
 elif st.session_state.page == "profile":
     st.markdown(f'<div class="brand-header"><h2 style="color:white; margin:0;">{L["nav_profile"]}</h2></div>', unsafe_allow_html=True)
     
     if st.session_state.user_email is None:
-        st.subheader("Login with Google")
+        st.subheader("Login / چوونەژوورەوە")
         if st.button(L["google_btn"], icon="🎯", use_container_width=True):
-            st.session_state.user_email = "user@gmail.com" # Simulated
+            st.session_state.user_email = "user@gmail.com" # Simulation
             st.rerun()
     else:
         st.write(f"Account: **{st.session_state.user_email}**")
@@ -171,7 +188,7 @@ elif st.session_state.page == "profile":
             st.rerun()
         
         st.divider()
-        pwd = st.text_input("Admin", type="password")
+        pwd = st.text_input("Admin Password", type="password")
         if pwd == "golden2024":
             st.dataframe(load_data(), use_container_width=True)
 
