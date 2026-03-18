@@ -7,8 +7,6 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from streamlit_option_menu import option_menu
-from io import BytesIO
-import base64
 import random
 import time
 
@@ -28,9 +26,9 @@ def init_session_states():
         'user_role': "customer",
         'user_name': None,
         'user_phone': None,
+        'user_id': None,
         'admin_authenticated': False,
         'lang_choice': "کوردی 🇭🇺",
-        'theme_choice': "Dark 🌙",
         'driver_id': None,
         'cart': [],
         'notifications': [],
@@ -56,15 +54,7 @@ COMPANY_WHATSAPP = "https://wa.me/9647801352003"
 EMERGENCY_POLICE = "104"
 EMERGENCY_AMBULANCE = "122"
 
-# --- 4. NEIGHBORHOOD ZONES ---
-NEIGHBORHOOD_ZONES = {
-    "باکوور": ["Arfa / عرفة", "Tis'in / تسعين", "Shoraw / شوراو", "Rahim Awa / رحيماوة", "Quraya / قورية"],
-    "باشوور": ["Al-Wasiti / الواسطي", "Al-Nasr / النصر", "Azadi / ازادي", "Wahid Huzairan / واحد حزيران"],
-    "ڕۆژهەڵات": ["Kirkuk Citadel / قلعة كركوك", "Musalla / مصلى", "Imam Qasim / امام قاسم", "Shorija / الشورجة"],
-    "ڕۆژئاوا": ["Hasiraka / حصيرةكة", "Tapai Malla Abdulla / تبة ملا عبدulla", "Rahimawa / رحيم آوه", "Almas / الماس"]
-}
-
-# --- 5. COMPLETE NEIGHBORHOODS LIST ---
+# --- 4. COMPLETE NEIGHBORHOODS LIST ---
 KIRKUK_AREAS = sorted([
     "Arfa / عرفة", "Tis'in / تسعين", "Shoraw / شوراو",
     "Rahim Awa / رحيماوة", "Quraya / قورية", "Al-Wasiti / الواسطي",
@@ -82,7 +72,7 @@ KIRKUK_AREAS = sorted([
     "Engineers Neighborhood / حي المهندسين", "Teachers Neighborhood / حي المعلمين"
 ])
 
-# --- 6. MULTI-LANGUAGE UI STRINGS (بە تەواوی) ---
+# --- 5. MULTI-LANGUAGE UI STRINGS ---
 languages = {
     "English 🇬🇧": {
         "dir": "ltr", "align": "left",
@@ -90,7 +80,7 @@ languages = {
         "desc": "Experience the gold standard of logistics in Kirkuk.",
         "nav_home": "Home", "nav_order": "Order", "nav_track": "Track",
         "nav_offers": "Offers", "nav_profile": "Account", "nav_terms": "Terms",
-        "nav_support": "Support",
+        "nav_support": "Support", "nav_emergency": "Emergency",
         "customer_name": "Customer Name", "shop_name": "Shop Name",
         "shop_addr": "Shop Address", "phone": "Phone Number",
         "area": "Neighborhood", "full_addr": "Address Details",
@@ -119,8 +109,6 @@ languages = {
         "zain_cash": "Zain Cash", "asia_hawala": "Asia Hawala",
         "whatsapp_question": "💬 Ask on WhatsApp", "emergency_call": "🚨 Emergency",
         "police": "Police", "ambulance": "Ambulance",
-        "zone_north": "North Zone", "zone_south": "South Zone",
-        "zone_east": "East Zone", "zone_west": "West Zone",
         "currency_iqd": "IQD", "currency_usd": "USD",
         "reminder": "Reminder", "delivery_reminder": "Your delivery will arrive in 1 hour",
         "eid_offer": "🎊 Eid Special Offer",
@@ -135,7 +123,11 @@ languages = {
         "rule5": "Cash on delivery only",
         "rule6": "Free delivery promotion applies to orders over 3000 IQD",
         "rule7": "Customer must be present at time of delivery",
-        "signed_in_as": "Logged in as"
+        "signed_in_as": "Logged in as",
+        "total_orders": "Total Orders",
+        "delivered": "Delivered",
+        "free_deliveries": "Free Deliveries",
+        "average": "Average"
     },
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right",
@@ -143,7 +135,7 @@ languages = {
         "desc": "بەرزترین کوالێتی گەیاندن لە کەرکوک. خێرا، پارێزراو، و هەمیشە لە کاتی خۆیدا.",
         "nav_home": "سەرەکی", "nav_order": "داواکردن", "nav_track": "شوێنکەوتن",
         "nav_offers": "پێشکەشکراوەکان", "nav_profile": "هەژمار", "nav_terms": "یاساکان",
-        "nav_support": "پاڵپشتی",
+        "nav_support": "پاڵپشتی", "nav_emergency": "فریاکەوتن",
         "customer_name": "ناوی کڕیار", "shop_name": "ناوی دوکان",
         "shop_addr": "ناونیشانی دوکان", "phone": "ژمارەی مۆبایل",
         "area": "گەڕەک", "full_addr": "وردەکاری ناونیشان",
@@ -172,8 +164,6 @@ languages = {
         "zain_cash": "زەین کاش", "asia_hawala": "ئاسیا حەوالە",
         "whatsapp_question": "💬 پرسیار لە واتسئاپ", "emergency_call": "🚨 فریاکەوتن",
         "police": "پۆلیس", "ambulance": "فریاکەوتن",
-        "zone_north": "ناوچەی باکوور", "zone_south": "ناوچەی باشوور",
-        "zone_east": "ناوچەی ڕۆژهەڵات", "zone_west": "ناوچەی ڕۆژئاوا",
         "currency_iqd": "دینار", "currency_usd": "دۆلار",
         "reminder": "بیرخستنەوە", "delivery_reminder": "گەیاندنەکەت لە ماوەی ١ کاتژمێری دیکەدا دەگات",
         "eid_offer": "🎊 پێشکەشکردنی جەژن",
@@ -188,7 +178,11 @@ languages = {
         "rule5": "تەنها پارەدان لە کاتی گەیاندن",
         "rule6": "پڕۆمۆشنی خۆڕایی بۆ داواکاری ٣٠٠٠ دینار",
         "rule7": "کڕیار دەبێت لە کاتی گەیاندن ئامادە بێت",
-        "signed_in_as": "چوویتە ژوورەوە وەک"
+        "signed_in_as": "چوویتە ژوورەوە وەک",
+        "total_orders": "کۆی داواکاری",
+        "delivered": "گەیاندراو",
+        "free_deliveries": "خۆڕایی",
+        "average": "تێکڕا"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right",
@@ -196,7 +190,7 @@ languages = {
         "desc": "المعيار الذهبي للخدمات اللوجستية في كركوك.",
         "nav_home": "الرئيسية", "nav_order": "طلب", "nav_track": "تتبع",
         "nav_offers": "العروض", "nav_profile": "الحساب", "nav_terms": "الشروط",
-        "nav_support": "الدعم",
+        "nav_support": "الدعم", "nav_emergency": "طوارئ",
         "customer_name": "اسم الزبون", "shop_name": "اسم المحل",
         "shop_addr": "عنوان المحل", "phone": "رقم الهاتف",
         "area": "المنطقة", "full_addr": "تفاصيل العنوان",
@@ -225,8 +219,6 @@ languages = {
         "zain_cash": "زين كاش", "asia_hawala": "آسيا حوالة",
         "whatsapp_question": "💬 اسأل على واتساب", "emergency_call": "🚨 طوارئ",
         "police": "شرطة", "ambulance": "إسعاف",
-        "zone_north": "المنطقة الشمالية", "zone_south": "المنطقة الجنوبية",
-        "zone_east": "المنطقة الشرقية", "zone_west": "المنطقة الغربية",
         "currency_iqd": "دينار", "currency_usd": "دولار",
         "reminder": "تذكير", "delivery_reminder": "سيصل طلبك خلال ساعة",
         "eid_offer": "🎊 عرض العيد",
@@ -241,11 +233,15 @@ languages = {
         "rule5": "الدفع عند الاستلام فقط",
         "rule6": "عرض التوصيل المجاني للطلبات فوق ٣٠٠٠ دينار",
         "rule7": "يجب أن يكون الزبون حاضراً وقت التوصيل",
-        "signed_in_as": "تم تسجيل الدخول باسم"
+        "signed_in_as": "تم تسجيل الدخول باسم",
+        "total_orders": "إجمالي الطلبات",
+        "delivered": "تم التوصيل",
+        "free_deliveries": "مجاني",
+        "average": "المعدل"
     }
 }
 
-# --- 7. DATA FILES ---
+# --- 6. DATA FILES ---
 ORDERS_FILE = "orders.csv"
 DRIVERS_FILE = "drivers.csv"
 CUSTOMERS_FILE = "customers.csv"
@@ -253,15 +249,15 @@ FEEDBACK_FILE = "feedback.csv"
 PROMO_CODES_FILE = "promos.json"
 OFFLINE_ORDERS_FILE = "offline_orders.json"
 
-# --- 8. DATA FUNCTIONS ---
+# --- 7. DATA FUNCTIONS ---
 def load_orders():
     if os.path.exists(ORDERS_FILE):
         return pd.read_csv(ORDERS_FILE, dtype={"phone": str, "order_id": str})
     return pd.DataFrame(columns=["order_id", "date", "customer", "shop", "phone", "area", 
                                   "address", "shop_addr", "price", "status", "user_email", 
-                                  "driver_id", "payment_method", "delivery_notes", "promo_code",
+                                  "user_id", "driver_id", "payment_method", "delivery_notes", "promo_code",
                                   "estimated_delivery", "actual_delivery", "rating", "review",
-                                  "zone", "currency", "reminder_sent"])
+                                  "currency", "reminder_sent"])
 
 def save_orders(df):
     df.to_csv(ORDERS_FILE, index=False)
@@ -269,7 +265,7 @@ def save_orders(df):
 def load_drivers():
     if os.path.exists(DRIVERS_FILE):
         return pd.read_csv(DRIVERS_FILE, dtype={"phone": str})
-    return pd.DataFrame(columns=["driver_id", "name", "phone", "status", "zone", "join_date", "total_deliveries", "rating", "language"])
+    return pd.DataFrame(columns=["driver_id", "name", "phone", "status", "join_date", "total_deliveries", "rating", "language"])
 
 def save_drivers(df):
     df.to_csv(DRIVERS_FILE, index=False)
@@ -277,8 +273,8 @@ def save_drivers(df):
 def load_customers():
     if os.path.exists(CUSTOMERS_FILE):
         return pd.read_csv(CUSTOMERS_FILE, dtype={"phone": str})
-    return pd.DataFrame(columns=["customer_id", "name", "phone", "email", "join_date", 
-                                  "total_orders", "loyalty_points", "favorite_zone", "total_spent",
+    return pd.DataFrame(columns=["user_id", "name", "phone", "email", "join_date", 
+                                  "total_orders", "loyalty_points", "total_spent",
                                   "language", "notification_preferences"])
 
 def save_customers(df):
@@ -297,14 +293,14 @@ def load_promos():
         with open(PROMO_CODES_FILE, 'r') as f:
             return json.load(f)
     return {
-        "WELCOME10": {"discount": 10, "type": "percentage", "min_order": 5000, "expiry": "2025-12-31"},
-        "FREESHIP": {"discount": 3000, "type": "fixed", "min_order": 10000, "expiry": "2025-12-31"},
-        "FIRST3": {"discount": 15, "type": "percentage", "min_order": 3000, "expiry": "2025-12-31"},
-        "GOLDEN50": {"discount": 50, "type": "percentage", "min_order": 20000, "expiry": "2025-06-30"},
-        "KIRKUK10": {"discount": 10, "type": "percentage", "min_order": 0, "expiry": "2025-12-31"},
-        "EID2025": {"discount": 25, "type": "percentage", "min_order": 10000, "expiry": "2025-07-15"},
-        "RAMADAN": {"discount": 20, "type": "percentage", "min_order": 5000, "expiry": "2025-04-20"},
-        "NOWRUZ": {"discount": 30, "type": "percentage", "min_order": 15000, "expiry": "2025-03-25"}
+        "WELCOME10": {"discount": 10, "type": "percentage", "min_order": 5000, "expiry": "2027-12-31"},
+        "FREESHIP": {"discount": 3000, "type": "fixed", "min_order": 10000, "expiry": "2027-12-31"},
+        "FIRST3": {"discount": 15, "type": "percentage", "min_order": 3000, "expiry": "2027-12-31"},
+        "GOLDEN50": {"discount": 50, "type": "percentage", "min_order": 20000, "expiry": "2027-12-31"},
+        "KIRKUK10": {"discount": 10, "type": "percentage", "min_order": 0, "expiry": "2027-12-31"},
+        "EID2025": {"discount": 25, "type": "percentage", "min_order": 10000, "expiry": "2027-12-31"},
+        "RAMADAN": {"discount": 20, "type": "percentage", "min_order": 5000, "expiry": "2027-12-31"},
+        "NOWRUZ": {"discount": 30, "type": "percentage", "min_order": 15000, "expiry": "2027-12-31"}
     }
 
 def save_promos(promos):
@@ -321,9 +317,12 @@ def save_offline_orders(orders):
     with open(OFFLINE_ORDERS_FILE, 'w') as f:
         json.dump(orders, f, indent=4)
 
-# --- 9. HELPER FUNCTIONS ---
+# --- 8. HELPER FUNCTIONS ---
 def generate_order_id():
     return f"GD-{datetime.now().strftime('%Y%m')}-{str(uuid.uuid4())[:8].upper()}"
+
+def generate_user_id():
+    return f"USR-{str(uuid.uuid4())[:8].upper()}"
 
 def calculate_loyalty_points(price):
     return int(price / 1000)
@@ -356,41 +355,41 @@ def get_order_status_emoji(status):
     }
     return emojis.get(status, "📦")
 
-def calculate_estimated_delivery(zone):
-    times = {
-        "باکوور": 20, "باشوور": 24, "ڕۆژهەڵات": 18, "ڕۆژئاوا": 22
-    }
-    hours = times.get(zone, 24)
-    return (datetime.now() + timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M")
+def calculate_estimated_delivery():
+    return (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
 
-def get_zone_from_area(area):
-    for zone, areas in NEIGHBORHOOD_ZONES.items():
-        if any(a in area for a in areas):
-            return zone
-    return "ناوەند"
-
-def update_customer_loyalty(phone, price):
+def update_customer_loyalty(user_id, phone, name, email, price):
     customers_df = load_customers()
-    if phone in customers_df['phone'].values:
+    if user_id and user_id in customers_df['user_id'].values:
+        idx = customers_df[customers_df['user_id'] == user_id].index[0]
+        customers_df.loc[idx, 'loyalty_points'] += calculate_loyalty_points(price)
+        customers_df.loc[idx, 'total_orders'] += 1
+        customers_df.loc[idx, 'total_spent'] += price
+    elif phone in customers_df['phone'].values:
         idx = customers_df[customers_df['phone'] == phone].index[0]
         customers_df.loc[idx, 'loyalty_points'] += calculate_loyalty_points(price)
         customers_df.loc[idx, 'total_orders'] += 1
         customers_df.loc[idx, 'total_spent'] += price
+        if name and pd.isna(customers_df.loc[idx, 'name']):
+            customers_df.loc[idx, 'name'] = name
+        if email and pd.isna(customers_df.loc[idx, 'email']):
+            customers_df.loc[idx, 'email'] = email
     else:
+        new_user_id = generate_user_id()
         new_customer = pd.DataFrame([{
-            "customer_id": str(uuid.uuid4())[:8],
-            "name": st.session_state.user_name or "Unknown",
+            "user_id": new_user_id,
+            "name": name or "Unknown",
             "phone": phone,
-            "email": st.session_state.user_email or "",
+            "email": email or "",
             "join_date": datetime.now().strftime("%Y-%m-%d"),
             "total_orders": 1,
             "loyalty_points": calculate_loyalty_points(price),
-            "favorite_zone": "",
             "total_spent": price,
             "language": st.session_state.lang_choice,
             "notification_preferences": json.dumps(st.session_state.notification_preferences)
         }])
         customers_df = pd.concat([customers_df, new_customer], ignore_index=True)
+        st.session_state.user_id = new_user_id
     save_customers(customers_df)
 
 def convert_currency(price, from_currency, to_currency):
@@ -416,10 +415,10 @@ def get_holiday_offer():
         return "EID2025"
     return None
 
-# --- 10. TOP BAR ---
+# --- 9. TOP BAR (بێ دارک مۆد) ---
 L = languages[st.session_state.lang_choice]
 
-top_col1, top_col2, top_col3, top_col4 = st.columns([2, 1, 1, 1])
+top_col1, top_col2, top_col3 = st.columns([2, 1, 1])
 with top_col1:
     st.markdown(f"<h2 style='color:#D4AF37; margin:0;'>{L['title']}</h2>", unsafe_allow_html=True)
 with top_col2:
@@ -430,13 +429,6 @@ with top_col2:
         st.session_state.lang_choice = selected_lang
         st.rerun()
 with top_col3:
-    theme_options = ["Light ☀️", "Dark 🌙"]
-    current_theme_index = 0 if st.session_state.theme_choice == "Light ☀️" else 1
-    selected_theme = st.selectbox("🎨", theme_options, index=current_theme_index, label_visibility="collapsed", key="theme_select")
-    if selected_theme != st.session_state.theme_choice:
-        st.session_state.theme_choice = selected_theme
-        st.rerun()
-with top_col4:
     currency_options = ["IQD", "USD"]
     current_currency_index = 0 if st.session_state.currency == "IQD" else 1
     selected_currency = st.selectbox("💰", currency_options, index=current_currency_index, label_visibility="collapsed", key="currency_select")
@@ -446,23 +438,13 @@ with top_col4:
 
 L = languages[st.session_state.lang_choice]
 
-# --- 11. CSS STYLING ---
-is_dark = st.session_state.theme_choice == "Dark 🌙"
-
-if is_dark:
-    main_bg = "#0a0c10"
-    card_bg = "#1e2329"
-    text_color = "#ffffff"
-    accent = "#D4AF37"
-    input_bg = "#2d333d"
-    border_color = "#3a404c"
-else:
-    main_bg = "#f5f7fa"
-    card_bg = "#ffffff"
-    text_color = "#1a1a2e"
-    accent = "#D4AF37"
-    input_bg = "#ffffff"
-    border_color = "#e0e0e0"
+# --- 10. CSS STYLING (ڕووناک هەرگیز) ---
+main_bg = "#f5f7fa"
+card_bg = "#ffffff"
+text_color = "#1a1a2e"
+accent = "#D4AF37"
+input_bg = "#ffffff"
+border_color = "#e0e0e0"
 
 st.markdown(f"""
 <style>
@@ -473,25 +455,28 @@ st.markdown(f"""
     .stSelectbox div[data-baseweb="select"] {{ background-color: {input_bg} !important; border-color: {border_color} !important; }}
     div[data-baseweb="menu"] {{ background-color: {input_bg} !important; }}
     .stForm {{ background-color: {card_bg} !important; border: 1px solid {accent}40 !important; border-radius: 20px !important; padding: 30px !important; }}
-    .glass-card {{ background-color: {card_bg} !important; border-radius: 20px !important; padding: 25px !important; border: 1px solid {accent}30 !important; margin-bottom: 20px !important; }}
+    .glass-card {{ background-color: {card_bg} !important; border-radius: 20px !important; padding: 25px !important; border: 1px solid {accent}30 !important; margin-bottom: 20px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
     .brand-header {{ background: linear-gradient(135deg, #D4AF37 0%, #8A6D3B 100%); padding: 30px; border-radius: 0 0 30px 30px; text-align: center; margin-bottom: 20px; }}
     .brand-header h1, .brand-header p {{ color: white !important; }}
-    .stButton button {{ background-color: {accent} !important; color: {text_color if is_dark else '#000000'} !important; border: none !important; font-weight: bold !important; border-radius: 10px !important; padding: 10px 20px !important; transition: all 0.3s !important; }}
-    .stButton button:hover {{ background-color: {accent}dd !important; transform: translateY(-2px) !important; }}
+    .stButton button {{ background-color: {accent} !important; color: #000000 !important; border: none !important; font-weight: bold !important; border-radius: 10px !important; padding: 10px 20px !important; transition: all 0.3s !important; }}
+    .stButton button:hover {{ background-color: {accent}dd !important; transform: translateY(-2px) !important; box-shadow: 0 4px 8px rgba(212, 175, 55, 0.3); }}
     .card-title {{ color: {accent} !important; font-size: 1.5rem !important; }}
     .phone-number {{ color: {accent} !important; font-weight: bold; margin: 0 10px; }}
     .emergency-button {{ background-color: #ff4444 !important; color: white !important; }}
     .whatsapp-button {{ background-color: #25D366 !important; color: white !important; }}
+    .metric-card {{ background-color: {card_bg}; padding: 20px; border-radius: 15px; text-align: center; border: 1px solid {accent}20; margin: 10px 0; }}
+    .metric-value {{ font-size: 2.5rem; font-weight: bold; color: {accent}; }}
+    .metric-label {{ font-size: 1rem; color: {text_color}; opacity: 0.8; }}
     [dir="{L['dir']}"] {{ text-align: {L['align']} !important; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 12. NAVIGATION MENU (بێ دوگمەی فریاکەوتن لە سەرەکی) ---
+# --- 11. NAVIGATION MENU ---
 selected = option_menu(
     menu_title=None,
     options=[L['nav_home'], L['nav_order'], L['nav_track'], L['nav_offers'], 
-             L['nav_profile'], L['nav_terms'], L['nav_support']],
-    icons=['house-door', 'box', 'geo-alt', 'gift', 'person', 'file-text', 'headset'],
+             L['nav_profile'], L['nav_terms'], L['nav_support'], L['nav_emergency']],
+    icons=['house-door', 'box', 'geo-alt', 'gift', 'person', 'file-text', 'headset', 'exclamation-triangle'],
     menu_icon="cast",
     default_index=0,
     orientation="horizontal",
@@ -507,11 +492,11 @@ selected = option_menu(
 page_mapping = {
     L['nav_home']: "home", L['nav_order']: "order", L['nav_track']: "track",
     L['nav_offers']: "offers", L['nav_profile']: "profile", L['nav_terms']: "terms",
-    L['nav_support']: "support"
+    L['nav_support']: "support", L['nav_emergency']: "emergency"
 }
 st.session_state.page = page_mapping.get(selected, "home")
 
-# --- 13. HOME PAGE ---
+# --- 12. HOME PAGE (ئامارەکان تایبەت بە هەر کەس) ---
 if st.session_state.page == "home":
     holiday_offer = get_holiday_offer()
     if holiday_offer:
@@ -526,25 +511,94 @@ if st.session_state.page == "home":
     
     orders_df = load_orders()
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        total_orders = len(orders_df)
-        st.metric("📦 کۆی داواکاری", f"{total_orders:,}")
-    with col2:
-        delivered = len(orders_df[orders_df['status'] == 'Delivered'])
-        st.metric("✅ گەیاندراو", f"{delivered:,}")
-    with col3:
-        free_deliveries = len(orders_df[orders_df['price'] == 0])
-        st.metric("🎁 خۆڕایی", f"{free_deliveries:,}")
-    with col4:
-        if len(orders_df) > 0:
-            avg_price = int(orders_df['price'].mean())
-            if st.session_state.currency == 'USD':
-                avg_price = convert_currency(avg_price, 'IQD', 'USD')
-                st.metric("💰 تێکڕا", f"${avg_price:.2f}")
+    # ئامارەکان تایبەت بە هەر کەس
+    if st.session_state.user_phone:
+        user_orders = orders_df[orders_df['phone'] == st.session_state.user_phone]
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            total_orders = len(user_orders)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{total_orders}</div>
+                <div class="metric-label">{L['total_orders']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            delivered = len(user_orders[user_orders['status'] == 'Delivered'])
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{delivered}</div>
+                <div class="metric-label">{L['delivered']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            free_deliveries = len(user_orders[user_orders['price'] == 0])
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">{free_deliveries}</div>
+                <div class="metric-label">{L['free_deliveries']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4:
+            if len(user_orders) > 0:
+                avg_price = int(user_orders['price'].mean())
+                if st.session_state.currency == 'USD':
+                    avg_price = convert_currency(avg_price, 'IQD', 'USD')
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value">${avg_price:.2f}</div>
+                        <div class="metric-label">{L['average']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-value">{avg_price:,}</div>
+                        <div class="metric-label">{L['average']} {L['currency_iqd']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
-                st.metric("💰 تێکڕا", f"{avg_price:,} {L['currency_iqd']}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">0</div>
+                    <div class="metric-label">{L['average']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        # ئەگەر نەچووەتە ژوورەوە
+        st.info(f"🔑 {L['access_account']} {L['nav_profile']}")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">-</div>
+                <div class="metric-label">{L['total_orders']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">-</div>
+                <div class="metric-label">{L['delivered']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">-</div>
+                <div class="metric-label">{L['free_deliveries']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value">-</div>
+                <div class="metric-label">{L['average']}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
+    # کارتەکان
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f'<div class="glass-card"><h3 class="card-title">{L["fast_title"]}</h3><p>{L["fast_desc"]}</p></div>', unsafe_allow_html=True)
@@ -552,32 +606,6 @@ if st.session_state.page == "home":
         st.markdown(f'<div class="glass-card"><h3 class="card-title">{L["secure_title"]}</h3><p>{L["secure_desc"]}</p></div>', unsafe_allow_html=True)
     with col3:
         st.markdown(f'<div class="glass-card"><h3 class="card-title">{L["free_title"]}</h3><p>{L["free_desc"]}</p></div>', unsafe_allow_html=True)
-    
-    st.markdown(f"<h3 style='color:{accent};'>🗺️ {L['zone_north']} / {L['zone_south']} / {L['zone_east']} / {L['zone_west']}</h3>", unsafe_allow_html=True)
-    zone_cols = st.columns(4)
-    for idx, (zone, areas) in enumerate(NEIGHBORHOOD_ZONES.items()):
-        with zone_cols[idx]:
-            # ڕاستکردنەوەی کێشەکە - بەکارهێنانی ناوی ڕاستەوخۆ
-            if zone == "باکوور":
-                zone_name = L['zone_north']
-            elif zone == "باشوور":
-                zone_name = L['zone_south']
-            elif zone == "ڕۆژهەڵات":
-                zone_name = L['zone_east']
-            elif zone == "ڕۆژئاوا":
-                zone_name = L['zone_west']
-            else:
-                zone_name = zone
-            st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{zone_name}</h4><p>{len(areas)} گەڕەک</p></div>', unsafe_allow_html=True)
-    
-    if not orders_df.empty:
-        st.markdown(f"<h3 style='color:{accent};'>📋 دواین داواکارییەکان</h3>", unsafe_allow_html=True)
-        recent = orders_df.tail(5)[['order_id', 'customer', 'area', 'price', 'status']].copy()
-        if st.session_state.currency == 'USD':
-            recent['price'] = recent['price'].apply(lambda x: f"${convert_currency(x, 'IQD', 'USD'):.2f}")
-        else:
-            recent['price'] = recent['price'].apply(lambda x: f"{x:,} {L['currency_iqd']}")
-        st.dataframe(recent, use_container_width=True)
 
 # --- 14. ORDER PAGE ---
 elif st.session_state.page == "order":
@@ -590,8 +618,8 @@ elif st.session_state.page == "order":
     
     col1, col2 = st.columns(2)
     with col1:
-        customer_name = st.text_input(L['customer_name'])
-        phone_input = st.text_input(L['phone'], placeholder="07xx xxx xxxx")
+        customer_name = st.text_input(L['customer_name'], value=st.session_state.user_name if st.session_state.user_name else "")
+        phone_input = st.text_input(L['phone'], placeholder="07xx xxx xxxx", value=st.session_state.user_phone if st.session_state.user_phone else "")
         shop_name = st.text_input(L['shop_name'])
     
     with col2:
@@ -610,7 +638,6 @@ elif st.session_state.page == "order":
     col1, col2 = st.columns(2)
     with col1:
         area = st.selectbox(L['area'], ["-- هەڵبژاردن --"] + KIRKUK_AREAS)
-        zone = get_zone_from_area(area) if area != "-- هەڵبژاردن --" else "ناوەند"
         full_addr = st.text_area(L['full_addr'])
     with col2:
         shop_addr = st.text_input(L['shop_addr'])
@@ -643,7 +670,7 @@ elif st.session_state.page == "order":
     if st.button(L['submit'], use_container_width=True):
         if customer_name and phone_input and area and area != "-- هەڵبژاردن --":
             order_id = generate_order_id()
-            estimated_time = calculate_estimated_delivery(zone)
+            estimated_time = calculate_estimated_delivery()
             
             price_iqd = price if st.session_state.currency == 'IQD' else convert_currency(price, 'USD', 'IQD')
             
@@ -659,6 +686,7 @@ elif st.session_state.page == "order":
                 "price": int(price_iqd),
                 "status": "Pending",
                 "user_email": st.session_state.user_email,
+                "user_id": st.session_state.user_id,
                 "driver_id": None,
                 "payment_method": payment_method,
                 "delivery_notes": delivery_notes,
@@ -667,7 +695,6 @@ elif st.session_state.page == "order":
                 "actual_delivery": None,
                 "rating": None,
                 "review": None,
-                "zone": zone,
                 "currency": st.session_state.currency,
                 "reminder_sent": False
             }])
@@ -683,7 +710,7 @@ elif st.session_state.page == "order":
             else:
                 orders_df = pd.concat([orders_df, new_order], ignore_index=True)
                 save_orders(orders_df)
-                update_customer_loyalty(phone_input, int(price_iqd))
+                update_customer_loyalty(st.session_state.user_id, phone_input, customer_name, st.session_state.user_email, int(price_iqd))
                 st.success(f"✅ {L['submit']}! {L['order_id']}: {order_id}")
                 st.balloons()
                 st.session_state.current_order_id = order_id
@@ -699,7 +726,7 @@ elif st.session_state.page == "track":
     track_method = st.radio("", ["📱 بە ژمارە مۆبایل", "🔢 بە ژمارەی داواکاری"], horizontal=True)
     
     if "بە ژمارە مۆبایل" in track_method:
-        phone = st.text_input(L['phone'])
+        phone = st.text_input(L['phone'], value=st.session_state.user_phone if st.session_state.user_phone else "")
         if phone:
             user_orders = orders_df[orders_df['phone'] == phone]
             if not user_orders.empty:
@@ -771,7 +798,7 @@ elif st.session_state.page == "track":
             else:
                 st.warning("داواکاری نەدۆزرایەوە")
 
-# --- 16. OFFERS PAGE ---
+# --- 16. OFFERS PAGE (تا 2027) ---
 elif st.session_state.page == "offers":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_offers']}</h2>", unsafe_allow_html=True)
     
@@ -779,7 +806,7 @@ elif st.session_state.page == "offers":
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">🎊 {L["free_info"]}</h4><p>{L["free_desc"]}</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">🎊 {L["free_info"]}</h4><p>{L["free_desc"]}</p><p>📅 تا 2027</p></div>', unsafe_allow_html=True)
     with col2:
         st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">💎 {L["loyalty_points"]}</h4><p>1000 دینار = ١ خاڵ</p><p>١٠٠ خاڵ = ٥٠٠٠ دینار</p><p>٢٠٠ خاڵ = ١٢٠٠٠ دینار</p><p>٥٠٠ خاڵ = ٣٥٠٠٠ دینار</p></div>', unsafe_allow_html=True)
     
@@ -789,13 +816,13 @@ elif st.session_state.page == "offers":
         with promo_cols[idx % 3]:
             discount_text = f"{details['discount']}%" if details['type'] == 'percentage' else f"{details['discount']:,} IQD"
             min_order = f"کەمترین: {details['min_order']:,} IQD" if details['min_order'] > 0 else "بێ سنوور"
-            st.markdown(f'<div class="glass-card" style="text-align:center;"><h4 style="color:{accent};">{code}</h4><p style="font-size:1.2rem;">{discount_text} دابەزین</p><p>{min_order}</p><p>بەسەرچوون: {details["expiry"]}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="glass-card" style="text-align:center;"><h4 style="color:{accent};">{code}</h4><p style="font-size:1.2rem;">{discount_text} دابەزین</p><p>{min_order}</p><p>📅 تا 2027</p></div>', unsafe_allow_html=True)
 
 # --- 17. PROFILE PAGE ---
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
-    if st.session_state.user_email is None:
+    if st.session_state.user_email is None and st.session_state.user_phone is None:
         tab1, tab2 = st.tabs(["🔑 چوونەژوورەوە", "📝 تۆمارکردن"])
         
         with tab1:
@@ -807,6 +834,7 @@ elif st.session_state.page == "profile":
                     st.session_state.user_role = "customer"
                     st.session_state.user_name = "Customer"
                     st.session_state.user_phone = "07701234567"
+                    st.session_state.user_id = generate_user_id()
                     st.rerun()
             with col2:
                 if st.button("🚚 شۆفێر", use_container_width=True):
@@ -814,6 +842,7 @@ elif st.session_state.page == "profile":
                     st.session_state.user_role = "driver"
                     st.session_state.user_name = "Driver"
                     st.session_state.user_phone = "07707654321"
+                    st.session_state.user_id = generate_user_id()
                     st.rerun()
         
         with tab2:
@@ -821,40 +850,45 @@ elif st.session_state.page == "profile":
                 name = st.text_input("ناوی تەواو")
                 email = st.text_input("ئیمەیڵ")
                 phone = st.text_input("ژمارە مۆبایل", placeholder="07xx xxx xxxx")
-                area = st.selectbox("ناوچە", KIRKUK_AREAS[:10])
                 if st.form_submit_button("تۆمارکردن"):
-                    if name and email and phone:
+                    if name and phone:
                         st.session_state.user_email = email
                         st.session_state.user_name = name
                         st.session_state.user_phone = phone
                         st.session_state.user_role = "customer"
+                        st.session_state.user_id = generate_user_id()
                         st.success("تۆمارکردن سەرکەوتوو بوو!")
                         st.rerun()
                     else:
-                        st.error("تکایە هەموو خانەکان پڕ بکەرەوە")
+                        st.error("تکایە ناو و ژمارە مۆبایل پڕ بکەرەوە")
     else:
         tabs = st.tabs(["👤 پڕۆفایل", "📦 داواکارییەکان", "⭐ خاڵەکان", "⚙️ ڕێکخستنەکان"])
         
         with tabs[0]:
-            st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["signed_in_as"]}</h4><p>ناو: {st.session_state.user_name}</p><p>ئیمەیڵ: {st.session_state.user_email}</p><p>ڕۆڵ: {st.session_state.user_role}</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["signed_in_as"]}</h4><p>ناو: {st.session_state.user_name}</p><p>ئیمەیڵ: {st.session_state.user_email or "بەردەست نییە"}</p><p>ژمارە: {st.session_state.user_phone}</p><p>ڕۆڵ: {st.session_state.user_role}</p></div>', unsafe_allow_html=True)
             
-            if st.session_state.user_phone:
-                customers_df = load_customers()
+            customers_df = load_customers()
+            if st.session_state.user_id:
+                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
+            elif st.session_state.user_phone:
                 customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
-                if not customer.empty:
-                    data = customer.iloc[0]
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("کۆی داواکاری", int(data['total_orders']))
-                    with col2:
-                        st.metric(L['loyalty_points'], int(data['loyalty_points']))
-                    with col3:
-                        spent = data['total_spent']
-                        if st.session_state.currency == 'USD':
-                            spent = convert_currency(spent, 'IQD', 'USD')
-                            st.metric("کۆی خەرجی", f"${spent:.2f}")
-                        else:
-                            st.metric("کۆی خەرجی", f"{spent:,} {L['currency_iqd']}")
+            else:
+                customer = pd.DataFrame()
+            
+            if not customer.empty:
+                data = customer.iloc[0]
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric(L['total_orders'], int(data['total_orders']))
+                with col2:
+                    st.metric(L['loyalty_points'], int(data['loyalty_points']))
+                with col3:
+                    spent = data['total_spent']
+                    if st.session_state.currency == 'USD':
+                        spent = convert_currency(spent, 'IQD', 'USD')
+                        st.metric("کۆی خەرجی", f"${spent:.2f}")
+                    else:
+                        st.metric("کۆی خەرجی", f"{spent:,} {L['currency_iqd']}")
         
         with tabs[1]:
             orders_df = load_orders()
@@ -872,19 +906,25 @@ elif st.session_state.page == "profile":
         
         with tabs[2]:
             customers_df = load_customers()
-            if st.session_state.user_phone:
+            if st.session_state.user_id:
+                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
+            elif st.session_state.user_phone:
                 customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
-                if not customer.empty:
-                    points = int(customer.iloc[0]['loyalty_points'])
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f'<div class="glass-card" style="text-align:center;"><h1 style="color:{accent}; font-size:3rem;">{points}</h1><p>{L["points_balance"]}</p></div>', unsafe_allow_html=True)
-                    with col2:
-                        st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["redeem_points"]}</h4><p>١٠٠ خاڵ = ٥٠٠٠ دینار</p><p>٢٠٠ خاڵ = ١٢٠٠٠ دینار</p><p>٥٠٠ خاڵ = ٣٥٠٠٠ دینار</p></div>', unsafe_allow_html=True)
-                    
-                    if points >= 100:
-                        if st.button(f"{L['redeem_points']} 100 خاڵ"):
-                            st.success("خاڵەکانت بەکارهێنران! ٥٠٠٠ دینار دابەزی")
+            else:
+                customer = pd.DataFrame()
+            
+            if not customer.empty:
+                points = int(customer.iloc[0]['loyalty_points'])
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f'<div class="glass-card" style="text-align:center;"><h1 style="color:{accent}; font-size:3rem;">{points}</h1><p>{L["points_balance"]}</p></div>', unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["redeem_points"]}</h4><p>١٠٠ خاڵ = ٥٠٠٠ دینار</p><p>٢٠٠ خاڵ = ١٢٠٠٠ دینار</p><p>٥٠٠ خاڵ = ٣٥٠٠٠ دینار</p></div>', unsafe_allow_html=True)
+                
+                if points >= 100:
+                    if st.button(f"{L['redeem_points']} 100 خاڵ"):
+                        # ئەمە بۆ کەمکردنەوەی خاڵەکان لە داهاتوودا
+                        st.success("خاڵەکانت بەکارهێنران! ٥٠٠٠ دینار دابەزی")
         
         with tabs[3]:
             st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["settings"]}</h4></div>', unsafe_allow_html=True)
@@ -897,7 +937,7 @@ elif st.session_state.page == "profile":
             }
             
             if st.button(L["logout"]):
-                for key in ['user_email', 'user_role', 'user_name', 'user_phone']:
+                for key in ['user_email', 'user_role', 'user_name', 'user_phone', 'user_id']:
                     st.session_state[key] = None
                 st.rerun()
         
@@ -950,7 +990,6 @@ elif st.session_state.page == "profile":
                             name = st.text_input("ناوی شۆفێر")
                             phone = st.text_input("ژمارەی مۆبایل")
                         with col2:
-                            zone = st.selectbox("ناوچە", list(NEIGHBORHOOD_ZONES.keys()))
                             status = st.selectbox("دۆخ", ["Available", "Busy", "Offline"])
                         if st.form_submit_button("زیادکردن"):
                             new_driver = pd.DataFrame([{
@@ -958,7 +997,6 @@ elif st.session_state.page == "profile":
                                 "name": name,
                                 "phone": phone,
                                 "status": status,
-                                "zone": zone,
                                 "join_date": datetime.now().strftime("%Y-%m-%d"),
                                 "total_deliveries": 0,
                                 "rating": 5.0,
@@ -1017,8 +1055,8 @@ elif st.session_state.page == "profile":
                 orders_df = load_orders()
                 
                 if not orders_df.empty:
-                    zone_stats = orders_df.groupby('zone').size().reset_index(name='count')
-                    fig = px.bar(zone_stats, x='zone', y='count', title='داواکاری بەپێی ناوچە')
+                    area_stats = orders_df.groupby('area').size().reset_index(name='count').head(10)
+                    fig = px.bar(area_stats, x='area', y='count', title='داواکاری بەپێی گەڕەک')
                     st.plotly_chart(fig, use_container_width=True)
                     
                     orders_df['date'] = pd.to_datetime(orders_df['date'])
@@ -1086,7 +1124,7 @@ elif st.session_state.page == "support":
         if st.form_submit_button("ناردن"):
             st.success("سوپاس! وەڵاممان دەوەیتەوە")
 
-# --- 20. EMERGENCY PAGE (تەنها لەم بەشەدا) ---
+# --- 20. EMERGENCY PAGE ---
 elif st.session_state.page == "emergency":
     st.markdown(f"<h2 style='color:#ff4444; text-align:center;'>{L['emergency_call']}</h2>", unsafe_allow_html=True)
     
@@ -1114,7 +1152,7 @@ elif st.session_state.page == "emergency":
 # --- 21. FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
-<div style="background-color:{card_bg}; padding:15px; border-radius:10px; text-align:center;">
+<div style="background-color:{card_bg}; padding:15px; border-radius:10px; text-align:center; border: 1px solid {accent}20;">
     <p>📞 <span style="color:{accent};">{COMPANY_PHONES[0]}</span> | <span style="color:{accent};">{COMPANY_PHONES[1]}</span></p>
     <p>✉️ {COMPANY_EMAIL} | 📍 {COMPANY_ADDRESS}</p>
     <p style="font-size:0.9rem;">© ٢٠٢٤ گۆڵدن دلیڤەری پرۆ - کەرکوک</p>
