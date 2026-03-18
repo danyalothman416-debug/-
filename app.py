@@ -9,8 +9,6 @@ import plotly.graph_objects as go
 from streamlit_option_menu import option_menu
 from io import BytesIO
 import base64
-import requests
-from PIL import Image
 import random
 import time
 
@@ -84,7 +82,7 @@ KIRKUK_AREAS = sorted([
     "Engineers Neighborhood / حي المهندسين", "Teachers Neighborhood / حي المعلمين"
 ])
 
-# --- 6. MULTI-LANGUAGE UI STRINGS ---
+# --- 6. MULTI-LANGUAGE UI STRINGS (بە تەواوی) ---
 languages = {
     "English 🇬🇧": {
         "dir": "ltr", "align": "left",
@@ -127,7 +125,16 @@ languages = {
         "reminder": "Reminder", "delivery_reminder": "Your delivery will arrive in 1 hour",
         "eid_offer": "🎊 Eid Special Offer",
         "ramadan_offer": "🌙 Ramadan Special",
-        "nowruz_offer": "🌸 Nowruz Greetings"
+        "nowruz_offer": "🌸 Nowruz Greetings",
+        "access_account": "Sign in to access your account",
+        "golden_rules": "Golden Rules",
+        "rule1": "1 out of 3 deliveries is free - automatically applied!",
+        "rule2": "No illegal items - we comply with all local laws",
+        "rule3": "Fast Kirkuk wide service - all neighborhoods covered",
+        "rule4": "Delivery within 24 hours of order confirmation",
+        "rule5": "Cash on delivery only",
+        "rule6": "Free delivery promotion applies to orders over 3000 IQD",
+        "rule7": "Customer must be present at time of delivery"
     },
     "کوردی 🇭🇺": {
         "dir": "rtl", "align": "right",
@@ -170,7 +177,16 @@ languages = {
         "reminder": "بیرخستنەوە", "delivery_reminder": "گەیاندنەکەت لە ماوەی ١ کاتژمێری دیکەدا دەگات",
         "eid_offer": "🎊 پێشکەشکردنی جەژن",
         "ramadan_offer": "🌙 پێشکەشکردنی ڕەمەزان",
-        "nowruz_offer": "🌸 پیرۆزبایی نەورۆز"
+        "nowruz_offer": "🌸 پیرۆزبایی نەورۆز",
+        "access_account": "بچۆ ژوورەوە بۆ هەژمارەکەت",
+        "golden_rules": "ڕێسا زێڕینەکان",
+        "rule1": "یەکێک لە هەر ٣ گەیاندنێک بە خۆڕاییە",
+        "rule2": "هیچ کاڵایەکی نایاسایی نییە",
+        "rule3": "خزمەتگوزاری خێرا لە سەرانسەری کەرکوک",
+        "rule4": "گەیاندن لە ماوەی ٢٤ کاتژمێردا",
+        "rule5": "تەنها پارەدان لە کاتی گەیاندن",
+        "rule6": "پڕۆمۆشنی خۆڕایی بۆ داواکاری ٣٠٠٠ دینار",
+        "rule7": "کڕیار دەبێت لە کاتی گەیاندن ئامادە بێت"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", "align": "right",
@@ -213,7 +229,16 @@ languages = {
         "reminder": "تذكير", "delivery_reminder": "سيصل طلبك خلال ساعة",
         "eid_offer": "🎊 عرض العيد",
         "ramadan_offer": "🌙 عرض رمضان",
-        "nowruz_offer": "🌸 تهاني نوروز"
+        "nowruz_offer": "🌸 تهاني نوروز",
+        "access_account": "سجل الدخول للوصول إلى حسابك",
+        "golden_rules": "القواعد الذهبية",
+        "rule1": "واحدة من كل ٣ توصيلات مجانية",
+        "rule2": "لا يوجد عناصر غير قانونية",
+        "rule3": "خدمة سريعة في جميع أنحاء كركوك",
+        "rule4": "التوصيل خلال ٢٤ ساعة",
+        "rule5": "الدفع عند الاستلام فقط",
+        "rule6": "عرض التوصيل المجاني للطلبات فوق ٣٠٠٠ دينار",
+        "rule7": "يجب أن يكون الزبون حاضراً وقت التوصيل"
     }
 }
 
@@ -458,12 +483,12 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 12. NAVIGATION MENU ---
+# --- 12. NAVIGATION MENU (بێ دوگمەی فریاکەوتن لە سەرەکی) ---
 selected = option_menu(
     menu_title=None,
     options=[L['nav_home'], L['nav_order'], L['nav_track'], L['nav_offers'], 
-             L['nav_profile'], L['nav_terms'], L['nav_support'], L['nav_emergency']],
-    icons=['house-door', 'box', 'geo-alt', 'gift', 'person', 'file-text', 'headset', 'exclamation-triangle'],
+             L['nav_profile'], L['nav_terms'], L['nav_support']],
+    icons=['house-door', 'box', 'geo-alt', 'gift', 'person', 'file-text', 'headset'],
     menu_icon="cast",
     default_index=0,
     orientation="horizontal",
@@ -479,24 +504,11 @@ selected = option_menu(
 page_mapping = {
     L['nav_home']: "home", L['nav_order']: "order", L['nav_track']: "track",
     L['nav_offers']: "offers", L['nav_profile']: "profile", L['nav_terms']: "terms",
-    L['nav_support']: "support", L['nav_emergency']: "emergency"
+    L['nav_support']: "support"
 }
 st.session_state.page = page_mapping.get(selected, "home")
 
-# --- 13. EMERGENCY BUTTONS ---
-if st.session_state.page != "emergency":
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        if st.button(f"🚓 {L['police']} {EMERGENCY_POLICE}", use_container_width=True):
-            st.markdown(f'<meta http-equiv="refresh" content="0;url=tel:{EMERGENCY_POLICE}">', unsafe_allow_html=True)
-    with col2:
-        if st.button(f"🚑 {L['ambulance']} {EMERGENCY_AMBULANCE}", use_container_width=True):
-            st.markdown(f'<meta http-equiv="refresh" content="0;url=tel:{EMERGENCY_AMBULANCE}">', unsafe_allow_html=True)
-    with col3:
-        if st.button(f"📞 {L['call_us']}", use_container_width=True):
-            st.markdown(f'<meta http-equiv="refresh" content="0;url=tel:{COMPANY_PHONES[0]}">', unsafe_allow_html=True)
-
-# --- 14. HOME PAGE ---
+# --- 13. HOME PAGE ---
 if st.session_state.page == "home":
     holiday_offer = get_holiday_offer()
     if holiday_offer:
@@ -542,7 +554,17 @@ if st.session_state.page == "home":
     zone_cols = st.columns(4)
     for idx, (zone, areas) in enumerate(NEIGHBORHOOD_ZONES.items()):
         with zone_cols[idx]:
-            zone_name = L[f'zone_{zone}'] if zone in ["باکوور", "باشوور", "ڕۆژهەڵات", "ڕۆژئاوا"] else zone
+            # ڕاستکردنەوەی کێشەکە - بەکارهێنانی ناوی ڕاستەوخۆ
+            if zone == "باکوور":
+                zone_name = L['zone_north']
+            elif zone == "باشوور":
+                zone_name = L['zone_south']
+            elif zone == "ڕۆژهەڵات":
+                zone_name = L['zone_east']
+            elif zone == "ڕۆژئاوا":
+                zone_name = L['zone_west']
+            else:
+                zone_name = zone
             st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{zone_name}</h4><p>{len(areas)} گەڕەک</p></div>', unsafe_allow_html=True)
     
     if not orders_df.empty:
@@ -554,7 +576,7 @@ if st.session_state.page == "home":
             recent['price'] = recent['price'].apply(lambda x: f"{x:,} {L['currency_iqd']}")
         st.dataframe(recent, use_container_width=True)
 
-# --- 15. ORDER PAGE ---
+# --- 14. ORDER PAGE ---
 elif st.session_state.page == "order":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_order']}</h2>", unsafe_allow_html=True)
     
@@ -665,7 +687,7 @@ elif st.session_state.page == "order":
         else:
             st.error("تکایە هەموو خانەکان پڕ بکەرەوە")
 
-# --- 16. TRACK PAGE ---
+# --- 15. TRACK PAGE ---
 elif st.session_state.page == "track":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['track_order']}</h2>", unsafe_allow_html=True)
     
@@ -746,7 +768,7 @@ elif st.session_state.page == "track":
             else:
                 st.warning("داواکاری نەدۆزرایەوە")
 
-# --- 17. OFFERS PAGE ---
+# --- 16. OFFERS PAGE ---
 elif st.session_state.page == "offers":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_offers']}</h2>", unsafe_allow_html=True)
     
@@ -766,7 +788,7 @@ elif st.session_state.page == "offers":
             min_order = f"کەمترین: {details['min_order']:,} IQD" if details['min_order'] > 0 else "بێ سنوور"
             st.markdown(f'<div class="glass-card" style="text-align:center;"><h4 style="color:{accent};">{code}</h4><p style="font-size:1.2rem;">{discount_text} دابەزین</p><p>{min_order}</p><p>بەسەرچوون: {details["expiry"]}</p></div>', unsafe_allow_html=True)
 
-# --- 18. PROFILE PAGE ---
+# --- 17. PROFILE PAGE ---
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
@@ -1007,7 +1029,7 @@ elif st.session_state.page == "profile":
                 else:
                     st.info("هیچ زانیارییەک نییە")
 
-# --- 19. TERMS PAGE ---
+# --- 18. TERMS PAGE ---
 elif st.session_state.page == "terms":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['terms_title']}</h2>", unsafe_allow_html=True)
     st.markdown(f"""
@@ -1023,7 +1045,7 @@ elif st.session_state.page == "terms":
     </div>
     """, unsafe_allow_html=True)
 
-# --- 20. SUPPORT PAGE ---
+# --- 19. SUPPORT PAGE ---
 elif st.session_state.page == "support":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_support']}</h2>", unsafe_allow_html=True)
     
@@ -1061,7 +1083,7 @@ elif st.session_state.page == "support":
         if st.form_submit_button("ناردن"):
             st.success("سوپاس! وەڵاممان دەوەیتەوە")
 
-# --- 21. EMERGENCY PAGE ---
+# --- 20. EMERGENCY PAGE (تەنها لەم بەشەدا) ---
 elif st.session_state.page == "emergency":
     st.markdown(f"<h2 style='color:#ff4444; text-align:center;'>{L['emergency_call']}</h2>", unsafe_allow_html=True)
     
@@ -1086,7 +1108,7 @@ elif st.session_state.page == "emergency":
     </div>
     """, unsafe_allow_html=True)
 
-# --- 22. FOOTER ---
+# --- 21. FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div style="background-color:{card_bg}; padding:15px; border-radius:10px; text-align:center;">
@@ -1096,7 +1118,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 23. OFFLINE SYNC ---
+# --- 22. OFFLINE SYNC ---
 offline_orders = load_offline_orders()
 if offline_orders and st.button("📤 ناردنی داواکارییە پاشەکەوتکراوەکان"):
     orders_df = load_orders()
