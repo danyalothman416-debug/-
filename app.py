@@ -249,7 +249,7 @@ FEEDBACK_FILE = "feedback.csv"
 PROMO_CODES_FILE = "promos.json"
 OFFLINE_ORDERS_FILE = "offline_orders.json"
 
-# --- 7. DATA FUNCTIONS ---
+# --- 7. DATA FUNCTIONS (چاککراوە) ---
 def load_orders():
     if os.path.exists(ORDERS_FILE):
         return pd.read_csv(ORDERS_FILE, dtype={"phone": str, "order_id": str})
@@ -272,12 +272,20 @@ def save_drivers(df):
 
 def load_customers():
     if os.path.exists(CUSTOMERS_FILE):
-        return pd.read_csv(CUSTOMERS_FILE, dtype={"phone": str})
+        df = pd.read_csv(CUSTOMERS_FILE, dtype={"phone": str})
+        # ئەگەر user_id نەبوو، دروستی بکە
+        if 'user_id' not in df.columns:
+            df['user_id'] = [f"USR-{str(uuid.uuid4())[:8].upper()}" for _ in range(len(df))]
+            save_customers(df)
+        return df
     return pd.DataFrame(columns=["user_id", "name", "phone", "email", "join_date", 
                                   "total_orders", "loyalty_points", "total_spent",
                                   "language", "notification_preferences"])
 
 def save_customers(df):
+    # دڵنیابە user_id هەیە
+    if 'user_id' not in df.columns:
+        df['user_id'] = [f"USR-{str(uuid.uuid4())[:8].upper()}" for _ in range(len(df))]
     df.to_csv(CUSTOMERS_FILE, index=False)
 
 def load_feedback():
@@ -358,13 +366,22 @@ def get_order_status_emoji(status):
 def calculate_estimated_delivery():
     return (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
 
-def update_customer_loyalty(user_id, phone, name, email, price):
+def update_customer_loyalty(phone, name, email, price):
     customers_df = load_customers()
-    if user_id and user_id in customers_df['user_id'].values:
-        idx = customers_df[customers_df['user_id'] == user_id].index[0]
-        customers_df.loc[idx, 'loyalty_points'] += calculate_loyalty_points(price)
-        customers_df.loc[idx, 'total_orders'] += 1
-        customers_df.loc[idx, 'total_spent'] += price
+    
+    # بە دوای user_id یان phone بگەڕێ
+    user_found = False
+    if st.session_state.user_id:
+        if st.session_state.user_id in customers_df['user_id'].values:
+            idx = customers_df[customers_df['user_id'] == st.session_state.user_id].index[0]
+            customers_df.loc[idx, 'loyalty_points'] += calculate_loyalty_points(price)
+            customers_df.loc[idx, 'total_orders'] += 1
+            customers_df.loc[idx, 'total_spent'] += price
+            if name and pd.isna(customers_df.loc[idx, 'name']):
+                customers_df.loc[idx, 'name'] = name
+            if email and pd.isna(customers_df.loc[idx, 'email']):
+                customers_df.loc[idx, 'email'] = email
+            user_found = True
     elif phone in customers_df['phone'].values:
         idx = customers_df[customers_df['phone'] == phone].index[0]
         customers_df.loc[idx, 'loyalty_points'] += calculate_loyalty_points(price)
@@ -374,7 +391,10 @@ def update_customer_loyalty(user_id, phone, name, email, price):
             customers_df.loc[idx, 'name'] = name
         if email and pd.isna(customers_df.loc[idx, 'email']):
             customers_df.loc[idx, 'email'] = email
-    else:
+        st.session_state.user_id = customers_df.loc[idx, 'user_id']
+        user_found = True
+    
+    if not user_found:
         new_user_id = generate_user_id()
         new_customer = pd.DataFrame([{
             "user_id": new_user_id,
@@ -390,6 +410,7 @@ def update_customer_loyalty(user_id, phone, name, email, price):
         }])
         customers_df = pd.concat([customers_df, new_customer], ignore_index=True)
         st.session_state.user_id = new_user_id
+    
     save_customers(customers_df)
 
 def convert_currency(price, from_currency, to_currency):
@@ -415,7 +436,7 @@ def get_holiday_offer():
         return "EID2025"
     return None
 
-# --- 9. TOP BAR (بێ دارک مۆد) ---
+# --- 9. TOP BAR ---
 L = languages[st.session_state.lang_choice]
 
 top_col1, top_col2, top_col3 = st.columns([2, 1, 1])
@@ -710,7 +731,7 @@ elif st.session_state.page == "order":
             else:
                 orders_df = pd.concat([orders_df, new_order], ignore_index=True)
                 save_orders(orders_df)
-                update_customer_loyalty(st.session_state.user_id, phone_input, customer_name, st.session_state.user_email, int(price_iqd))
+                update_customer_loyalty(phone_input, customer_name, st.session_state.user_email, int(price_iqd))
                 st.success(f"✅ {L['submit']}! {L['order_id']}: {order_id}")
                 st.balloons()
                 st.session_state.current_order_id = order_id
@@ -818,7 +839,7 @@ elif st.session_state.page == "offers":
             min_order = f"کەمترین: {details['min_order']:,} IQD" if details['min_order'] > 0 else "بێ سنوور"
             st.markdown(f'<div class="glass-card" style="text-align:center;"><h4 style="color:{accent};">{code}</h4><p style="font-size:1.2rem;">{discount_text} دابەزین</p><p>{min_order}</p><p>📅 تا 2027</p></div>', unsafe_allow_html=True)
 
-# --- 17. PROFILE PAGE ---
+# --- 17. PROFILE PAGE (چاککراوە) ---
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='color:{accent}; text-align:center;'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
@@ -868,14 +889,17 @@ elif st.session_state.page == "profile":
             st.markdown(f'<div class="glass-card"><h4 style="color:{accent};">{L["signed_in_as"]}</h4><p>ناو: {st.session_state.user_name}</p><p>ئیمەیڵ: {st.session_state.user_email or "بەردەست نییە"}</p><p>ژمارە: {st.session_state.user_phone}</p><p>ڕۆڵ: {st.session_state.user_role}</p></div>', unsafe_allow_html=True)
             
             customers_df = load_customers()
-            if st.session_state.user_id:
-                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
-            elif st.session_state.user_phone:
-                customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
-            else:
-                customer = pd.DataFrame()
+            customer = None
             
-            if not customer.empty:
+            # بە دوای بەکارهێنەر بگەڕێ
+            if st.session_state.user_id and st.session_state.user_id in customers_df['user_id'].values:
+                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
+            elif st.session_state.user_phone and st.session_state.user_phone in customers_df['phone'].values:
+                customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
+                if customer is not None and not customer.empty:
+                    st.session_state.user_id = customer.iloc[0]['user_id']
+            
+            if customer is not None and not customer.empty:
                 data = customer.iloc[0]
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -906,14 +930,14 @@ elif st.session_state.page == "profile":
         
         with tabs[2]:
             customers_df = load_customers()
-            if st.session_state.user_id:
-                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
-            elif st.session_state.user_phone:
-                customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
-            else:
-                customer = pd.DataFrame()
+            customer = None
             
-            if not customer.empty:
+            if st.session_state.user_id and st.session_state.user_id in customers_df['user_id'].values:
+                customer = customers_df[customers_df['user_id'] == st.session_state.user_id]
+            elif st.session_state.user_phone and st.session_state.user_phone in customers_df['phone'].values:
+                customer = customers_df[customers_df['phone'] == st.session_state.user_phone]
+            
+            if customer is not None and not customer.empty:
                 points = int(customer.iloc[0]['loyalty_points'])
                 col1, col2 = st.columns(2)
                 with col1:
@@ -923,7 +947,6 @@ elif st.session_state.page == "profile":
                 
                 if points >= 100:
                     if st.button(f"{L['redeem_points']} 100 خاڵ"):
-                        # ئەمە بۆ کەمکردنەوەی خاڵەکان لە داهاتوودا
                         st.success("خاڵەکانت بەکارهێنران! ٥٠٠٠ دینار دابەزی")
         
         with tabs[3]:
