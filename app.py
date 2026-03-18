@@ -1,142 +1,228 @@
 import streamlit as st
 import pandas as pd
 import os
-import urllib.parse
 from datetime import datetime
-import plotly.express as px
+import uuid
+import urllib.parse
 import folium
 from streamlit_folium import st_folium
-import uuid
 
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="Golden Delivery", layout="wide")
 
 DB_FILE = "deliveries.csv"
 
-# ------------------ LOAD DATA ------------------
-def load_data():
-    if os.path.exists(DB_FILE):
-        return pd.read_csv(DB_FILE, dtype={"phone": str})
-    return pd.DataFrame(columns=[
-        "id","date","customer","shop","phone","area",
-        "address","shop_addr","price","status"
-    ])
+# ---------------- LANGUAGE SYSTEM ----------------
+LANG = {
+    "English": {
+        "dir": "ltr",
+        "title": "Golden Delivery",
+        "home": "Home",
+        "track": "Track",
+        "profile": "Profile",
+        "name": "Customer Name",
+        "phone": "Phone Number",
+        "area": "Area",
+        "address": "Address",
+        "submit": "Submit Order",
+        "track_title": "Track Order",
+        "status": "Status"
+    },
+    "العربية": {
+        "dir": "rtl",
+        "title": "جولدن دليفري",
+        "home": "الرئيسية",
+        "track": "تتبع",
+        "profile": "الحساب",
+        "name": "اسم الزبون",
+        "phone": "رقم الهاتف",
+        "area": "المنطقة",
+        "address": "العنوان",
+        "submit": "إرسال الطلب",
+        "track_title": "تتبع الطلب",
+        "status": "الحالة"
+    },
+    "کوردی": {
+        "dir": "rtl",
+        "title": "گۆڵدن دلیڤەری",
+        "home": "سەرەکی",
+        "track": "شوێنکەوتن",
+        "profile": "هەژمار",
+        "name": "ناوی کڕیار",
+        "phone": "ژمارە",
+        "area": "گەڕەک",
+        "address": "ناونیشان",
+        "submit": "ناردن",
+        "track_title": "شوێنکەوتنی داواکاری",
+        "status": "دۆخ"
+    }
+}
 
-# ------------------ SAVE ------------------
-def save_data(df):
-    df.to_csv(DB_FILE, index=False)
+# ---------------- STATE ----------------
+if "lang" not in st.session_state:
+    st.session_state.lang = "English"
 
-# ------------------ HEADER ------------------
-st.title("🚚 GOLDEN DELIVERY")
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
 
-# ------------------ PAGE STATE ------------------
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-# ------------------ AREAS ------------------
+L = LANG[st.session_state.lang]
+
+# ---------------- SIDEBAR ----------------
+with st.sidebar:
+    st.title("⚙️ Settings")
+
+    st.session_state.lang = st.selectbox("Language", list(LANG.keys()))
+
+    st.session_state.theme = st.radio("Theme", ["light", "dark"])
+
+    st.divider()
+    st.subheader("📄 About App")
+    st.write("Golden Delivery - Kirkuk")
+
+    st.subheader("⚖️ Policy")
+    st.write("All deliveries follow local regulations.")
+
+# ---------------- DARK MODE ----------------
+if st.session_state.theme == "dark":
+    bg = "#0e1117"
+    text = "#ffffff"
+else:
+    bg = "#ffffff"
+    text = "#000000"
+
+st.markdown(f"""
+<style>
+body {{
+    background-color:{bg};
+    color:{text};
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- DATA ----------------
+def load():
+    if os.path.exists(DB_FILE):
+        return pd.read_csv(DB_FILE, dtype={"phone": str})
+    return pd.DataFrame(columns=["id","name","phone","area","address","status"])
+
+def save(df):
+    df.to_csv(DB_FILE, index=False)
+
+# ---------------- KIRKUK AREAS ----------------
+AREAS = [
+    "Rahimawa","Iskan","Azadi","Baghdad Road","Taseen",
+    "Wasit","Kurdistan","Musalla","Arafa","Domiz",
+    "Huzairan","Panja Ali","Shoraw","Yaychi","Laylan"
+]
+
 AREA_COORDS = {
-    "Rahimawa":[35.4950,44.3910],
-    "Iskan":[35.4820,44.3980],
-    "Azadi":[35.4750,44.4050],
+    "Rahimawa":[35.49,44.39],
+    "Iskan":[35.48,44.39],
+    "Azadi":[35.47,44.40],
+    "Arafa":[35.48,44.35],
+    "Domiz":[35.42,44.38]
 }
 
-# ------------------ HOME ------------------
+# ---------------- GPS ----------------
+st.markdown("""
+<script>
+navigator.geolocation.getCurrentPosition(function(pos){
+    console.log(pos.coords.latitude, pos.coords.longitude);
+});
+</script>
+""", unsafe_allow_html=True)
+
+# ---------------- HOME ----------------
 if st.session_state.page == "home":
 
+    st.title(L["title"])
+
     with st.form("form"):
-        name = st.text_input("Name")
-        phone = st.text_input("Phone")
-        area = st.selectbox("Area", list(AREA_COORDS.keys()))
-        address = st.text_input("Address")
-        price = st.number_input("Price", value=3000)
+        name = st.text_input(L["name"])
+        phone = st.text_input(L["phone"])
+        area = st.selectbox(L["area"], AREAS)
+        address = st.text_input(L["address"])
 
-        submit = st.form_submit_button("Submit")
+        if st.form_submit_button(L["submit"]):
 
-        if submit:
-            if not name or not phone:
-                st.error("Fill all fields")
-            else:
-                df = load_data()
+            df = load()
 
-                order_id = str(uuid.uuid4())[:8]
+            order_id = str(uuid.uuid4())[:8]
 
-                new = pd.DataFrame([{
-                    "id":order_id,
-                    "date":datetime.now(),
-                    "customer":name,
-                    "shop":"",
-                    "phone":phone,
-                    "area":area,
-                    "address":address,
-                    "shop_addr":"",
-                    "price":price,
-                    "status":"Pending"
-                }])
+            new = pd.DataFrame([{
+                "id":order_id,
+                "name":name,
+                "phone":phone,
+                "area":area,
+                "address":address,
+                "status":"Pending"
+            }])
 
-                df = pd.concat([df,new])
-                save_data(df)
+            df = pd.concat([df,new])
+            save(df)
 
-                # WhatsApp message
-                msg = f"Order ID: {order_id}\nName:{name}\nPhone:{phone}\nArea:{area}\nPrice:{price}"
-                url = f"https://wa.me/9647XXXXXXXX?text={urllib.parse.quote(msg)}"
+            msg = f"Order {order_id} - {name}"
+            url = f"https://wa.me/?text={urllib.parse.quote(msg)}"
 
-                st.success(f"Order Saved ✅ ID: {order_id}")
-                st.markdown(f"[📲 Send WhatsApp]({url})")
+            st.success(f"Saved ✅ ID: {order_id}")
+            st.markdown(f"[Send WhatsApp]({url})")
 
-# ------------------ TRACK ------------------
+# ---------------- TRACK ----------------
 elif st.session_state.page == "track":
 
-    st.subheader("🔍 Track Order")
+    st.subheader(L["track_title"])
 
-    track_id = st.text_input("Enter Order ID")
+    order = st.text_input("ID")
 
-    if track_id:
-        df = load_data()
-        result = df[df["id"] == track_id]
+    if order:
+        df = load()
+        res = df[df["id"] == order]
 
-        if not result.empty:
-            st.success(result.iloc[0]["status"])
-        else:
-            st.error("Not found")
+        if not res.empty:
+            st.success(res.iloc[0]["status"])
 
-# ------------------ ADMIN ------------------
-elif st.session_state.page == "admin":
+# ---------------- PROFILE ----------------
+elif st.session_state.page == "profile":
 
-    if st.text_input("Password", type="password") == "admin123":
-        df = load_data()
+    st.subheader("Profile")
 
-        st.dataframe(df)
+    phone = st.text_input("Phone")
 
-        # Chart
-        chart = df["status"].value_counts()
-        fig = px.pie(values=chart.values, names=chart.index, title="Orders Status")
-        st.plotly_chart(fig)
+    if phone:
+        df = load()
+        user = df[df["phone"] == phone]
 
-        # Map
-        m = folium.Map(location=[35.47,44.39], zoom_start=12)
+        st.write(user)
 
-        for _, row in df.iterrows():
-            if row["area"] in AREA_COORDS:
-                folium.Marker(
-                    location=AREA_COORDS[row["area"]],
-                    popup=row["customer"]
-                ).add_to(m)
+# ---------------- MAP ----------------
+st.divider()
 
-        st_folium(m, width=700)
+m = folium.Map(location=[35.47,44.39], zoom_start=12)
 
-# ------------------ NAV ------------------
+for name, coord in AREA_COORDS.items():
+    folium.Marker(coord, popup=name).add_to(m)
+
+st_folium(m)
+
+# ---------------- MOBILE NAV ----------------
+st.markdown("<br><br><br>", unsafe_allow_html=True)
+
 col1,col2,col3 = st.columns(3)
 
 with col1:
-    if st.button("🏠 Home"):
+    if st.button("🏠"):
         st.session_state.page="home"
         st.rerun()
 
 with col2:
-    if st.button("🔍 Track"):
+    if st.button("🔍"):
         st.session_state.page="track"
         st.rerun()
 
 with col3:
-    if st.button("🛠 Admin"):
-        st.session_state.page="admin"
+    if st.button("👤"):
+        st.session_state.page="profile"
         st.rerun()
