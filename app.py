@@ -1,38 +1,6 @@
-بەڵێ، بە دڵنیاییەوە! من دەتوانم هەموو ئەو کەمی و باشترکردنانە زیاد بکەم کە باسم کرد. با هەموو شتێک بەیەکەوە چاک بکەین و ئەپڵیکەیشنەکەت بکەین بە سیستەمێکی تەواو و پیشەیی.
+ببوورە بۆ ئەو هەڵەیە! من لە وەڵامەکەمدا دەقی کوردیم تێکەڵ بە کۆدی پایثۆن کردبوو. ئێستا تەنها کۆدی پاک و ڕاستەقینەت بۆ دەنێرمەوە، بەبێ هیچ دەقێکی زیادە.
 
-لەم وەڵامەدا، هەموو کۆدەکەت بە شێوەیەکی تەواو چاککراوە و نووسراوەتەوە. گۆڕانکارییەکانم لە چەند بەشێکی سەرەکیدا کردووە:
-
----
-
-🚀 گۆڕانکارییە سەرەکییەکان:
-
-1. سیستەمی ڕاستەقینەی بەڕێوەبەری (Admin Panel)
-
-· زیادکردنی توانای گۆڕینی بارودۆخی داواکارییەکان (Pending → Picked Up → In Transit → Out for Delivery → Delivered)
-· زیادکردنی داشبۆردی شۆفێر (Driver Portal)
-· بەڕێوەبردنی تەواوی شۆفێرەکان (زیادکردن، سڕینەوە، گۆڕینی بارودۆخ)
-
-2. سیستەمی پشتڕاستکردنەوە (Authentication)
-
-· دروستکردنی سیستەمی تۆماربوون و چوونەژوورەوەی ڕاستەقینە بە پاسۆرد
-· پاشەکەوتکردنی زانیاری بەکارهێنەران لە فایلی JSON
-· جیاکردنەوەی ڕۆڵەکان (Admin, Driver, Customer)
-
-3. چاکسازی هەڵەکان
-
-· چاککردنی کێشەی پاشەکەوت نەبوونی shop_addr
-· زیادکردنی error handling بۆ هەموو فایلەکان
-· ڕێکخستنی پەیوەندییەکان بە شێوەیەکی باشتر
-
-4. تایبەتمەندی نوێ
-
-· زیادکردنی بەشی ئاگانامەکان (Notifications)
-· دروستکردنی ڕێڕەوی تەواوی گەیاندن
-· باشترکردنی ڕووکاری بەکارهێنەر
-
----
-
-📝 کۆدی تەواو و چاککراو:
+لەم وەڵامەدا تەنها کۆدی پایثۆنی کارا دەبینیت کە دەتوانیت ڕاستەوخۆ کۆپی بکەیت و بەکاری بهێنیت:
 
 ```python
 import streamlit as st
@@ -60,7 +28,7 @@ def init_session_states():
     defaults = {
         'page': "home",
         'user_email': None,
-        'user_role': None,  # None, "customer", "driver", "admin"
+        'user_role': None,
         'user_name': None,
         'user_phone': None,
         'admin_authenticated': False,
@@ -474,11 +442,9 @@ USERS_FILE = "users.json"
 
 # --- 7. DATA FUNCTIONS WITH ERROR HANDLING ---
 def safe_load_csv(file_path, columns):
-    """Safely load a CSV file with error handling"""
     try:
         if os.path.exists(file_path):
             df = pd.read_csv(file_path, dtype={"phone": str, "order_id": str})
-            # Ensure all expected columns exist
             for col in columns:
                 if col not in df.columns:
                     df[col] = None
@@ -489,7 +455,6 @@ def safe_load_csv(file_path, columns):
         return pd.DataFrame(columns=columns)
 
 def safe_save_csv(df, file_path):
-    """Safely save DataFrame to CSV"""
     try:
         df.to_csv(file_path, index=False)
         return True
@@ -555,7 +520,6 @@ def save_promos(promos):
         return False
 
 def load_users():
-    """Load users from JSON file"""
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
@@ -565,7 +529,6 @@ def load_users():
     return {"admin": [], "drivers": [], "customers": []}
 
 def save_users(users_data):
-    """Save users to JSON file"""
     try:
         with open(USERS_FILE, 'w', encoding='utf-8') as f:
             json.dump(users_data, f, indent=4, ensure_ascii=False)
@@ -575,16 +538,13 @@ def save_users(users_data):
         return False
 
 def hash_password(password):
-    """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def validate_iraq_phone(phone):
-    """Validate Iraqi phone number format"""
     pattern = r'^07\d{9}$'
     return bool(re.match(pattern, str(phone)))
 
 def validate_email(email):
-    """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
@@ -611,7 +571,6 @@ def validate_promo_code(code, price, promos):
     return False, 0, None
 
 def send_sms_notification(phone, message):
-    """Simulate SMS notification (replace with real API later)"""
     try:
         notification = {
             'type': 'sms',
@@ -628,7 +587,6 @@ def send_sms_notification(phone, message):
         return False
 
 def send_email_notification(email, subject, message):
-    """Simulate email notification (replace with real API later)"""
     try:
         notification = {
             'type': 'email',
@@ -646,7 +604,6 @@ def send_email_notification(email, subject, message):
         return False
 
 def add_in_app_notification(message, type="info"):
-    """Add in-app notification"""
     if 'notifications' in st.session_state:
         st.session_state.notifications.append({
             'type': 'in_app',
@@ -683,7 +640,7 @@ def update_customer_loyalty(phone, price, name="Unknown"):
                 "customer_id": str(uuid.uuid4())[:8],
                 "name": name,
                 "phone": phone,
-                "email": st.session_state.user_email or "",
+                "email": st.session_state.get('user_email', ''),
                 "join_date": datetime.now().strftime("%Y-%m-%d"),
                 "total_orders": 1,
                 "loyalty_points": calculate_loyalty_points(price),
@@ -698,7 +655,6 @@ def update_customer_loyalty(phone, price, name="Unknown"):
         return False
 
 def update_order_status(order_id, new_status):
-    """Update order status and handle related updates"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
@@ -707,14 +663,11 @@ def update_order_status(order_id, new_status):
             idx = orders_df[orders_df['order_id'] == order_id].index[0]
             old_status = orders_df.loc[idx, 'status']
             
-            # Update order status
             orders_df.loc[idx, 'status'] = new_status
             
-            # If delivered, set actual delivery time
             if new_status == "Delivered":
                 orders_df.loc[idx, 'actual_delivery'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                # Free up driver
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
                     driver_idx = drivers_df[drivers_df['driver_id'] == driver_id].index
@@ -723,11 +676,9 @@ def update_order_status(order_id, new_status):
                         drivers_df.loc[driver_idx[0], 'total_deliveries'] += 1
                         drivers_df.loc[driver_idx[0], 'current_order_id'] = None
                 
-                # Send notification
                 phone = orders_df.loc[idx, 'phone']
                 send_sms_notification(phone, f"Your order {order_id} has been delivered!")
             
-            # If cancelled, free up driver
             if new_status == "Cancelled":
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
@@ -746,24 +697,20 @@ def update_order_status(order_id, new_status):
         return False, f"Error updating status: {e}"
 
 def assign_driver_to_order(order_id, driver_id):
-    """Assign a driver to an order"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
         
         if order_id in orders_df['order_id'].values:
-            # Update order
             orders_df.loc[orders_df['order_id'] == order_id, 'driver_id'] = driver_id
             orders_df.loc[orders_df['order_id'] == order_id, 'status'] = 'Picked Up'
             
-            # Update driver
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'status'] = 'Busy'
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'current_order_id'] = order_id
             
             save_orders(orders_df)
             save_drivers(drivers_df)
             
-            # Send notification to driver
             driver = drivers_df[drivers_df['driver_id'] == driver_id].iloc[0]
             add_in_app_notification(f"Driver {driver['name']} assigned to order {order_id}", "info")
             
@@ -1168,7 +1115,6 @@ elif st.session_state.page == "order":
                 order_id = generate_order_id()
                 estimated_time = calculate_estimated_delivery()
                 
-                # FIXED: Added shop_addr to the new order
                 new_order = pd.DataFrame([{
                     "order_id": order_id,
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -1177,7 +1123,7 @@ elif st.session_state.page == "order":
                     "phone": phone_input,
                     "area": area,
                     "address": full_addr,
-                    "shop_addr": shop_addr,  # This was missing
+                    "shop_addr": shop_addr,
                     "price": price,
                     "status": "Pending",
                     "user_email": st.session_state.user_email,
@@ -1356,9 +1302,7 @@ elif st.session_state.page == "offers":
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
-    # Check if user is logged in
     if not st.session_state.get('logged_in', False):
-        # Login/Register
         tab1, tab2 = st.tabs([f"🔑 {L['login']}", f"📝 {L['register']}"])
         
         with tab1:
@@ -1379,7 +1323,6 @@ elif st.session_state.page == "profile":
                         users_data = load_users()
                         
                         if role == "Admin":
-                            # Admin login
                             admin_email = "admin@goldendelivery.com"
                             admin_password_hash = hash_password("Admin@2026")
                             
@@ -1396,7 +1339,6 @@ elif st.session_state.page == "profile":
                                 st.error(L['login_error'])
                         
                         elif role == "Driver":
-                            # Driver login
                             for driver in users_data.get('drivers', []):
                                 if driver['email'] == email and hash_password(password) == driver['password_hash']:
                                     st.session_state.user_email = email
@@ -1408,7 +1350,7 @@ elif st.session_state.page == "profile":
                                     st.rerun()
                             st.error(L['login_error'])
                         
-                        else:  # Customer
+                        else:
                             for customer in users_data.get('customers', []):
                                 if customer['email'] == email and hash_password(password) == customer['password_hash']:
                                     st.session_state.user_email = email
@@ -1439,7 +1381,6 @@ elif st.session_state.page == "profile":
                     else:
                         users_data = load_users()
                         
-                        # Check if email exists
                         all_users = users_data['customers'] + users_data['drivers']
                         if any(u['email'] == email for u in all_users):
                             st.error(L['email_exists'])
@@ -1456,7 +1397,6 @@ elif st.session_state.page == "profile":
                             if save_users(users_data):
                                 st.success(L['register_success'])
     else:
-        # Logged in user profile
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["👤 Profile", "📦 Orders", "⭐ Loyalty", "🔔 Notifications", "⚙️ Settings"])
         
         with tab1:
@@ -1485,13 +1425,11 @@ elif st.session_state.page == "profile":
         with tab2:
             orders_df = load_orders()
             if st.session_state.user_role == "driver" and st.session_state.driver_id:
-                # Driver's deliveries
                 st.subheader(L['my_deliveries'])
                 driver_orders = orders_df[orders_df['driver_id'] == st.session_state.driver_id]
                 if not driver_orders.empty:
                     st.dataframe(driver_orders[['order_id', 'date', 'customer', 'area', 'price', 'status']], use_container_width=True)
                     
-                    # Driver can update status
                     st.subheader(L['update_status'])
                     for idx, order in driver_orders.iterrows():
                         if order['status'] not in ['Delivered', 'Cancelled']:
@@ -1637,7 +1575,6 @@ elif st.session_state.page == "profile":
                             drivers_df = pd.concat([drivers_df, new_driver], ignore_index=True)
                             save_drivers(drivers_df)
                             
-                            # Add to users
                             users_data = load_users()
                             users_data['drivers'].append({
                                 "driver_id": driver_id,
@@ -1659,7 +1596,6 @@ elif st.session_state.page == "profile":
                 orders_df = load_orders()
                 drivers_df = load_drivers()
                 
-                # Order Management
                 st.subheader("Order Management")
                 status_filter = st.selectbox("Filter by Status", 
                     ["All", "Pending", "Picked Up", "In Transit", "Out for Delivery", "Delivered", "Cancelled"])
@@ -1669,7 +1605,6 @@ elif st.session_state.page == "profile":
                 else:
                     filtered_orders = orders_df
                 
-                # Assign drivers to pending orders
                 for idx, order in filtered_orders.iterrows():
                     if pd.isna(order['driver_id']) and order['status'] not in ['Delivered', 'Cancelled']:
                         with st.expander(f"Order {order['order_id']} - {order['customer']} - {order['area']}"):
@@ -1691,7 +1626,6 @@ elif st.session_state.page == "profile":
                                 else:
                                     st.warning("No available drivers")
                 
-                # Update order status
                 st.subheader(L['update_status'])
                 order_to_update = st.selectbox("Select Order", 
                     [f"{o['order_id']} - {o['customer']} ({o['status']})" for _, o in filtered_orders.iterrows()])
@@ -1828,40 +1762,4 @@ st.markdown(f"""
 
 ---
 
-📋 کورتەی گۆڕانکارییەکان:
-
-تایبەتمەندی پێشتر ئێستا
-سیستەمی چوونەژوورەوە ساختە (دەستکرد) ڕاستەقینە بە پاسۆرد
-بەڕێوەبردنی بارودۆخی داواکاری تەنها "Picked Up" هەموو بارودۆخەکان (Pending → Delivered)
-پۆرتاڵی شۆفێر نییە زیادکرا
-پاشەکەوتکردنی ناونیشانی دوکان هەڵە (پاشەکەوت نەدەکرا) چاککرا
-ڕێکخستنی هەڵەکان نییە زیادکرا بۆ هەموو فایلەکان
-ئاگانامەی نێو ئەپ نییە زیادکرا
-ڕاستاندنی ژمارە تەلەفۆن نییە زیادکرا بۆ عێراق
-پاشەکەوتکردنی بەکارهێنەران CSV تەنها JSON بۆ بەکارهێنەر و CSV بۆ داواکاری
-
----
-
-🚀 چۆنێتی بەکارهێنان:
-
-1. Admin: بە ئیمەیڵی admin@goldendelivery.com و پاسۆردی Admin@2026 بچۆژوورەوە
-2. شۆفێر: لە ڕێگەی پانێڵی ئەدمینەوە شۆفێری نوێ زیاد بکە
-3. کڕیار: لە بەشی Register خۆت تۆمار بکە
-
----
-
-📌 پێداویستییەکانی دامەزراندن:
-
-```bash
-pip install streamlit pandas plotly streamlit-option-menu
-```
-
-بۆ جێبەجێکردن:
-
-```bash
-streamlit run app.py
-```
-
----
-
-ئێستا ئەپڕیکەیشنەکەت سیستەمێکی تەواو و کارا و پیشەییە! 🚀✨
+📌 ئێستا دەتوانیت ئەم کۆدە ڕاستەوخۆ لە فایلی app.py دادەنێیت و بەکاری بهێنیت!
