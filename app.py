@@ -10,7 +10,6 @@ from streamlit_option_menu import option_menu
 import hashlib
 import re
 
-# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Golden Delivery Pro", 
     layout="wide", 
@@ -18,12 +17,11 @@ st.set_page_config(
     page_icon="🚚"
 )
 
-# --- 2. INITIALIZE SESSION STATES ---
 def init_session_states():
     defaults = {
         'page': "home",
         'user_email': None,
-        'user_role': None,  # None, "customer", "driver", "admin"
+        'user_role': None,
         'user_name': None,
         'user_phone': None,
         'admin_authenticated': False,
@@ -44,13 +42,11 @@ def init_session_states():
 
 init_session_states()
 
-# --- 3. COMPANY INFO ---
 COMPANY_PHONES = ["07801352003", "07721959922"]
 COMPANY_EMAIL = "Danyalexpert@gmail.com"
 COMPANY_ADDRESS = "Kirkuk, Iraq"
 COMPANY_WHATSAPP = "https://wa.me/9647801352003"
 
-# --- 4. MULTI-LANGUAGE & UI STRINGS ---
 languages = {
     "English 🇬🇧": {
         "dir": "ltr", 
@@ -75,21 +71,19 @@ languages = {
         "nav_track": "Track",
         "nav_offers": "Offers",
         "nav_support": "Support",
-        "free_info": "🎁 Special: 1 out of every 3 deliveries is FREE!",
-        "free_success": "🎊 Loyalty Reward: This delivery is 0 IQD!",
-        "google_btn": "Sign in with Google", 
+        "free_info": "Special: 1 out of every 3 deliveries is FREE!",
+        "free_success": "Loyalty Reward: This delivery is 0 IQD!",
         "logout": "Logout",
         "settings": "Settings & Language",
         "admin_pass_label": "Enter Admin Password to view links",
-        "admin_error": "❌ Incorrect Password",
-        "mgmt_links": "🔗 Management Links (Internal Only)",
-        "terms_title": "📜 Terms and Rules",
-        "terms_content": "...",
-        "fast_title": "⚡ Fast",
+        "admin_error": "Incorrect Password",
+        "mgmt_links": "Management Links (Internal Only)",
+        "terms_title": "Terms and Rules",
+        "fast_title": "Fast",
         "fast_desc": "Delivery within 24 hours",
-        "secure_title": "🔒 Secure",
+        "secure_title": "Secure",
         "secure_desc": "Your packages are safe with us",
-        "free_title": "🎁 Free Delivery",
+        "free_title": "Free Delivery",
         "free_desc": "1 in 3 deliveries free",
         "delivery_time": "Delivery within 24 hours",
         "packages_safe": "Your packages are safe with us",
@@ -112,12 +106,12 @@ languages = {
         "estimated_delivery": "Estimated Delivery",
         "track_order": "Track Your Order",
         "enter_order_id": "Enter Order ID",
-        "status_pending": "⏳ Pending",
-        "status_picked": "📦 Picked Up",
-        "status_transit": "🚚 In Transit",
-        "status_delivery": "🚪 Out for Delivery",
-        "status_delivered": "✅ Delivered",
-        "status_cancelled": "❌ Cancelled",
+        "status_pending": "Pending",
+        "status_picked": "Picked Up",
+        "status_transit": "In Transit",
+        "status_delivery": "Out for Delivery",
+        "status_delivered": "Delivered",
+        "status_cancelled": "Cancelled",
         "payment_method": "Payment Method",
         "cash_on_delivery": "Cash on Delivery",
         "bank_transfer": "Bank Transfer",
@@ -165,7 +159,12 @@ languages = {
         "password_mismatch": "Passwords do not match",
         "email_exists": "Email already registered",
         "driver_portal": "Driver Portal",
-        "admin_portal": "Admin Portal"
+        "admin_portal": "Admin Portal",
+        "my_orders": "My Orders",
+        "no_orders": "No orders yet",
+        "no_deliveries": "No deliveries assigned yet",
+        "all_orders": "All Orders",
+        "phone_required": "Phone number is required to view your orders"
     },
     "کوردی 🇭🇺": {
         "dir": "rtl", 
@@ -192,14 +191,12 @@ languages = {
         "nav_support": "پاڵپشتی",
         "free_info": "🎁 دیاری: یەکێک لە هەر ٣ گەیاندنێک بە خۆڕاییە!",
         "free_success": "🎊 پیرۆزە! ئەم گەیاندنەت بە ٠ دینارە!",
-        "google_btn": "چوونەژوورەوە بە Google", 
         "logout": "چوونەدەرەوە",
         "settings": "ڕێکخستن و زمان",
         "admin_pass_label": "تکایە وشەی نهێنی بنووسە بۆ بینینی لینکەکان",
         "admin_error": "❌ وشەی نهێنی هەڵەیە",
         "mgmt_links": "🔗 لینکەکانی بەڕێوەبردن (تەنها بۆ ئەدمین)",
         "terms_title": "📜 مەرج و ڕێساکان",
-        "terms_content": "...",
         "fast_title": "⚡ خێرا",
         "fast_desc": "گەیاندن لە ماوەی ٢٤ کاتژمێردا",
         "secure_title": "🔒 پارێزراو",
@@ -280,7 +277,12 @@ languages = {
         "password_mismatch": "وشەی نهێنییەکان یەک ناگرنەوە",
         "email_exists": "ئیمەیڵەکە پێشتر تۆمارکراوە",
         "driver_portal": "پۆرتاڵی شۆفێر",
-        "admin_portal": "پۆرتاڵی بەڕێوەبەر"
+        "admin_portal": "پۆرتاڵی بەڕێوەبەر",
+        "my_orders": "داواکارییەکانی من",
+        "no_orders": "هێشتا هیچ داواکارییەکت نییە",
+        "no_deliveries": "هێشتا هیچ گەیاندنێکت پێ نەسپێردراوە",
+        "all_orders": "هەموو داواکارییەکان",
+        "phone_required": "ژمارەی تەلەفۆن پێویستە بۆ بینینی داواکارییەکانت"
     },
     "العربية 🇮🇶": {
         "dir": "rtl", 
@@ -307,14 +309,12 @@ languages = {
         "nav_support": "الدعم",
         "free_info": "🎁 عرض: واحدة من كل ٣ توصيلات مجانية!",
         "free_success": "🎊 مبروك! هذه الطلبية بـ ٠ دينار!",
-        "google_btn": "الدخول بواسطة Google", 
         "logout": "خروج",
         "settings": "الإعدادات واللغة",
         "admin_pass_label": "أدخل كلمة مرور المسؤول لعرض الروابط",
         "admin_error": "❌ كلمة المرور غير صحيحة",
         "mgmt_links": "🔗 روابط الإدارة (للمسؤولين فقط)",
         "terms_title": "📜 الشروط والقواعد",
-        "terms_content": "...",
         "fast_title": "⚡ سريع",
         "fast_desc": "التوصيل خلال ٢٤ ساعة",
         "secure_title": "🔒 آمن",
@@ -395,11 +395,15 @@ languages = {
         "password_mismatch": "كلمات المرور غير متطابقة",
         "email_exists": "البريد الإلكتروني مسجل مسبقاً",
         "driver_portal": "بوابة السائق",
-        "admin_portal": "بوابة المسؤول"
+        "admin_portal": "بوابة المسؤول",
+        "my_orders": "طلباتي",
+        "no_orders": "لا توجد طلبات بعد",
+        "no_deliveries": "لا توجد توصيلات معينة بعد",
+        "all_orders": "جميع الطلبات",
+        "phone_required": "رقم الهاتف مطلوب لعرض طلباتك"
     }
 }
 
-# --- 5. NEIGHBORHOODS ---
 KIRKUK_AREAS = sorted([
     "Arfa / عرفة", "Tis'in / تسعين", "Shoraw / شوراو", "Rahim Awa / رحيماوة",
     "Quraya / قورية", "Al-Wasiti / الواسطي", "Al-Nasr / النصر", "Azadi / ازادي",
@@ -427,7 +431,6 @@ KIRKUK_AREAS = sorted([
     "Taza / طازة", "Yarmuk / يرموك", "Zab / زاب"
 ])
 
-# --- 6. DATA FILES ---
 ORDERS_FILE = "orders.csv"
 DRIVERS_FILE = "drivers.csv"
 CUSTOMERS_FILE = "customers.csv"
@@ -435,13 +438,10 @@ FEEDBACK_FILE = "feedback.csv"
 PROMO_CODES_FILE = "promos.json"
 USERS_FILE = "users.json"
 
-# --- 7. DATA FUNCTIONS WITH ERROR HANDLING ---
 def safe_load_csv(file_path, columns):
-    """Safely load a CSV file with error handling"""
     try:
         if os.path.exists(file_path):
             df = pd.read_csv(file_path, dtype={"phone": str, "order_id": str})
-            # Ensure all expected columns exist
             for col in columns:
                 if col not in df.columns:
                     df[col] = None
@@ -452,7 +452,6 @@ def safe_load_csv(file_path, columns):
         return pd.DataFrame(columns=columns)
 
 def safe_save_csv(df, file_path):
-    """Safely save DataFrame to CSV"""
     try:
         df.to_csv(file_path, index=False)
         return True
@@ -518,7 +517,6 @@ def save_promos(promos):
         return False
 
 def load_users():
-    """Load users from JSON file"""
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
@@ -528,7 +526,6 @@ def load_users():
     return {"admin": [], "drivers": [], "customers": []}
 
 def save_users(users_data):
-    """Save users to JSON file"""
     try:
         with open(USERS_FILE, 'w', encoding='utf-8') as f:
             json.dump(users_data, f, indent=4, ensure_ascii=False)
@@ -538,20 +535,16 @@ def save_users(users_data):
         return False
 
 def hash_password(password):
-    """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def validate_iraq_phone(phone):
-    """Validate Iraqi phone number format"""
     pattern = r'^07\d{9}$'
     return bool(re.match(pattern, str(phone)))
 
 def validate_email(email):
-    """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
-# --- 8. HELPER FUNCTIONS ---
 def generate_order_id():
     return f"GD-{datetime.now().strftime('%Y%m')}-{str(uuid.uuid4())[:8].upper()}"
 
@@ -574,7 +567,6 @@ def validate_promo_code(code, price, promos):
     return False, 0, None
 
 def send_sms_notification(phone, message):
-    """Simulate SMS notification (replace with real API later)"""
     try:
         notification = {
             'type': 'sms',
@@ -591,7 +583,6 @@ def send_sms_notification(phone, message):
         return False
 
 def send_email_notification(email, subject, message):
-    """Simulate email notification (replace with real API later)"""
     try:
         notification = {
             'type': 'email',
@@ -609,7 +600,6 @@ def send_email_notification(email, subject, message):
         return False
 
 def add_in_app_notification(message, type="info"):
-    """Add in-app notification"""
     if 'notifications' in st.session_state:
         st.session_state.notifications.append({
             'type': 'in_app',
@@ -646,7 +636,7 @@ def update_customer_loyalty(phone, price, name="Unknown"):
                 "customer_id": str(uuid.uuid4())[:8],
                 "name": name,
                 "phone": phone,
-                "email": st.session_state.user_email or "",
+                "email": st.session_state.get('user_email', ''),
                 "join_date": datetime.now().strftime("%Y-%m-%d"),
                 "total_orders": 1,
                 "loyalty_points": calculate_loyalty_points(price),
@@ -661,7 +651,6 @@ def update_customer_loyalty(phone, price, name="Unknown"):
         return False
 
 def update_order_status(order_id, new_status):
-    """Update order status and handle related updates"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
@@ -670,14 +659,11 @@ def update_order_status(order_id, new_status):
             idx = orders_df[orders_df['order_id'] == order_id].index[0]
             old_status = orders_df.loc[idx, 'status']
             
-            # Update order status
             orders_df.loc[idx, 'status'] = new_status
             
-            # If delivered, set actual delivery time
             if new_status == "Delivered":
                 orders_df.loc[idx, 'actual_delivery'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                # Free up driver
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
                     driver_idx = drivers_df[drivers_df['driver_id'] == driver_id].index
@@ -686,11 +672,9 @@ def update_order_status(order_id, new_status):
                         drivers_df.loc[driver_idx[0], 'total_deliveries'] += 1
                         drivers_df.loc[driver_idx[0], 'current_order_id'] = None
                 
-                # Send notification
                 phone = orders_df.loc[idx, 'phone']
                 send_sms_notification(phone, f"Your order {order_id} has been delivered!")
             
-            # If cancelled, free up driver
             if new_status == "Cancelled":
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
@@ -709,24 +693,20 @@ def update_order_status(order_id, new_status):
         return False, f"Error updating status: {e}"
 
 def assign_driver_to_order(order_id, driver_id):
-    """Assign a driver to an order"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
         
         if order_id in orders_df['order_id'].values:
-            # Update order
             orders_df.loc[orders_df['order_id'] == order_id, 'driver_id'] = driver_id
             orders_df.loc[orders_df['order_id'] == order_id, 'status'] = 'Picked Up'
             
-            # Update driver
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'status'] = 'Busy'
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'current_order_id'] = order_id
             
             save_orders(orders_df)
             save_drivers(drivers_df)
             
-            # Send notification to driver
             driver = drivers_df[drivers_df['driver_id'] == driver_id].iloc[0]
             add_in_app_notification(f"Driver {driver['name']} assigned to order {order_id}", "info")
             
@@ -735,7 +715,14 @@ def assign_driver_to_order(order_id, driver_id):
         st.error(f"Error assigning driver: {e}")
     return False
 
-# --- 9. TOP BAR ---
+def get_user_orders(phone=None, email=None):
+    orders_df = load_orders()
+    if phone:
+        return orders_df[orders_df['phone'] == phone]
+    elif email:
+        return orders_df[orders_df['user_email'] == email]
+    return pd.DataFrame()
+
 L = languages[st.session_state.lang_choice]
 
 top_col1, top_col2, top_col3 = st.columns([2, 1, 1])
@@ -770,14 +757,13 @@ with top_col3:
 
 L = languages[st.session_state.lang_choice]
 
-# --- 10. CSS STYLING ---
 is_dark = st.session_state.theme_choice == "Dark 🌙"
 
 if is_dark:
     main_bg = "#0a0c10"
-    card_bg = "#1e2329"
+    card_bg = "#1a1d23"
     text_color = "#ffffff"
-    text_secondary = "#e0e0e0"
+    text_secondary = "#cccccc"
     accent = "#D4AF37"
     input_bg = "#2d333d"
     border_color = "#3a404c"
@@ -798,38 +784,52 @@ st.markdown(f"""
 <style>
     [data-testid="stSidebar"] {{ display: none; }}
     
-    html, body, [data-testid="stAppViewContainer"], 
-    .main, .block-container, .stApp {{
+    .stApp {{
         background-color: {main_bg} !important;
+    }}
+    
+    .main {{
         color: {text_color} !important;
     }}
     
-    h1, h2, h3, h4, h5, h6, p, span, div, label, .stMarkdown {{
+    h1, h2, h3, h4, h5, h6, p, span, div, label {{
         color: {text_color} !important;
     }}
     
-    .secondary-text, .stCaption, .stMarkdown small {{
-        color: {text_secondary} !important;
+    .stMarkdown {{
+        color: {text_color} !important;
     }}
     
-    input, textarea, .stTextInput input, .stTextArea textarea {{
+    .stTextInput > div > div > input {{
         background-color: {input_bg} !important;
         color: {text_color} !important;
         border: 1px solid {border_color} !important;
+        caret-color: {text_color} !important;
     }}
     
-    .stSelectbox div[data-baseweb="select"] {{
+    .stTextArea > div > div > textarea {{
         background-color: {input_bg} !important;
+        color: {text_color} !important;
+        border: 1px solid {border_color} !important;
+        caret-color: {text_color} !important;
+    }}
+    
+    .stSelectbox > div > div {{
+        background-color: {input_bg} !important;
+        color: {text_color} !important;
         border-color: {border_color} !important;
     }}
     
-    .stSelectbox div[data-baseweb="select"] span {{
+    .stSelectbox > div > div > div {{
         color: {text_color} !important;
+    }}
+    
+    div[data-baseweb="popover"] {{
+        background-color: {dropdown_bg} !important;
     }}
     
     div[data-baseweb="menu"] {{
         background-color: {dropdown_bg} !important;
-        border: 1px solid {border_color} !important;
     }}
     
     div[data-baseweb="menu"] li {{
@@ -838,23 +838,23 @@ st.markdown(f"""
     }}
     
     div[data-baseweb="menu"] li:hover {{
-        background-color: {accent}30 !important;
+        background-color: {accent}40 !important;
     }}
     
-    .stForm {{
-        background-color: {card_bg} !important;
-        border: 1px solid {accent}40 !important;
-        border-radius: 20px !important;
-        padding: 30px !important;
+    .stNumberInput > div > div > input {{
+        background-color: {input_bg} !important;
+        color: {text_color} !important;
+        border: 1px solid {border_color} !important;
     }}
     
     .glass-card {{
         background-color: {card_bg} !important;
         border-radius: 20px !important;
         padding: 25px !important;
-        border: 1px solid {accent}30 !important;
+        border: 1px solid {accent}40 !important;
         margin-bottom: 20px !important;
         color: {text_color} !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
     }}
     
     .brand-header {{
@@ -869,25 +869,25 @@ st.markdown(f"""
         color: white !important;
     }}
     
-    .stButton button {{
+    .stButton > button {{
         background-color: {accent} !important;
-        color: {'black' if not is_dark else 'white'} !important;
+        color: black !important;
         border: none !important;
         font-weight: bold !important;
         border-radius: 10px !important;
         padding: 10px 20px !important;
         transition: all 0.3s !important;
+        width: 100% !important;
     }}
     
-    .stButton button:hover {{
-        background-color: {accent}dd !important;
+    .stButton > button:hover {{
+        background-color: #c19b2e !important;
         transform: translateY(-2px) !important;
     }}
     
-    .stAlert {{
+    .stAlert > div {{
         background-color: {card_bg} !important;
         color: {text_color} !important;
-        border-left-color: {accent} !important;
     }}
     
     .stSuccess {{
@@ -895,24 +895,44 @@ st.markdown(f"""
         color: #00C851 !important;
     }}
     
-    .streamlit-expanderHeader {{
+    .stExpander {{
         background-color: {card_bg} !important;
         color: {text_color} !important;
     }}
     
-    .dataframe, .stDataFrame, .stDataFrame div {{
+    .streamlit-expanderHeader {{
+        background-color: {card_bg} !important;
+        color: {text_color} !important;
+        border-radius: 10px !important;
+    }}
+    
+    .streamlit-expanderContent {{
+        background-color: {card_bg} !important;
         color: {text_color} !important;
     }}
     
-    .dataframe td, .dataframe th {{
+    .stDataFrame {{
+        color: {text_color} !important;
+    }}
+    
+    .stDataFrame td {{
         background-color: {card_bg} !important;
         color: {text_color} !important;
         border-color: {border_color} !important;
     }}
     
+    .stDataFrame th {{
+        background-color: {accent} !important;
+        color: black !important;
+    }}
+    
     [data-testid="stMetricValue"] {{
         color: {accent} !important;
         font-size: 2rem !important;
+    }}
+    
+    [data-testid="stMetricLabel"] {{
+        color: {text_color} !important;
     }}
     
     .card-title {{
@@ -926,6 +946,7 @@ st.markdown(f"""
         border-radius: 10px;
         text-align: center;
         margin-top: 30px;
+        color: {text_color} !important;
     }}
     
     .phone-number {{
@@ -934,22 +955,43 @@ st.markdown(f"""
         margin: 0 10px;
     }}
     
-    [dir="{L['dir']}"] {{
-        text-align: {L['align']} !important;
+    .stTabs [data-baseweb="tab-list"] {{
+        background-color: {card_bg} !important;
+        border-radius: 10px !important;
+        padding: 5px !important;
     }}
     
-    .notification-badge {{
-        background-color: red;
-        color: white;
-        border-radius: 50%;
-        padding: 2px 8px;
-        font-size: 0.8em;
-        margin-left: 5px;
+    .stTabs [data-baseweb="tab"] {{
+        color: {text_color} !important;
+    }}
+    
+    .stTabs [aria-selected="true"] {{
+        background-color: {accent} !important;
+        color: black !important;
+        border-radius: 8px !important;
+    }}
+    
+    .stRadio > div {{
+        color: {text_color} !important;
+    }}
+    
+    .stCheckbox > label {{
+        color: {text_color} !important;
+    }}
+    
+    .stForm {{
+        background-color: {card_bg} !important;
+        border: 1px solid {accent}40 !important;
+        border-radius: 20px !important;
+        padding: 30px !important;
+    }}
+    
+    [dir="{L['dir']}"] {{
+        text-align: {L['align']} !important;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 11. NAVIGATION ---
 selected = option_menu(
     menu_title=None,
     options=[
@@ -1009,9 +1051,6 @@ page_mapping = {
 }
 st.session_state.page = page_mapping.get(selected, "home")
 
-# --- 12. PAGE ROUTING ---
-
-# HOME PAGE
 if st.session_state.page == "home":
     st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0;">{L["title"]}</h1><p style="color:white; opacity:0.9;">{L["desc"]}</p></div>', unsafe_allow_html=True)
     
@@ -1061,7 +1100,6 @@ if st.session_state.page == "home":
         recent_orders = orders_df.tail(5)[['order_id', 'customer', 'area', 'price', 'status']]
         st.dataframe(recent_orders, use_container_width=True)
 
-# ORDER PAGE
 elif st.session_state.page == "order":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_order']}</h2>", unsafe_allow_html=True)
     
@@ -1131,7 +1169,6 @@ elif st.session_state.page == "order":
                 order_id = generate_order_id()
                 estimated_time = calculate_estimated_delivery()
                 
-                # FIXED: Added shop_addr to the new order
                 new_order = pd.DataFrame([{
                     "order_id": order_id,
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -1140,10 +1177,10 @@ elif st.session_state.page == "order":
                     "phone": phone_input,
                     "area": area,
                     "address": full_addr,
-                    "shop_addr": shop_addr,  # This was missing
+                    "shop_addr": shop_addr,
                     "price": price,
                     "status": "Pending",
-                    "user_email": st.session_state.user_email,
+                    "user_email": st.session_state.get('user_email', ''),
                     "driver_id": None,
                     "payment_method": payment_method,
                     "delivery_notes": delivery_notes,
@@ -1157,10 +1194,14 @@ elif st.session_state.page == "order":
                 orders_df = pd.concat([orders_df, new_order], ignore_index=True)
                 if save_orders(orders_df):
                     update_customer_loyalty(phone_input, price, customer_name)
-                    send_sms_notification(phone_input, f"Golden Delivery: Order {order_id} confirmed! Estimated delivery: {estimated_time}")
-                    if st.session_state.user_email:
+                    
+                    if st.session_state.get('user_phone') != phone_input:
+                        st.session_state.user_phone = phone_input
+                    
+                    send_sms_notification(phone_input, f"Golden Delivery: Order {order_id} confirmed!")
+                    if st.session_state.get('user_email'):
                         send_email_notification(st.session_state.user_email, f"Order Confirmation {order_id}", 
-                                              f"Your order has been confirmed. Estimated delivery: {estimated_time}")
+                                              f"Your order has been confirmed.")
                     
                     add_in_app_notification(f"New order created: {order_id}", "success")
                     
@@ -1170,7 +1211,6 @@ elif st.session_state.page == "order":
         else:
             st.error("Please fill all required fields")
 
-# TRACK PAGE
 elif st.session_state.page == "track":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['track_order']}</h2>", unsafe_allow_html=True)
     
@@ -1210,44 +1250,6 @@ elif st.session_state.page == "track":
                         <p><b>{L['estimated_delivery']}:</b> {order['estimated_delivery']}</p>
                     </div>
                     """, unsafe_allow_html=True)
-                
-                st.markdown(f"<h4 style='color:{accent};'>Delivery Timeline</h4>", unsafe_allow_html=True)
-                timeline_data = {
-                    "Order Placed": order['date'],
-                    "Picked Up": order['date'] if order['status'] not in ["Pending"] else "Pending",
-                    "In Transit": order['date'] if order['status'] in ["In Transit", "Out for Delivery", "Delivered"] else "Pending",
-                    "Out for Delivery": order['date'] if order['status'] in ["Out for Delivery", "Delivered"] else "Pending",
-                    "Delivered": order['actual_delivery'] if order['status'] == "Delivered" else "Pending"
-                }
-                
-                for event, time in timeline_data.items():
-                    if time != "Pending" and pd.notna(time):
-                        st.success(f"✅ {event}: {time}")
-                    else:
-                        st.info(f"⏳ {event}: Pending")
-                
-                if status == "Delivered" and pd.isna(order['rating']):
-                    st.markdown(f"<h4 style='color:{accent};'>{L['rate_delivery']}</h4>", unsafe_allow_html=True)
-                    rating = st.slider("Rating", 1, 5, 5)
-                    review = st.text_area(L['leave_review'])
-                    if st.button(L['submit_feedback']):
-                        orders_df.loc[orders_df['order_id'] == order_id, 'rating'] = rating
-                        orders_df.loc[orders_df['order_id'] == order_id, 'review'] = review
-                        save_orders(orders_df)
-                        
-                        feedback_df = load_feedback()
-                        new_feedback = pd.DataFrame([{
-                            "feedback_id": str(uuid.uuid4())[:8],
-                            "order_id": order_id,
-                            "customer_name": order['customer'],
-                            "rating": rating,
-                            "review": review,
-                            "date": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        }])
-                        feedback_df = pd.concat([feedback_df, new_feedback], ignore_index=True)
-                        save_feedback(feedback_df)
-                        
-                        st.success("Thank you for your feedback!")
             else:
                 st.warning("Order not found")
     
@@ -1267,11 +1269,9 @@ elif st.session_state.page == "track":
                         with col2:
                             st.write(f"**{L['order_status']}:** {get_order_status_emoji(order['status'])} {order['status']}")
                             st.write(f"**{L['price']}:** {int(order['price']):,} IQD")
-                            st.write(f"**{L['estimated_delivery']}:** {order['estimated_delivery']}")
             else:
                 st.info("No orders found for this phone number")
 
-# OFFERS PAGE
 elif st.session_state.page == "offers":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_offers']}</h2>", unsafe_allow_html=True)
     
@@ -1315,73 +1315,61 @@ elif st.session_state.page == "offers":
             </div>
             """, unsafe_allow_html=True)
 
-# PROFILE PAGE
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
-    # Check if user is logged in
     if not st.session_state.get('logged_in', False):
-        # Login/Register
         tab1, tab2 = st.tabs([f"🔑 {L['login']}", f"📝 {L['register']}"])
         
         with tab1:
-            st.markdown(f"""
-            <div class="glass-card" style="text-align:center;">
-                <p>{L['access_account']}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
             with st.form("login_form"):
                 email = st.text_input("Email")
                 password = st.text_input(L['password'], type="password")
                 role = st.selectbox("Login as", ["Customer", "Driver", "Admin"])
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.form_submit_button(L['login']):
-                        users_data = load_users()
+                if st.form_submit_button(L['login']):
+                    users_data = load_users()
+                    
+                    if role == "Admin":
+                        admin_email = "admin@goldendelivery.com"
+                        admin_password_hash = hash_password("Admin@2026")
                         
-                        if role == "Admin":
-                            # Admin login
-                            admin_email = "admin@goldendelivery.com"
-                            admin_password_hash = hash_password("Admin@2026")
-                            
-                            if email == admin_email and hash_password(password) == admin_password_hash:
+                        if email == admin_email and hash_password(password) == admin_password_hash:
+                            st.session_state.user_email = email
+                            st.session_state.user_role = "admin"
+                            st.session_state.user_name = "Administrator"
+                            st.session_state.logged_in = True
+                            st.session_state.admin_authenticated = True
+                            add_in_app_notification("Admin logged in", "info")
+                            st.success(L['login_success'])
+                            st.rerun()
+                        else:
+                            st.error(L['login_error'])
+                    
+                    elif role == "Driver":
+                        for driver in users_data.get('drivers', []):
+                            if driver['email'] == email and hash_password(password) == driver['password_hash']:
                                 st.session_state.user_email = email
-                                st.session_state.user_role = "admin"
-                                st.session_state.user_name = "Administrator"
+                                st.session_state.user_role = "driver"
+                                st.session_state.user_name = driver['name']
+                                st.session_state.driver_id = driver['driver_id']
+                                st.session_state.user_phone = driver.get('phone', '')
                                 st.session_state.logged_in = True
-                                st.session_state.admin_authenticated = True
-                                add_in_app_notification("Admin logged in", "info")
                                 st.success(L['login_success'])
                                 st.rerun()
-                            else:
-                                st.error(L['login_error'])
-                        
-                        elif role == "Driver":
-                            # Driver login
-                            for driver in users_data.get('drivers', []):
-                                if driver['email'] == email and hash_password(password) == driver['password_hash']:
-                                    st.session_state.user_email = email
-                                    st.session_state.user_role = "driver"
-                                    st.session_state.user_name = driver['name']
-                                    st.session_state.driver_id = driver['driver_id']
-                                    st.session_state.logged_in = True
-                                    st.success(L['login_success'])
-                                    st.rerun()
-                            st.error(L['login_error'])
-                        
-                        else:  # Customer
-                            for customer in users_data.get('customers', []):
-                                if customer['email'] == email and hash_password(password) == customer['password_hash']:
-                                    st.session_state.user_email = email
-                                    st.session_state.user_role = "customer"
-                                    st.session_state.user_name = customer['name']
-                                    st.session_state.user_phone = customer['phone']
-                                    st.session_state.logged_in = True
-                                    st.success(L['login_success'])
-                                    st.rerun()
-                            st.error(L['login_error'])
+                        st.error(L['login_error'])
+                    
+                    else:
+                        for customer in users_data.get('customers', []):
+                            if customer['email'] == email and hash_password(password) == customer['password_hash']:
+                                st.session_state.user_email = email
+                                st.session_state.user_role = "customer"
+                                st.session_state.user_name = customer['name']
+                                st.session_state.user_phone = customer['phone']
+                                st.session_state.logged_in = True
+                                st.success(L['login_success'])
+                                st.rerun()
+                        st.error(L['login_error'])
         
         with tab2:
             with st.form("register_form"):
@@ -1402,7 +1390,6 @@ elif st.session_state.page == "profile":
                     else:
                         users_data = load_users()
                         
-                        # Check if email exists
                         all_users = users_data['customers'] + users_data['drivers']
                         if any(u['email'] == email for u in all_users):
                             st.error(L['email_exists'])
@@ -1419,7 +1406,6 @@ elif st.session_state.page == "profile":
                             if save_users(users_data):
                                 st.success(L['register_success'])
     else:
-        # Logged in user profile
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["👤 Profile", "📦 Orders", "⭐ Loyalty", "🔔 Notifications", "⚙️ Settings"])
         
         with tab1:
@@ -1428,6 +1414,7 @@ elif st.session_state.page == "profile":
                 <h4 style="color:{accent};">{L['signed_in_as']}</h4>
                 <p><b>Name:</b> {st.session_state.user_name}</p>
                 <p><b>Email:</b> {st.session_state.user_email}</p>
+                <p><b>Phone:</b> {st.session_state.get('user_phone', 'Not set')}</p>
                 <p><b>Role:</b> {st.session_state.user_role}</p>
             </div>
             """, unsafe_allow_html=True)
@@ -1447,42 +1434,41 @@ elif st.session_state.page == "profile":
         
         with tab2:
             orders_df = load_orders()
+            
             if st.session_state.user_role == "driver" and st.session_state.driver_id:
-                # Driver's deliveries
                 st.subheader(L['my_deliveries'])
                 driver_orders = orders_df[orders_df['driver_id'] == st.session_state.driver_id]
                 if not driver_orders.empty:
                     st.dataframe(driver_orders[['order_id', 'date', 'customer', 'area', 'price', 'status']], use_container_width=True)
-                    
-                    # Driver can update status
-                    st.subheader(L['update_status'])
-                    for idx, order in driver_orders.iterrows():
-                        if order['status'] not in ['Delivered', 'Cancelled']:
-                            with st.expander(f"Order {order['order_id']} - {order['status']}"):
-                                st.write(f"**Customer:** {order['customer']}")
-                                st.write(f"**Area:** {order['area']}")
-                                st.write(f"**Current Status:** {order['status']}")
-                                
-                                status_options = ["Pending", "Picked Up", "In Transit", "Out for Delivery", "Delivered"]
-                                current_idx = status_options.index(order['status']) if order['status'] in status_options else 0
-                                new_status = st.selectbox(L['new_status'], status_options[current_idx+1:], key=f"driver_status_{order['order_id']}")
-                                
-                                if st.button(f"{L['change_status']} - {order['order_id']}", key=f"update_{order['order_id']}"):
-                                    success, message = update_order_status(order['order_id'], new_status)
-                                    if success:
-                                        st.success(message)
-                                        st.rerun()
-                                    else:
-                                        st.error(message)
                 else:
-                    st.info("No deliveries assigned yet")
+                    st.info(L['no_deliveries'])
             
-            elif st.session_state.user_phone:
-                user_orders = orders_df[orders_df['phone'] == st.session_state.user_phone]
-                if not user_orders.empty:
-                    st.dataframe(user_orders[['order_id', 'date', 'area', 'price', 'status']], use_container_width=True)
+            elif st.session_state.user_role == "customer":
+                st.subheader(L['my_orders'])
+                
+                if st.session_state.user_phone:
+                    user_orders = get_user_orders(phone=st.session_state.user_phone)
+                    
+                    if st.session_state.get('user_email'):
+                        email_orders = get_user_orders(email=st.session_state.user_email)
+                        user_orders = pd.concat([user_orders, email_orders]).drop_duplicates(subset=['order_id'])
+                    
+                    if not user_orders.empty:
+                        st.dataframe(user_orders[['order_id', 'date', 'area', 'price', 'status']], use_container_width=True)
+                    else:
+                        st.info(L['no_orders'])
+                elif st.session_state.get('user_email'):
+                    user_orders = get_user_orders(email=st.session_state.user_email)
+                    if not user_orders.empty:
+                        st.dataframe(user_orders[['order_id', 'date', 'area', 'price', 'status']], use_container_width=True)
+                    else:
+                        st.info(L['no_orders'])
                 else:
-                    st.info("No orders yet")
+                    st.warning(L['phone_required'])
+            
+            elif st.session_state.user_role == "admin":
+                st.subheader(L['all_orders'])
+                st.dataframe(orders_df, use_container_width=True)
         
         with tab3:
             st.markdown(f"<h3 style='color:{accent};'>{L['loyalty_points']}</h3>", unsafe_allow_html=True)
@@ -1526,22 +1512,11 @@ elif st.session_state.page == "profile":
                 st.info("No notifications")
         
         with tab5:
-            st.markdown(f"""
-            <div class="glass-card">
-                <h4 style="color:{accent};">Settings</h4>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.checkbox("📱 SMS Notifications", value=True)
-            st.checkbox("📧 Email Notifications", value=True)
-            st.checkbox("💬 WhatsApp Updates", value=True)
-            
             if st.button(L["logout"]):
                 for key in ['user_email', 'user_role', 'user_name', 'user_phone', 'logged_in', 'admin_authenticated', 'driver_id']:
                     st.session_state[key] = None
                 st.rerun()
         
-        # ADMIN PORTAL
         if st.session_state.user_role == "admin" and st.session_state.logged_in:
             st.divider()
             st.subheader(f"🔐 {L['admin_portal']}")
@@ -1600,7 +1575,6 @@ elif st.session_state.page == "profile":
                             drivers_df = pd.concat([drivers_df, new_driver], ignore_index=True)
                             save_drivers(drivers_df)
                             
-                            # Add to users
                             users_data = load_users()
                             users_data['drivers'].append({
                                 "driver_id": driver_id,
@@ -1622,7 +1596,6 @@ elif st.session_state.page == "profile":
                 orders_df = load_orders()
                 drivers_df = load_drivers()
                 
-                # Order Management
                 st.subheader("Order Management")
                 status_filter = st.selectbox("Filter by Status", 
                     ["All", "Pending", "Picked Up", "In Transit", "Out for Delivery", "Delivered", "Cancelled"])
@@ -1632,73 +1605,27 @@ elif st.session_state.page == "profile":
                 else:
                     filtered_orders = orders_df
                 
-                # Assign drivers to pending orders
-                for idx, order in filtered_orders.iterrows():
-                    if pd.isna(order['driver_id']) and order['status'] not in ['Delivered', 'Cancelled']:
-                        with st.expander(f"Order {order['order_id']} - {order['customer']} - {order['area']}"):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.write(f"**Area:** {order['area']}")
-                                st.write(f"**Price:** {int(order['price']):,} IQD")
-                            with col2:
-                                available_drivers = drivers_df[drivers_df['status'] == 'Available']
-                                if not available_drivers.empty:
-                                    driver_choice = st.selectbox("Assign Driver", 
-                                                                available_drivers['name'].tolist(),
-                                                                key=f"admin_driver_{order['order_id']}")
-                                    if st.button("Assign", key=f"admin_assign_{order['order_id']}"):
-                                        driver = available_drivers[available_drivers['name'] == driver_choice].iloc[0]
-                                        if assign_driver_to_order(order['order_id'], driver['driver_id']):
-                                            st.success(f"Driver {driver_choice} assigned!")
-                                            st.rerun()
-                                else:
-                                    st.warning("No available drivers")
-                
-                # Update order status
-                st.subheader(L['update_status'])
-                order_to_update = st.selectbox("Select Order", 
-                    [f"{o['order_id']} - {o['customer']} ({o['status']})" for _, o in filtered_orders.iterrows()])
-                
-                if order_to_update:
-                    order_id = order_to_update.split(" - ")[0]
-                    order = orders_df[orders_df['order_id'] == order_id].iloc[0]
-                    
-                    st.write(f"**Current Status:** {order['status']}")
-                    status_options = ["Pending", "Picked Up", "In Transit", "Out for Delivery", "Delivered", "Cancelled"]
-                    new_status = st.selectbox(L['new_status'], status_options, key="admin_update_status")
-                    
-                    if st.button(L['change_status']):
-                        success, message = update_order_status(order_id, new_status)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                
                 st.subheader("All Orders")
                 st.dataframe(filtered_orders, use_container_width=True)
             
             with admin_tab4:
                 orders_df = load_orders()
                 
-                area_stats = orders_df.groupby('area').agg({
-                    'order_id': 'count',
-                    'price': 'sum'
-                }).reset_index()
-                area_stats.columns = ['Area', 'Orders', 'Revenue']
-                
-                fig = px.bar(area_stats, x='Area', y='Orders', title='Orders by Area')
-                st.plotly_chart(fig, use_container_width=True)
-                
-                orders_df['date'] = pd.to_datetime(orders_df['date'])
-                daily_revenue = orders_df.groupby(orders_df['date'].dt.date)['price'].sum().reset_index()
-                
-                fig2 = px.line(daily_revenue, x='date', y='price', title='Daily Revenue')
-                st.plotly_chart(fig2, use_container_width=True)
-                
-                status_counts = orders_df['status'].value_counts()
-                fig3 = px.pie(values=status_counts.values, names=status_counts.index, title='Order Status Distribution')
-                st.plotly_chart(fig3, use_container_width=True)
+                if len(orders_df) > 0:
+                    area_stats = orders_df.groupby('area').agg({
+                        'order_id': 'count',
+                        'price': 'sum'
+                    }).reset_index()
+                    area_stats.columns = ['Area', 'Orders', 'Revenue']
+                    
+                    fig = px.bar(area_stats, x='Area', y='Orders', title='Orders by Area')
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    orders_df['date'] = pd.to_datetime(orders_df['date'])
+                    daily_revenue = orders_df.groupby(orders_df['date'].dt.date)['price'].sum().reset_index()
+                    
+                    fig2 = px.line(daily_revenue, x='date', y='price', title='Daily Revenue')
+                    st.plotly_chart(fig2, use_container_width=True)
             
             with admin_tab5:
                 users_data = load_users()
@@ -1717,7 +1644,6 @@ elif st.session_state.page == "profile":
                 else:
                     st.info("No drivers registered")
 
-# TERMS PAGE
 elif st.session_state.page == "terms":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['terms_title']}</h2>", unsafe_allow_html=True)
     st.markdown(f"""
@@ -1733,7 +1659,6 @@ elif st.session_state.page == "terms":
     </div>
     """, unsafe_allow_html=True)
 
-# SUPPORT PAGE
 elif st.session_state.page == "support":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_support']}</h2>", unsafe_allow_html=True)
     
@@ -1778,7 +1703,6 @@ elif st.session_state.page == "support":
         if st.form_submit_button("Send Message"):
             st.success("Thank you for contacting us! We'll respond within 24 hours.")
 
-# --- 13. FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div class="footer-contact">
