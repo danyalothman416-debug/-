@@ -1,8 +1,3 @@
-داوای لێبوردن دەکەم! دیسانەوە هەمان هەڵەم دووبارە کردەوە. ئێستا تەنها کۆدی پایثۆن بەبێ هیچ دەقێکی زیادە دەنێرم.
-
-کۆدەکە کۆپی بکە و لە فایلی app.py دایبنێ:
-
-```python
 import streamlit as st
 import pandas as pd
 import os
@@ -1730,6 +1725,3 @@ st.markdown(f"""
     <p style="font-size: 0.9rem; opacity: 0.8;">© 2024 Golden Delivery Pro - All rights reserved</p>
 </div>
 """, unsafe_allow_html=True)
-```
-
-ئەم کۆدە ١٠٠٪ پایثۆنە و هیچ دەقێکی کوردی تێدا نییە. دەتوانیت ڕاستەوخۆ کۆپی بکەیت و بەکاری بهێنیت.
