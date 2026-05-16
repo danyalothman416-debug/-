@@ -10,6 +10,7 @@ from streamlit_option_menu import option_menu
 import hashlib
 import re
 
+# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Golden Delivery Pro", 
     layout="wide", 
@@ -17,11 +18,12 @@ st.set_page_config(
     page_icon="🚚"
 )
 
+# --- 2. INITIALIZE SESSION STATES ---
 def init_session_states():
     defaults = {
         'page': "home",
         'user_email': None,
-        'user_role': None,
+        'user_role': None,  # None, "customer", "driver", "admin"
         'user_name': None,
         'user_phone': None,
         'admin_authenticated': False,
@@ -42,11 +44,13 @@ def init_session_states():
 
 init_session_states()
 
+# --- 3. COMPANY INFO ---
 COMPANY_PHONES = ["07801352003", "07721959922"]
 COMPANY_EMAIL = "Danyalexpert@gmail.com"
 COMPANY_ADDRESS = "Kirkuk, Iraq"
 COMPANY_WHATSAPP = "https://wa.me/9647801352003"
 
+# --- 4. MULTI-LANGUAGE & UI STRINGS ---
 languages = {
     "English 🇬🇧": {
         "dir": "ltr", 
@@ -73,12 +77,14 @@ languages = {
         "nav_support": "Support",
         "free_info": "🎁 Special: 1 out of every 3 deliveries is FREE!",
         "free_success": "🎊 Loyalty Reward: This delivery is 0 IQD!",
+        "google_btn": "Sign in with Google", 
         "logout": "Logout",
         "settings": "Settings & Language",
         "admin_pass_label": "Enter Admin Password to view links",
         "admin_error": "❌ Incorrect Password",
         "mgmt_links": "🔗 Management Links (Internal Only)",
         "terms_title": "📜 Terms and Rules",
+        "terms_content": "...",
         "fast_title": "⚡ Fast",
         "fast_desc": "Delivery within 24 hours",
         "secure_title": "🔒 Secure",
@@ -186,12 +192,14 @@ languages = {
         "nav_support": "پاڵپشتی",
         "free_info": "🎁 دیاری: یەکێک لە هەر ٣ گەیاندنێک بە خۆڕاییە!",
         "free_success": "🎊 پیرۆزە! ئەم گەیاندنەت بە ٠ دینارە!",
+        "google_btn": "چوونەژوورەوە بە Google", 
         "logout": "چوونەدەرەوە",
         "settings": "ڕێکخستن و زمان",
         "admin_pass_label": "تکایە وشەی نهێنی بنووسە بۆ بینینی لینکەکان",
         "admin_error": "❌ وشەی نهێنی هەڵەیە",
         "mgmt_links": "🔗 لینکەکانی بەڕێوەبردن (تەنها بۆ ئەدمین)",
         "terms_title": "📜 مەرج و ڕێساکان",
+        "terms_content": "...",
         "fast_title": "⚡ خێرا",
         "fast_desc": "گەیاندن لە ماوەی ٢٤ کاتژمێردا",
         "secure_title": "🔒 پارێزراو",
@@ -299,12 +307,14 @@ languages = {
         "nav_support": "الدعم",
         "free_info": "🎁 عرض: واحدة من كل ٣ توصيلات مجانية!",
         "free_success": "🎊 مبروك! هذه الطلبية بـ ٠ دينار!",
+        "google_btn": "الدخول بواسطة Google", 
         "logout": "خروج",
         "settings": "الإعدادات واللغة",
         "admin_pass_label": "أدخل كلمة مرور المسؤول لعرض الروابط",
         "admin_error": "❌ كلمة المرور غير صحيحة",
         "mgmt_links": "🔗 روابط الإدارة (للمسؤولين فقط)",
         "terms_title": "📜 الشروط والقواعد",
+        "terms_content": "...",
         "fast_title": "⚡ سريع",
         "fast_desc": "التوصيل خلال ٢٤ ساعة",
         "secure_title": "🔒 آمن",
@@ -389,6 +399,7 @@ languages = {
     }
 }
 
+# --- 5. NEIGHBORHOODS ---
 KIRKUK_AREAS = sorted([
     "Arfa / عرفة", "Tis'in / تسعين", "Shoraw / شوراو", "Rahim Awa / رحيماوة",
     "Quraya / قورية", "Al-Wasiti / الواسطي", "Al-Nasr / النصر", "Azadi / ازادي",
@@ -416,6 +427,7 @@ KIRKUK_AREAS = sorted([
     "Taza / طازة", "Yarmuk / يرموك", "Zab / زاب"
 ])
 
+# --- 6. DATA FILES ---
 ORDERS_FILE = "orders.csv"
 DRIVERS_FILE = "drivers.csv"
 CUSTOMERS_FILE = "customers.csv"
@@ -423,10 +435,13 @@ FEEDBACK_FILE = "feedback.csv"
 PROMO_CODES_FILE = "promos.json"
 USERS_FILE = "users.json"
 
+# --- 7. DATA FUNCTIONS WITH ERROR HANDLING ---
 def safe_load_csv(file_path, columns):
+    """Safely load a CSV file with error handling"""
     try:
         if os.path.exists(file_path):
             df = pd.read_csv(file_path, dtype={"phone": str, "order_id": str})
+            # Ensure all expected columns exist
             for col in columns:
                 if col not in df.columns:
                     df[col] = None
@@ -437,6 +452,7 @@ def safe_load_csv(file_path, columns):
         return pd.DataFrame(columns=columns)
 
 def safe_save_csv(df, file_path):
+    """Safely save DataFrame to CSV"""
     try:
         df.to_csv(file_path, index=False)
         return True
@@ -502,6 +518,7 @@ def save_promos(promos):
         return False
 
 def load_users():
+    """Load users from JSON file"""
     try:
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
@@ -511,6 +528,7 @@ def load_users():
     return {"admin": [], "drivers": [], "customers": []}
 
 def save_users(users_data):
+    """Save users to JSON file"""
     try:
         with open(USERS_FILE, 'w', encoding='utf-8') as f:
             json.dump(users_data, f, indent=4, ensure_ascii=False)
@@ -520,16 +538,20 @@ def save_users(users_data):
         return False
 
 def hash_password(password):
+    """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def validate_iraq_phone(phone):
+    """Validate Iraqi phone number format"""
     pattern = r'^07\d{9}$'
     return bool(re.match(pattern, str(phone)))
 
 def validate_email(email):
+    """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
+# --- 8. HELPER FUNCTIONS ---
 def generate_order_id():
     return f"GD-{datetime.now().strftime('%Y%m')}-{str(uuid.uuid4())[:8].upper()}"
 
@@ -552,6 +574,7 @@ def validate_promo_code(code, price, promos):
     return False, 0, None
 
 def send_sms_notification(phone, message):
+    """Simulate SMS notification (replace with real API later)"""
     try:
         notification = {
             'type': 'sms',
@@ -568,6 +591,7 @@ def send_sms_notification(phone, message):
         return False
 
 def send_email_notification(email, subject, message):
+    """Simulate email notification (replace with real API later)"""
     try:
         notification = {
             'type': 'email',
@@ -585,6 +609,7 @@ def send_email_notification(email, subject, message):
         return False
 
 def add_in_app_notification(message, type="info"):
+    """Add in-app notification"""
     if 'notifications' in st.session_state:
         st.session_state.notifications.append({
             'type': 'in_app',
@@ -621,7 +646,7 @@ def update_customer_loyalty(phone, price, name="Unknown"):
                 "customer_id": str(uuid.uuid4())[:8],
                 "name": name,
                 "phone": phone,
-                "email": st.session_state.get('user_email', ''),
+                "email": st.session_state.user_email or "",
                 "join_date": datetime.now().strftime("%Y-%m-%d"),
                 "total_orders": 1,
                 "loyalty_points": calculate_loyalty_points(price),
@@ -636,6 +661,7 @@ def update_customer_loyalty(phone, price, name="Unknown"):
         return False
 
 def update_order_status(order_id, new_status):
+    """Update order status and handle related updates"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
@@ -644,11 +670,14 @@ def update_order_status(order_id, new_status):
             idx = orders_df[orders_df['order_id'] == order_id].index[0]
             old_status = orders_df.loc[idx, 'status']
             
+            # Update order status
             orders_df.loc[idx, 'status'] = new_status
             
+            # If delivered, set actual delivery time
             if new_status == "Delivered":
                 orders_df.loc[idx, 'actual_delivery'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
+                # Free up driver
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
                     driver_idx = drivers_df[drivers_df['driver_id'] == driver_id].index
@@ -657,9 +686,11 @@ def update_order_status(order_id, new_status):
                         drivers_df.loc[driver_idx[0], 'total_deliveries'] += 1
                         drivers_df.loc[driver_idx[0], 'current_order_id'] = None
                 
+                # Send notification
                 phone = orders_df.loc[idx, 'phone']
                 send_sms_notification(phone, f"Your order {order_id} has been delivered!")
             
+            # If cancelled, free up driver
             if new_status == "Cancelled":
                 driver_id = orders_df.loc[idx, 'driver_id']
                 if pd.notna(driver_id):
@@ -678,20 +709,24 @@ def update_order_status(order_id, new_status):
         return False, f"Error updating status: {e}"
 
 def assign_driver_to_order(order_id, driver_id):
+    """Assign a driver to an order"""
     try:
         orders_df = load_orders()
         drivers_df = load_drivers()
         
         if order_id in orders_df['order_id'].values:
+            # Update order
             orders_df.loc[orders_df['order_id'] == order_id, 'driver_id'] = driver_id
             orders_df.loc[orders_df['order_id'] == order_id, 'status'] = 'Picked Up'
             
+            # Update driver
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'status'] = 'Busy'
             drivers_df.loc[drivers_df['driver_id'] == driver_id, 'current_order_id'] = order_id
             
             save_orders(orders_df)
             save_drivers(drivers_df)
             
+            # Send notification to driver
             driver = drivers_df[drivers_df['driver_id'] == driver_id].iloc[0]
             add_in_app_notification(f"Driver {driver['name']} assigned to order {order_id}", "info")
             
@@ -700,6 +735,7 @@ def assign_driver_to_order(order_id, driver_id):
         st.error(f"Error assigning driver: {e}")
     return False
 
+# --- 9. TOP BAR ---
 L = languages[st.session_state.lang_choice]
 
 top_col1, top_col2, top_col3 = st.columns([2, 1, 1])
@@ -734,6 +770,7 @@ with top_col3:
 
 L = languages[st.session_state.lang_choice]
 
+# --- 10. CSS STYLING ---
 is_dark = st.session_state.theme_choice == "Dark 🌙"
 
 if is_dark:
@@ -912,6 +949,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# --- 11. NAVIGATION ---
 selected = option_menu(
     menu_title=None,
     options=[
@@ -971,6 +1009,9 @@ page_mapping = {
 }
 st.session_state.page = page_mapping.get(selected, "home")
 
+# --- 12. PAGE ROUTING ---
+
+# HOME PAGE
 if st.session_state.page == "home":
     st.markdown(f'<div class="brand-header"><h1 style="color:white; margin:0;">{L["title"]}</h1><p style="color:white; opacity:0.9;">{L["desc"]}</p></div>', unsafe_allow_html=True)
     
@@ -1020,6 +1061,7 @@ if st.session_state.page == "home":
         recent_orders = orders_df.tail(5)[['order_id', 'customer', 'area', 'price', 'status']]
         st.dataframe(recent_orders, use_container_width=True)
 
+# ORDER PAGE
 elif st.session_state.page == "order":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_order']}</h2>", unsafe_allow_html=True)
     
@@ -1089,6 +1131,7 @@ elif st.session_state.page == "order":
                 order_id = generate_order_id()
                 estimated_time = calculate_estimated_delivery()
                 
+                # FIXED: Added shop_addr to the new order
                 new_order = pd.DataFrame([{
                     "order_id": order_id,
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -1097,7 +1140,7 @@ elif st.session_state.page == "order":
                     "phone": phone_input,
                     "area": area,
                     "address": full_addr,
-                    "shop_addr": shop_addr,
+                    "shop_addr": shop_addr,  # This was missing
                     "price": price,
                     "status": "Pending",
                     "user_email": st.session_state.user_email,
@@ -1127,6 +1170,7 @@ elif st.session_state.page == "order":
         else:
             st.error("Please fill all required fields")
 
+# TRACK PAGE
 elif st.session_state.page == "track":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['track_order']}</h2>", unsafe_allow_html=True)
     
@@ -1227,6 +1271,7 @@ elif st.session_state.page == "track":
             else:
                 st.info("No orders found for this phone number")
 
+# OFFERS PAGE
 elif st.session_state.page == "offers":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_offers']}</h2>", unsafe_allow_html=True)
     
@@ -1270,10 +1315,13 @@ elif st.session_state.page == "offers":
             </div>
             """, unsafe_allow_html=True)
 
+# PROFILE PAGE
 elif st.session_state.page == "profile":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_profile']}</h2>", unsafe_allow_html=True)
     
+    # Check if user is logged in
     if not st.session_state.get('logged_in', False):
+        # Login/Register
         tab1, tab2 = st.tabs([f"🔑 {L['login']}", f"📝 {L['register']}"])
         
         with tab1:
@@ -1294,6 +1342,7 @@ elif st.session_state.page == "profile":
                         users_data = load_users()
                         
                         if role == "Admin":
+                            # Admin login
                             admin_email = "admin@goldendelivery.com"
                             admin_password_hash = hash_password("Admin@2026")
                             
@@ -1310,6 +1359,7 @@ elif st.session_state.page == "profile":
                                 st.error(L['login_error'])
                         
                         elif role == "Driver":
+                            # Driver login
                             for driver in users_data.get('drivers', []):
                                 if driver['email'] == email and hash_password(password) == driver['password_hash']:
                                     st.session_state.user_email = email
@@ -1321,7 +1371,7 @@ elif st.session_state.page == "profile":
                                     st.rerun()
                             st.error(L['login_error'])
                         
-                        else:
+                        else:  # Customer
                             for customer in users_data.get('customers', []):
                                 if customer['email'] == email and hash_password(password) == customer['password_hash']:
                                     st.session_state.user_email = email
@@ -1352,6 +1402,7 @@ elif st.session_state.page == "profile":
                     else:
                         users_data = load_users()
                         
+                        # Check if email exists
                         all_users = users_data['customers'] + users_data['drivers']
                         if any(u['email'] == email for u in all_users):
                             st.error(L['email_exists'])
@@ -1368,6 +1419,7 @@ elif st.session_state.page == "profile":
                             if save_users(users_data):
                                 st.success(L['register_success'])
     else:
+        # Logged in user profile
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["👤 Profile", "📦 Orders", "⭐ Loyalty", "🔔 Notifications", "⚙️ Settings"])
         
         with tab1:
@@ -1396,11 +1448,13 @@ elif st.session_state.page == "profile":
         with tab2:
             orders_df = load_orders()
             if st.session_state.user_role == "driver" and st.session_state.driver_id:
+                # Driver's deliveries
                 st.subheader(L['my_deliveries'])
                 driver_orders = orders_df[orders_df['driver_id'] == st.session_state.driver_id]
                 if not driver_orders.empty:
                     st.dataframe(driver_orders[['order_id', 'date', 'customer', 'area', 'price', 'status']], use_container_width=True)
                     
+                    # Driver can update status
                     st.subheader(L['update_status'])
                     for idx, order in driver_orders.iterrows():
                         if order['status'] not in ['Delivered', 'Cancelled']:
@@ -1487,6 +1541,7 @@ elif st.session_state.page == "profile":
                     st.session_state[key] = None
                 st.rerun()
         
+        # ADMIN PORTAL
         if st.session_state.user_role == "admin" and st.session_state.logged_in:
             st.divider()
             st.subheader(f"🔐 {L['admin_portal']}")
@@ -1545,6 +1600,7 @@ elif st.session_state.page == "profile":
                             drivers_df = pd.concat([drivers_df, new_driver], ignore_index=True)
                             save_drivers(drivers_df)
                             
+                            # Add to users
                             users_data = load_users()
                             users_data['drivers'].append({
                                 "driver_id": driver_id,
@@ -1566,6 +1622,7 @@ elif st.session_state.page == "profile":
                 orders_df = load_orders()
                 drivers_df = load_drivers()
                 
+                # Order Management
                 st.subheader("Order Management")
                 status_filter = st.selectbox("Filter by Status", 
                     ["All", "Pending", "Picked Up", "In Transit", "Out for Delivery", "Delivered", "Cancelled"])
@@ -1575,6 +1632,7 @@ elif st.session_state.page == "profile":
                 else:
                     filtered_orders = orders_df
                 
+                # Assign drivers to pending orders
                 for idx, order in filtered_orders.iterrows():
                     if pd.isna(order['driver_id']) and order['status'] not in ['Delivered', 'Cancelled']:
                         with st.expander(f"Order {order['order_id']} - {order['customer']} - {order['area']}"):
@@ -1596,6 +1654,7 @@ elif st.session_state.page == "profile":
                                 else:
                                     st.warning("No available drivers")
                 
+                # Update order status
                 st.subheader(L['update_status'])
                 order_to_update = st.selectbox("Select Order", 
                     [f"{o['order_id']} - {o['customer']} ({o['status']})" for _, o in filtered_orders.iterrows()])
@@ -1658,6 +1717,7 @@ elif st.session_state.page == "profile":
                 else:
                     st.info("No drivers registered")
 
+# TERMS PAGE
 elif st.session_state.page == "terms":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['terms_title']}</h2>", unsafe_allow_html=True)
     st.markdown(f"""
@@ -1673,6 +1733,7 @@ elif st.session_state.page == "terms":
     </div>
     """, unsafe_allow_html=True)
 
+# SUPPORT PAGE
 elif st.session_state.page == "support":
     st.markdown(f"<h2 style='text-align:center; color:{accent};'>{L['nav_support']}</h2>", unsafe_allow_html=True)
     
@@ -1717,6 +1778,7 @@ elif st.session_state.page == "support":
         if st.form_submit_button("Send Message"):
             st.success("Thank you for contacting us! We'll respond within 24 hours.")
 
+# --- 13. FOOTER ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div class="footer-contact">
