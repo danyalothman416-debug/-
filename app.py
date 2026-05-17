@@ -61,5 +61,6 @@ def main():
         st.markdown("---")
         admin_panel()
 
+# --- 17. MAIN ENTRY POINT ---
 if name == "main":
     main()
