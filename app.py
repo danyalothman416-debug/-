@@ -10,7 +10,7 @@ LANG_DATA = {
         "dir": "rtl", "font": "Noto Sans Arabic",
         "welcome": "سڵاو دانیال 👋", "sub_welcome": "بەخێرهاتی بۆ Danyal Health",
         "search": "🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", "search_placeholder": "لێرە بنووسە...",
-        "btn_analyze": "📊 شیکاری نیشانەکان", "categories": "بەشەکان",
+        "categories": "بەشەکان",
         "cat1": "🦠 نەخۆشییە باوەکان", "cat2": "💊 دەرمان دۆزەرەوە", "cat3": "👨‍⚕️ ڕاوێژی دکتۆر", "cat4": "📋 مێژووی شیکاری",
         "chat_title": "🤖 پزیشکی زیرەک (Gemini AI)", "chat_ask": "چی هەست دەکەیت؟ نیشانەکانت لێرە بنووسە...",
         "voice_btn": "🎤 تۆمارکردنی دەنگ (Voice Input)", "cam_title": "📷 پشکنین بە کامێرا (Skin/Eye Scan)",
@@ -21,7 +21,7 @@ LANG_DATA = {
         "dir": "ltr", "font": "Poppins",
         "welcome": "Hello Danyal 👋", "sub_welcome": "Welcome to Danyal Health",
         "search": "🔍 Search for diseases, doctors, medicines...", "search_placeholder": "Type here...",
-        "btn_analyze": "📊 Analyze Symptoms", "categories": "Categories",
+        "categories": "Categories",
         "cat1": "🦠 Common Diseases", "cat2": "💊 Pill Finder", "cat3": "👨‍⚕️ Doctor Consult", "cat4": "📋 Medical History",
         "chat_title": "🤖 AI Doctor (Gemini)", "chat_ask": "What do you feel? Describe your symptoms...",
         "voice_btn": "🎤 Voice Input (Record)", "cam_title": "📷 Camera Scan (Skin/Eye)",
@@ -32,7 +32,7 @@ LANG_DATA = {
         "dir": "rtl", "font": "Noto Sans Arabic",
         "welcome": "مرحباً دانيال 👋", "sub_welcome": "مرحباً بك في Danyal Health",
         "search": "🔍 ابحث عن الأمراض، الأطباء، الأدوية...", "search_placeholder": "اكتب هنا...",
-        "btn_analyze": "📊 تحليل الأعراض", "categories": "الأقسام",
+        "categories": "الأقسام",
         "cat1": "🦠 الأمراض الشائعة", "cat2": "💊 دليل الأدوية", "cat3": "👨‍⚕️ استشارة طبيب", "cat4": "📋 سجل التحاليل",
         "chat_title": "🤖 طبيب الذكاء الاصطناعي (Gemini)", "chat_ask": "بماذا تشعر؟ اكتب أعراضك هنا...",
         "voice_btn": "🎤 إدخال صوتي", "cam_title": "📷 الفحص بالكاميرا (الجلد/العين)",
@@ -118,14 +118,6 @@ if st.session_state.current_page == '🏠 Home':
     st.markdown(f"<p style='color: {sub_text}; margin-top: 4px;'>{L['sub_welcome']}</p>", unsafe_allow_html=True)
     
     st.text_input(L["search"], placeholder=L["search_placeholder"], key="home_search")
-    
-    # نۆتیفیکەیشنی دەرمان
-    st.info("⏰ ئاگادارکردنەوە: کاتی خواردنی حەپی ڤیتامین C هاتووە (کاژێر ٠٨:٠٠ی شەو).")
-    
-    st.write("")
-    if st.button(L["btn_analyze"], key="go_to_analyze"):
-        st.session_state.current_page = '🩺 Analyze'
-        st.rerun()
     st.write("")
     
     st.markdown(f"<h3 style='margin-bottom: 15px;'>{L['categories']}</h3>", unsafe_allow_html=True)
