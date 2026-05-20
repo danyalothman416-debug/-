@@ -37,7 +37,6 @@ TRANSLATIONS = {
         "description": "Description",
         "symptoms": "Symptoms",
         "category": "Category",
-        "related_tests": "Related Tests",
         "test_category": "Test Category",
         "search_tests": "Search Tests",
         "unit": "Unit",
@@ -83,6 +82,10 @@ TRANSLATIONS = {
         "gender_female": "Female",
         "gender_other": "Other",
         "created": "Created",
+        "no_diseases_found": "No diseases found",
+        "no_notes_yet": "No notes written yet",
+        "write_topic_content": "Please write topic and content",
+        "write_patient_name": "Please write patient name",
     },
     "کوردی 🇮🇶": {
         "app_title": "🔬 سیستەمی شیکردنەوەی تاقیگەی پزیشکی",
@@ -113,7 +116,6 @@ TRANSLATIONS = {
         "description": "ڕوونکردنەوە",
         "symptoms": "نیشانەکان",
         "category": "بەش",
-        "related_tests": "پشکنینە پەیوەندیدارەکان",
         "test_category": "بەشی پشکنین",
         "search_tests": "گەڕان بەدوای پشکنینەکان",
         "unit": "یەکە",
@@ -159,6 +161,10 @@ TRANSLATIONS = {
         "gender_female": "مێ",
         "gender_other": "هی تر",
         "created": "دروستکراوە",
+        "no_diseases_found": "هیچ نەخۆشییەک نەدۆزرایەوە",
+        "no_notes_yet": "هێشتا هیچ تێبینییەکت نەنووسیوە",
+        "write_topic_content": "تکایە بابەت و ناوەڕۆک بنووسە",
+        "write_patient_name": "تکایە ناوی نەخۆش بنووسە",
     }
 }
 
@@ -450,7 +456,7 @@ class LabDatabase:
                  expected_results_en, expected_results_ku,
                  interpretation_en, interpretation_ku,
                  duration_minutes, difficulty_level)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, prac)
         
         self.conn.commit()
@@ -463,17 +469,17 @@ def get_db():
 # ==================== Helper Functions ====================
 def get_translation(key: str) -> str:
     """Get translation for current language"""
-    lang = st.session_state.get('language', 'English 🇬🇧')
-    return TRANSLATIONS.get(lang, TRANSLATIONS['English 🇬🇧']).get(key, key)
+    lang = st.session_state.get('language', 'کوردی 🇮🇶')
+    return TRANSLATIONS.get(lang, TRANSLATIONS['کوردی 🇮🇶']).get(key, key)
 
-def get_name(row: Dict, prefix: str = "name") -> str:
+def get_name(row: dict, prefix: str = "name") -> str:
     """Get localized name from database row"""
     lang_map = {"English 🇬🇧": "en", "کوردی 🇮🇶": "ku"}
-    lang = lang_map.get(st.session_state.get('language', 'English 🇬🇧'), 'en')
+    lang = lang_map.get(st.session_state.get('language', 'کوردی 🇮🇶'), 'ku')
     field = f"{prefix}_{lang}"
     return row.get(field, row.get(f"{prefix}_en", ""))
 
-def get_description(row: Dict) -> str:
+def get_description(row: dict) -> str:
     """Get localized description"""
     return get_name(row, "description")
 
@@ -486,17 +492,17 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Initialize language
+    # Initialize language - Default to Kurdish
     if 'language' not in st.session_state:
-        st.session_state.language = 'کوردی 🇮🇶'  # Default to Kurdish
+        st.session_state.language = 'کوردی 🇮🇶'
     
     # Custom CSS with proper Kurdish font
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap');
         
         * {
-            font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Noto Naskh Arabic', 'Noto Sans', 'Segoe UI', sans-serif;
         }
         
         [dir="rtl"] {
@@ -721,7 +727,8 @@ def render_disease_database(db: LabDatabase):
         JOIN disease_categories dc ON d.category_id = dc.id
     """).fetchall()
     
-    # Filter by category    if selected_category != T('all_categories'):
+    # Filter by category
+    if selected_category != T('all_categories'):
         cat_id = category_map[selected_category]
         diseases = [d for d in diseases if d['category_id'] == cat_id]
     
@@ -731,7 +738,7 @@ def render_disease_database(db: LabDatabase):
         diseases = [d for d in diseases if search.lower() in get_name(dict(d)).lower()]
     
     if not diseases:
-        st.info("هیچ نەخۆشییەک نەدۆزرایەوە")
+        st.info(T('no_diseases_found'))
         return
     
     # Display diseases
@@ -887,13 +894,13 @@ def render_theory_questions(db: LabDatabase):
                 db.conn.commit()
                 st.success(T('note_saved'))
             else:
-                st.warning("تکایە بابەت و ناوەڕۆک بنووسە")
+                st.warning(T('write_topic_content'))
     
     st.markdown(f"### {T('your_notes')}")
     notes = db.conn.execute("SELECT * FROM study_notes ORDER BY created_at DESC").fetchall()
     
     if not notes:
-        st.info("هێشتا هیچ تێبینییەکت نەنووسیوە")
+        st.info(T('no_notes_yet'))
     else:
         for note in notes:
             note_dict = dict(note)
@@ -932,7 +939,7 @@ def render_test_results(db: LabDatabase):
         
         if st.form_submit_button(T('save_result')):
             if not patient_name:
-                st.error("تکایە ناوی نەخۆش بنووسە")
+                st.error(T('write_patient_name'))
             else:
                 test_id = test_options[selected_test]
                 test = db.conn.execute("SELECT * FROM test_types WHERE id = ?", (test_id,)).fetchone()
@@ -992,13 +999,15 @@ def render_reports(db: LabDatabase):
         
         with col2:
             if len(df) > 0:
+                normal_count = len(df[df['is_abnormal'] == False])
+                abnormal_count = len(df[df['is_abnormal'] == True])
                 status_data = pd.DataFrame({
-                    'Category': ['ئاسایی', 'نائاسایی'],
-                    'Count': [len(df[df['is_abnormal'] == False]), len(df[df['is_abnormal'] == True])]
+                    'حاڵەت': ['ئاسایی', 'نائاسایی'],
+                    'ژمارە': [normal_count, abnormal_count]
                 })
-                fig = px.bar(status_data, x='Category', y='Count',
+                fig = px.bar(status_data, x='حاڵەت', y='ژمارە',
                             title=T('normal_vs_abnormal'),
-                            color='Category',
+                            color='حاڵەت',
                             color_discrete_map={'ئاسایی': '#2e7d32', 'نائاسایی': '#c62828'})
                 st.plotly_chart(fig, use_container_width=True)
         
