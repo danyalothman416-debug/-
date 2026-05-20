@@ -114,8 +114,6 @@ st.markdown(f"""
 
 # --- ٤. هێدەر و گۆڕینی مۆد (ڕووناکی / تاریکی) ---
 col_logo, col_mode = st.columns([5, 1])
-with col_logo:
-    st.markdown("<h3 style='margin:0;'>سالم 💙</h3>", unsafe_allow_html=True)
 with col_mode:
     if st.button("🌙" if not st.session_state.dark_mode else "☀️", key="mode_toggle"):
         st.session_state.dark_mode = not st.session_state.dark_mode
@@ -126,7 +124,7 @@ st.write("---")
 # ==========================================
 # 🏠 نیشاندانی دیزاینی شاشەی سەرەکی (تەنها وەک ڕووکار)
 # ==========================================
-st.markdown("<p style='margin-bottom: 5px; font-size: 18px; font-weight: bold;'>سڵاو دانیال 👋</p>", unsafe_allow_html=True)
+st.markdown("<p style='margin-bottom: 5px; font-size: 18px; font-weight: bold;'>سڵاو 👋</p>", unsafe_allow_html=True)
 st.markdown(f"<p style='color: {sub_text}; margin-top: 0px; margin-bottom: 20px;'>چۆن هەست دەکەیت؟</p>", unsafe_allow_html=True)
 
 # سندوقی گەڕان وەک ناو شاشەکە
