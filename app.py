@@ -618,7 +618,23 @@ def insert_comprehensive_data(conn):
              "پۆلێنکردنی بەکتریا، ڕێنمایی هەڵبژاردنی دژەبەکتریا",
              "Don't over-decolorize, Use fresh cultures, Check controls",
              "زۆر ڕەنگ لێ مەبەرەوە، کەلتووری تازە بەکاربهێنە، کۆنترۆڵەکان بپشکنە",
-             45, "Intermediate")
+             45, "Intermediate"),
+             
+            ("Urine Dipstick Analysis", "شیکردنەوەی میز بە دیپستیک",
+             "Chemical analysis of urine using reagent strips",
+             "شیکردنەوەی کیمیایی میز بە بەکارهێنانی شریتی کارلێککەر",
+             "Urinalysis",
+             "1. Collect fresh urine sample\n2. Dip test strip briefly\n3. Remove excess urine\n4. Wait specified time\n5. Compare colors to chart\n6. Record results",
+             "١. نموونەی میزی تازە کۆبکەرەوە\n٢. شریتی پشکنین بە کورتی نقوم بکە\n٣. میزی زیادە لابەرە\n٤. چاوەڕێی کاتی دیاریکراو بکە\n٥. ڕەنگەکان بەراورد بکە بە چارتەکە\n٦. ئەنجامەکان تۆمار بکە",
+             "Urine sample, Dipstick strips, Color chart, Timer",
+             "نموونەی میز، شریتی دیپستیک، چارتی ڕەنگ، کاتژمێر",
+             "Normal: Negative for glucose, protein, blood; pH 4.5-8.0",
+             "ئاسایی: نەرێنی بۆ گلوکۆز، پرۆتین، خوێن؛ pH ٤.٥-٨.٠",
+             "Check for UTI, kidney disease, diabetes indicators",
+             "پشکنین بۆ نیشانەکانی هەوکردنی میز، نەخۆشی گورچیلە، شەکرە",
+             "Use fresh sample, Read at correct time, Check strip expiry",
+             "نموونەی تازە بەکاربهێنە، لە کاتی دروستدا بخوێنەرەوە، بەرواری بەسەرچوونی شریت بپشکنە",
+             15, "Basic")
         ]
         
         conn.executemany("""
@@ -633,7 +649,7 @@ def insert_comprehensive_data(conn):
         """, practicals)
         
         conn.commit()
-        st.success("✅ Comprehensive medical data loaded successfully!")
+        # st.success("✅ Comprehensive medical data loaded successfully!")
         
     except Exception as e:
         st.error(f"Data Insert Error: {str(e)}")
@@ -700,7 +716,15 @@ def t(key):
             "help": "یارمەتی",
             "about": "دەربارە",
             "language": "زمان",
-            "theme": "ڕووکار"
+            "theme": "ڕووکار",
+            "difficulty": "ئاستی قورسی",
+            "duration": "ماوە",
+            "category": "بەش",
+            "topic": "بابەت",
+            "content": "ناوەڕۆک",
+            "tags": "تاگەکان",
+            "save": "تۆمارکردن",
+            "cancel": "ڕەتکردنەوە"
         },
         
         "English 🇬🇧": {
@@ -756,7 +780,15 @@ def t(key):
             "help": "Help",
             "about": "About",
             "language": "Language",
-            "theme": "Theme"
+            "theme": "Theme",
+            "difficulty": "Difficulty",
+            "duration": "Duration",
+            "category": "Category",
+            "topic": "Topic",
+            "content": "Content",
+            "tags": "Tags",
+            "save": "Save",
+            "cancel": "Cancel"
         }
     }
     
@@ -915,50 +947,59 @@ def render_dashboard():
         with col2:
             st.markdown("### 🦠 Disease Severity Distribution")
             
-            # Disease severity data
-            severity_data = conn.execute("""
-                SELECT severity, COUNT(*) as count 
-                FROM diseases 
-                GROUP BY severity
-            """).fetchall()
-            
-            if severity_data:
-                df_severity = pd.DataFrame([dict(r) for r in severity_data])
-                fig = px.bar(df_severity, x='severity', y='count',
-                           title="Diseases by Severity",
-                           color='severity',
-                           color_discrete_sequence=px.colors.qualitative.Set2)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No disease data available")
+            # Disease severity data - using try/except to handle potential missing column
+            try:
+                severity_data = conn.execute("""
+                    SELECT severity, COUNT(*) as count 
+                    FROM diseases 
+                    GROUP BY severity
+                """).fetchall()
+                
+                if severity_data:
+                    df_severity = pd.DataFrame([dict(r) for r in severity_data])
+                    fig = px.bar(df_severity, x='severity', y='count',
+                               title="Diseases by Severity",
+                               color='severity',
+                               color_discrete_sequence=px.colors.qualitative.Set2)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No disease data available")
+            except Exception as e:
+                st.warning(f"Could not load severity data: {str(e)}")
+                # Fallback - try without severity column
+                disease_count = conn.execute("SELECT COUNT(*) as c FROM diseases").fetchone()['c']
+                st.info(f"Total diseases in database: {disease_count}")
         
         # Recent Results Section
         st.markdown("### 📝 Recent Test Results")
         
-        recent_results = conn.execute("""
-            SELECT tr.*, tt.name_en, tt.name_ku
-            FROM test_results tr
-            JOIN test_types tt ON tr.test_id = tt.id
-            ORDER BY tr.date_performed DESC
-            LIMIT 5
-        """).fetchall()
-        
-        if recent_results:
-            results_data = []
-            for r in recent_results:
-                rd = dict(r)
-                results_data.append({
-                    "Patient": rd['patient_name'],
-                    "Test": get_name(rd) if rd.get('name_ku') else rd['name_en'],
-                    "Result": rd['result_value'],
-                    "Date": rd['date_performed'],
-                    "Status": "⚠️ Abnormal" if rd['is_abnormal'] else "✅ Normal"
-                })
+        try:
+            recent_results = conn.execute("""
+                SELECT tr.*, tt.name_en, tt.name_ku
+                FROM test_results tr
+                JOIN test_types tt ON tr.test_id = tt.id
+                ORDER BY tr.date_performed DESC
+                LIMIT 5
+            """).fetchall()
             
-            df_results = pd.DataFrame(results_data)
-            st.dataframe(df_results, use_container_width=True)
-        else:
-            st.info("No test results recorded yet")
+            if recent_results:
+                results_data = []
+                for r in recent_results:
+                    rd = dict(r)
+                    results_data.append({
+                        "Patient": rd['patient_name'],
+                        "Test": get_name(rd) if rd.get('name_ku') else rd['name_en'],
+                        "Result": rd['result_value'],
+                        "Date": rd['date_performed'],
+                        "Status": "⚠️ Abnormal" if rd['is_abnormal'] else "✅ Normal"
+                    })
+                
+                df_results = pd.DataFrame(results_data)
+                st.dataframe(df_results, use_container_width=True)
+            else:
+                st.info("No test results recorded yet")
+        except Exception as e:
+            st.warning(f"Could not load recent results: {str(e)}")
             
         # Quick Actions
         st.markdown("### ⚡ Quick Actions")
@@ -1022,9 +1063,9 @@ def render_diseases():
         params = []
         
         if search_query:
-            query += " AND (d.name_en LIKE ? OR d.name_ku LIKE ? OR d.symptoms_en LIKE ?)"
+            query += " AND (d.name_en LIKE ? OR d.name_ku LIKE ? OR d.symptoms_en LIKE ? OR d.symptoms_ku LIKE ?)"
             search_term = f"%{search_query}%"
-            params.extend([search_term, search_term, search_term])
+            params.extend([search_term, search_term, search_term, search_term])
         
         if category_options[selected_category]:
             query += " AND d.category_id = ?"
@@ -1048,18 +1089,18 @@ def render_diseases():
                             <div class="category-card" style="border-right-color: {disease.get('color', '#1565c0')};">
                                 <h3>{disease.get('icon', '🦠')} {get_name(disease)}</h3>
                                 <p><strong>Category:</strong> {get_name(disease, 'cat')}</p>
-                                <p><strong>Severity:</strong> {disease['severity']}</p>
+                                <p><strong>Severity:</strong> {disease.get('severity', 'Not specified')}</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
                             with st.expander("View Details"):
                                 # Description
                                 st.markdown(f"#### {t('description')}")
-                                st.write(get_desc(disease))
+                                st.write(get_desc(disease) or disease.get('description_en', 'No description available'))
                                 
                                 # Symptoms
                                 st.markdown(f"#### {t('symptoms')}")
-                                symptoms = get_name(disease, 'symptoms')
+                                symptoms = get_name(disease, 'symptoms') or disease.get('symptoms_en', '')
                                 if symptoms:
                                     for s in symptoms.split(','):
                                         if s.strip():
@@ -1067,14 +1108,16 @@ def render_diseases():
                                                       unsafe_allow_html=True)
                                 
                                 # Causes
-                                if disease.get('causes_en'):
+                                causes = get_name(disease, 'causes') or disease.get('causes_en', '')
+                                if causes:
                                     st.markdown(f"#### {t('causes')}")
-                                    st.write(get_name(disease, 'causes'))
+                                    st.write(causes)
                                 
                                 # Treatment
-                                if disease.get('treatment_en'):
+                                treatment = get_name(disease, 'treatment') or disease.get('treatment_en', '')
+                                if treatment:
                                     st.markdown(f"#### {t('treatment')}")
-                                    st.write(get_name(disease, 'treatment'))
+                                    st.write(treatment)
                                 
                                 # Related Tests
                                 st.markdown("#### Related Laboratory Tests")
@@ -1086,8 +1129,11 @@ def render_diseases():
                                     LIMIT 3
                                 """, (disease['category_id'],)).fetchall()
                                 
-                                for test in related_tests:
-                                    st.markdown(f"- {get_name(dict(test))}")
+                                if related_tests:
+                                    for test in related_tests:
+                                        st.markdown(f"- {get_name(dict(test))}")
+                                else:
+                                    st.write("No related tests found")
                                 
     except Exception as e:
         st.error(f"Disease Database Error: {str(e)}")
@@ -1123,15 +1169,17 @@ def render_tests():
         params = []
         
         if search_test:
-            query += " AND (name_en LIKE ? OR name_ku LIKE ?)"
+            query += " AND (name_en LIKE ? OR name_ku LIKE ? OR category LIKE ?)"
             search_term = f"%{search_test}%"
-            params.extend([search_term, search_term])
+            params.extend([search_term, search_term, search_term])
         
         if selected_cat != "All":
             query += " AND category = ?"
             params.append(selected_cat)
         
         tests = conn.execute(query, params).fetchall()
+        
+        st.markdown(f"### Found: {len(tests)} tests")
         
         # Group and display
         tests_by_category = {}
@@ -1167,11 +1215,12 @@ def render_tests():
                         
                         with col1:
                             st.markdown(f"#### {t('description')}")
-                            st.write(get_desc(test))
+                            st.write(get_desc(test) or test.get('description_en', 'No description available'))
                             
-                            if test.get('preparation_en'):
+                            prep = get_name(test, 'preparation') or test.get('preparation_en', '')
+                            if prep:
                                 st.markdown(f"#### Patient Preparation")
-                                st.info(get_name(test, 'preparation'))
+                                st.info(prep)
                         
                         with col2:
                             st.markdown(f"#### {t('critical_values')}")
@@ -1187,34 +1236,37 @@ def render_tests():
                             """, unsafe_allow_html=True)
                             
                             # Visual range indicator
-                            fig = go.Figure()
-                            
-                            # Normal range
-                            fig.add_trace(go.Bar(
-                                x=[test['normal_range_high'] - test['normal_range_low']],
-                                y=['Test Range'],
-                                base=test['normal_range_low'],
-                                orientation='h',
-                                marker_color='green',
-                                name='Normal Range',
-                                text=[f"{test['normal_range_low']}-{test['normal_range_high']}"],
-                                textposition='inside'
-                            ))
-                            
-                            # Critical ranges
-                            fig.add_vline(x=crit_low, line_dash="dash", line_color="red", 
-                                        annotation_text=f"Critical Low: {crit_low}")
-                            fig.add_vline(x=crit_high, line_dash="dash", line_color="red", 
-                                        annotation_text=f"Critical High: {crit_high}")
-                            
-                            fig.update_layout(
-                                title=f"Reference Ranges for {get_name(test)}",
-                                xaxis_title=f"Value ({test['unit']})",
-                                showlegend=False,
-                                height=200
-                            )
-                            
-                            st.plotly_chart(fig, use_container_width=True)
+                            try:
+                                fig = go.Figure()
+                                
+                                # Normal range
+                                fig.add_trace(go.Bar(
+                                    x=[test['normal_range_high'] - test['normal_range_low']],
+                                    y=['Test Range'],
+                                    base=test['normal_range_low'],
+                                    orientation='h',
+                                    marker_color='green',
+                                    name='Normal Range',
+                                    text=[f"{test['normal_range_low']}-{test['normal_range_high']}"],
+                                    textposition='inside'
+                                ))
+                                
+                                # Critical ranges
+                                fig.add_vline(x=crit_low, line_dash="dash", line_color="red", 
+                                            annotation_text=f"Critical Low: {crit_low}")
+                                fig.add_vline(x=crit_high, line_dash="dash", line_color="red", 
+                                            annotation_text=f"Critical High: {crit_high}")
+                                
+                                fig.update_layout(
+                                    title=f"Reference Ranges for {get_name(test)}",
+                                    xaxis_title=f"Value ({test['unit']})",
+                                    showlegend=False,
+                                    height=200
+                                )
+                                
+                                st.plotly_chart(fig, use_container_width=True)
+                            except Exception as e:
+                                st.warning(f"Could not create range visualization: {str(e)}")
                         
     except Exception as e:
         st.error(f"Tests Display Error: {str(e)}")
@@ -1259,7 +1311,8 @@ def render_results():
                 
                 if selected_category != "Select Category...":
                     tests_in_category = conn.execute("""
-                        SELECT id, name_en, name_ku, unit, normal_range_low, normal_range_high, price
+                        SELECT id, name_en, name_ku, unit, normal_range_low, normal_range_high, 
+                               critical_low, critical_high, price
                         FROM test_types 
                         WHERE category = ?
                         ORDER BY name_en
@@ -1274,6 +1327,8 @@ def render_results():
                         st.markdown(f"""
                         <div class="info-box">
                             <p><strong>Normal Range:</strong> {selected_test['normal_range_low']} - {selected_test['normal_range_high']} {selected_test['unit']}</p>
+                            <p><strong>Critical Low:</strong> {selected_test['critical_low']} {selected_test['unit']}</p>
+                            <p><strong>Critical High:</strong> {selected_test['critical_high']} {selected_test['unit']}</p>
                             <p><strong>Price:</strong> ${selected_test.get('price', 'N/A')}</p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1337,37 +1392,40 @@ def render_results():
         with col2:
             st.markdown("### Recent Results")
             
-            recent_results = conn.execute("""
-                SELECT tr.*, tt.name_en, tt.name_ku, tt.unit
-                FROM test_results tr
-                JOIN test_types tt ON tr.test_id = tt.id
-                ORDER BY tr.date_performed DESC
-                LIMIT 10
-            """).fetchall()
-            
-            if recent_results:
-                for result in recent_results:
-                    rd = dict(result)
-                    
-                    if rd['is_critical']:
-                        box_class = "test-result-critical"
-                        emoji = "🚨"
-                    elif rd['is_abnormal']:
-                        box_class = "test-result-abnormal"
-                        emoji = "⚠️"
-                    else:
-                        box_class = "test-result-normal"
-                        emoji = "✅"
-                    
-                    st.markdown(f"""
-                    <div class="{box_class}">
-                        <p><strong>{emoji} {rd['patient_name']}</strong> - {get_name(rd)}</p>
-                        <p>Result: {rd['result_value']} {rd['unit']}</p>
-                        <p><small>{rd['date_performed']}</small></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("No recent results to display")
+            try:
+                recent_results = conn.execute("""
+                    SELECT tr.*, tt.name_en, tt.name_ku, tt.unit
+                    FROM test_results tr
+                    JOIN test_types tt ON tr.test_id = tt.id
+                    ORDER BY tr.date_performed DESC
+                    LIMIT 10
+                """).fetchall()
+                
+                if recent_results:
+                    for result in recent_results:
+                        rd = dict(result)
+                        
+                        if rd['is_critical']:
+                            box_class = "test-result-critical"
+                            emoji = "🚨"
+                        elif rd['is_abnormal']:
+                            box_class = "test-result-abnormal"
+                            emoji = "⚠️"
+                        else:
+                            box_class = "test-result-normal"
+                            emoji = "✅"
+                        
+                        st.markdown(f"""
+                        <div class="{box_class}">
+                            <p><strong>{emoji} {rd['patient_name']}</strong> - {get_name(rd)}</p>
+                            <p>Result: {rd['result_value']} {rd['unit']}</p>
+                            <p><small>{rd['date_performed']}</small></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.info("No recent results to display")
+            except Exception as e:
+                st.warning(f"Could not load recent results: {str(e)}")
                 
     except Exception as e:
         st.error(f"Results Entry Error: {str(e)}")
@@ -1449,13 +1507,16 @@ def render_reports():
             st.markdown("### Test Distribution")
             
             test_counts = df['test_name'].value_counts().head(10)
-            fig = px.bar(x=test_counts.index, y=test_counts.values,
-                        title="Top 10 Most Ordered Tests",
-                        labels={'x': 'Test Name', 'y': 'Count'},
-                        color=test_counts.values,
-                        color_continuous_scale='Viridis')
-            fig.update_layout(xaxis_tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            if len(test_counts) > 0:
+                fig = px.bar(x=test_counts.index, y=test_counts.values,
+                            title="Top 10 Most Ordered Tests",
+                            labels={'x': 'Test Name', 'y': 'Count'},
+                            color=test_counts.values,
+                            color_continuous_scale='Viridis')
+                fig.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No test data to display")
         
         with col2:
             st.markdown("### Abnormal Results by Category")
@@ -1463,54 +1524,63 @@ def render_reports():
             category_abnormal = df.groupby('category')['is_abnormal'].agg(['sum', 'count'])
             category_abnormal['rate'] = (category_abnormal['sum'] / category_abnormal['count'] * 100)
             
-            fig = px.bar(category_abnormal, y=category_abnormal.index, x='rate',
-                        title="Abnormal Rate by Test Category (%)",
-                        orientation='h',
-                        color='rate',
-                        color_continuous_scale='RdYlGn_r')
-            st.plotly_chart(fig, use_container_width=True)
+            if len(category_abnormal) > 0:
+                fig = px.bar(category_abnormal, y=category_abnormal.index, x='rate',
+                            title="Abnormal Rate by Test Category (%)",
+                            orientation='h',
+                            color='rate',
+                            color_continuous_scale='RdYlGn_r')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No category data to display")
         
         # Trend Analysis
         st.markdown("### 📈 Result Trends")
         
-        selected_trend_test = st.selectbox("Select Test for Trend Analysis", 
-                                          df['test_name'].unique())
-        
-        trend_data = df[df['test_name'] == selected_trend_test].copy()
-        trend_data['date'] = pd.to_datetime(trend_data['date_performed']).dt.date
-        trend_data = trend_data.groupby('date')['result_value'].agg(['mean', 'count']).reset_index()
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Scatter(
-            x=trend_data['date'],
-            y=trend_data['mean'],
-            mode='lines+markers',
-            name='Average Result',
-            line=dict(color='blue', width=2)
-        ))
-        
-        fig.add_trace(go.Bar(
-            x=trend_data['date'],
-            y=trend_data['count'],
-            name='Number of Tests',
-            yaxis='y2',
-            marker_color='lightblue'
-        ))
-        
-        fig.update_layout(
-            title=f"Trend for {selected_trend_test}",
-            xaxis_title="Date",
-            yaxis_title="Average Result",
-            yaxis2=dict(
-                title="Number of Tests",
-                overlaying='y',
-                side='right'
-            ),
-            hovermode='x unified'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        if len(df['test_name'].unique()) > 0:
+            selected_trend_test = st.selectbox("Select Test for Trend Analysis", 
+                                              df['test_name'].unique())
+            
+            trend_data = df[df['test_name'] == selected_trend_test].copy()
+            trend_data['date'] = pd.to_datetime(trend_data['date_performed']).dt.date
+            trend_data = trend_data.groupby('date')['result_value'].agg(['mean', 'count']).reset_index()
+            
+            if len(trend_data) > 0:
+                fig = go.Figure()
+                
+                fig.add_trace(go.Scatter(
+                    x=trend_data['date'],
+                    y=trend_data['mean'],
+                    mode='lines+markers',
+                    name='Average Result',
+                    line=dict(color='blue', width=2)
+                ))
+                
+                fig.add_trace(go.Bar(
+                    x=trend_data['date'],
+                    y=trend_data['count'],
+                    name='Number of Tests',
+                    yaxis='y2',
+                    marker_color='lightblue'
+                ))
+                
+                fig.update_layout(
+                    title=f"Trend for {selected_trend_test}",
+                    xaxis_title="Date",
+                    yaxis_title="Average Result",
+                    yaxis2=dict(
+                        title="Number of Tests",
+                        overlaying='y',
+                        side='right'
+                    ),
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No trend data available for selected test")
+        else:
+            st.info("No tests available for trend analysis")
         
         # Detailed Results Table
         st.markdown("### 📋 Detailed Results")
@@ -1531,14 +1601,14 @@ def render_reports():
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("📥 Export to CSV", use_container_width=True):
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f"lab_results_{date_from}_{date_to}.csv",
-                    mime="text/csv"
-                )
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV Report",
+                data=csv,
+                file_name=f"lab_results_{date_from}_{date_to}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
         
         with col2:
             if st.button("🖨️ Print Report", use_container_width=True):
@@ -1546,6 +1616,279 @@ def render_reports():
                 
     except Exception as e:
         st.error(f"Reports Error: {str(e)}")
+
+# ==================== Practical Tests ====================
+
+def render_practical():
+    """Display practical tests with detailed procedures"""
+    if conn is None:
+        return
+        
+    st.markdown(f"""
+    <div class="main-header">
+        <h1>{t('practical')}</h1>
+        <p>Practical Laboratory Tests and Procedures</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    try:
+        # Search and filter
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            search_practical = st.text_input("Search practical tests...", placeholder="Search by name or category...")
+        
+        with col2:
+            difficulty_filter = st.selectbox(t('difficulty'), ["All", "Basic", "Intermediate", "Advanced"])
+        
+        # Get practical tests
+        query = "SELECT * FROM practical_tests WHERE 1=1"
+        params = []
+        
+        if search_practical:
+            query += " AND (title_en LIKE ? OR title_ku LIKE ? OR category LIKE ?)"
+            search_term = f"%{search_practical}%"
+            params.extend([search_term, search_term, search_term])
+        
+        if difficulty_filter != "All":
+            query += " AND difficulty_level = ?"
+            params.append(difficulty_filter)
+        
+        practicals = conn.execute(query, params).fetchall()
+        
+        st.markdown(f"### Found: {len(practicals)} practical tests")
+        
+        if not practicals:
+            st.info("No practical tests found matching your criteria")
+            return
+        
+        # Display practical tests
+        for practical in practicals:
+            p = dict(practical)
+            
+            with st.container():
+                # Difficulty badge color
+                difficulty_colors = {
+                    "Basic": "#4CAF50",
+                    "Intermediate": "#FF9800",
+                    "Advanced": "#F44336"
+                }
+                
+                badge_color = difficulty_colors.get(p.get('difficulty_level', 'Basic'), '#4CAF50')
+                
+                st.markdown(f"""
+                <div class="category-card" style="border-right-color: {badge_color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3>🔬 {get_name(p)}</h3>
+                        <span style="background-color: {badge_color}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8em;">
+                            {p.get('difficulty_level', 'Basic')}
+                        </span>
+                    </div>
+                    <p><strong>Category:</strong> {p.get('category', 'General')}</p>
+                    <p><strong>Duration:</strong> {p.get('duration_minutes', 'N/A')} {t('minutes')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                with st.expander(f"View Details - {get_name(p)}"):
+                    # Description
+                    st.markdown(f"#### {t('description')}")
+                    st.write(get_desc(p) or p.get('description_en', 'No description available'))
+                    
+                    # Materials
+                    st.markdown(f"#### {t('materials')}")
+                    materials = get_name(p, 'materials') or p.get('materials_en', '')
+                    if materials:
+                        for item in materials.split(','):
+                            if item.strip():
+                                st.markdown(f"- {item.strip()}")
+                    
+                    # Procedure Steps
+                    st.markdown(f"#### {t('procedure')}")
+                    steps = get_name(p, 'steps') or p.get('steps_en', '')
+                    if steps:
+                        step_list = steps.split('\n')
+                        for idx, step in enumerate(step_list, 1):
+                            if step.strip():
+                                st.markdown(f"<span class='step-number'>{idx}</span> {step.strip()}", 
+                                          unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Expected Results
+                        st.markdown(f"#### {t('expected_results')}")
+                        expected = get_name(p, 'expected_results') or p.get('expected_results_en', '')
+                        if expected:
+                            st.success(expected)
+                    
+                    with col2:
+                        # Interpretation
+                        st.markdown(f"#### {t('interpretation')}")
+                        interpretation = get_name(p, 'interpretation') or p.get('interpretation_en', '')
+                        if interpretation:
+                            st.info(interpretation)
+                    
+                    # Precautions
+                    st.markdown(f"#### {t('precautions')}")
+                    precautions = get_name(p, 'precautions') or p.get('precautions_en', '')
+                    if precautions:
+                        st.warning(precautions)
+                        
+    except Exception as e:
+        st.error(f"Practical Tests Error: {str(e)}")
+
+# ==================== Study Notes ====================
+
+def render_notes():
+    """Study notes management system"""
+    if conn is None:
+        return
+        
+    st.markdown(f"""
+    <div class="main-header">
+        <h1>{t('theory')}</h1>
+        <p>Study Notes and Reference Materials</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    try:
+        # Add new note
+        with st.expander("➕ Add New Study Note", expanded=False):
+            with st.form("new_note_form"):
+                topic = st.text_input(t('topic'), placeholder="Enter topic name")
+                content = st.text_area(t('content'), placeholder="Enter your study notes here...", height=200)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    category = st.selectbox(t('category'), [
+                        "Hematology", "Clinical Chemistry", "Microbiology", 
+                        "Immunology", "Endocrinology", "Urinalysis", "General"
+                    ])
+                with col2:
+                    tags = st.text_input(t('tags'), placeholder="tag1, tag2, tag3")
+                
+                submitted = st.form_submit_button(t('save_note'), use_container_width=True)
+                
+                if submitted:
+                    if topic and content:
+                        conn.execute("""
+                            INSERT INTO study_notes (topic, content, category, tags)
+                            VALUES (?, ?, ?, ?)
+                        """, (topic, content, category, tags))
+                        conn.commit()
+                        st.success(t('saved_success'))
+                        st.rerun()
+                    else:
+                        st.error("Please fill in all required fields")
+        
+        # Search and filter notes
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            search_notes = st.text_input("Search notes...", placeholder="Search by topic, content, or tags...")
+        
+        with col2:
+            categories = conn.execute("SELECT DISTINCT category FROM study_notes WHERE category IS NOT NULL").fetchall()
+            note_categories = ["All"] + [c['category'] for c in categories]
+            selected_note_category = st.selectbox("Filter by category", note_categories)
+        
+        # Get notes
+        query = "SELECT * FROM study_notes WHERE 1=1"
+        params = []
+        
+        if search_notes:
+            query += " AND (topic LIKE ? OR content LIKE ? OR tags LIKE ?)"
+            search_term = f"%{search_notes}%"
+            params.extend([search_term, search_term, search_term])
+        
+        if selected_note_category != "All":
+            query += " AND category = ?"
+            params.append(selected_note_category)
+        
+        query += " ORDER BY updated_at DESC"
+        
+        notes = conn.execute(query, params).fetchall()
+        
+        st.markdown(f"### Found: {len(notes)} notes")
+        
+        if not notes:
+            st.info("No study notes found. Create your first note above!")
+            return
+        
+        # Display notes
+        for note in notes:
+            n = dict(note)
+            
+            with st.container():
+                st.markdown(f"""
+                <div class="info-box">
+                    <h4>📚 {n['topic']}</h4>
+                    <p><strong>Category:</strong> {n.get('category', 'General')}</p>
+                    <p><small>Created: {n['created_at']} | Updated: {n['updated_at']}</small></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                with st.expander(f"View Note - {n['topic']}"):
+                    st.markdown(n['content'])
+                    
+                    if n.get('tags'):
+                        st.markdown("**Tags:**")
+                        for tag in n['tags'].split(','):
+                            if tag.strip():
+                                st.markdown(f"<span class='symptom-tag' style='background: #e3f2fd; color: #1565c0;'>{tag.strip()}</span>", 
+                                          unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✏️ Edit", key=f"edit_{n['id']}"):
+                            st.session_state[f"editing_{n['id']}"] = True
+                    
+                    with col2:
+                        if st.button("🗑️ Delete", key=f"delete_{n['id']}"):
+                            conn.execute("DELETE FROM study_notes WHERE id = ?", (n['id'],))
+                            conn.commit()
+                            st.success("Note deleted successfully!")
+                            st.rerun()
+                    
+                    # Edit mode
+                    if st.session_state.get(f"editing_{n['id']}", False):
+                        st.markdown("---")
+                        st.markdown("#### Edit Note")
+                        
+                        with st.form(f"edit_form_{n['id']}"):
+                            new_topic = st.text_input("Topic", value=n['topic'])
+                            new_content = st.text_area("Content", value=n['content'], height=200)
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                new_category = st.selectbox("Category", [
+                                    "Hematology", "Clinical Chemistry", "Microbiology", 
+                                    "Immunology", "Endocrinology", "Urinalysis", "General"
+                                ], index=["Hematology", "Clinical Chemistry", "Microbiology", 
+                                        "Immunology", "Endocrinology", "Urinalysis", "General"].index(n.get('category', 'General')))
+                            with col2:
+                                new_tags = st.text_input("Tags", value=n.get('tags', ''))
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.form_submit_button("💾 Save Changes"):
+                                    conn.execute("""
+                                        UPDATE study_notes 
+                                        SET topic = ?, content = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+                                        WHERE id = ?
+                                    """, (new_topic, new_content, new_category, new_tags, n['id']))
+                                    conn.commit()
+                                    st.session_state[f"editing_{n['id']}"] = False
+                                    st.success("Note updated successfully!")
+                                    st.rerun()
+                            
+                            with col2:
+                                if st.form_submit_button("❌ Cancel"):
+                                    st.session_state[f"editing_{n['id']}"] = False
+                                    st.rerun()
+                        
+    except Exception as e:
+        st.error(f"Study Notes Error: {str(e)}")
 
 # ==================== Enhanced AI Chat ====================
 
