@@ -5,7 +5,6 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 from itertools import groupby
-import google.generativeai as genai
 import os
 
 # ==================== Page Config ====================
