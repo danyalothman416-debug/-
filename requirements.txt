@@ -31,3 +31,7 @@ folium
 streamlit-folium
 streamlit-option-menu
 google-generativeai
+streamlit
+pandas
+plotly
+google-generativeai
