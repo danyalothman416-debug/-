@@ -1,152 +1,224 @@
 import streamlit as st
 import time
 
-# --- ڕێکخستنی سەرەتایی پەڕەکە ---
-st.set_page_config(page_title="Danyal Medical Lab", page_icon="🔬", layout="centered")
+# --- ١. ڕێکخستنی لاپەڕە و فۆنت و ستایل (UI/UX) ---
+st.set_page_config(page_title="Danyal Health", page_icon="💙", layout="centered")
 
-# --- دیزاینی CSS بۆ ڕاست-بۆ-چەپ (RTL) و ڕەنگەکان ---
+# داتای سێشەن بۆ گۆڕینی شاشەکان
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = '🏠 Home'
+
+# بەکارهێنانی CSS بۆ جێبەجێکردنی دیزاینی مۆدێرن، فۆنت، ڕەنگەکان و ئاڕاستەی کوردی (RTL)
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap');
+    
     * {
+        font-family: 'Cairo', 'Poppins', sans-serif;
         direction: rtl;
     }
-    .st-emotion-cache-1y4p8pa {
-        padding-top: 2rem;
+    
+    /* پاککردنەوەی پاشبنەمای ستریمکێت و دانانی ڕەنگی سپی و مۆری زۆر کاڵ */
+    .stApp {
+        background-color: #F8FAFC;
     }
-    div.stButton > button:first-child {
-        background-color: #3B82F6;
-        color: white;
-        border-radius: 10px;
-        width: 100%;
-        padding: 10px;
-        font-size: 18px;
-        font-weight: bold;
-        border: none;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #2563EB;
-        color: white;
-    }
-    .main-title {
-        text-align: center;
-        color: #1E3A8A;
-        font-size: 40px;
-        font-weight: bold;
-        margin-bottom: -10px;
-    }
-    .sub-title {
-        text-align: center;
-        color: #64748B;
-        font-size: 18px;
-        margin-bottom: 30px;
-    }
-    .info-box {
-        background: linear-gradient(135deg, #60A5FA, #3B82F6);
+    
+    /* ستایلی کارتەکان (Rounded Cards & Soft Shadow) */
+    .custom-card {
+        background: white;
         padding: 20px;
-        border-radius: 15px;
-        color: white;
-        text-align: center;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.06); /* سێبەری مۆری زۆر کاڵ */
+        border: 1px solid #E2E8F0;
+        margin-bottom: 15px;
+    }
+    
+    .search-bar {
+        background-color: #F1F5F9;
+        padding: 12px;
+        border-radius: 12px;
+        color: #94A3B8;
+        font-size: 14px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border: 1px solid #E2E8F0;
+    }
+    
+    /* دوگمەی سەرەکی (شین و مۆدێرن) */
+    div.stButton > button {
+        background: linear-gradient(135deg, #3B82F6, #8B5CF6); /* تێکەڵەی شین و مۆری کەم */
+        color: white !important;
+        border-radius: 12px !important;
+        border: none !important;
+        padding: 12px 24px !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+    }
+    
+    /* دوگمە بچووکەکانی بەشەکان */
+    .category-box {
+        background: #F3E8FF; /* مۆری کەم */
+        color: #6B21A8;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- کۆنتڕۆڵکردنی پەڕەکان ---
-if 'page' not in st.session_state:
-    st.session_state.page = 'home'
-
-def change_page(page_name):
-    st.session_state.page = page_name
 
 # ==========================================
-# پەڕەی سەرەکی (Home)
+# ٢. شاشەی سەرەکی (🏠 Home)
 # ==========================================
-if st.session_state.page == 'home':
-    st.markdown("<div class='main-title'>🔬 Danyal Medical Lab</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-title'>سیستەمی زیرەک بۆ شیکاری پشکنینە تاقیگەییەکان</div>", unsafe_allow_html=True)
+if st.session_state.current_page == '🏠 Home':
+    # سەرەوەی شاشەکە
+    st.markdown("<h2 style='color: #1E3A8A; margin-bottom: 0;'>سڵاو دانیال 👋</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>بەخێرهاتی بۆ Danyal Health</p>", unsafe_allow_html=True)
     
-    st.write("---")
+    # Search Bar (تێکستی سادە وەک دیزاین)
+    st.text_input("🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", placeholder="لێرە بنووسە...")
     
-    st.markdown("""
-    <div class='info-box'>
-        <h3>شیکاری ئەنجامی پشکنین 📊</h3>
-        <p>ئەنجامی پشکنینەکانت لێرە داخڵ بکە بۆ خوێندنەوە و شیکاری تەواوەتی.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.write("")
     
-    if st.button("داخڵکردنی پشکنین ➔"):
-        change_page('tests')
+    # ناوەڕاست: دوگمەی شیکاری نیشانەکان
+    st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #3B82F6;'>سیستەمی زیرەکی پشکنین</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>نیشانەکانت دەستنیشان بکە بۆ وەرگرتنی ڕاپۆرتی سەرەتایی</p>", unsafe_allow_html=True)
+    if st.button("📊 شیکاری نیشانەکان"):
+        st.session_state.current_page = '🩺 Analyze'
         st.rerun()
-
-# ==========================================
-# پەڕەی داخڵکردنی پشکنینەکان (Tests Input)
-# ==========================================
-elif st.session_state.page == 'tests':
-    st.button("🔙 گەڕانەوە", on_click=change_page, args=('home',))
+    st.markdown("</div>", unsafe_allow_html=True)
     
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ئەنجامی پشکنینەکان</h2>", unsafe_allow_html=True)
-    st.write("تکایە ژمارەی ئەنجامی پشکنینەکان لەم بۆکسانەی خوارەوە داخڵ بکە:")
-    
-    # فۆڕمی پشکنینە کیمیاییەکان
+    # خوارەوە: بەشەکان
+    st.markdown("<h3 style='color: #1E3A8A;'>بەشەکان</h3>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        fbs = st.number_input("شەکرەی خوێن (FBS) - mg/dL", min_value=0, value=90)
-        chol = st.number_input("کۆلیسترۆڵ (Cholesterol) - mg/dL", min_value=0, value=180)
+        st.markdown("<div class='category-box'>🦠 نەخۆشییە باوەکان</div>", unsafe_allow_html=True)
+        st.markdown("<div class='category-box'>💊 دەرمان دۆزەرەوە</div>", unsafe_allow_html=True)
     with col2:
-        hb = st.number_input("هیمۆگلۆبین (Hb) - g/dL", min_value=0.0, value=14.0, format="%.1f")
-        alt = st.number_input("ئەنزیمی جگەر (ALT) - U/L", min_value=0, value=25)
+        st.markdown("<div class='category-box'>👨‍⚕️ ڕاوێژی دکتۆر</div>", unsafe_allow_html=True)
+        st.markdown("<div class='category-box'>📋 مێژووی شیکاری</div>", unsafe_allow_html=True)
+
+
+# ==========================================
+# ٣. شاشەی نیشانەکان (🩺 Analyze)
+# ==========================================
+elif st.session_state.current_page == '🩺 Analyze':
+    st.markdown("<h2 style='color: #1E3A8A;'>🩺 هەڵبژاردنی نیشانەکان</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B;'>تکایە ئەو نیشانانەی هەستی پێدەکەیت دیاری بکە:</p>", unsafe_allow_html=True)
+    
+    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+    s1 = st.checkbox("☑️ سەرئێشە")
+    s2 = st.checkbox("☑️ گەرمی (تا)")
+    s3 = st.checkbox("☑️ کۆخە")
+    s4 = st.checkbox("☑️ ماندووبوون و بێهێزی")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    if st.button("پڕۆسەی شیکاری بکە ➔"):
+        if s1 or s2 or s3 or s4:
+            st.session_state.current_page = 'Result_Page'
+            st.rerun()
+        else:
+            st.warning("تکایە لانی کەم یەک نیشانە هەڵبژێرە.")
+
+
+# ==========================================
+# ٤. شاشەی ئەنجام (Result Page)
+# ==========================================
+elif st.session_state.current_page == 'Result_Page':
+    st.markdown("<h2 style='color: #1E3A8A;'>📊 ئەنجامی شیکاری زیرەک</h2>", unsafe_allow_html=True)
+    
+    # ئەنیمەیشنی چاوەڕوانی کورت
+    with st.spinner('خەریکی لێکدانەوەی نیشانەکانین...'):
+        time.sleep(1)
         
-    st.write("---")
-    if st.button("شیکاری بکە"):
-        # هەڵگرتنی داتاکان بۆ پەڕەی ئەنجام
-        st.session_state.fbs = fbs
-        change_page('analyzing')
-        st.rerun()
-
-# ==========================================
-# پەڕەی پرۆسەی شیکاری (Analyzing)
-# ==========================================
-elif st.session_state.page == 'analyzing':
-    st.markdown("<h2 style='text-align: center;'>خەریکی شیکارین... ⚙️</h2>", unsafe_allow_html=True)
-    
-    my_bar = st.progress(0)
-    for percent_complete in range(100):
-        time.sleep(0.01)
-        my_bar.progress(percent_complete + 1)
-    
-    time.sleep(0.3)
-    change_page('result')
-    st.rerun()
-
-# ==========================================
-# پەڕەی ئەنجام (Results)
-# ==========================================
-elif st.session_state.page == 'result':
-    st.button("🔙 گەڕانەوە بۆ سەرەتا", on_click=change_page, args=('home',))
-    
-    st.success("✅ شیکاری تەواو بوو")
-    st.markdown("<h3 style='text-align: center;'>ڕاپۆرتی تاقیگە:</h3>", unsafe_allow_html=True)
-    
-    # لۆجیکی پزیشکی بۆ دیاریکردنی دۆخی شەکرە
-    fbs_val = st.session_state.fbs
-    if fbs_val > 125:
-        status = "بەرزە (پێویستی بە سەردانی پزیشکە)"
-        color = "#DC2626" # سوور
-        bg_color = "#FEE2E2"
-    elif fbs_val > 100:
-        status = "قۆناغی پێش شەکرە (Pre-diabetes)"
-        color = "#D97706" # پرتەقاڵی
-        bg_color = "#FEF3C7"
-    else:
-        status = "ئاساییە (Normal)"
-        color = "#166534" # سەوز
-        bg_color = "#DCFCE7"
-
-    # پیشاندانی ئەنجامەکە بە شێوەیەکی دیزاینکراو
-    st.markdown(f"""
-    <div style='background-color: {bg_color}; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;'>
-        <h3 style='color: {color};'>ئەنجامی شەکرەی خوێن (FBS): {fbs_val}</h3>
-        <p style='font-size: 20px; color: {color};'>دۆخەکە: <b>{status}</b></p>
+    st.markdown("""
+    <div class='custom-card' style='border-right: 5px solid #3B82F6;'>
+        <h2 style='color: #3B82F6; margin-bottom:0;'>78% گومان بە سەرماخۆری</h2>
+        <p style='color: #64748B;'>ئەم ئەنجامە بەپێی ئەو نیشانانەیە کە دیاریت کردوون.</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+    st.markdown("<h4>💡 ڕاوێژ و ڕێنمایی:</h4>", unsafe_allow_html=True)
+    st.write("• خواردنەوەی شلەمەنی گەرم و پشوودانی تەواو لە ماڵەوە.")
+    st.write("• وەرگرتنی ڤیتامین C و بەکارهێنانی حەپی دژە تا لە کاتی پێویستدا.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+    st.markdown("<h4>👨‍⚕️ پێشنیاری دکتۆر:</h4>", unsafe_allow_html=True)
+    st.write("ئەگەر نیشانەکان و تا کەیەت بۆ زیاتر لە ٣ ڕۆژ بەردەوام بوو، پێشنیار دەکەین سەردانی دکتۆری پسپۆڕی گشتی بکەیت.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    if st.button("گەڕانەوە بۆ شاشەی سەرەکی"):
+        st.session_state.current_page = '🏠 Home'
+        st.rerun()
+
+
+# ==========================================
+# ٥. شاشەی مێژوو (📋 History)
+# ==========================================
+elif st.session_state.current_page == '📋 History':
+    st.markdown("<h2 style='color: #1E3A8A;'>📋 مێژووی شیکارییەکان</h2>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class='custom-card'>
+        <span style='color: #8B5CF6; font-weight: bold;'>2026-05-20</span>
+        <h4>شیکاری سەرماخۆری</h4>
+        <p style='color: #10B981;'>دۆخ: چاکبووەتەوە</p>
+    </div>
+    <div class='custom-card'>
+        <span style='color: #8B5CF6; font-weight: bold;'>2026-04-12</span>
+        <h4>پشکنینی گشتی تاقیگە</h4>
+        <p style='color: #64748B;'>دۆخ: ئەرشیف کراوە</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ==========================================
+# ٦. شاشەی پرۆفایل (👤 Profile)
+# ==========================================
+elif st.session_state.current_page == '👤 Profile':
+    st.markdown("<h2 style='color: #1E3A8A;'>👤 پرۆفایلی بەکارهێنەر</h2>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class='custom-card' style='text-align: center;'>
+        <div style='background: #E0E7FF; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 32px;'>👤</div>
+        <h3>دانیال</h3>
+        <p style='color: #64748B;'>نەخۆشخانەی تایبەتی Danyal Health</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+    st.write("**🔢 تەمەن:** ٢٢ ساڵ")
+    st.write("**🚹 ڕەگەز:** نێر")
+    st.write("**🩸 مێژووی نەخۆشی:** هۆکاری هەستیاری وەرزی (Seasonal Allergy)")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ==========================================
+# ٧. دروستکردنی باشترین Bottom Navigation
+# ==========================================
+st.write("---")
+nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
+
+# بەکارهێنانی st.radio بە شێوەی ئاسۆیی (Horizontal) بۆ دروستکردنی باڕی خوارەوە
+selected_nav = st.radio(
+    "", 
+    options=nav_options, 
+    index=nav_options.index(st.session_state.current_page) if st.session_state.current_page in nav_options else 0,
+    horizontal=True
+)
+
+# ئەگەر کلیک لەسەر باڕی خوارەوە کرا، شاشەکە بگۆڕە
+if selected_nav != st.session_state.current_page:
+    st.session_state.current_page = selected_nav
+    st.rerun()
