@@ -97,17 +97,25 @@ st.markdown(f"""
 # --- ٥. بەشی سەرەوەی سابت: کۆنتڕۆڵی ڕووناکی و زمان و فریاکەوتن ---
 col_mode, col_lang, col_emg = st.columns([2, 3, 4])
 with col_mode:
-    if st.button("🌙" if not st.session_state.dark_mode else "☀️"):
+    if st.button("🌙" if not st.session_state.dark_mode else "☀️", key="mode_toggle"):
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
 with col_lang:
-    selected_lang = st.selectbox("", ["Kurdish", "English", "Arabic"], index=["Kurdish", "English", "Arabic"].index(st.session_state.current_page if st.session_state.lang in ["Kurdish", "English", "Arabic"] else 0), label_visibility="collapsed")
+    # لێرەدا کێشەی ئەندێکسەکە بە تەواوی چارەسەر کراوە
+    languages_list = ["Kurdish", "English", "Arabic"]
+    selected_lang = st.selectbox(
+        "", 
+        options=languages_list, 
+        index=languages_list.index(st.session_state.lang), 
+        label_visibility="collapsed",
+        key="lang_select"
+    )
     if selected_lang != st.session_state.lang:
         st.session_state.lang = selected_lang
         st.rerun()
 with col_emg:
     st.markdown('<div class="emergency-btn">', unsafe_allow_html=True)
-    if st.button(L["emergency"]):
+    if st.button(L["emergency"], key="emergency_btn"):
         st.toast("🚨 پەیوەندی بە هێڵی فریاکەوتنی خێراوە کرا!", icon="🚑")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -119,13 +127,13 @@ st.write("---")
 if not st.session_state.logged_in:
     st.markdown(f"<h2 style='text-align: center;'>🔐 {L['login_title']}</h2>", unsafe_allow_html=True)
     st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.text_input(L["email"], placeholder="danyal@example.com")
-    st.text_input(L["password"], type="password", placeholder="••••••••")
-    if st.button(L["btn_login"]):
+    st.text_input(L["email"], placeholder="danyal@example.com", key="login_email")
+    st.text_input(L["password"], type="password", placeholder="••••••••", key="login_pass")
+    if st.button(L["btn_login"], key="submit_login"):
         st.session_state.logged_in = True
         st.rerun()
     st.write("<p style='text-align:center;'>یان</p>", unsafe_allow_html=True)
-    if st.button(L["google_login"]):
+    if st.button(L["google_login"], key="google_login_btn"):
         st.session_state.logged_in = True
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
@@ -139,15 +147,15 @@ else:
         st.markdown(f"<h2 style='margin-bottom: 0;'>{L['welcome']}</h2>", unsafe_allow_html=True)
         st.markdown(f"<p style='color: {sub_text};'>{L['sub_welcome']}</p>", unsafe_allow_html=True)
         
-        st.text_input(L["search"], placeholder=L["search_placeholder"])
+        st.text_input(L["search"], placeholder=L["search_placeholder"], key="home_search")
         
-        # نۆتیفیکەیشنی دەرمان (Notification Box)
+        # نۆتیفیکەیشنی دەرمان
         st.info("⏰ ئاگادارکردنەوە: کاتی خواردنی حەپی ڤیتامین C هاتووە (کاژێر ٠٨:٠٠ی شەو).")
         
         st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
         st.markdown(f"<h3>{L['ai_system']}</h3>", unsafe_allow_html=True)
         st.markdown(f"<p style='color: {sub_text};'>{L['ai_desc']}</p>", unsafe_allow_html=True)
-        if st.button(L["btn_analyze"]):
+        if st.button(L["btn_analyze"], key="go_to_analyze"):
             st.session_state.current_page = '🩺 Analyze'
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -167,22 +175,21 @@ else:
         
         # بەشی چاتی دەنگی و نووسین وەک Gemini
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-        st.chat_input(L["chat_ask"])
-        if st.button(L["voice_btn"]):
+        st.chat_input(L["chat_ask"], key="gemini_chat_input")
+        if st.button(L["voice_btn"], key="voice_input_btn"):
             st.toast("🎙️ گوێ دەگرم... دەنگەکەت تۆمار دەکرێت...", icon="🎤")
         st.markdown("</div>", unsafe_allow_html=True)
         
         # کامێرا و سکان
         st.markdown(f"<h3>{L['cam_title']}</h3>", unsafe_allow_html=True)
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-        uploaded_file = st.file_uploader(L["cam_upload"], type=["png", "jpg", "jpeg"])
+        uploaded_file = st.file_uploader(L["cam_upload"], type=["png", "jpg", "jpeg"], key="camera_uploader")
         if uploaded_file is not None:
             st.image(uploaded_file, width=250, caption="وێنەی بارکراو")
         
-        if st.button(L["analyze_btn"]):
-            # ئەنیمەیشنی لۆدینگی زیرەک (Loading Animation)
+        if st.button(L["analyze_btn"], key="run_ai_analysis"):
             with st.spinner('Gemini AI 🤖 خەریکی لێکدانەوەی زانیاری و وێنەکانە...'):
-                time.sleep(2) # لۆدینگ بۆ ماوەی ٢ چرکە
+                time.sleep(2)
             st.success("✅ ئەنجامی شیکاری ئامادەیە: 78% نیشانەکانی سەرماخۆری سەرەتایی.")
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -221,7 +228,14 @@ else:
     # --- ٦. دروستکردنی باڕی خوارەوە (Bottom Navigation) ---
     st.write("---")
     nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
-    selected_nav = st.radio("", options=nav_options, index=nav_options.index(st.session_state.current_page) if st.session_state.current_page in nav_options else 0, horizontal=True, label_visibility="collapsed")
+    selected_nav = st.radio(
+        "", 
+        options=nav_options, 
+        index=nav_options.index(st.session_state.current_page) if st.session_state.current_page in nav_options else 0, 
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="bottom_nav"
+    )
     
     if selected_nav != st.session_state.current_page:
         st.session_state.current_page = selected_nav
