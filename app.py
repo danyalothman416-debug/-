@@ -33,7 +33,6 @@ st.markdown("""
         border-radius: 15px;
         text-align: center;
         margin-bottom: 25px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
     .student-info {
@@ -61,36 +60,6 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    .critical-box {
-        background: #ffebee;
-        padding: 15px;
-        border-radius: 10px;
-        border-right: 4px solid #f44336;
-    }
-    
-    .symptom-tag {
-        display: inline-block;
-        background: #ffebee;
-        color: #c62828;
-        padding: 5px 12px;
-        border-radius: 20px;
-        margin: 3px;
-        font-size: 0.9em;
-    }
-    
-    .step-number {
-        display: inline-block;
-        background: #0d47a1;
-        color: white;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        text-align: center;
-        line-height: 32px;
-        margin-left: 8px;
-        font-weight: bold;
-    }
-    
     .stat-card {
         background: white;
         padding: 20px;
@@ -106,22 +75,6 @@ st.markdown("""
         border-right: 4px solid #4caf50;
         margin: 5px 0;
     }
-    
-    .test-result-abnormal {
-        background-color: #fff3e0;
-        padding: 10px;
-        border-radius: 8px;
-        border-right: 4px solid #ff9800;
-        margin: 5px 0;
-    }
-    
-    .test-result-critical {
-        background-color: #ffebee;
-        padding: 10px;
-        border-radius: 8px;
-        border-right: 4px solid #f44336;
-        margin: 5px 0;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,7 +88,6 @@ def init_db():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         
-        # Create all tables with correct column names
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS disease_categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -237,17 +189,14 @@ conn = init_db()
 # ==================== Insert Data ====================
 
 def insert_all_data(conn):
-    """Insert all data into database"""
     if conn is None:
         return
     
     try:
-        # Check if data exists
-        count = conn.execute("SELECT COUNT(*) as cnt FROM test_types").fetchone()['cnt']
-        if count > 0:
+        cursor = conn.execute("SELECT COUNT(*) as cnt FROM test_types")
+        if cursor.fetchone()['cnt'] > 0:
             return
         
-        # Insert categories
         categories = [
             ("Hematology", "خوێنناسی", "Study of blood", "لێکۆڵینەوەی خوێن", "🩸", "#FF6B6B"),
             ("Clinical Chemistry", "کیمیای کلینیکی", "Chemical analysis", "شیکردنەوەی کیمیایی", "🧪", "#4ECDC4"),
@@ -258,7 +207,6 @@ def insert_all_data(conn):
         ]
         conn.executemany("INSERT INTO disease_categories (name_en, name_ku, description_en, description_ku, icon, color) VALUES (?,?,?,?,?,?)", categories)
         
-        # Insert diseases
         diseases = [
             (1, "Iron Deficiency Anemia", "کەمخوێنی کەمی ئاسن", "Most common anemia", "باوباپترین کەمخوێنی", "Fatigue, Weakness, Pale skin", "ماندوویی، لاوازی، پێستی کاڵ", "Poor diet, Blood loss", "خواردنی خراپ، لەدەستدانی خوێن", "Iron supplements", "تەواوکەری ئاسن", "Moderate"),
             (1, "Thalassemia", "تالاسیمیا", "Genetic blood disorder", "نەخۆشی خوێنی بۆماوەیی", "Fatigue, Bone deformities", "ماندوویی، شێواوی ئێسک", "Genetic", "بۆماوەیی", "Blood transfusion", "گواستنەوەی خوێن", "Severe"),
@@ -266,7 +214,6 @@ def insert_all_data(conn):
         ]
         conn.executemany("INSERT INTO diseases (category_id, name_en, name_ku, description_en, description_ku, symptoms_en, symptoms_ku, causes_en, causes_ku, treatment_en, treatment_ku, severity) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", diseases)
         
-        # Insert test types
         tests = [
             ("CBC", "ژمارەی تەواوی خوێن", "Hematology", "cells/μL", 4.5, 11.0, 2.0, 15.0, "Complete Blood Count", "ژمارەی تەواوی خوێن", "No preparation", "پێویستی نییە", "2 hours", 25.0),
             ("Hemoglobin", "هیمۆگلۆبین", "Hematology", "g/dL", 12.0, 16.0, 7.0, 20.0, "Measures hemoglobin", "پێوانی هیمۆگلۆبین", "No preparation", "پێویستی نییە", "1 hour", 15.0),
@@ -278,7 +225,6 @@ def insert_all_data(conn):
         ]
         conn.executemany("INSERT INTO test_types (name_en, name_ku, category, unit, normal_range_low, normal_range_high, critical_low, critical_high, description_en, description_ku, preparation_en, preparation_ku, turnaround_time, price) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", tests)
         
-        # Insert practical tests
         practicals = [
             ("Blood Smear Preparation", "ئامادەکردنی سمێری خوێن", "Prepare blood smear", "ئامادەکردنی سمێری خوێن", "Hematology", 
              "1. Clean slide\n2. Place blood drop\n3. Spread blood\n4. Air dry\n5. Stain", 
@@ -295,7 +241,6 @@ def insert_all_data(conn):
         conn.executemany("INSERT INTO practical_tests (title_en, title_ku, description_en, description_ku, category, steps_en, steps_ku, materials_en, materials_ku, expected_results_en, expected_results_ku, interpretation_en, interpretation_ku, precautions_en, precautions_ku, duration_minutes, difficulty_level) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", practicals)
         
         conn.commit()
-        st.success("✅ Data loaded successfully!")
     except Exception as e:
         st.error(f"Insert Error: {str(e)}")
         conn.rollback()
@@ -333,7 +278,7 @@ def get_name(row, prefix="name"):
     try:
         return row[field]
     except:
-        return row.get(f"{prefix}_en", "N/A")
+        return "N/A"
 
 def get_desc(row):
     return get_name(row, "description")
@@ -371,16 +316,20 @@ def render_dashboard():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        cat_count = conn.execute("SELECT COUNT(*) as c FROM disease_categories").fetchone()['c']
+        cursor = conn.execute("SELECT COUNT(*) as c FROM disease_categories")
+        cat_count = cursor.fetchone()['c']
         st.markdown(f"<div class='stat-card'><h2>{cat_count}</h2><p>📂 Categories</p></div>", unsafe_allow_html=True)
     with col2:
-        test_count = conn.execute("SELECT COUNT(*) as c FROM test_types").fetchone()['c']
+        cursor = conn.execute("SELECT COUNT(*) as c FROM test_types")
+        test_count = cursor.fetchone()['c']
         st.markdown(f"<div class='stat-card'><h2>{test_count}</h2><p>🧪 Tests</p></div>", unsafe_allow_html=True)
     with col3:
-        disease_count = conn.execute("SELECT COUNT(*) as c FROM diseases").fetchone()['c']
+        cursor = conn.execute("SELECT COUNT(*) as c FROM diseases")
+        disease_count = cursor.fetchone()['c']
         st.markdown(f"<div class='stat-card'><h2>{disease_count}</h2><p>🦠 Diseases</p></div>", unsafe_allow_html=True)
     with col4:
-        practical_count = conn.execute("SELECT COUNT(*) as c FROM practical_tests").fetchone()['c']
+        cursor = conn.execute("SELECT COUNT(*) as c FROM practical_tests")
+        practical_count = cursor.fetchone()['c']
         st.markdown(f"<div class='stat-card'><h2>{practical_count}</h2><p>🔬 Practical</p></div>", unsafe_allow_html=True)
     
     st.markdown("---")
@@ -396,12 +345,19 @@ def render_diseases():
     
     search = st.text_input(t('search'), placeholder="Search diseases...")
     
-    query = "SELECT d.*, dc.name_en as cat_en, dc.name_ku as cat_ku, dc.icon FROM diseases d JOIN disease_categories dc ON d.category_id = dc.id"
     if search:
-        query += " WHERE d.name_en LIKE ? OR d.name_ku LIKE ?"
-        diseases = conn.execute(query, (f"%{search}%", f"%{search}%")).fetchall()
+        diseases = conn.execute("""
+            SELECT d.*, dc.name_en as cat_en, dc.name_ku as cat_ku, dc.icon 
+            FROM diseases d 
+            JOIN disease_categories dc ON d.category_id = dc.id
+            WHERE d.name_en LIKE ? OR d.name_ku LIKE ?
+        """, (f"%{search}%", f"%{search}%")).fetchall()
     else:
-        diseases = conn.execute(query).fetchall()
+        diseases = conn.execute("""
+            SELECT d.*, dc.name_en as cat_en, dc.name_ku as cat_ku, dc.icon 
+            FROM diseases d 
+            JOIN disease_categories dc ON d.category_id = dc.id
+        """).fetchall()
     
     st.markdown(f"### Found: {len(diseases)} diseases")
     
@@ -425,12 +381,10 @@ def render_tests():
     
     search = st.text_input("Search tests...")
     
-    query = "SELECT * FROM test_types"
     if search:
-        query += " WHERE name_en LIKE ? OR name_ku LIKE ?"
-        tests = conn.execute(query, (f"%{search}%", f"%{search}%")).fetchall()
+        tests = conn.execute("SELECT * FROM test_types WHERE name_en LIKE ? OR name_ku LIKE ?", (f"%{search}%", f"%{search}%")).fetchall()
     else:
-        tests = conn.execute(query).fetchall()
+        tests = conn.execute("SELECT * FROM test_types").fetchall()
     
     st.markdown(f"### Found: {len(tests)} tests")
     
@@ -478,12 +432,12 @@ def render_notes():
                     st.success("Note saved!")
                     st.rerun()
     
-    notes = conn.execute("SELECT * FROM study_notes ORDER BY updated_at DESC").fetchall()
+    notes = conn.execute("SELECT * FROM study_notes ORDER BY created_at DESC").fetchall()
     st.markdown(f"### Found: {len(notes)} notes")
     
     for note in notes:
         n = dict(note)
-        st.markdown(f"<div class='info-box'><h4>📚 {n['topic']}</h4><p><strong>Category:</strong> {n.get('category', 'General')}</p><p><small>Updated: {n['updated_at']}</small></p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='info-box'><h4>📚 {n['topic']}</h4><p><strong>Category:</strong> {n.get('category', 'General')}</p><p><small>Created: {n['created_at']}</small></p></div>", unsafe_allow_html=True)
         with st.expander("View Content"):
             st.markdown(n['content'])
             if n.get('tags'):
@@ -521,15 +475,16 @@ def render_results():
     
     with col2:
         st.markdown("### Recent Results")
-        results = conn.execute("SELECT tr.*, tt.name_en, tt.name_ku, tt.unit FROM test_results tr JOIN test_types tt ON tr.test_id = tt.id ORDER BY tr.date_performed DESC LIMIT 10").fetchall()
+        results = conn.execute("""
+            SELECT tr.*, tt.name_en, tt.name_ku, tt.unit 
+            FROM test_results tr 
+            JOIN test_types tt ON tr.test_id = tt.id 
+            ORDER BY tr.date_performed DESC 
+            LIMIT 10
+        """).fetchall()
         for r in results:
             rd = dict(r)
-            status = "✅ Normal"
-            if rd.get('is_critical'):
-                status = "🚨 Critical"
-            elif rd.get('is_abnormal'):
-                status = "⚠️ Abnormal"
-            st.markdown(f"<div class='test-result-normal'><strong>{rd['patient_name']}</strong> - {get_name(rd)}<br>Result: {rd['result_value']} {rd['unit']}<br>{status}<br><small>{rd['date_performed']}</small></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='test-result-normal'><strong>{rd['patient_name']}</strong> - {get_name(rd)}<br>Result: {rd['result_value']} {rd['unit']}<br><small>{rd['date_performed']}</small></div>", unsafe_allow_html=True)
 
 # ==================== Reports ====================
 
@@ -539,7 +494,12 @@ def render_reports():
     if conn is None:
         return
     
-    results = conn.execute("SELECT tr.*, tt.name_en, tt.name_ku, tt.category FROM test_results tr JOIN test_types tt ON tr.test_id = tt.id").fetchall()
+    results = conn.execute("""
+        SELECT tr.*, tt.name_en, tt.name_ku, tt.category 
+        FROM test_results tr 
+        JOIN test_types tt ON tr.test_id = tt.id
+    """).fetchall()
+    
     if not results:
         st.info("No results yet")
         return
@@ -548,8 +508,11 @@ def render_reports():
     lang = st.session_state.get("language", "کوردی 🇹🇯")
     df['test_name'] = df['name_ku'] if lang == "کوردی 🇹🇯" else df['name_en']
     
-    st.metric("Total Tests", len(df))
-    st.metric("Abnormal Results", df['is_abnormal'].sum())
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Tests", len(df))
+    with col2:
+        st.metric("Abnormal Results", df['is_abnormal'].sum())
     
     fig = px.bar(df['test_name'].value_counts().head(10), title="Top Tests")
     st.plotly_chart(fig, use_container_width=True)
