@@ -2,13 +2,11 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
-import json
-from typing import Dict, List, Optional
 import plotly.express as px
 import plotly.graph_objects as go
 from itertools import groupby
 
-# ==================== Translations ====================
+# ==================== Translations (Kurdish & English Only) ====================
 TRANSLATIONS = {
     "English 🇬🇧": {
         "app_title": "🔬 Medical Laboratory Analysis System",
@@ -18,13 +16,14 @@ TRANSLATIONS = {
         "disease_db": "🦠 Disease Database",
         "lab_tests": "🧪 Laboratory Tests",
         "practical": "🔬 Practical Tests",
-        "theory": "📚 Theory Questions",
+        "theory": "📚 Theory & Notes",
         "results_entry": "📝 Test Results Entry",
         "reports": "📈 Reports & Analytics",
         "nav_title": "🔬 Navigation",
         "select_section": "Select Section",
+        "language": "🌐 Language",
         "quick_info": "📋 Quick Info",
-        "quick_info_text": "This system contains comprehensive medical laboratory test information for 4th stage students.",
+        "quick_info_text": "Comprehensive medical laboratory test information for 4th stage students.",
         "disease_categories": "Disease Categories",
         "laboratory_tests": "Laboratory Tests",
         "diseases": "Diseases",
@@ -76,23 +75,14 @@ TRANSLATIONS = {
         "abnormal_warning": "⚠️ Abnormal result detected!",
         "saved_success": "✅ Saved successfully!",
         "note_saved": "✅ Note saved!",
-        "please_wait": "Please wait...",
         "minutes": "minutes",
         "basic": "Basic",
-        "intermediate": "Intermediate", 
+        "intermediate": "Intermediate",
         "advanced": "Advanced",
         "gender_male": "Male",
         "gender_female": "Female",
         "gender_other": "Other",
         "created": "Created",
-        "hematology": "Hematology",
-        "microbiology": "Microbiology",
-        "clinical_chemistry": "Clinical Chemistry",
-        "immunology": "Immunology",
-        "parasitology": "Parasitology",
-        "urinalysis": "Urinalysis",
-        "histopathology": "Histopathology",
-        "serology": "Serology",
     },
     "کوردی 🇮🇶": {
         "app_title": "🔬 سیستەمی شیکردنەوەی تاقیگەی پزیشکی",
@@ -102,13 +92,14 @@ TRANSLATIONS = {
         "disease_db": "🦠 بنکەدراوەی نەخۆشییەکان",
         "lab_tests": "🧪 پشکنینە تاقیگەییەکان",
         "practical": "🔬 پشکنینی پراکتیکی",
-        "theory": "📚 پرسیاری تیۆری",
+        "theory": "📚 تیۆری و تێبینییەکان",
         "results_entry": "📝 تۆمارکردنی ئەنجامەکان",
         "reports": "📈 ڕاپۆرت و ئامارەکان",
         "nav_title": "🔬 ڕێنیشاندەر",
         "select_section": "بەش هەڵبژێرە",
+        "language": "🌐 زمان",
         "quick_info": "📋 زانیاری خێرا",
-        "quick_info_text": "ئەم سیستەمە زانیاری گشتگیری پشکنینە تاقیگەییەکانی پزیشکی بۆ قوتابیانی قۆناغی چوارەم لەخۆدەگرێت.",
+        "quick_info_text": "زانیاری گشتگیری پشکنینە تاقیگەییەکانی پزیشکی بۆ قوتابیانی قۆناغی چوارەم.",
         "disease_categories": "بەشەکانی نەخۆشی",
         "laboratory_tests": "پشکنینە تاقیگەییەکان",
         "diseases": "نەخۆشییەکان",
@@ -160,107 +151,14 @@ TRANSLATIONS = {
         "abnormal_warning": "⚠️ ئەنجامی نائاسایی دۆزرایەوە!",
         "saved_success": "✅ بە سەرکەوتوویی تۆمارکرا!",
         "note_saved": "✅ تێبینییەکە تۆمارکرا!",
-        "please_wait": "تکایە چاوەڕێ بکە...",
         "minutes": "خولەک",
         "basic": "سەرەتایی",
-        "intermediate": "ناوەندی", 
+        "intermediate": "ناوەندی",
         "advanced": "پێشکەوتوو",
         "gender_male": "نێر",
         "gender_female": "مێ",
         "gender_other": "هی تر",
         "created": "دروستکراوە",
-        "hematology": "خوێنناسی",
-        "microbiology": "مایکرۆبایۆلۆجی",
-        "clinical_chemistry": "کیمیای کلینیکی",
-        "immunology": "ئیمیونۆلۆجی",
-        "parasitology": "مشقوڕخوێناسی",
-        "urinalysis": "شیکردنەوەی میز",
-        "histopathology": "هیستۆپاتۆلۆجی",
-        "serology": "سیرۆلۆجی",
-    },
-    "العربية 🇮🇶": {
-        "app_title": "🔬 نظام تحليل المختبرات الطبية",
-        "app_subtitle": "المرحلة الرابعة - تحليل الأمراض",
-        "app_description": "مرجع شامل لجميع الفحوصات المخبرية وتحليل الأمراض",
-        "dashboard": "📊 لوحة القيادة",
-        "disease_db": "🦠 قاعدة بيانات الأمراض",
-        "lab_tests": "🧪 الفحوصات المخبرية",
-        "practical": "🔬 الفحوصات العملية",
-        "theory": "📚 الأسئلة النظرية",
-        "results_entry": "📝 إدخال النتائج",
-        "reports": "📈 التقارير والتحليلات",
-        "nav_title": "🔬 التنقل",
-        "select_section": "اختر القسم",
-        "quick_info": "📋 معلومات سريعة",
-        "quick_info_text": "يحتوي هذا النظام على معلومات شاملة عن الفحوصات المخبرية الطبية لطلاب المرحلة الرابعة.",
-        "disease_categories": "فئات الأمراض",
-        "laboratory_tests": "الفحوصات المخبرية",
-        "diseases": "الأمراض",
-        "practical_tests": "الفحوصات العملية",
-        "categories_overview": "📂 فئات الأمراض",
-        "quick_reference": "🧪 مرجع سريع - الفحوصات الشائعة",
-        "filter_category": "تصفية حسب الفئة",
-        "all_categories": "جميع الفئات",
-        "search": "🔍 بحث",
-        "search_diseases": "بحث عن الأمراض",
-        "description": "الوصف",
-        "symptoms": "الأعراض",
-        "category": "الفئة",
-        "related_tests": "الفحوصات ذات الصلة",
-        "test_category": "فئة الفحص",
-        "search_tests": "بحث عن الفحوصات",
-        "unit": "الوحدة",
-        "normal_range": "المدى الطبيعي",
-        "critical_values": "⚠️ القيم الحرجة",
-        "low": "منخفض",
-        "high": "مرتفع",
-        "procedure": "📝 خطوات الإجراء",
-        "materials": "🧫 المواد المطلوبة",
-        "expected_results": "✅ النتائج المتوقعة",
-        "interpretation": "🔍 التفسير",
-        "duration": "المدة",
-        "difficulty": "مستوى الصعوبة",
-        "add_notes": "📝 إضافة ملاحظات دراسية",
-        "topic": "الموضوع",
-        "content": "محتوى الملاحظة",
-        "save_note": "حفظ الملاحظة",
-        "your_notes": "📖 ملاحظاتك الدراسية",
-        "delete": "حذف",
-        "patient_name": "اسم المريض",
-        "patient_age": "عمر المريض",
-        "patient_gender": "جنس المريض",
-        "select_test": "اختر الفحص",
-        "result_value": "قيمة النتيجة",
-        "result_text": "نص النتيجة (اختياري)",
-        "additional_notes": "ملاحظات إضافية",
-        "save_result": "حفظ النتيجة",
-        "total_tests": "إجمالي الفحوصات",
-        "abnormal_results": "نتائج غير طبيعية",
-        "normal_rate": "معدل الطبيعي",
-        "tests_by_category": "الفحوصات حسب الفئة",
-        "normal_vs_abnormal": "طبيعي مقابل غير طبيعي",
-        "recent_results": "📋 النتائج الحديثة",
-        "no_results": "لم يتم تسجيل أي نتائج بعد.",
-        "abnormal_warning": "⚠️ تم اكتشاف نتيجة غير طبيعية!",
-        "saved_success": "✅ تم الحفظ بنجاح!",
-        "note_saved": "✅ تم حفظ الملاحظة!",
-        "please_wait": "يرجى الانتظار...",
-        "minutes": "دقيقة",
-        "basic": "أساسي",
-        "intermediate": "متوسط", 
-        "advanced": "متقدم",
-        "gender_male": "ذكر",
-        "gender_female": "أنثى",
-        "gender_other": "آخر",
-        "created": "تم الإنشاء",
-        "hematology": "أمراض الدم",
-        "microbiology": "الأحياء الدقيقة",
-        "clinical_chemistry": "الكيمياء السريرية",
-        "immunology": "المناعة",
-        "parasitology": "الطفيليات",
-        "urinalysis": "تحليل البول",
-        "histopathology": "هيستوباثولوجي",
-        "serology": "الأمصال",
     }
 }
 
@@ -278,10 +176,8 @@ class LabDatabase:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name_en TEXT NOT NULL,
                 name_ku TEXT NOT NULL,
-                name_ar TEXT NOT NULL,
                 description_en TEXT,
                 description_ku TEXT,
-                description_ar TEXT,
                 icon TEXT
             );
             
@@ -290,13 +186,10 @@ class LabDatabase:
                 category_id INTEGER,
                 name_en TEXT NOT NULL,
                 name_ku TEXT NOT NULL,
-                name_ar TEXT NOT NULL,
                 description_en TEXT,
                 description_ku TEXT,
-                description_ar TEXT,
                 symptoms_en TEXT,
                 symptoms_ku TEXT,
-                symptoms_ar TEXT,
                 FOREIGN KEY (category_id) REFERENCES disease_categories(id)
             );
             
@@ -304,7 +197,6 @@ class LabDatabase:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name_en TEXT NOT NULL,
                 name_ku TEXT NOT NULL,
-                name_ar TEXT NOT NULL,
                 category TEXT,
                 unit TEXT,
                 normal_range_low REAL,
@@ -312,31 +204,24 @@ class LabDatabase:
                 critical_low REAL,
                 critical_high REAL,
                 description_en TEXT,
-                description_ku TEXT,
-                description_ar TEXT
+                description_ku TEXT
             );
             
             CREATE TABLE IF NOT EXISTS practical_tests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title_en TEXT NOT NULL,
                 title_ku TEXT NOT NULL,
-                title_ar TEXT NOT NULL,
                 description_en TEXT,
                 description_ku TEXT,
-                description_ar TEXT,
                 category TEXT,
                 steps_en TEXT,
                 steps_ku TEXT,
-                steps_ar TEXT,
                 materials_en TEXT,
                 materials_ku TEXT,
-                materials_ar TEXT,
                 expected_results_en TEXT,
                 expected_results_ku TEXT,
-                expected_results_ar TEXT,
                 interpretation_en TEXT,
                 interpretation_ku TEXT,
-                interpretation_ar TEXT,
                 duration_minutes INTEGER,
                 difficulty_level TEXT
             );
@@ -366,212 +251,209 @@ class LabDatabase:
         self.conn.commit()
     
     def _insert_reference_data(self):
-        # Disease Categories with trilingual names
+        """Insert reference data - only English and Kurdish"""
+        
+        # Disease Categories
         categories = [
-            ("Hematology", "خوێنناسی", "أمراض الدم", 
-             "Blood disorders and diseases", "نەخۆشی و تێکچوونەکانی خوێن", "اضطرابات وأمراض الدم", "🩸"),
-            ("Microbiology", "مایکرۆبایۆلۆجی", "الأحياء الدقيقة",
-             "Bacterial, viral, fungal infections", "هەوکردنی بەکتریایی، ڤایرۆسی، کەڕوویی", "الالتهابات البكتيرية والفيروسية والفطرية", "🦠"),
-            ("Clinical Chemistry", "کیمیای کلینیکی", "الكيمياء السريرية",
-             "Chemical analysis of body fluids", "شیکردنەوەی کیمیایی شلەکانی لەش", "التحليل الكيميائي لسوائل الجسم", "🧪"),
-            ("Immunology", "ئیمیونۆلۆجی", "المناعة",
-             "Immune system disorders", "تێکچوونەکانی سیستەمی بەرگری", "اضطرابات الجهاز المناعي", "🛡️"),
-            ("Parasitology", "مشقوڕخوێناسی", "الطفيليات",
-             "Parasitic infections", "هەوکردنی مشقوڕخوەکان", "الالتهابات الطفيلية", "🐛"),
-            ("Urinalysis", "شیکردنەوەی میز", "تحليل البول",
-             "Urine analysis", "شیکردنەوەی میز", "تحليل البول", "💧"),
-            ("Serology", "سیرۆلۆجی", "الأمصال",
-             "Blood serum analysis", "شیکردنەوەی شلەی خوێن", "تحليل مصل الدم", "💉"),
-            ("Histopathology", "هیستۆپاتۆلۆجی", "هيستوباثولوجي",
-             "Tissue examination", "پشکنینی شانەکان", "فحص الأنسجة", "🔬")
+            ("Hematology", "خوێنناسی",
+             "Blood disorders and diseases",
+             "نەخۆشی و تێکچوونەکانی خوێن", "🩸"),
+            ("Microbiology", "مایکرۆبایۆلۆجی",
+             "Bacterial, viral, fungal infections",
+             "هەوکردنی بەکتریایی، ڤایرۆسی، کەڕوویی", "🦠"),
+            ("Clinical Chemistry", "کیمیای کلینیکی",
+             "Chemical analysis of body fluids",
+             "شیکردنەوەی کیمیایی شلەکانی لەش", "🧪"),
+            ("Immunology", "ئیمیونۆلۆجی",
+             "Immune system disorders",
+             "تێکچوونەکانی سیستەمی بەرگری", "🛡️"),
+            ("Parasitology", "مشقوڕخوێناسی",
+             "Parasitic infections",
+             "هەوکردنی مشقوڕخوەکان", "🐛"),
+            ("Urinalysis", "شیکردنەوەی میز",
+             "Urine analysis",
+             "شیکردنەوەی میز", "💧"),
+            ("Serology", "سیرۆلۆجی",
+             "Blood serum analysis",
+             "شیکردنەوەی شلەی خوێن", "💉"),
+            ("Histopathology", "هیستۆپاتۆلۆجی",
+             "Tissue examination",
+             "پشکنینی شانەکان", "🔬")
         ]
         
         for cat in categories:
             self.conn.execute("""
                 INSERT OR IGNORE INTO disease_categories 
-                (name_en, name_ku, name_ar, description_en, description_ku, description_ar, icon) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (name_en, name_ku, description_en, description_ku, icon) 
+                VALUES (?, ?, ?, ?, ?)
             """, cat)
         
-        # Laboratory Tests with trilingual names
+        # Laboratory Tests
         tests = [
-            # Hematology
-            ("CBC - Complete Blood Count", "CBC - ژماردنی تەواوی خوێن", "CBC - تعداد الدم الكامل",
+            ("CBC - Complete Blood Count", "CBC - ژماردنی تەواوی خوێن",
              "Hematology", "cells/μL", 4.5, 11.0, 2.0, 15.0,
-             "Complete blood cell count", "ژماردنی تەواوی خانەکانی خوێن", "تعداد خلايا الدم الكامل"),
+             "Complete blood cell count",
+             "ژماردنی تەواوی خانەکانی خوێن"),
             
-            ("WBC Count", "ژماردنی WBC", "تعداد كريات الدم البيضاء",
+            ("WBC Count", "ژماردنی WBC",
              "Hematology", "×10³/μL", 4.0, 11.0, 2.0, 30.0,
-             "White blood cell count", "ژماردنی خانە سپییەکانی خوێن", "تعداد خلايا الدم البيضاء"),
+             "White blood cell count",
+             "ژماردنی خانە سپییەکانی خوێن"),
             
-            ("Hemoglobin", "هیمۆگلۆبین", "الهيموجلوبين",
+            ("Hemoglobin", "هیمۆگلۆبین",
              "Hematology", "g/dL", 12.0, 16.0, 6.0, 20.0,
-             "Hemoglobin level", "ئاستی هیمۆگلۆبین", "مستوى الهيموجلوبين"),
+             "Hemoglobin level",
+             "ئاستی هیمۆگلۆبین"),
             
-            # Clinical Chemistry
-            ("Blood Glucose Fasting", "گلوکۆزی خوێن بە بەڕۆژوویی", "سكر الدم صائم",
+            ("Platelet Count", "ژماردنی پلەیکلت",
+             "Hematology", "×10³/μL", 150, 400, 50, 1000,
+             "Platelet count",
+             "ژماردنی پلەیکلتەکان"),
+            
+            ("Blood Glucose Fasting", "گلوکۆزی خوێن بە بەڕۆژوویی",
              "Clinical Chemistry", "mg/dL", 70, 100, 40, 300,
-             "Fasting blood sugar", "شەکری خوێن بە بەڕۆژوویی", "سكر الدم أثناء الصيام"),
+             "Fasting blood sugar",
+             "شەکری خوێن بە بەڕۆژوویی"),
             
-            ("HbA1c", "HbA1c", "السكر التراكمي",
+            ("HbA1c", "HbA1c",
              "Clinical Chemistry", "%", 4.0, 5.6, 3.0, 10.0,
-             "Glycated hemoglobin", "هیمۆگلۆبینی گڵایکەیتکراو", "الهيموجلوبين السكري"),
+             "Glycated hemoglobin",
+             "هیمۆگلۆبینی گڵایکەیتکراو"),
             
-            ("Creatinine", "کریاتینین", "الكرياتينين",
+            ("Creatinine", "کریاتینین",
              "Clinical Chemistry", "mg/dL", 0.6, 1.2, 0.2, 5.0,
-             "Kidney function marker", "نیشاندەری کاری گورچیلە", "مؤشر وظائف الكلى"),
+             "Kidney function marker",
+             "نیشاندەری کاری گورچیلە"),
             
-            ("ALT", "ALT", "إنزيم ALT",
+            ("ALT", "ALT",
              "Clinical Chemistry", "U/L", 7, 56, 5, 200,
-             "Alanine aminotransferase", "ئالانین ئەمینۆترانسفێرەیس", "ناقلة أمين الألانين"),
+             "Alanine aminotransferase",
+             "ئالانین ئەمینۆترانسفێرەیس"),
             
-            ("AST", "AST", "إنزيم AST",
+            ("AST", "AST",
              "Clinical Chemistry", "U/L", 10, 40, 5, 200,
-             "Aspartate aminotransferase", "ئەسپارتەیت ئەمینۆترانسفێرەیس", "ناقلة أمين الأسبارتات"),
+             "Aspartate aminotransferase",
+             "ئەسپارتەیت ئەمینۆترانسفێرەیس"),
             
-            ("Total Cholesterol", "کۆلیستڕۆڵی گشتی", "الكوليسترول الكلي",
+            ("Total Cholesterol", "کۆلیستڕۆڵی گشتی",
              "Clinical Chemistry", "mg/dL", 125, 200, 100, 300,
-             "Total cholesterol", "کۆلیستڕۆڵی گشتی", "الكوليسترول الكلي"),
+             "Total cholesterol",
+             "کۆلیستڕۆڵی گشتی"),
             
-            # Urinalysis
-            ("Urine pH", "pH ی میز", "درجة حموضة البول",
+            ("Urine pH", "pH ی میز",
              "Urinalysis", "pH", 4.5, 8.0, 4.0, 9.0,
-             "Urine acidity", "ترشێتی میز", "حموضة البول"),
+             "Urine acidity",
+             "ترشێتی میز"),
             
-            ("Urine Protein", "پڕۆتینی میز", "بروتين البول",
+            ("Urine Protein", "پڕۆتینی میز",
              "Urinalysis", "mg/dL", 0, 8, 0, 30,
-             "Protein in urine", "پڕۆتین لە میزدا", "البروتين في البول"),
+             "Protein in urine",
+             "پڕۆتین لە میزدا"),
             
-            # Serology
-            ("CRP", "CRP", "بروتين سي التفاعلي",
+            ("CRP", "CRP",
              "Serology", "mg/L", 0, 3, 0, 10,
-             "C-reactive protein", "پڕۆتینی C- کاردانەوەیی", "بروتين سي التفاعلي"),
+             "C-reactive protein",
+             "پڕۆتینی C- کاردانەوەیی"),
         ]
         
         for test in tests:
             self.conn.execute("""
                 INSERT OR IGNORE INTO test_types 
-                (name_en, name_ku, name_ar, category, unit, normal_range_low, normal_range_high, 
-                 critical_low, critical_high, description_en, description_ku, description_ar)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name_en, name_ku, category, unit, normal_range_low, normal_range_high, 
+                 critical_low, critical_high, description_en, description_ku)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, test)
         
-        # Diseases with trilingual names
+        # Diseases
         diseases = [
-            (1, 
-             "Anemia", "کەمخوێنی", "فقر الدم",
-             "Decreased red blood cells or hemoglobin", "کەمبوونەوەی خانە سوورەکانی خوێن یان هیمۆگلۆبین", "انخفاض خلايا الدم الحمراء أو الهيموجلوبين",
-             "Fatigue, weakness, pale skin, shortness of breath", "ماندوویی، لاوازی، ڕەنگی پێستی کاڵ، تەنگی هەناسە", "التعب، الضعف، شحوب الجلد، ضيق التنفس"),
+            (1, "Anemia", "کەمخوێنی",
+             "Decreased red blood cells or hemoglobin",
+             "کەمبوونەوەی خانە سوورەکانی خوێن یان هیمۆگلۆبین",
+             "Fatigue, weakness, pale skin, shortness of breath",
+             "ماندوویی، لاوازی، ڕەنگی پێستی کاڵ، تەنگی هەناسە"),
             
-            (1,
-             "Leukemia", "لۆکیمیا", "سرطان الدم",
-             "Cancer of blood-forming tissues", "شێرپەنجەی شانەکانی دروستکەری خوێن", "سرطان الأنسجة المكونة للدم",
-             "Fever, fatigue, frequent infections, weight loss", "تا، ماندوویی، هەوکردنی دووبارە، دابەزینی کێش", "حمى، تعب، التهابات متكررة، فقدان الوزن"),
+            (1, "Leukemia", "لۆکیمیا",
+             "Cancer of blood-forming tissues",
+             "شێرپەنجەی شانەکانی دروستکەری خوێن",
+             "Fever, fatigue, frequent infections, weight loss",
+             "تا، ماندوویی، هەوکردنی دووبارە، دابەزینی کێش"),
             
-            (2,
-             "Urinary Tract Infection", "هەوکردنی میزەڕۆ", "التهاب المسالك البولية",
-             "Bacterial infection of urinary system", "هەوکردنی بەکتریایی سیستەمی میز", "عدوى بكتيرية في الجهاز البولي",
-             "Burning urination, frequent urination, cloudy urine", "سووتان لە کاتی میزکردندا، میزکردنی زۆر، میزی شێواو", "حرقة عند التبول، كثرة التبول، بول عكر"),
+            (2, "Urinary Tract Infection", "هەوکردنی میزەڕۆ",
+             "Bacterial infection of urinary system",
+             "هەوکردنی بەکتریایی سیستەمی میز",
+             "Burning urination, frequent urination, cloudy urine",
+             "سووتان لە کاتی میزکردندا، میزکردنی زۆر، میزی شێواو"),
             
-            (3,
-             "Diabetes Mellitus", "شەکرە", "مرض السكري",
-             "High blood sugar levels", "ئاستی بەرزی شەکری خوێن", "ارتفاع مستويات السكر في الدم",
-             "Increased thirst, frequent urination, fatigue, blurred vision", "تینوێتی زۆر، میزکردنی زۆر، ماندوویی، بینینی شێواو", "زيادة العطش، كثرة التبول، التعب، عدم وضوح الرؤية"),
+            (3, "Diabetes Mellitus", "شەکرە",
+             "High blood sugar levels",
+             "ئاستی بەرزی شەکری خوێن",
+             "Increased thirst, frequent urination, fatigue, blurred vision",
+             "تینوێتی زۆر، میزکردنی زۆر، ماندوویی، بینینی شێواو"),
             
-            (3,
-             "Kidney Disease", "نەخۆشی گورچیلە", "مرض الكلى",
-             "Impaired kidney function", "تێکچوونی کاری گورچیلە", "ضعف وظائف الكلى",
-             "Swelling, fatigue, changes in urination, nausea", "ئاوسان، ماندوویی، گۆڕانکاری لە میزکردندا، هێڵنج", "تورم، تعب، تغيرات في التبول، غثيان"),
+            (3, "Kidney Disease", "نەخۆشی گورچیلە",
+             "Impaired kidney function",
+             "تێکچوونی کاری گورچیلە",
+             "Swelling, fatigue, changes in urination, nausea",
+             "ئاوسان، ماندوویی، گۆڕانکاری لە میزکردندا، هێڵنج"),
             
-            (5,
-             "Malaria", "مەلاریا", "الملاريا",
-             "Parasitic infection transmitted by mosquitoes", "هەوکردنی مشقوڕخوەیی کە بە مێشوولە دەگوازرێتەوە", "عدوى طفيلية تنتقل عن طريق البعوض",
-             "Fever, chills, headache, muscle pain", "تا، لەرز، سەرئێشە، ئازاری ماسولکە", "حمى، قشعريرة، صداع، آلام في العضلات"),
+            (5, "Malaria", "مەلاریا",
+             "Parasitic infection transmitted by mosquitoes",
+             "هەوکردنی مشقوڕخوەیی کە بە مێشوولە دەگوازرێتەوە",
+             "Fever, chills, headache, muscle pain",
+             "تا، لەرز، سەرئێشە، ئازاری ماسولکە"),
         ]
         
         for disease in diseases:
             self.conn.execute("""
                 INSERT OR IGNORE INTO diseases 
-                (category_id, name_en, name_ku, name_ar, description_en, description_ku, 
-                 description_ar, symptoms_en, symptoms_ku, symptoms_ar)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (category_id, name_en, name_ku, description_en, description_ku, 
+                 symptoms_en, symptoms_ku)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, disease)
         
-        # Practical Tests with trilingual names
+        # Practical Tests
         practicals = [
-            ("Blood Smear Preparation", "ئامادەکردنی سمێری خوێن", "تحضير لطاخة الدم",
-             "Learn to prepare and stain blood smears", "فێربوونی ئامادەکردن و ڕەنگکردنی سمێری خوێن", "تعلم تحضير وتلوين لطاخات الدم",
+            ("Blood Smear Preparation", "ئامادەکردنی سمێری خوێن",
+             "Learn to prepare and stain blood smears",
+             "فێربوونی ئامادەکردن و ڕەنگکردنی سمێری خوێن",
              "Hematology",
              "1. Clean slide with alcohol\n2. Place small drop of blood\n3. Use spreader slide at 30-45° angle\n4. Spread blood evenly\n5. Allow to air dry\n6. Fix with methanol\n7. Stain with Wright-Giemsa",
              "١. پاککردنەوەی سلاید بە ئەلکحول\n٢. دانانی دڵۆپێکی بچووکی خوێن\n٣. بەکارهێنانی سلایدی بڵاوکەرەوە بە گۆشەی ٣٠-٤٥ پلە\n٤. بڵاوکردنەوەی خوێن بە یەکسانی\n٥. ڕێگەدان بە وشکبوونەوە\n٦. جێگیرکردن بە میسانۆل\n٧. ڕەنگکردن بە رایت-گیمسا",
-             "١. تنظيف الشريحة بالكحول\n٢. وضع قطرة صغيرة من الدم\n٣. استخدام شريحة فارشة بزاوية ٣٠-٤٥ درجة\n٤. نشر الدم بالتساوي\n٥. تركها لتجف في الهواء\n٦. تثبيتها بالميثانول\n٧. تلوينها برايت-جيمسا",
              "Glass slides, blood sample, Wright-Giemsa stain, methanol, microscope",
              "سلایدی شووشەیی، نموونەی خوێن، ڕەنگی رایت-گیمسا، میسانۆل، مایکرۆسکۆپ",
-             "شرائح زجاجية، عينة دم، صبغة رايت-جيمسا، ميثانول، مجهر",
-             "Well-spread monolayer of cells with feathered edge", "توێژاڵێکی یەک خانەیی بە باشی بڵاوکراوە لەگەڵ لێواری پەڕیشی", "طبقة أحادية منتشرة جيداً من الخلايا مع حافة ريشية",
-             "Check for cell morphology, parasites, abnormal cells", "پشکنین بۆ شێوەزانی خانەکان، مشقوڕخوەکان، خانە نائاساییەکان", "فحص مورفولوجيا الخلايا، الطفيليات، الخلايا غير الطبيعية",
+             "Well-spread monolayer of cells with feathered edge",
+             "توێژاڵێکی یەک خانەیی بە باشی بڵاوکراوە لەگەڵ لێواری پەڕیشی",
+             "Check for cell morphology, parasites, abnormal cells",
+             "پشکنین بۆ شێوەزانی خانەکان، مشقوڕخوەکان، خانە نائاساییەکان",
              45, "Basic"),
             
-            ("Gram Staining", "ڕەنگکردنی گرام", "تلوين غرام",
-             "Differentiate bacteria into Gram-positive and Gram-negative", "جیاکردنەوەی بەکتریا بۆ گرام-پۆزەتیڤ و گرام-نیگەتیڤ", "تمييز البكتيريا إلى غرام موجبة وغرام سالبة",
+            ("Gram Staining", "ڕەنگکردنی گرام",
+             "Differentiate bacteria into Gram-positive and Gram-negative",
+             "جیاکردنەوەی بەکتریا بۆ گرام-پۆزەتیڤ و گرام-نیگەتیڤ",
              "Microbiology",
              "1. Prepare bacterial smear\n2. Fix with heat\n3. Apply Crystal Violet (1 min)\n4. Apply Iodine (1 min)\n5. Decolorize with alcohol\n6. Counterstain with Safranin (30 sec)\n7. Wash and dry",
              "١. ئامادەکردنی سمێری بەکتریایی\n٢. جێگیرکردن بە گەرمی\n٣. بەکارهێنانی کریستاڵ ڤایۆلێت (١ خولەک)\n٤. بەکارهێنانی ئایۆدین (١ خولەک)\n٥. ڕەنگ لابردن بە ئەلکحول\n٦. ڕەنگی پێچەوانە بە سەفرانین (٣٠ چرکە)\n٧. شۆردن و وشککردن",
-             "١. تحضير لطاخة بكتيرية\n٢. تثبيت بالحرارة\n٣. وضع الكريستال البنفسجي (١ دقيقة)\n٤. وضع اليود (١ دقيقة)\n٥. إزالة اللون بالكحول\n٦. تلوين مضاد بالصفرانين (٣٠ ثانية)\n٧. غسل وتجفيف",
              "Bacterial culture, Crystal Violet, Iodine, Alcohol, Safranin, microscope slides",
              "کشتوکاڵی بەکتریایی، کریستاڵ ڤایۆلێت، ئایۆدین، ئەلکحول، سەفرانین، سلایدی مایکرۆسکۆپ",
-             "مزرعة بكتيرية، كريستال بنفسجي، يود، كحول، صفرانين، شرائح مجهرية",
-             "Gram-positive: Purple/Blue\nGram-negative: Pink/Red", "گرام-پۆزەتیڤ: وەنەوشەیی/شین\nگرام-نیگەتیڤ: پەمەیی/سوور", "غرام موجب: أرجواني/أزرق\nغرام سالب: وردي/أحمر",
-             "Gram-positive bacteria have thick peptidoglycan layer", "بەکتریای گرام-پۆزەتیڤ توێژاڵێکی ئەستووری پێپتیدۆگلایکانیان هەیە", "البكتيريا غرام الموجبة لديها طبقة ببتيدوغليكان سميكة",
+             "Gram-positive: Purple/Blue\nGram-negative: Pink/Red",
+             "گرام-پۆزەتیڤ: وەنەوشەیی/شین\nگرام-نیگەتیڤ: پەمەیی/سوور",
+             "Gram-positive bacteria have thick peptidoglycan layer",
+             "بەکتریای گرام-پۆزەتیڤ توێژاڵێکی ئەستووری پێپتیدۆگلایکانیان هەیە",
              60, "Basic"),
-            
-            ("Urinalysis - Dipstick Method", "شیکردنەوەی میز - شێوازی دیپستیک", "تحليل البول - طريقة الشريط",
-             "Chemical analysis of urine using dipstick", "شیکردنەوەی کیمیایی میز بە بەکارهێنانی دیپستیک", "التحليل الكيميائي للبول باستخدام الشريط",
-             "Urinalysis",
-             "1. Collect fresh urine sample\n2. Dip test strip briefly\n3. Remove excess urine\n4. Read at specified times\n5. Compare with color chart",
-             "١. کۆکردنەوەی نموونەی میزی تازە\n٢. نوقمکردنی شریتی پشکنین بە کورتی\n٣. لابردنی میزی زیادە\n٤. خوێندنەوە لە کاتی دیاریکراودا\n٥. بەراوردکردن لەگەڵ هێڵکاری ڕەنگ",
-             "١. جمع عينة بول طازجة\n٢. غمس شريط الاختبار لفترة وجيزة\n٣. إزالة البول الزائد\n٤. القراءة في الأوقات المحددة\n٥. المقارنة مع مخطط الألوان",
-             "Urine sample, dipstick test strips, timer, color chart",
-             "نموونەی میز، شریتی پشکنینی دیپستیک، کاتژمێر، هێڵکاری ڕەنگ",
-             "عينة بول، شرائط اختبار، مؤقت، مخطط ألوان",
-             "Results compared to standard color chart", "ئەنجامەکان بەراورد دەکرێن لەگەڵ هێڵکاری ڕەنگی ستاندارد", "تتم مقارنة النتائج مع مخطط الألوان القياسي",
-             "Multiple parameters: pH, protein, glucose, ketones, blood, etc.", "پارامێتەری فرە: pH، پڕۆتین، گلوکۆز، کیتۆن، خوێن، هتد.", "معلمات متعددة: درجة الحموضة، البروتين، الجلوكوز، الكيتونات، الدم، إلخ.",
-             30, "Basic"),
         ]
         
         for prac in practicals:
             self.conn.execute("""
                 INSERT OR IGNORE INTO practical_tests 
-                (title_en, title_ku, title_ar, description_en, description_ku, description_ar,
-                 category, steps_en, steps_ku, steps_ar, materials_en, materials_ku, materials_ar,
-                 expected_results_en, expected_results_ku, expected_results_ar,
-                 interpretation_en, interpretation_ku, interpretation_ar,
+                (title_en, title_ku, description_en, description_ku,
+                 category, steps_en, steps_ku, materials_en, materials_ku,
+                 expected_results_en, expected_results_ku,
+                 interpretation_en, interpretation_ku,
                  duration_minutes, difficulty_level)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, prac)
         
         self.conn.commit()
-    
-    def get_localized(self, table: str, lang: str) -> List[Dict]:
-        """Get data with localized names based on language"""
-        rows = self.conn.execute(f"SELECT * FROM {table}").fetchall()
-        results = []
-        for row in dict_rows(rows):
-            localized = dict(row)
-            # Map localized fields
-            name_field = f"name_{lang}" if f"name_{lang}" in localized else "name_en"
-            desc_field = f"description_{lang}" if f"description_{lang}" in localized else "description_en"
-            
-            if name_field in localized:
-                localized['display_name'] = localized[name_field]
-            if desc_field in localized:
-                localized['display_description'] = localized[desc_field]
-            
-            results.append(localized)
-        return results
-
-def dict_rows(rows):
-    return [dict(row) for row in rows]
 
 # ==================== Initialize Database ====================
 @st.cache_resource
@@ -586,23 +468,19 @@ def get_translation(key: str) -> str:
 
 def get_name(row: Dict, prefix: str = "name") -> str:
     """Get localized name from database row"""
-    lang_map = {
-        "English 🇬🇧": "en",
-        "کوردی 🇮🇶": "ku",
-        "العربية 🇮🇶": "ar"
-    }
+    lang_map = {"English 🇬🇧": "en", "کوردی 🇮🇶": "ku"}
     lang = lang_map.get(st.session_state.get('language', 'English 🇬🇧'), 'en')
     field = f"{prefix}_{lang}"
     return row.get(field, row.get(f"{prefix}_en", ""))
 
-def get_description(row: Dict, prefix: str = "description") -> str:
-    """Get localized description from database row"""
-    return get_name(row, prefix)
+def get_description(row: Dict) -> str:
+    """Get localized description"""
+    return get_name(row, "description")
 
 # ==================== Main Application ====================
 def main():
     st.set_page_config(
-        page_title=get_translation('app_title'),
+        page_title="سیستەمی شیکردنەوەی تاقیگەی پزیشکی",
         page_icon="🔬",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -610,15 +488,20 @@ def main():
     
     # Initialize language
     if 'language' not in st.session_state:
-        st.session_state.language = 'English 🇬🇧'
+        st.session_state.language = 'کوردی 🇮🇶'  # Default to Kurdish
     
-    # Custom CSS
+    # Custom CSS with proper Kurdish font
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;600;700&display=swap');
         
         * {
-            font-family: 'Cairo', sans-serif;
+            font-family: 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        [dir="rtl"] {
+            direction: rtl;
+            text-align: right;
         }
         
         .main-header {
@@ -654,14 +537,6 @@ def main():
             border: 1px solid #e0e0e0;
         }
         
-        .practical-card {
-            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
-            padding: 20px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border-left: 5px solid #7b1fa2;
-        }
-        
         .stButton > button {
             background: linear-gradient(135deg, #1a237e, #0d47a1);
             color: white;
@@ -679,15 +554,6 @@ def main():
         .critical-range {
             color: #c62828;
             font-weight: bold;
-        }
-        
-        .disease-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 15px 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border-top: 4px solid #1565c0;
         }
         
         .symptom-tag {
@@ -711,11 +577,6 @@ def main():
             line-height: 30px;
             margin-right: 10px;
         }
-        
-        [dir="rtl"] {
-            direction: rtl;
-            text-align: right;
-        }
     </style>
     """, unsafe_allow_html=True)
     
@@ -728,8 +589,8 @@ def main():
         
         # Language selector
         language = st.selectbox(
-            "🌐 Language / زمان / اللغة",
-            ["English 🇬🇧", "کوردی 🇮🇶", "العربية 🇮🇶"],
+            get_translation('language'),
+            ["کوردی 🇮🇶", "English 🇬🇧"],
             key="language_selector"
         )
         if language != st.session_state.language:
@@ -780,19 +641,26 @@ def render_dashboard(db: LabDatabase):
     # Statistics
     col1, col2, col3, col4 = st.columns(4)
     
-    categories = db.conn.execute("SELECT COUNT(*) as c FROM disease_categories").fetchone()
-    tests = db.conn.execute("SELECT COUNT(*) as c FROM test_types").fetchone()
-    diseases = db.conn.execute("SELECT COUNT(*) as c FROM diseases").fetchone()
-    practicals = db.conn.execute("SELECT COUNT(*) as c FROM practical_tests").fetchone()
+    result = db.conn.execute("SELECT COUNT(*) as c FROM disease_categories").fetchone()
+    categories_count = result['c'] if result else 0
+    
+    result = db.conn.execute("SELECT COUNT(*) as c FROM test_types").fetchone()
+    tests_count = result['c'] if result else 0
+    
+    result = db.conn.execute("SELECT COUNT(*) as c FROM diseases").fetchone()
+    diseases_count = result['c'] if result else 0
+    
+    result = db.conn.execute("SELECT COUNT(*) as c FROM practical_tests").fetchone()
+    practicals_count = result['c'] if result else 0
     
     with col1:
-        st.metric(T('disease_categories'), categories['c'])
+        st.metric(T('disease_categories'), categories_count)
     with col2:
-        st.metric(T('laboratory_tests'), tests['c'])
+        st.metric(T('laboratory_tests'), tests_count)
     with col3:
-        st.metric(T('diseases'), diseases['c'])
+        st.metric(T('diseases'), diseases_count)
     with col4:
-        st.metric(T('practical_tests'), practicals['c'])
+        st.metric(T('practical_tests'), practicals_count)
     
     # Categories overview
     st.markdown(f"## {T('categories_overview')}")
@@ -831,41 +699,53 @@ def render_disease_database(db: LabDatabase):
     
     st.markdown(f"## {T('disease_db')}")
     
+    # Get categories from database
     categories = db.conn.execute("SELECT * FROM disease_categories").fetchall()
     
-    # Filter
-    selected_category = st.selectbox(
-        T('filter_category'),
-        [T('all_categories')] + [get_name(dict(cat)) for cat in categories]
-    )
+    # Create category options
+    category_options = [T('all_categories')]
+    category_map = {}
+    for cat in categories:
+        cat_dict = dict(cat)
+        display_name = get_name(cat_dict)
+        category_options.append(display_name)
+        category_map[display_name] = cat_dict['id']
     
+    # Filter
+    selected_category = st.selectbox(T('filter_category'), category_options)
+    
+    # Get all diseases with category info
     diseases = db.conn.execute("""
-        SELECT d.*, dc.name_en as cat_en, dc.name_ku as cat_ku, dc.name_ar as cat_ar 
+        SELECT d.*, dc.name_en as cat_name_en, dc.name_ku as cat_name_ku 
         FROM diseases d 
         JOIN disease_categories dc ON d.category_id = dc.id
     """).fetchall()
     
-    # Filter by category
-    if selected_category != T('all_categories'):
-        diseases = [d for d in diseases if get_name(dict(d), 'cat') == selected_category]
+    # Filter by category    if selected_category != T('all_categories'):
+        cat_id = category_map[selected_category]
+        diseases = [d for d in diseases if d['category_id'] == cat_id]
     
     # Search
     search = st.text_input(T('search_diseases'))
     if search:
         diseases = [d for d in diseases if search.lower() in get_name(dict(d)).lower()]
     
+    if not diseases:
+        st.info("هیچ نەخۆشییەک نەدۆزرایەوە")
+        return
+    
     # Display diseases
     for disease in diseases:
         disease_dict = dict(disease)
-        with st.expander(f"🦠 {get_name(disease_dict)} - {get_name(disease_dict, 'cat')}"):
+        cat_name = get_name(disease_dict, "cat_name")
+        with st.expander(f"🦠 {get_name(disease_dict)} - {cat_name}"):
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 st.markdown(f"**{T('description')}:** {get_description(disease_dict)}")
                 
                 st.markdown(f"**{T('symptoms')}:**")
-                symptoms_field = f"symptoms_{st.session_state.language.split()[-1][:2].lower()}"
-                symptoms_text = disease_dict.get('symptoms_en', '')
+                symptoms_text = get_name(disease_dict, "symptoms")
                 if symptoms_text:
                     symptoms = symptoms_text.split(',')
                     symptom_html = ""
@@ -875,7 +755,7 @@ def render_disease_database(db: LabDatabase):
             
             with col2:
                 st.markdown(f"**{T('category')}:**")
-                st.info(get_name(disease_dict, 'cat'))
+                st.info(cat_name)
 
 def render_lab_tests(db: LabDatabase):
     T = get_translation
@@ -884,9 +764,9 @@ def render_lab_tests(db: LabDatabase):
     
     col1, col2 = st.columns(2)
     with col1:
-        categories = [T('all_categories')] + list(set(
-            t['category'] for t in db.conn.execute("SELECT category FROM test_types").fetchall()
-        ))
+        # Get unique categories
+        all_tests = db.conn.execute("SELECT DISTINCT category FROM test_types").fetchall()
+        categories = [T('all_categories')] + [t['category'] for t in all_tests]
         selected_category = st.selectbox(T('test_category'), categories)
     with col2:
         search = st.text_input(T('search_tests'))
@@ -932,9 +812,8 @@ def render_practical_tests(db: LabDatabase):
     
     col1, col2 = st.columns(2)
     with col1:
-        categories = [T('all_categories')] + list(set(
-            p['category'] for p in db.conn.execute("SELECT category FROM practical_tests").fetchall()
-        ))
+        all_prac = db.conn.execute("SELECT DISTINCT category FROM practical_tests").fetchall()
+        categories = [T('all_categories')] + [p['category'] for p in all_prac]
         selected = st.selectbox(T('filter_category'), categories)
     with col2:
         difficulty = st.selectbox(T('difficulty'), 
@@ -952,15 +831,14 @@ def render_practical_tests(db: LabDatabase):
     
     for test in practicals:
         test_dict = dict(test)
-        with st.expander(f"🔬 {get_name(test_dict, 'title')} ({test_dict['duration_minutes']} {T('minutes')} - {get_name(test_dict, 'difficulty_level')})"):
+        with st.expander(f"🔬 {get_name(test_dict, 'title')} ({test_dict['duration_minutes']} {T('minutes')})"):
             col1, col2 = st.columns([3, 1])
             
             with col1:
-                st.markdown(f"**{T('description')}:** {get_description(test_dict, 'description')}")
+                st.markdown(f"**{T('description')}:** {get_description(test_dict)}")
                 
                 st.markdown(f"### {T('procedure')}")
-                steps_field = f"steps_{st.session_state.language.split()[-1][:2].lower()}"
-                steps = test_dict.get('steps_en', '').split('\n')
+                steps = get_name(test_dict, 'steps').split('\n')
                 for j, step in enumerate(steps):
                     if step.strip():
                         st.markdown(f"<span class='step-number'>{j+1}</span> {step.strip()}", unsafe_allow_html=True)
@@ -970,31 +848,26 @@ def render_practical_tests(db: LabDatabase):
                 col_mat, col_exp = st.columns(2)
                 with col_mat:
                     st.markdown(f"### {T('materials')}")
-                    materials = test_dict.get('materials_en', '').split(',')
+                    materials = get_name(test_dict, 'materials').split(',')
                     for mat in materials:
                         st.markdown(f"- {mat.strip()}")
                 
                 with col_exp:
                     st.markdown(f"### {T('expected_results')}")
-                    st.info(test_dict.get('expected_results_en', ''))
+                    st.info(get_name(test_dict, 'expected_results'))
             
             with col2:
                 st.markdown(f"**{T('category')}:** {test_dict['category']}")
                 st.markdown(f"**{T('duration')}:** {test_dict['duration_minutes']} {T('minutes')}")
-                diff_level = test_dict['difficulty_level']
-                stars = {'Basic': 1, 'Intermediate': 2, 'Advanced': 3}
-                st.markdown(f"**{T('difficulty')}:** {'⭐' * stars.get(diff_level, 1)}")
                 
                 st.markdown("---")
                 st.markdown(f"### {T('interpretation')}")
-                st.success(test_dict.get('interpretation_en', ''))
+                st.success(get_name(test_dict, 'interpretation'))
 
 def render_theory_questions(db: LabDatabase):
     T = get_translation
     
     st.markdown(f"## {T('theory')}")
-    
-    search = st.text_input(T('search'))
     
     with st.expander(T('add_notes')):
         col1, col2 = st.columns(2)
@@ -1006,25 +879,31 @@ def render_theory_questions(db: LabDatabase):
             content = st.text_area(T('content'), height=150)
         
         if st.button(T('save_note')):
-            db.conn.execute(
-                "INSERT INTO study_notes (topic, content, category) VALUES (?, ?, ?)",
-                (topic, content, category)
-            )
-            db.conn.commit()
-            st.success(T('note_saved'))
+            if topic and content:
+                db.conn.execute(
+                    "INSERT INTO study_notes (topic, content, category) VALUES (?, ?, ?)",
+                    (topic, content, category)
+                )
+                db.conn.commit()
+                st.success(T('note_saved'))
+            else:
+                st.warning("تکایە بابەت و ناوەڕۆک بنووسە")
     
     st.markdown(f"### {T('your_notes')}")
     notes = db.conn.execute("SELECT * FROM study_notes ORDER BY created_at DESC").fetchall()
     
-    for note in notes:
-        note_dict = dict(note)
-        with st.expander(f"📝 {note_dict['topic']} - {note_dict['category']}"):
-            st.markdown(note_dict['content'])
-            st.caption(f"{T('created')}: {note_dict['created_at']}")
-            if st.button(T('delete'), key=f"del_{note_dict['id']}"):
-                db.conn.execute("DELETE FROM study_notes WHERE id = ?", (note_dict['id'],))
-                db.conn.commit()
-                st.rerun()
+    if not notes:
+        st.info("هێشتا هیچ تێبینییەکت نەنووسیوە")
+    else:
+        for note in notes:
+            note_dict = dict(note)
+            with st.expander(f"📝 {note_dict['topic']} - {note_dict['category']}"):
+                st.markdown(note_dict['content'])
+                st.caption(f"{T('created')}: {note_dict['created_at']}")
+                if st.button(T('delete'), key=f"del_{note_dict['id']}"):
+                    db.conn.execute("DELETE FROM study_notes WHERE id = ?", (note_dict['id'],))
+                    db.conn.commit()
+                    st.rerun()
 
 def render_test_results(db: LabDatabase):
     T = get_translation
@@ -1036,7 +915,7 @@ def render_test_results(db: LabDatabase):
         
         with col1:
             patient_name = st.text_input(T('patient_name'))
-            patient_age = st.number_input(T('patient_age'), min_value=0, max_value=120)
+            patient_age = st.number_input(T('patient_age'), min_value=0, max_value=120, value=30)
         
         with col2:
             patient_gender = st.selectbox(T('patient_gender'), 
@@ -1046,30 +925,33 @@ def render_test_results(db: LabDatabase):
             selected_test = st.selectbox(T('select_test'), list(test_options.keys()))
         
         with col3:
-            result_value = st.number_input(T('result_value'), step=0.01)
+            result_value = st.number_input(T('result_value'), step=0.01, value=0.0)
             result_text = st.text_input(T('result_text'))
         
         notes = st.text_area(T('additional_notes'))
         
         if st.form_submit_button(T('save_result')):
-            test_id = test_options[selected_test]
-            test = db.conn.execute("SELECT * FROM test_types WHERE id = ?", (test_id,)).fetchone()
-            test_dict = dict(test)
-            
-            is_abnormal = False
-            if result_value < test_dict['normal_range_low'] or result_value > test_dict['normal_range_high']:
-                is_abnormal = True
-            
-            db.conn.execute("""
-                INSERT INTO test_results (patient_name, patient_age, patient_gender, test_id, 
-                                       result_value, result_text, is_abnormal, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (patient_name, patient_age, patient_gender, test_id, 
-                 result_value, result_text, is_abnormal, notes))
-            db.conn.commit()
-            st.success(T('saved_success'))
-            if is_abnormal:
-                st.warning(T('abnormal_warning'))
+            if not patient_name:
+                st.error("تکایە ناوی نەخۆش بنووسە")
+            else:
+                test_id = test_options[selected_test]
+                test = db.conn.execute("SELECT * FROM test_types WHERE id = ?", (test_id,)).fetchone()
+                test_dict = dict(test)
+                
+                is_abnormal = False
+                if result_value < test_dict['normal_range_low'] or result_value > test_dict['normal_range_high']:
+                    is_abnormal = True
+                
+                db.conn.execute("""
+                    INSERT INTO test_results (patient_name, patient_age, patient_gender, test_id, 
+                                           result_value, result_text, is_abnormal, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (patient_name, patient_age, patient_gender, test_id, 
+                     result_value, result_text, is_abnormal, notes))
+                db.conn.commit()
+                st.success(T('saved_success'))
+                if is_abnormal:
+                    st.warning(T('abnormal_warning'))
 
 def render_reports(db: LabDatabase):
     T = get_translation
@@ -1077,7 +959,7 @@ def render_reports(db: LabDatabase):
     st.markdown(f"## {T('reports')}")
     
     results = db.conn.execute("""
-        SELECT tr.*, tt.name_en as test_name, tt.category
+        SELECT tr.*, tt.name_en as test_name_en, tt.name_ku as test_name_ku, tt.category
         FROM test_results tr 
         JOIN test_types tt ON tr.test_id = tt.id
         ORDER BY tr.date_performed DESC
@@ -1085,6 +967,9 @@ def render_reports(db: LabDatabase):
     
     if results:
         df = pd.DataFrame([dict(r) for r in results])
+        
+        # Add display name
+        df['test_name'] = df.apply(lambda row: get_name(row, 'test_name'), axis=1)
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -1100,17 +985,22 @@ def render_reports(db: LabDatabase):
         
         with col1:
             category_counts = df['category'].value_counts()
-            fig = px.pie(values=category_counts.values, names=category_counts.index, 
-                        title=T('tests_by_category'))
-            st.plotly_chart(fig, use_container_width=True)
+            if len(category_counts) > 0:
+                fig = px.pie(values=category_counts.values, names=category_counts.index, 
+                            title=T('tests_by_category'))
+                st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            status_counts = df['is_abnormal'].value_counts()
-            fig = px.bar(x=['Normal', 'Abnormal'], y=status_counts.values,
-                        title=T('normal_vs_abnormal'),
-                        color=['Normal', 'Abnormal'],
-                        color_discrete_map={'Normal': '#2e7d32', 'Abnormal': '#c62828'})
-            st.plotly_chart(fig, use_container_width=True)
+            if len(df) > 0:
+                status_data = pd.DataFrame({
+                    'Category': ['ئاسایی', 'نائاسایی'],
+                    'Count': [len(df[df['is_abnormal'] == False]), len(df[df['is_abnormal'] == True])]
+                })
+                fig = px.bar(status_data, x='Category', y='Count',
+                            title=T('normal_vs_abnormal'),
+                            color='Category',
+                            color_discrete_map={'ئاسایی': '#2e7d32', 'نائاسایی': '#c62828'})
+                st.plotly_chart(fig, use_container_width=True)
         
         st.markdown(f"### {T('recent_results')}")
         st.dataframe(df[['patient_name', 'test_name', 'result_value', 'is_abnormal', 'date_performed']],
