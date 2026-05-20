@@ -8,13 +8,14 @@ st.set_page_config(page_title="Danyal Health", page_icon="💙", layout="centere
 if 'current_page' not in st.session_state:
     st.session_state.current_page = '🏠 Home'
 
-# بەکارهێنانی CSS بۆ جێبەجێکردنی دیزاینی مۆدێرن، فۆنت، ڕەنگەکان و ئاڕاستەی کوردی (RTL)
+# بەکارهێنانی CSS بۆ جێبەجێکردنی فۆنتی ڕەسەنی کوردی و ستایلی Modern Minimal
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap');
+    /* هێنانی فۆنتی فەرمی و جوانی کوردی لە گووگڵ */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap');
     
     * {
-        font-family: 'Cairo', 'Poppins', sans-serif;
+        font-family: 'Noto Sans Arabic', 'Poppins', sans-serif !important;
         direction: rtl;
     }
     
@@ -33,19 +34,9 @@ st.markdown("""
         margin-bottom: 15px;
     }
     
-    .search-bar {
-        background-color: #F1F5F9;
-        padding: 12px;
-        border-radius: 12px;
-        color: #94A3B8;
-        font-size: 14px;
-        margin-bottom: 20px;
-        border: 1px solid #E2E8F0;
-    }
-    
     /* دوگمەی سەرەکی (شین و مۆدێرن) */
     div.stButton > button {
-        background: linear-gradient(135deg, #3B82F6, #8B5CF6); /* تێکەڵەی شین و مۆری کەم */
+        background: linear-gradient(135deg, #3B82F6, #8B5CF6) !important; /* تێکەڵەی شین و مۆری کەم */
         color: white !important;
         border-radius: 12px !important;
         border: none !important;
@@ -71,6 +62,11 @@ st.markdown("""
         font-weight: bold;
         margin-bottom: 10px;
     }
+    
+    /* ڕێکخستنی فۆنتی ڕادیۆ بتنەکان لە خوارەوە */
+    div.stRadio > div {
+        gap: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,16 +75,13 @@ st.markdown("""
 # ٢. شاشەی سەرەکی (🏠 Home)
 # ==========================================
 if st.session_state.current_page == '🏠 Home':
-    # سەرەوەی شاشەکە
     st.markdown("<h2 style='color: #1E3A8A; margin-bottom: 0;'>سڵاو دانیال 👋</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color: #64748B;'>بەخێرهاتی بۆ Danyal Health</p>", unsafe_allow_html=True)
     
-    # Search Bar (تێکستی سادە وەک دیزاین)
     st.text_input("🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", placeholder="لێرە بنووسە...")
     
     st.write("")
     
-    # ناوەڕاست: دوگمەی شیکاری نیشانەکان
     st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("<h3 style='color: #3B82F6;'>سیستەمی زیرەکی پشکنین</h3>", unsafe_allow_html=True)
     st.markdown("<p style='color: #64748B;'>نیشانەکانت دەستنیشان بکە بۆ وەرگرتنی ڕاپۆرتی سەرەتایی</p>", unsafe_allow_html=True)
@@ -97,7 +90,6 @@ if st.session_state.current_page == '🏠 Home':
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # خوارەوە: بەشەکان
     st.markdown("<h3 style='color: #1E3A8A;'>بەشەکان</h3>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
@@ -136,7 +128,6 @@ elif st.session_state.current_page == '🩺 Analyze':
 elif st.session_state.current_page == 'Result_Page':
     st.markdown("<h2 style='color: #1E3A8A;'>📊 ئەنجامی شیکاری زیرەک</h2>", unsafe_allow_html=True)
     
-    # ئەنیمەیشنی چاوەڕوانی کورت
     with st.spinner('خەریکی لێکدانەوەی نیشانەکانین...'):
         time.sleep(1)
         
@@ -200,7 +191,7 @@ elif st.session_state.current_page == '👤 Profile':
     st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
     st.write("**🔢 تەمەن:** ٢٢ ساڵ")
     st.write("**🚹 ڕەگەز:** نێر")
-    st.write("**🩸 مێژووی نەخۆشی:** هۆکاری هەستیاری وەرزی (Seasonal Allergy)")
+    st.write("**🩸 مێژووی نەخۆشی:** هۆکاری هەستیاری وەرزی")
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -210,7 +201,6 @@ elif st.session_state.current_page == '👤 Profile':
 st.write("---")
 nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
 
-# بەکارهێنانی st.radio بە شێوەی ئاسۆیی (Horizontal) بۆ دروستکردنی باڕی خوارەوە
 selected_nav = st.radio(
     "", 
     options=nav_options, 
@@ -218,7 +208,6 @@ selected_nav = st.radio(
     horizontal=True
 )
 
-# ئەگەر کلیک لەسەر باڕی خوارەوە کرا، شاشەکە بگۆڕە
 if selected_nav != st.session_state.current_page:
     st.session_state.current_page = selected_nav
     st.rerun()
