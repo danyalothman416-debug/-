@@ -12,8 +12,8 @@ LANG_DATA = {
         "search": "🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", "search_placeholder": "لێرە بنووسە...",
         "btn_analyze": "📊 شیکاری نیشانەکان", "categories": "بەشەکان",
         "cat1": "🦠 نەخۆشییە باوەکان", "cat2": "💊 دەرمان دۆزەرەوە", "cat3": "👨‍⚕️ ڕاوێژی دکتۆر", "cat4": "📋 مێژووی شیکاری",
-        "emergency": "🚨 فریاکەوتنی خێرا (Emergency)", "login_title": "چوونەژوورەوە یان خۆتۆمارکردن",
-        "email": "ئیمەیڵ", "password": "وشەی نهێنی", "btn_login": "چوونەژوورەوە", "google_login": "چوونەژوورەوە بە Google 🔴",
+        "emergency": "🚨 فریاکەوتنی خێرا (Emergency)", "login_title": "خۆتۆمارکردن و چوونەژوورەوە",
+        "google_login": "چوونەژوورەوە بە Google 🔴",
         "chat_title": "🤖 پزیشکی زیرەک (Gemini AI)", "chat_ask": "چی هەست دەکەیت؟ نیشانەکانت لێرە بنووسە...",
         "voice_btn": "🎤 تۆمارکردنی دەنگ (Voice Input)", "cam_title": "📷 پشکنین بە کامێرا (Skin/Eye Scan)",
         "cam_upload": "وێنەی پێست، چاوی سوور، یان برین دابنێ...", "analyze_btn": "شیکاری بکە",
@@ -25,8 +25,8 @@ LANG_DATA = {
         "search": "🔍 Search for diseases, doctors, medicines...", "search_placeholder": "Type here...",
         "btn_analyze": "📊 Analyze Symptoms", "categories": "Categories",
         "cat1": "🦠 Common Diseases", "cat2": "💊 Pill Finder", "cat3": "👨‍⚕️ Doctor Consult", "cat4": "📋 Medical History",
-        "emergency": "🚨 Emergency Call", "login_title": "Login or Sign Up",
-        "email": "Email", "password": "Password", "btn_login": "Login", "google_login": "Sign in with Google 🔴",
+        "emergency": "🚨 Emergency Call", "login_title": "Sign In / Sign Up",
+        "google_login": "Sign in with Google 🔴",
         "chat_title": "🤖 AI Doctor (Gemini)", "chat_ask": "What do you feel? Describe your symptoms...",
         "voice_btn": "🎤 Voice Input (Record)", "cam_title": "📷 Camera Scan (Skin/Eye)",
         "cam_upload": "Upload image of skin, red eye, or wound...", "analyze_btn": "Analyze Now",
@@ -38,12 +38,12 @@ LANG_DATA = {
         "search": "🔍 ابحث عن الأمراض، الأطباء، الأدوية...", "search_placeholder": "اكتب هنا...",
         "btn_analyze": "📊 تحليل الأعراض", "categories": "الأقسام",
         "cat1": "🦠 الأمراض الشائعة", "cat2": "💊 دليل الأدوية", "cat3": "👨‍⚕️ استشارة طبيب", "cat4": "📋 سجل التحاليل",
-        "emergency": "🚨 اتصال بالطوارئ", "login_title": "تسجيل الدخول أو الاشتراك",
-        "email": "البريد الإلكتروني", "password": "كلمة المرور", "btn_login": "تسجيل الدخول", "google_login": "الدخول بواسطة Google 🔴",
+        "emergency": "🚨 اتصال بالطوارئ", "login_title": "تسجيل الدخول / الاشتراك",
+        "google_login": "الدخول بواسطة Google 🔴",
         "chat_title": "🤖 طبيب الذكاء الاصطناعي (Gemini)", "chat_ask": "بماذا تشعر؟ اكتب أعراضك هنا...",
         "voice_btn": "🎤 إدخال صوتي", "cam_title": "📷 الفحص بالكاميرا (الجلد/العين)",
         "cam_upload": "ارفع صورة للجلد، احمرار العين، أو الجرح...", "analyze_btn": "ابدأ التحليل",
-        "history_title": "📋 سجل التحليلات", "profile_title": "👤 ملف المستخدم", "age": "العمر", "gender": "الجنس", "male": "موقع"
+        "history_title": "📋 سجل التحليلات", "profile_title": "👤 ملف المستخدم", "age": "العمر", "gender": "الجنس", "male": "ذكر"
     }
 }
 
@@ -73,20 +73,28 @@ st.markdown(f"""
     .stApp {{ background-color: {bg_color}; }}
     h1, h2, h3, h4, p, span, label {{ color: {text_color} !important; }}
     .custom-card {{
-        background: {card_color}; padding: 20px; border-radius: 16px;
+        background: {card_color}; padding: 25px; border-radius: 16px;
         box-shadow: 0 4px 12px rgba(139, 92, 246, 0.08);
         border: 1px solid {border_color}; margin-bottom: 15px;
+        text-align: center;
     }}
     div.stButton > button {{
         background: linear-gradient(135deg, #3B82F6, #8B5CF6) !important;
         color: white !important; border-radius: 12px !important; border: none !important;
-        padding: 12px 24px !important; font-size: 16px !important; font-weight: bold !important; width: 100%;
+        padding: 14px 24px !important; font-size: 16px !important; font-weight: bold !important; width: 100%;
+        box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+    }}
+    div.stButton > button:hover {{
+        transform: translateY(-1px);
+        box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
     }}
     .category-box {{
-        background: #F3E8FF; color: #6B21A8; padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; margin-bottom: 10px;
+        background: {card_color}; color: {text_color}; padding: 18px; border-radius: 14px; 
+        text-align: center; font-weight: bold; margin-bottom: 12px; border: 1px solid {border_color};
+        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
     }}
     .emergency-btn > button {{
-        background: #EF4444 !important; color: white !important; font-size: 18px !important;
+        background: #EF4444 !important; color: white !important; font-size: 15px !important; padding: 8px 16px !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -118,17 +126,16 @@ with col_emg:
 st.write("---")
 
 # ==========================================
-# شاشەی لۆگین (Login / Signup)
+# شاشەی لۆگین (تەنها بە Google)
 # ==========================================
 if not st.session_state.logged_in:
-    st.markdown(f"<h2 style='text-align: center;'>🔐 {L['login_title']}</h2>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.markdown(f"<h2 style='text-align: center; margin-bottom: 20px;'>🔐 {L['login_title']}</h2>", unsafe_allow_html=True)
     st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.text_input(L["email"], placeholder="danyal@example.com", key="login_email")
-    st.text_input(L["password"], type="password", placeholder="••••••••", key="login_pass")
-    if st.button(L["btn_login"], key="submit_login"):
-        st.session_state.logged_in = True
-        st.rerun()
-    st.write("<p style='text-align:center;'>یان</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: {sub_text}; margin-bottom: 25px;'>بۆ چوونەژوورەوەی خێرا و پارێزراو، تکایە ئەژماری گووگڵەکەت بەکاربهێنە</p>", unsafe_allow_html=True)
+    
+    # تەنها دوگمەی لۆگینی گووگڵ ماوەتەوە
     if st.button(L["google_login"], key="google_login_btn"):
         st.session_state.logged_in = True
         st.rerun()
@@ -141,21 +148,20 @@ else:
     # 🏠 HOME PAGE
     if st.session_state.current_page == '🏠 Home':
         st.markdown(f"<h2 style='margin-bottom: 0;'>{L['welcome']}</h2>", unsafe_allow_html=True)
-        st.markdown(f"<p style='color: {sub_text};'>{L['sub_welcome']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: {sub_text}; margin-top: 4px;'>{L['sub_welcome']}</p>", unsafe_allow_html=True)
         
         st.text_input(L["search"], placeholder=L["search_placeholder"], key="home_search")
         
         # نۆتیفیکەیشنی دەرمان
         st.info("⏰ ئاگادارکردنەوە: کاتی خواردنی حەپی ڤیتامین C هاتووە (کاژێر ٠٨:٠٠ی شەو).")
         
-        # --- دەستکاری لێرەدایە: دەقە زیادەکان لادران و تەنها دوگمەکە هێڵدراوەتەوە ---
         st.write("")
         if st.button(L["btn_analyze"], key="go_to_analyze"):
             st.session_state.current_page = '🩺 Analyze'
             st.rerun()
         st.write("")
         
-        st.markdown(f"<h3>{L['categories']}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='margin-bottom: 15px;'>{L['categories']}</h3>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f"<div class='category-box'>{L['cat1']}</div>", unsafe_allow_html=True)
@@ -189,7 +195,7 @@ else:
     # 📋 HISTORY PAGE
     elif st.session_state.current_page == '📋 History':
         st.markdown(f"<h2>{L['history_title']}</h2>", unsafe_allow_html=True)
-        st.markdown("""
+        st.markdown(f"""
         <div class='custom-card'>
             <span style='color: #8B5CF6; font-weight: bold;'>2026-05-20</span>
             <h4>سکانی کامێرا - سووربوونی چاو</h4>
@@ -206,7 +212,7 @@ else:
     elif st.session_state.current_page == '👤 Profile':
         st.markdown(f"<h2>{L['profile_title']}</h2>", unsafe_allow_html=True)
         st.markdown(f"""
-        <div class='custom-card' style='text-align: center;'>
+        <div class='custom-card' style='text-align: center; margin: 0 auto;'>
             <div style='background: #E0E7FF; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 32px;'>👤</div>
             <h3>دانیال</h3>
             <p style='color: {sub_text};'>Danyal Health ID: #9921</p>
