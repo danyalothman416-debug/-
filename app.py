@@ -10,7 +10,6 @@ LANG_DATA = {
         "dir": "rtl", "font": "Noto Sans Arabic",
         "welcome": "سڵاو دانیال 👋", "sub_welcome": "بەخێرهاتی بۆ Danyal Health",
         "search": "🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", "search_placeholder": "لێرە بنووسە...",
-        "ai_system": "سیستەمی زیرەکی پشکنین", "ai_desc": "نیشانەکانت دەستنیشان بکە بۆ وەرگرتنی ڕاپۆرتی خێرا",
         "btn_analyze": "📊 شیکاری نیشانەکان", "categories": "بەشەکان",
         "cat1": "🦠 نەخۆشییە باوەکان", "cat2": "💊 دەرمان دۆزەرەوە", "cat3": "👨‍⚕️ ڕاوێژی دکتۆر", "cat4": "📋 مێژووی شیکاری",
         "emergency": "🚨 فریاکەوتنی خێرا (Emergency)", "login_title": "چوونەژوورەوە یان خۆتۆمارکردن",
@@ -24,7 +23,6 @@ LANG_DATA = {
         "dir": "ltr", "font": "Poppins",
         "welcome": "Hello Danyal 👋", "sub_welcome": "Welcome to Danyal Health",
         "search": "🔍 Search for diseases, doctors, medicines...", "search_placeholder": "Type here...",
-        "ai_system": "AI Diagnostics System", "ai_desc": "Identify your symptoms for a quick initial report",
         "btn_analyze": "📊 Analyze Symptoms", "categories": "Categories",
         "cat1": "🦠 Common Diseases", "cat2": "💊 Pill Finder", "cat3": "👨‍⚕️ Doctor Consult", "cat4": "📋 Medical History",
         "emergency": "🚨 Emergency Call", "login_title": "Login or Sign Up",
@@ -38,7 +36,6 @@ LANG_DATA = {
         "dir": "rtl", "font": "Noto Sans Arabic",
         "welcome": "مرحباً دانيال 👋", "sub_welcome": "مرحباً بك في Danyal Health",
         "search": "🔍 ابحث عن الأمراض، الأطباء، الأدوية...", "search_placeholder": "اكتب هنا...",
-        "ai_system": "نظام التشخيص الذكي", "ai_desc": "حدد أعراضك للحصول على تقرير أولي سريع",
         "btn_analyze": "📊 تحليل الأعراض", "categories": "الأقسام",
         "cat1": "🦠 الأمراض الشائعة", "cat2": "💊 دليل الأدوية", "cat3": "👨‍⚕️ استشارة طبيب", "cat4": "📋 سجل التحاليل",
         "emergency": "🚨 اتصال بالطوارئ", "login_title": "تسجيل الدخول أو الاشتراك",
@@ -46,7 +43,7 @@ LANG_DATA = {
         "chat_title": "🤖 طبيب الذكاء الاصطناعي (Gemini)", "chat_ask": "بماذا تشعر؟ اكتب أعراضك هنا...",
         "voice_btn": "🎤 إدخال صوتي", "cam_title": "📷 الفحص بالكاميرا (الجلد/العين)",
         "cam_upload": "ارفع صورة للجلد، احمرار العين، أو الجرح...", "analyze_btn": "ابدأ التحليل",
-        "history_title": "📋 سجل التحليلات", "profile_title": "👤 ملف المستخدم", "age": "العمر", "gender": "الجنس", "male": "ذكر"
+        "history_title": "📋 سجل التحليلات", "profile_title": "👤 ملف المستخدم", "age": "العمر", "gender": "الجنس", "male": "موقع"
     }
 }
 
@@ -101,7 +98,6 @@ with col_mode:
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
 with col_lang:
-    # لێرەدا کێشەی ئەندێکسەکە بە تەواوی چارەسەر کراوە
     languages_list = ["Kurdish", "English", "Arabic"]
     selected_lang = st.selectbox(
         "", 
@@ -152,13 +148,12 @@ else:
         # نۆتیفیکەیشنی دەرمان
         st.info("⏰ ئاگادارکردنەوە: کاتی خواردنی حەپی ڤیتامین C هاتووە (کاژێر ٠٨:٠٠ی شەو).")
         
-        st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
-        st.markdown(f"<h3>{L['ai_system']}</h3>", unsafe_allow_html=True)
-        st.markdown(f"<p style='color: {sub_text};'>{L['ai_desc']}</p>", unsafe_allow_html=True)
+        # --- دەستکاری لێرەدایە: دەقە زیادەکان لادران و تەنها دوگمەکە هێڵدراوەتەوە ---
+        st.write("")
         if st.button(L["btn_analyze"], key="go_to_analyze"):
             st.session_state.current_page = '🩺 Analyze'
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.write("")
         
         st.markdown(f"<h3>{L['categories']}</h3>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
@@ -173,14 +168,12 @@ else:
     elif st.session_state.current_page == '🩺 Analyze':
         st.markdown(f"<h2>{L['chat_title']}</h2>", unsafe_allow_html=True)
         
-        # بەشی چاتی دەنگی و نووسین وەک Gemini
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.chat_input(L["chat_ask"], key="gemini_chat_input")
         if st.button(L["voice_btn"], key="voice_input_btn"):
             st.toast("🎙️ گوێ دەگرم... دەنگەکەت تۆمار دەکرێت...", icon="🎤")
         st.markdown("</div>", unsafe_allow_html=True)
         
-        # کامێرا و سکان
         st.markdown(f"<h3>{L['cam_title']}</h3>", unsafe_allow_html=True)
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader(L["cam_upload"], type=["png", "jpg", "jpeg"], key="camera_uploader")
