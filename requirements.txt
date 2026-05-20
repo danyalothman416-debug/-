@@ -30,4 +30,3 @@ plotly
 folium
 streamlit-folium
 streamlit-option-menu
-pip install google-generativeai
