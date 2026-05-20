@@ -1,7 +1,7 @@
 import streamlit as st
 
 # --- ١. ڕێکخستنی سەرەتایی پەیج ---
-st.set_page_config(page_title="سالم - سالم", page_icon="💙", layout="centered")
+st.set_page_config(page_title="ئەپی شیکاری", page_icon="💙", layout="centered")
 
 # --- ٢. سێشەن ستەیت بۆ پاراستنی باری دوگمەکان ---
 if 'dark_mode' not in st.session_state: st.session_state.dark_mode = False
@@ -132,7 +132,7 @@ st.text_input("", placeholder="🔍 گەڕان بۆ نیشانە یان نەخۆ
 
 st.write("")
 
-# کارتی گڕادێنتی گەورەی شیکاری (وەک نێو وێنەی یەکەم)
+# کارتی گڕادێنتی گەورەی شیکاری
 st.markdown(f"""
 <div class="main-gradient-card">
     <h3 style="color: white !important; margin-top: 0;">شیکاری نیشانەکان</h3>
@@ -142,14 +142,14 @@ st.markdown(f"""
 
 st.markdown("<p style='font-weight: bold; margin-bottom: 12px;'>خزمەتگوزارییەکان</p>", unsafe_allow_html=True)
 
-# گریدی بەشەکان (٢ بە ٢)
+# گریدی بەشەکان بە ناوە نوێیەکانەوە (٢ بە ٢)
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown("<div class='category-box'>🦠 نەخۆشییە باوەکان</div>", unsafe_allow_html=True)
-    st.markdown("<div class='category-box'>🩺 شیکاری نیشانەکان</div>", unsafe_allow_html=True)
+    st.markdown("<div class='category-box'>🧪 تێستەکان</div>", unsafe_allow_html=True)
+    st.markdown("<div class='category-box'>📚 ثیۆری</div>", unsafe_allow_html=True)
 with col2:
-    st.markdown("<div class='category-box'>📋 پەیڕەوی تەندروستی</div>", unsafe_allow_html=True)
-    st.markdown("<div class='category-box'>🤖 دکتۆرێکی زیرەک</div>", unsafe_allow_html=True)
+    st.markdown("<div class='category-box'>🔬 پراکتیکەڵ</div>", unsafe_allow_html=True)
+    st.markdown("<div class='category-box'>ℹ️ دەربارەی ئێمە</div>", unsafe_allow_html=True)
 
 # ==========================================
 # 🗺️ باڕی خوارەوەی مۆدێرن و ڕێکخراو (Bottom Navigation)
