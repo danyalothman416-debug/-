@@ -2,19 +2,17 @@ import streamlit as st
 import time
 
 # --- ڕێکخستنی سەرەتایی پەڕەکە ---
-st.set_page_config(page_title="Danyal Medical Lab", page_icon="🩺", layout="centered")
+st.set_page_config(page_title="Danyal Medical Lab", page_icon="🔬", layout="centered")
 
 # --- دیزاینی CSS بۆ ڕاست-بۆ-چەپ (RTL) و ڕەنگەکان ---
 st.markdown("""
 <style>
-    /* گۆڕینی ئاڕاستەی پەیجەکە بۆ کوردی */
     * {
         direction: rtl;
     }
     .st-emotion-cache-1y4p8pa {
         padding-top: 2rem;
     }
-    /* دیزاینی کارتەکان و دوگمەکان */
     div.stButton > button:first-child {
         background-color: #3B82F6;
         color: white;
@@ -54,7 +52,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- کۆنتڕۆڵکردنی پەڕەکان (Navigation) ---
+# --- کۆنتڕۆڵکردنی پەڕەکان ---
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
 
@@ -65,99 +63,90 @@ def change_page(page_name):
 # پەڕەی سەرەکی (Home)
 # ==========================================
 if st.session_state.page == 'home':
-    st.markdown("<div class='main-title'>💙 Danyal Medical Lab</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-title'>یارمەتی شیکاری نەخۆشییەکان و پشکنینەکان</div>", unsafe_allow_html=True)
+    st.markdown("<div class='main-title'>🔬 Danyal Medical Lab</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-title'>سیستەمی زیرەک بۆ شیکاری پشکنینە تاقیگەییەکان</div>", unsafe_allow_html=True)
     
     st.write("---")
     
     st.markdown("""
     <div class='info-box'>
-        <h3>شیکاری نیشانەکان 🔍</h3>
-        <p>نیشانەکانت بنووسە و بە شێوەی زیرەک شیکارییان بۆ دەکرێت.</p>
+        <h3>شیکاری ئەنجامی پشکنین 📊</h3>
+        <p>ئەنجامی پشکنینەکانت لێرە داخڵ بکە بۆ خوێندنەوە و شیکاری تەواوەتی.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("دەست پێبکە ➔"):
-        change_page('symptoms')
+    if st.button("داخڵکردنی پشکنین ➔"):
+        change_page('tests')
         st.rerun()
 
-    st.write("### خزمەتگوزارییەکان")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("🦠 نەخۆشییە باوەکان")
-        st.info("📊 پشکنینی تاقیگە")
-    with col2:
-        st.success("❤️ شیکاری نیشانەکان")
-        st.warning("📋 پەڕاوی تەندروستی")
-
 # ==========================================
-# پەڕەی هەڵبژاردنی نیشانەکان (Symptoms)
+# پەڕەی داخڵکردنی پشکنینەکان (Tests Input)
 # ==========================================
-elif st.session_state.page == 'symptoms':
+elif st.session_state.page == 'tests':
     st.button("🔙 گەڕانەوە", on_click=change_page, args=('home',))
     
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>کام نیشانەت هەیە؟</h2>", unsafe_allow_html=True)
-    st.write("هەموو ئەو نیشانانە دیاریبکە کە تێتدایە بۆ ئەوەی باشترین شیکاریت پێبدەین.")
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ئەنجامی پشکنینەکان</h2>", unsafe_allow_html=True)
+    st.write("تکایە ژمارەی ئەنجامی پشکنینەکان لەم بۆکسانەی خوارەوە داخڵ بکە:")
     
-    # لیستی نیشانەکان
+    # فۆڕمی پشکنینە کیمیاییەکان
     col1, col2 = st.columns(2)
     with col1:
-        s1 = st.checkbox("🤕 سەر ئێشە")
-        s2 = st.checkbox("🤧 کۆکە")
-        s3 = st.checkbox("🤒 تا (گەرما)")
+        fbs = st.number_input("شەکرەی خوێن (FBS) - mg/dL", min_value=0, value=90)
+        chol = st.number_input("کۆلیسترۆڵ (Cholesterol) - mg/dL", min_value=0, value=180)
     with col2:
-        s4 = st.checkbox(" خرووی پێست")
-        s5 = st.checkbox("🥱 بێهێزی")
-        s6 = st.checkbox("🦴 ئازاری ماسولکە")
+        hb = st.number_input("هیمۆگلۆبین (Hb) - g/dL", min_value=0.0, value=14.0, format="%.1f")
+        alt = st.number_input("ئەنزیمی جگەر (ALT) - U/L", min_value=0, value=25)
         
-    other_symptom = st.text_input("نیشانەی تر...", placeholder="نیشانەکەی لێرە بنووسە...")
-    
     st.write("---")
-    if st.button("بەردەوام بە"):
-        if s1 or s2 or s3 or s4 or s5 or s6 or other_symptom:
-            change_page('analyzing')
-            st.rerun()
-        else:
-            st.warning("تکایە لانی کەم یەک نیشانە هەڵبژێرە!")
+    if st.button("شیکاری بکە"):
+        # هەڵگرتنی داتاکان بۆ پەڕەی ئەنجام
+        st.session_state.fbs = fbs
+        change_page('analyzing')
+        st.rerun()
 
 # ==========================================
-# پەڕەی پرۆسەی شیکاری و ئەنجام (Results)
+# پەڕەی پرۆسەی شیکاری (Analyzing)
 # ==========================================
 elif st.session_state.page == 'analyzing':
     st.markdown("<h2 style='text-align: center;'>خەریکی شیکارین... ⚙️</h2>", unsafe_allow_html=True)
     
-    # دروستکردنی جوڵەیەک بۆ کاتی چاوەڕوانی (Progress Bar)
-    progress_text = "تکایە چاوەڕێبە، زانیارییەکانت شیکار دەکرێن..."
-    my_bar = st.progress(0, text=progress_text)
+    my_bar = st.progress(0)
     for percent_complete in range(100):
-        time.sleep(0.02)
-        my_bar.progress(percent_complete + 1, text=progress_text)
+        time.sleep(0.01)
+        my_bar.progress(percent_complete + 1)
     
-    time.sleep(0.5)
+    time.sleep(0.3)
     change_page('result')
     st.rerun()
 
+# ==========================================
+# پەڕەی ئەنجام (Results)
+# ==========================================
 elif st.session_state.page == 'result':
     st.button("🔙 گەڕانەوە بۆ سەرەتا", on_click=change_page, args=('home',))
     
     st.success("✅ شیکاری تەواو بوو")
-    st.markdown("<h3 style='text-align: center;'>ئەنجامی پێشبینیکراو:</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>ڕاپۆرتی تاقیگە:</h3>", unsafe_allow_html=True)
     
-    # ئەنجامێکی نموونەیی (پێویستە لێرەدا لۆجیکی پزیشکی بنووسرێت لە داهاتوودا)
-    st.markdown("""
-    <div style='background-color: #DCFCE7; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid #22C55E;'>
-        <h2 style='color: #166534;'>سەرماخۆری و ئەنفلۆنزا (Cold & Flu)</h2>
-        <p style='color: #15803D;'>ڕێژەی ئەگەر: <b>%85</b></p>
+    # لۆجیکی پزیشکی بۆ دیاریکردنی دۆخی شەکرە
+    fbs_val = st.session_state.fbs
+    if fbs_val > 125:
+        status = "بەرزە (پێویستی بە سەردانی پزیشکە)"
+        color = "#DC2626" # سوور
+        bg_color = "#FEE2E2"
+    elif fbs_val > 100:
+        status = "قۆناغی پێش شەکرە (Pre-diabetes)"
+        color = "#D97706" # پرتەقاڵی
+        bg_color = "#FEF3C7"
+    else:
+        status = "ئاساییە (Normal)"
+        color = "#166534" # سەوز
+        bg_color = "#DCFCE7"
+
+    # پیشاندانی ئەنجامەکە بە شێوەیەکی دیزاینکراو
+    st.markdown(f"""
+    <div style='background-color: {bg_color}; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;'>
+        <h3 style='color: {color};'>ئەنجامی شەکرەی خوێن (FBS): {fbs_val}</h3>
+        <p style='font-size: 20px; color: {color};'>دۆخەکە: <b>{status}</b></p>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.write("### 💊 چۆنیەتی چارەسەر و ئامۆژگاری:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.info("🛏️ پشوو بدە")
-    with col2:
-        st.info("💧 شلەمەنی زۆر بخۆرەوە")
-    with col3:
-        st.info("💊 دەرمانی دژە تا (وەک پاراسیتامۆڵ)")
-        
-    st.warning("⚠️ تێبینی: ئەمە تەنها شیکارییەکی سەرەتاییە بۆ یارمەتیدانت. بۆ ئەنجامی دروست و پشکنینی تاقیگەیی سەردانی سەنتەرەکەمان بکە یان پزیشک.")
