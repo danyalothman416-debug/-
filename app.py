@@ -86,6 +86,66 @@ st.markdown(f"""
         text-align: center; font-weight: bold; margin-bottom: 12px; border: 1px solid {border_color};
         box-shadow: 0 2px 6px rgba(0,0,0,0.02);
     }}
+
+    /* ==========================================
+       ✨ دیزاینی نوێ و مۆدێرنی باڕی خوارەوە (Bottom Tab Bar)
+       ========================================== */
+    div[data-testid="stRadio"] {{
+        background-color: {card_color} !important;
+        border: 1px solid {border_color} !important;
+        border-radius: 20px !important;
+        padding: 8px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+        margin-top: 20px;
+    }}
+    /* شاردنەوەی تایتڵی سەرەکی ڕادیۆ */
+    div[data-testid="stRadio"] [data-testid="stWidgetLabel"] {{
+        display: none !important;
+    }}
+    /* ڕێکخستنی ئاسۆیی بەشەکان */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {{
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }}
+    /* شێوازی هەر تابێک (Tab) */
+    div[data-testid="stRadio"] label {{
+        flex: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: transparent !important;
+        padding: 12px 6px !important;
+        border-radius: 14px !important;
+        cursor: pointer !important;
+        transition: all 0.25s ease-in-out !important;
+        border: none !important;
+    }}
+    /* 🔴 لادانی دەوور و بازنە کۆن و ناشرینەکەی سەر شاشە */
+    div[data-testid="stRadio"] label > div:first-child {{
+        display: none !important;
+    }}
+    /* ڕێکخستنی دەقی ناو تابەکان */
+    div[data-testid="stRadio"] label p {{
+        color: {text_color} !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        margin: 0 !important;
+    }}
+    /* کاریگەری کاتێک ماوس دەبرێتە سەر دوگمەکان */
+    div[data-testid="stRadio"] label:hover {{
+        background-color: {bg_color} !important;
+    }}
+    /* 🔥 شێوازی تابی چالاککراو (Active Selected Tab) */
+    div[data-testid="stRadio"] label:has(input:checked) {{
+        background: linear-gradient(135deg, #3B82F6, #8B5CF6) !important;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25) !important;
+    }}
+    div[data-testid="stRadio"] label:has(input:checked) p {{
+        color: #FFFFFF !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -189,7 +249,7 @@ elif st.session_state.current_page == '👤 Profile':
     st.write(f"**🚹 {L['gender']}:** {L['male']}")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- ٦. دروستکردنی باڕی خوارەوە (Bottom Navigation) ---
+# --- ٦. دروستکردنی باڕی خوارەوەی نوێکراوە پاش مۆدێرنکردن ---
 st.write("---")
 nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
 selected_nav = st.radio(
