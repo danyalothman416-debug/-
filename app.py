@@ -210,6 +210,7 @@ def init_db():
         
         conn.row_factory = sqlite3.Row
         
+        # Check if columns exist before creating tables (for backwards compatibility)
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS disease_categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -338,7 +339,8 @@ def insert_comprehensive_data(conn):
         
     try:
         # Check if data already exists
-        count = conn.execute("SELECT COUNT(*) as c FROM test_types").fetchone()
+        cursor = conn.execute("SELECT COUNT(*) as c FROM test_types")
+        count = cursor.fetchone()
         if count['c'] > 5:  # If we have more than basic data, skip
             return
             
@@ -649,14 +651,14 @@ def insert_comprehensive_data(conn):
         """, practicals)
         
         conn.commit()
-        # st.success("✅ Comprehensive medical data loaded successfully!")
         
     except Exception as e:
         st.error(f"Data Insert Error: {str(e)}")
         conn.rollback()
 
 # Insert comprehensive data
-insert_comprehensive_data(conn)
+if conn:
+    insert_comprehensive_data(conn)
 
 # ==================== Translation System ====================
 
@@ -947,7 +949,7 @@ def render_dashboard():
         with col2:
             st.markdown("### 🦠 Disease Severity Distribution")
             
-            # Disease severity data - using try/except to handle potential missing column
+            # Disease severity data
             try:
                 severity_data = conn.execute("""
                     SELECT severity, COUNT(*) as count 
@@ -966,7 +968,6 @@ def render_dashboard():
                     st.info("No disease data available")
             except Exception as e:
                 st.warning(f"Could not load severity data: {str(e)}")
-                # Fallback - try without severity column
                 disease_count = conn.execute("SELECT COUNT(*) as c FROM diseases").fetchone()['c']
                 st.info(f"Total diseases in database: {disease_count}")
         
@@ -1053,9 +1054,12 @@ def render_diseases():
             
             selected_category = st.selectbox(t('filter'), list(category_options.keys()))
         
-        # Build query with filters
+        # Build query with filters - FIXED: Use correct column names
         query = """
-            SELECT d.*, dc.name_en as cat_en, dc.name_ku as cat_ku, dc.icon, dc.color
+            SELECT d.id, d.category_id, d.name_en, d.name_ku, d.description_en, d.description_ku,
+                   d.symptoms_en, d.symptoms_ku, d.causes_en, d.causes_ku,
+                   d.treatment_en, d.treatment_ku, d.severity,
+                   dc.name_en as cat_en, dc.name_ku as cat_ku, dc.icon, dc.color
             FROM diseases d
             JOIN disease_categories dc ON d.category_id = dc.id
             WHERE 1=1
@@ -1667,7 +1671,7 @@ def render_practical():
             p = dict(practical)
             
             with st.container():
-                # Difficulty badge color
+                # Difficulty badge colors
                 difficulty_colors = {
                     "Basic": "#4CAF50",
                     "Intermediate": "#FF9800",
@@ -1679,7 +1683,7 @@ def render_practical():
                 st.markdown(f"""
                 <div class="category-card" style="border-right-color: {badge_color};">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>🔬 {get_name(p)}</h3>
+                        <h3>🔬 {get_name(p, 'title')}</h3>
                         <span style="background-color: {badge_color}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8em;">
                             {p.get('difficulty_level', 'Basic')}
                         </span>
@@ -1689,7 +1693,7 @@ def render_practical():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                with st.expander(f"View Details - {get_name(p)}"):
+                with st.expander(f"View Details - {get_name(p, 'title')}"):
                     # Description
                     st.markdown(f"#### {t('description')}")
                     st.write(get_desc(p) or p.get('description_en', 'No description available'))
@@ -1959,15 +1963,19 @@ def render_ai_chat():
         # Generate and display response
         with st.chat_message("assistant"):
             with st.spinner("🤔 Analyzing your question..."):
-                # Add relevant context from database
+                # Add relevant context from database - FIXED: Use correct column names
                 context = ""
                 
                 # Check if question relates to any disease in database
-                diseases = conn.execute("SELECT name_en, name_ku, description_en FROM diseases").fetchall()
-                for disease in diseases:
-                    d = dict(disease)
-                    if d['name_en'].lower() in question.lower() or d['name_ku'].lower() in question.lower():
-                        context += f"\nRelevant disease: {d['name_en']} - {d['description_en']}"
+                try:
+                    diseases = conn.execute("SELECT name_en, name_ku, description_en FROM diseases").fetchall()
+                    for disease in diseases:
+                        d = dict(disease)
+                        if d['name_en'].lower() in question.lower() or d['name_ku'].lower() in question.lower():
+                            context += f"\nRelevant disease: {d['name_en']} - {d['description_en']}"
+                except Exception as e:
+                    # If this fails, just continue without context
+                    pass
                 
                 answer = get_gemini_response(context + "\n" + question if context else question)
                 
@@ -2040,8 +2048,11 @@ def main():
         st.markdown("### ℹ️ System Info")
         
         try:
-            db_size = os.path.getsize('medical_lab.db') / (1024 * 1024)
-            st.caption(f"Database Size: {db_size:.2f} MB")
+            if os.path.exists('medical_lab.db'):
+                db_size = os.path.getsize('medical_lab.db') / (1024 * 1024)
+                st.caption(f"Database Size: {db_size:.2f} MB")
+            else:
+                st.caption("Database: Pending")
         except:
             st.caption("Database: Connected")
         
