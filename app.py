@@ -1,213 +1,228 @@
 import streamlit as st
 import time
 
-# --- ١. ڕێکخستنی لاپەڕە و فۆنت و ستایل (UI/UX) ---
+# --- ١. ڕێکخستنی سەرەتایی پەیج ---
 st.set_page_config(page_title="Danyal Health", page_icon="💙", layout="centered")
 
-# داتای سێشەن بۆ گۆڕینی شاشەکان
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = '🏠 Home'
+# --- ٢. پێناسەکردنی زمانەکان (Multi-Language Dictionary) ---
+LANG_DATA = {
+    "Kurdish": {
+        "dir": "rtl", "font": "Noto Sans Arabic",
+        "welcome": "سڵاو دانیال 👋", "sub_welcome": "بەخێرهاتی بۆ Danyal Health",
+        "search": "🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", "search_placeholder": "لێرە بنووسە...",
+        "ai_system": "سیستەمی زیرەکی پشکنین", "ai_desc": "نیشانەکانت دەستنیشان بکە بۆ وەرگرتنی ڕاپۆرتی خێرا",
+        "btn_analyze": "📊 شیکاری نیشانەکان", "categories": "بەشەکان",
+        "cat1": "🦠 نەخۆشییە باوەکان", "cat2": "💊 دەرمان دۆزەرەوە", "cat3": "👨‍⚕️ ڕاوێژی دکتۆر", "cat4": "📋 مێژووی شیکاری",
+        "emergency": "🚨 فریاکەوتنی خێرا (Emergency)", "login_title": "چوونەژوورەوە یان خۆتۆمارکردن",
+        "email": "ئیمەیڵ", "password": "وشەی نهێنی", "btn_login": "چوونەژوورەوە", "google_login": "چوونەژوورەوە بە Google 🔴",
+        "chat_title": "🤖 پزیشکی زیرەک (Gemini AI)", "chat_ask": "چی هەست دەکەیت؟ نیشانەکانت لێرە بنووسە...",
+        "voice_btn": "🎤 تۆمارکردنی دەنگ (Voice Input)", "cam_title": "📷 پشکنین بە کامێرا (Skin/Eye Scan)",
+        "cam_upload": "وێنەی پێست، چاوی سوور، یان برین دابنێ...", "analyze_btn": "شیکاری بکە",
+        "history_title": "📋 مێژووی شیکارییەکان", "profile_title": "👤 پرۆفایلی بەکارهێنەر", "age": "تەمەن", "gender": "ڕەگەز", "male": "نێر"
+    },
+    "English": {
+        "dir": "ltr", "font": "Poppins",
+        "welcome": "Hello Danyal 👋", "sub_welcome": "Welcome to Danyal Health",
+        "search": "🔍 Search for diseases, doctors, medicines...", "search_placeholder": "Type here...",
+        "ai_system": "AI Diagnostics System", "ai_desc": "Identify your symptoms for a quick initial report",
+        "btn_analyze": "📊 Analyze Symptoms", "categories": "Categories",
+        "cat1": "🦠 Common Diseases", "cat2": "💊 Pill Finder", "cat3": "👨‍⚕️ Doctor Consult", "cat4": "📋 Medical History",
+        "emergency": "🚨 Emergency Call", "login_title": "Login or Sign Up",
+        "email": "Email", "password": "Password", "btn_login": "Login", "google_login": "Sign in with Google 🔴",
+        "chat_title": "🤖 AI Doctor (Gemini)", "chat_ask": "What do you feel? Describe your symptoms...",
+        "voice_btn": "🎤 Voice Input (Record)", "cam_title": "📷 Camera Scan (Skin/Eye)",
+        "cam_upload": "Upload image of skin, red eye, or wound...", "analyze_btn": "Analyze Now",
+        "history_title": "📋 Analysis History", "profile_title": "👤 User Profile", "age": "Age", "gender": "Gender", "male": "Male"
+    },
+    "Arabic": {
+        "dir": "rtl", "font": "Noto Sans Arabic",
+        "welcome": "مرحباً دانيال 👋", "sub_welcome": "مرحباً بك في Danyal Health",
+        "search": "🔍 ابحث عن الأمراض، الأطباء، الأدوية...", "search_placeholder": "اكتب هنا...",
+        "ai_system": "نظام التشخيص الذكي", "ai_desc": "حدد أعراضك للحصول على تقرير أولي سريع",
+        "btn_analyze": "📊 تحليل الأعراض", "categories": "الأقسام",
+        "cat1": "🦠 الأمراض الشائعة", "cat2": "💊 دليل الأدوية", "cat3": "👨‍⚕️ استشارة طبيب", "cat4": "📋 سجل التحاليل",
+        "emergency": "🚨 اتصال بالطوارئ", "login_title": "تسجيل الدخول أو الاشتراك",
+        "email": "البريد الإلكتروني", "password": "كلمة المرور", "btn_login": "تسجيل الدخول", "google_login": "الدخول بواسطة Google 🔴",
+        "chat_title": "🤖 طبيب الذكاء الاصطناعي (Gemini)", "chat_ask": "بماذا تشعر؟ اكتب أعراضك هنا...",
+        "voice_btn": "🎤 إدخال صوتي", "cam_title": "📷 الفحص بالكاميرا (الجلد/العين)",
+        "cam_upload": "ارفع صورة للجلد، احمرار العين، أو الجرح...", "analyze_btn": "ابدأ التحليل",
+        "history_title": "📋 سجل التحليلات", "profile_title": "👤 ملف المستخدم", "age": "العمر", "gender": "الجنس", "male": "ذكر"
+    }
+}
 
-# بەکارهێنانی CSS بۆ جێبەجێکردنی فۆنتی ڕەسەنی کوردی و ستایلی Modern Minimal
-st.markdown("""
+# --- ٣. بەڕێوەبردنی سێشەنەکان (Session States) ---
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'current_page' not in st.session_state: st.session_state.current_page = '🏠 Home'
+if 'dark_mode' not in st.session_state: st.session_state.dark_mode = False
+if 'lang' not in st.session_state: st.session_state.lang = 'Kurdish'
+
+L = LANG_DATA[st.session_state.lang]
+
+# --- ٤. دینامیکیەتی Dark Mode و ڕووناکی لەگەڵ فۆنتەکان ---
+bg_color = "#111827" if st.session_state.dark_mode else "#F8FAFC"
+card_color = "#1F2937" if st.session_state.dark_mode else "#FFFFFF"
+text_color = "#F9FAFB" if st.session_state.dark_mode else "#1E3A8A"
+sub_text = "#9CA3AF" if st.session_state.dark_mode else "#64748B"
+border_color = "#374151" if st.session_state.dark_mode else "#E2E8F0"
+
+st.markdown(f"""
 <style>
-    /* هێنانی فۆنتی فەرمی و جوانی کوردی لە گووگڵ */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;700&family=Poppins:wght@300;400;600&display=swap');
     
-    * {
-        font-family: 'Noto Sans Arabic', 'Poppins', sans-serif !important;
-        direction: rtl;
-    }
-    
-    /* پاککردنەوەی پاشبنەمای ستریمکێت و دانانی ڕەنگی سپی و مۆری زۆر کاڵ */
-    .stApp {
-        background-color: #F8FAFC;
-    }
-    
-    /* ستایلی کارتەکان (Rounded Cards & Soft Shadow) */
-    .custom-card {
-        background: white;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(147, 51, 234, 0.06); /* سێبەری مۆری زۆر کاڵ */
-        border: 1px solid #E2E8F0;
-        margin-bottom: 15px;
-    }
-    
-    /* دوگمەی سەرەکی (شین و مۆدێرن) */
-    div.stButton > button {
-        background: linear-gradient(135deg, #3B82F6, #8B5CF6) !important; /* تێکەڵەی شین و مۆری کەم */
-        color: white !important;
-        border-radius: 12px !important;
-        border: none !important;
-        padding: 12px 24px !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        width: 100%;
-        transition: all 0.3s ease;
-    }
-    
-    div.stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
-    }
-    
-    /* دوگمە بچووکەکانی بەشەکان */
-    .category-box {
-        background: #F3E8FF; /* مۆری کەم */
-        color: #6B21A8;
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-    
-    /* ڕێکخستنی فۆنتی ڕادیۆ بتنەکان لە خوارەوە */
-    div.stRadio > div {
-        gap: 10px;
-    }
+    * {{
+        font-family: '{L["font"]}', 'sans-serif' !important;
+        direction: {L["dir"]};
+    }}
+    .stApp {{ background-color: {bg_color}; }}
+    h1, h2, h3, h4, p, span, label {{ color: {text_color} !important; }}
+    .custom-card {{
+        background: {card_color}; padding: 20px; border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.08);
+        border: 1px solid {border_color}; margin-bottom: 15px;
+    }}
+    div.stButton > button {{
+        background: linear-gradient(135deg, #3B82F6, #8B5CF6) !important;
+        color: white !important; border-radius: 12px !important; border: none !important;
+        padding: 12px 24px !important; font-size: 16px !important; font-weight: bold !important; width: 100%;
+    }}
+    .category-box {{
+        background: #F3E8FF; color: #6B21A8; padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; margin-bottom: 10px;
+    }}
+    .emergency-btn > button {{
+        background: #EF4444 !important; color: white !important; font-size: 18px !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-
-# ==========================================
-# ٢. شاشەی سەرەکی (🏠 Home)
-# ==========================================
-if st.session_state.current_page == '🏠 Home':
-    st.markdown("<h2 style='color: #1E3A8A; margin-bottom: 0;'>سڵاو دانیال 👋</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748B;'>بەخێرهاتی بۆ Danyal Health</p>", unsafe_allow_html=True)
-    
-    st.text_input("🔍 گەڕان بۆ نەخۆشی، دکتۆر، دەرمان...", placeholder="لێرە بنووسە...")
-    
-    st.write("")
-    
-    st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: #3B82F6;'>سیستەمی زیرەکی پشکنین</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748B;'>نیشانەکانت دەستنیشان بکە بۆ وەرگرتنی ڕاپۆرتی سەرەتایی</p>", unsafe_allow_html=True)
-    if st.button("📊 شیکاری نیشانەکان"):
-        st.session_state.current_page = '🩺 Analyze'
+# --- ٥. بەشی سەرەوەی سابت: کۆنتڕۆڵی ڕووناکی و زمان و فریاکەوتن ---
+col_mode, col_lang, col_emg = st.columns([2, 3, 4])
+with col_mode:
+    if st.button("🌙" if not st.session_state.dark_mode else "☀️"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("<h3 style='color: #1E3A8A;'>بەشەکان</h3>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("<div class='category-box'>🦠 نەخۆشییە باوەکان</div>", unsafe_allow_html=True)
-        st.markdown("<div class='category-box'>💊 دەرمان دۆزەرەوە</div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown("<div class='category-box'>👨‍⚕️ ڕاوێژی دکتۆر</div>", unsafe_allow_html=True)
-        st.markdown("<div class='category-box'>📋 مێژووی شیکاری</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# ٣. شاشەی نیشانەکان (🩺 Analyze)
-# ==========================================
-elif st.session_state.current_page == '🩺 Analyze':
-    st.markdown("<h2 style='color: #1E3A8A;'>🩺 هەڵبژاردنی نیشانەکان</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748B;'>تکایە ئەو نیشانانەی هەستی پێدەکەیت دیاری بکە:</p>", unsafe_allow_html=True)
-    
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    s1 = st.checkbox("☑️ سەرئێشە")
-    s2 = st.checkbox("☑️ گەرمی (تا)")
-    s3 = st.checkbox("☑️ کۆخە")
-    s4 = st.checkbox("☑️ ماندووبوون و بێهێزی")
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    if st.button("پڕۆسەی شیکاری بکە ➔"):
-        if s1 or s2 or s3 or s4:
-            st.session_state.current_page = 'Result_Page'
-            st.rerun()
-        else:
-            st.warning("تکایە لانی کەم یەک نیشانە هەڵبژێرە.")
-
-
-# ==========================================
-# ٤. شاشەی ئەنجام (Result Page)
-# ==========================================
-elif st.session_state.current_page == 'Result_Page':
-    st.markdown("<h2 style='color: #1E3A8A;'>📊 ئەنجامی شیکاری زیرەک</h2>", unsafe_allow_html=True)
-    
-    with st.spinner('خەریکی لێکدانەوەی نیشانەکانین...'):
-        time.sleep(1)
-        
-    st.markdown("""
-    <div class='custom-card' style='border-right: 5px solid #3B82F6;'>
-        <h2 style='color: #3B82F6; margin-bottom:0;'>78% گومان بە سەرماخۆری</h2>
-        <p style='color: #64748B;'>ئەم ئەنجامە بەپێی ئەو نیشانانەیە کە دیاریت کردوون.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.markdown("<h4>💡 ڕاوێژ و ڕێنمایی:</h4>", unsafe_allow_html=True)
-    st.write("• خواردنەوەی شلەمەنی گەرم و پشوودانی تەواو لە ماڵەوە.")
-    st.write("• وەرگرتنی ڤیتامین C و بەکارهێنانی حەپی دژە تا لە کاتی پێویستدا.")
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.markdown("<h4>👨‍⚕️ پێشنیاری دکتۆر:</h4>", unsafe_allow_html=True)
-    st.write("ئەگەر نیشانەکان و تا کەیەت بۆ زیاتر لە ٣ ڕۆژ بەردەوام بوو، پێشنیار دەکەین سەردانی دکتۆری پسپۆڕی گشتی بکەیت.")
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    if st.button("گەڕانەوە بۆ شاشەی سەرەکی"):
-        st.session_state.current_page = '🏠 Home'
+with col_lang:
+    selected_lang = st.selectbox("", ["Kurdish", "English", "Arabic"], index=["Kurdish", "English", "Arabic"].index(st.session_state.current_page if st.session_state.lang in ["Kurdish", "English", "Arabic"] else 0), label_visibility="collapsed")
+    if selected_lang != st.session_state.lang:
+        st.session_state.lang = selected_lang
         st.rerun()
+with col_emg:
+    st.markdown('<div class="emergency-btn">', unsafe_allow_html=True)
+    if st.button(L["emergency"]):
+        st.toast("🚨 پەیوەندی بە هێڵی فریاکەوتنی خێراوە کرا!", icon="🚑")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-
-# ==========================================
-# ٥. شاشەی مێژوو (📋 History)
-# ==========================================
-elif st.session_state.current_page == '📋 History':
-    st.markdown("<h2 style='color: #1E3A8A;'>📋 مێژووی شیکارییەکان</h2>", unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='custom-card'>
-        <span style='color: #8B5CF6; font-weight: bold;'>2026-05-20</span>
-        <h4>شیکاری سەرماخۆری</h4>
-        <p style='color: #10B981;'>دۆخ: چاکبووەتەوە</p>
-    </div>
-    <div class='custom-card'>
-        <span style='color: #8B5CF6; font-weight: bold;'>2026-04-12</span>
-        <h4>پشکنینی گشتی تاقیگە</h4>
-        <p style='color: #64748B;'>دۆخ: ئەرشیف کراوە</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ==========================================
-# ٦. شاشەی پرۆفایل (👤 Profile)
-# ==========================================
-elif st.session_state.current_page == '👤 Profile':
-    st.markdown("<h2 style='color: #1E3A8A;'>👤 پرۆفایلی بەکارهێنەر</h2>", unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='custom-card' style='text-align: center;'>
-        <div style='background: #E0E7FF; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 32px;'>👤</div>
-        <h3>دانیال</h3>
-        <p style='color: #64748B;'>نەخۆشخانەی تایبەتی Danyal Health</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.write("**🔢 تەمەن:** ٢٢ ساڵ")
-    st.write("**🚹 ڕەگەز:** نێر")
-    st.write("**🩸 مێژووی نەخۆشی:** هۆکاری هەستیاری وەرزی")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# ٧. دروستکردنی باشترین Bottom Navigation
-# ==========================================
 st.write("---")
-nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
 
-selected_nav = st.radio(
-    "", 
-    options=nav_options, 
-    index=nav_options.index(st.session_state.current_page) if st.session_state.current_page in nav_options else 0,
-    horizontal=True
-)
+# ==========================================
+# شاشەی لۆگین (Login / Signup)
+# ==========================================
+if not st.session_state.logged_in:
+    st.markdown(f"<h2 style='text-align: center;'>🔐 {L['login_title']}</h2>", unsafe_allow_html=True)
+    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+    st.text_input(L["email"], placeholder="danyal@example.com")
+    st.text_input(L["password"], type="password", placeholder="••••••••")
+    if st.button(L["btn_login"]):
+        st.session_state.logged_in = True
+        st.rerun()
+    st.write("<p style='text-align:center;'>یان</p>", unsafe_allow_html=True)
+    if st.button(L["google_login"]):
+        st.session_state.logged_in = True
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
-if selected_nav != st.session_state.current_page:
-    st.session_state.current_page = selected_nav
-    st.rerun()
+# ==========================================
+# ئەگەر بەکارهێنەر لۆگین ببوو، ئەپەکە کار دەکات
+# ==========================================
+else:
+    # 🏠 HOME PAGE
+    if st.session_state.current_page == '🏠 Home':
+        st.markdown(f"<h2 style='margin-bottom: 0;'>{L['welcome']}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: {sub_text};'>{L['sub_welcome']}</p>", unsafe_allow_html=True)
+        
+        st.text_input(L["search"], placeholder=L["search_placeholder"])
+        
+        # نۆتیفیکەیشنی دەرمان (Notification Box)
+        st.info("⏰ ئاگادارکردنەوە: کاتی خواردنی حەپی ڤیتامین C هاتووە (کاژێر ٠٨:٠٠ی شەو).")
+        
+        st.markdown("<div class='custom-card' style='text-align: center;'>", unsafe_allow_html=True)
+        st.markdown(f"<h3>{L['ai_system']}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: {sub_text};'>{L['ai_desc']}</p>", unsafe_allow_html=True)
+        if st.button(L["btn_analyze"]):
+            st.session_state.current_page = '🩺 Analyze'
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown(f"<h3>{L['categories']}</h3>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"<div class='category-box'>{L['cat1']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='category-box'>{L['cat2']}</div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<div class='category-box'>{L['cat3']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='category-box'>{L['cat4']}</div>", unsafe_allow_html=True)
+
+    # 🩺 ANALYZE / AI CHAT & CAMERA
+    elif st.session_state.current_page == '🩺 Analyze':
+        st.markdown(f"<h2>{L['chat_title']}</h2>", unsafe_allow_html=True)
+        
+        # بەشی چاتی دەنگی و نووسین وەک Gemini
+        st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+        st.chat_input(L["chat_ask"])
+        if st.button(L["voice_btn"]):
+            st.toast("🎙️ گوێ دەگرم... دەنگەکەت تۆمار دەکرێت...", icon="🎤")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # کامێرا و سکان
+        st.markdown(f"<h3>{L['cam_title']}</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+        uploaded_file = st.file_uploader(L["cam_upload"], type=["png", "jpg", "jpeg"])
+        if uploaded_file is not None:
+            st.image(uploaded_file, width=250, caption="وێنەی بارکراو")
+        
+        if st.button(L["analyze_btn"]):
+            # ئەنیمەیشنی لۆدینگی زیرەک (Loading Animation)
+            with st.spinner('Gemini AI 🤖 خەریکی لێکدانەوەی زانیاری و وێنەکانە...'):
+                time.sleep(2) # لۆدینگ بۆ ماوەی ٢ چرکە
+            st.success("✅ ئەنجامی شیکاری ئامادەیە: 78% نیشانەکانی سەرماخۆری سەرەتایی.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # 📋 HISTORY PAGE
+    elif st.session_state.current_page == '📋 History':
+        st.markdown(f"<h2>{L['history_title']}</h2>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class='custom-card'>
+            <span style='color: #8B5CF6; font-weight: bold;'>2026-05-20</span>
+            <h4>سکانی کامێرا - سووربوونی چاو</h4>
+            <p style='color: #EF4444;'>حاڵەت: هەستیاری کاتی</p>
+        </div>
+        <div class='custom-card'>
+            <span style='color: #8B5CF6; font-weight: bold;'>2026-04-12</span>
+            <h4>چاتی پزیشکی لەگەڵ جێمینی</h4>
+            <p style='color: #64748B;'>چارەسەر: نووسرانی دەرمانی پاراسیتامۆڵ</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 👤 PROFILE PAGE
+    elif st.session_state.current_page == '👤 Profile':
+        st.markdown(f"<h2>{L['profile_title']}</h2>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class='custom-card' style='text-align: center;'>
+            <div style='background: #E0E7FF; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; font-size: 32px;'>👤</div>
+            <h3>دانیال</h3>
+            <p style='color: {sub_text};'>Danyal Health ID: #9921</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"<div class='custom-card'>", unsafe_allow_html=True)
+        st.write(f"**🔢 {L['age']}:** ٢٢ ساڵ")
+        st.write(f"**🚹 {L['gender']}:** {L['male']}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- ٦. دروستکردنی باڕی خوارەوە (Bottom Navigation) ---
+    st.write("---")
+    nav_options = ['🏠 Home', '🩺 Analyze', '📋 History', '👤 Profile']
+    selected_nav = st.radio("", options=nav_options, index=nav_options.index(st.session_state.current_page) if st.session_state.current_page in nav_options else 0, horizontal=True, label_visibility="collapsed")
+    
+    if selected_nav != st.session_state.current_page:
+        st.session_state.current_page = selected_nav
+        st.rerun()
