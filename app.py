@@ -8,7 +8,7 @@ import os
 import base64
 from io import BytesIO
 import time
-import random
+import re
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -23,281 +23,236 @@ if 'history' not in st.session_state:
     st.session_state.history = []
 if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
-if 'user_results' not in st.session_state:
-    st.session_state.user_results = {}
 
-# --- MODERN LIGHT THEME CSS ---
+# --- MODERN LIGHT THEME CSS (MOBILE FRIENDLY) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@300;400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700;800;900&display=swap');
     
     * {
         font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     [data-testid="stSidebar"] { display: none; }
     
     html, body, [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 25%, #f5f7ff 50%, #eef2ff 75%, #f0f4ff 100%) !important;
-        background-size: 400% 400% !important;
-        animation: gradientShift 15s ease infinite !important;
-    }
-    
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
     }
     
     .main-header {
         background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%);
-        border-radius: 30px;
-        padding: 40px;
+        border-radius: 20px;
+        padding: 25px 20px;
         text-align: center;
-        margin-bottom: 30px;
-        box-shadow: 0 20px 60px rgba(79, 70, 229, 0.3), 0 0 120px rgba(124, 58, 237, 0.1);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .main-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-        animation: rotate 20s linear infinite;
-    }
-    
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.2);
     }
     
     .main-header h1 {
         color: white !important;
-        font-size: 2.8rem !important;
-        font-weight: 900 !important;
-        position: relative;
-        z-index: 1;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+        margin: 0 0 8px 0 !important;
     }
     
     .main-header p {
         color: rgba(255,255,255,0.9) !important;
-        font-size: 1.2rem !important;
-        position: relative;
-        z-index: 1;
+        font-size: 0.95rem !important;
+        margin: 0 !important;
     }
     
     .glass-card {
         background: white !important;
-        border-radius: 20px !important;
-        padding: 25px !important;
-        margin-bottom: 20px !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
-        border: 1px solid rgba(0,0,0,0.04) !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+        margin-bottom: 15px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04) !important;
+        border: 1px solid #e5e7eb !important;
     }
     
     .test-card {
         background: white;
-        border-radius: 20px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border-radius: 14px;
+        padding: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         border-right: 4px solid #4f46e5;
-        transition: all 0.3s ease;
-    }
-    
-    .test-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.15);
-    }
-    
-    .test-card h4 {
-        color: #1e1b4b !important;
-        font-weight: 700;
     }
     
     .test-card p {
-        color: #374151 !important;
+        font-size: 0.9rem !important;
+        line-height: 1.6 !important;
     }
     
     .ai-result-card {
         background: white;
-        border-radius: 24px;
-        padding: 30px;
-        margin: 25px 0;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-        animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 20px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        animation: slideUp 0.4s ease-out;
     }
     
     @keyframes slideUp {
-        from { opacity: 0; transform: translateY(30px); }
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
     .result-normal {
         background: #f0fdf4;
         border-left: 5px solid #10b981;
-        border-radius: 16px;
-        padding: 20px;
-        margin: 15px 0;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 12px 0;
     }
     
-    .result-normal p, .result-normal h3, .result-normal b {
-        color: #065f46 !important;
-    }
+    .result-normal p, .result-normal h3 { color: #065f46 !important; }
     
     .result-abnormal {
         background: #fffbeb;
         border-left: 5px solid #f59e0b;
-        border-radius: 16px;
-        padding: 20px;
-        margin: 15px 0;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 12px 0;
     }
     
-    .result-abnormal p, .result-abnormal h3, .result-abnormal b {
-        color: #92400e !important;
-    }
+    .result-abnormal p, .result-abnormal h3 { color: #92400e !important; }
     
     .result-critical {
         background: #fef2f2;
         border-left: 5px solid #ef4444;
-        border-radius: 16px;
-        padding: 20px;
-        margin: 15px 0;
-        animation: criticalPulse 2s infinite;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 12px 0;
     }
     
-    .result-critical p, .result-critical h3, .result-critical b {
-        color: #991b1b !important;
-    }
+    .result-critical p, .result-critical h3 { color: #991b1b !important; }
     
-    @keyframes criticalPulse {
-        0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
-        50% { border-color: #fca5a5; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
-    }
-    
+    /* Smaller buttons */
     .stButton button {
         background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
         border: none !important;
-        font-weight: 700 !important;
-        border-radius: 14px !important;
-        padding: 14px 35px !important;
-        font-size: 16px !important;
-        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
-        transition: all 0.3s ease !important;
+        font-weight: 600 !important;
+        border-radius: 12px !important;
+        padding: 10px 20px !important;
+        font-size: 0.9rem !important;
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2) !important;
+        width: 100% !important;
     }
     
     .stButton button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5) !important;
-        background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
     }
     
-    .stTextInput input, .stNumberInput input, .stSelectbox div {
+    /* Smaller inputs */
+    .stTextInput input, .stNumberInput input {
         background: white !important;
         border: 2px solid #e5e7eb !important;
-        border-radius: 14px !important;
+        border-radius: 10px !important;
         color: #1f2937 !important;
-        padding: 12px 18px !important;
-        font-size: 1rem !important;
+        padding: 8px 14px !important;
+        font-size: 0.9rem !important;
     }
     
     .stTextInput input:focus, .stNumberInput input:focus {
         border-color: #4f46e5 !important;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08) !important;
+    }
+    
+    .stSelectbox div {
+        font-size: 0.9rem !important;
     }
     
     .food-card {
         background: #fffbeb;
         border: 1px solid #fde68a;
-        border-radius: 16px;
-        padding: 18px;
-        margin: 12px 0;
+        border-radius: 12px;
+        padding: 12px;
+        margin: 10px 0;
+        font-size: 0.85rem !important;
     }
     
     .food-card h4 {
         color: #92400e !important;
+        font-size: 1rem !important;
+        margin: 0 0 8px 0 !important;
     }
     
     .food-card p {
         color: #78350f !important;
+        margin: 0 !important;
     }
     
     .category-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+        background: #eef2ff;
         border: 1px solid #c7d2fe;
-        border-radius: 30px;
-        padding: 10px 25px;
-        margin: 20px 0 15px 0;
-        font-weight: 700;
+        border-radius: 20px;
+        padding: 6px 16px;
+        margin: 15px 0 10px 0;
+        font-weight: 600;
         color: #3730a3 !important;
-        font-size: 1.1rem;
+        font-size: 0.9rem;
     }
     
     .stat-card {
         background: white;
-        border-radius: 16px;
-        padding: 20px;
+        border-radius: 12px;
+        padding: 15px;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
     }
     
     .stat-value {
-        font-size: 2.5rem;
-        font-weight: 900;
+        font-size: 1.8rem;
+        font-weight: 800;
         color: #4f46e5 !important;
     }
     
     .stat-label {
         color: #6b7280 !important;
-        font-size: 0.95rem;
-        margin-top: 5px;
+        font-size: 0.8rem;
+        margin-top: 3px;
     }
     
     .faq-item {
-        background: white;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 8px 0;
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 12px;
+        margin: 6px 0;
         border: 1px solid #e5e7eb;
-        cursor: pointer;
+        font-size: 0.9rem;
     }
     
-    .faq-item:hover {
-        border-color: #4f46e5;
-        background: #f8fafc;
-    }
-    
-    .faq-item p {
-        color: #374151 !important;
-    }
-    
-    .faq-item b {
+    /* Smaller expander */
+    .streamlit-expanderHeader {
+        background: #f9fafb !important;
+        border-radius: 10px !important;
+        border: 1px solid #e5e7eb !important;
         color: #1f2937 !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        padding: 8px 12px !important;
     }
     
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 5px;
         background: white !important;
-        border-radius: 16px;
-        padding: 6px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        border-radius: 12px;
+        padding: 4px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
     }
     
     .stTabs [data-baseweb="tab"] {
         background: transparent !important;
-        border-radius: 12px !important;
+        border-radius: 10px !important;
         color: #374151 !important;
-        padding: 10px 20px !important;
-        font-weight: 600 !important;
+        padding: 6px 12px !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
     }
     
     .stTabs [aria-selected="true"] {
@@ -305,49 +260,40 @@ st.markdown("""
         color: white !important;
     }
     
-    .streamlit-expanderHeader {
-        background: #f9fafb !important;
-        border-radius: 12px !important;
-        border: 1px solid #e5e7eb !important;
-        color: #1f2937 !important;
-        font-weight: 600 !important;
+    /* Smaller icons in result */
+    .result-emoji {
+        font-size: 2rem !important;
     }
     
-    .streamlit-expanderHeader:hover {
-        background: #f3f4f6 !important;
-    }
-    
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 10px; }
-    
-    [dir="rtl"] { text-align: right !important; direction: rtl !important; }
-    
+    /* Info/warning boxes */
     .info-box {
         background: #eff6ff;
         border: 1px solid #bfdbfe;
-        border-radius: 14px;
-        padding: 16px;
-    }
-    
-    .info-box p {
-        color: #1e40af !important;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 0.9rem;
     }
     
     .warning-box {
         background: #fef3c7;
         border: 1px solid #fde68a;
-        border-radius: 14px;
-        padding: 16px;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 0.9rem;
     }
     
-    .warning-box p {
-        color: #92400e !important;
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .main-header h1 { font-size: 1.4rem !important; }
+        .main-header p { font-size: 0.8rem !important; }
+        .stButton button { font-size: 0.85rem !important; padding: 8px 16px !important; }
     }
+    
+    [dir="rtl"] { text-align: right !important; direction: rtl !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- COMPLETE DATABASE ---
+# --- ALL TESTS DATABASE ---
 ALL_TESTS = {
     "پشکنینی تەواوی خوێن (CBC)": {
         "Name": "پشکنینی تەواوی خوێن (CBC)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "خوێن", "Icon": "🩸",
@@ -441,127 +387,119 @@ ALL_TESTS = {
     },
 }
 
-# --- AI ENGINE (COMPLETELY FIXED) ---
+# --- FIXED AI ANALYSIS ENGINE ---
 def ai_analyze(test_name, user_value, gender="general"):
-    """Fixed AI Analysis that works for ALL tests"""
+    """Works for ALL tests by parsing ranges from database"""
     
-    # Normalize test name
-    test_lower = test_name.lower()
-    test_lower = test_lower.replace('ی', 'ي').replace('ێ', 'ي')
-    
-    # Find matching test from database
+    # Find matching test
     matched_test = None
     for key, test in ALL_TESTS.items():
-        key_lower = key.lower().replace('ی', 'ي').replace('ێ', 'ي')
-        if key_lower in test_lower or test_lower in key_lower:
+        if key == test_name:
             matched_test = test
-            matched_key = key
             break
     
     if not matched_test:
-        return {
-            "status": "unknown",
-            "emoji": "❓",
-            "color_class": "result-abnormal",
-            "status_text": "پشکنین نەناسرایەوە",
-            "meaning": "تکایە پشکنینێکی تر هەڵبژێرە. من دەتوانم یارمەتیت بدەم لە شیکردنەوەی زۆربەی پشکنینە باوەکان.",
-            "action": "ناوی پشکنینەکەت بە وردی بنووسە یان لە لیستەکە هەڵیبژێرە",
-            "user_value": user_value,
-            "unit": "",
-            "min_val": "N/A",
-            "max_val": "N/A"
-        }
+        # Create a safe result
+        return create_result("unknown", user_value, "N/A", "N/A", "unit", test_name)
     
-    # Parse ranges from the test
+    # Parse ranges from text
     ranges_text = matched_test['Ranges']
     
-    # Try to extract a relevant range
-    import re
+    # Find number patterns
+    range_matches = re.findall(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)', ranges_text)
     
-    # Find all number ranges
-    range_patterns = re.findall(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z/µ]+)?', ranges_text)
+    if not range_matches:
+        return create_result("unknown", user_value, "N/A", "N/A", "unit", matched_test['Name'])
     
-    if not range_patterns:
-        return {
-            "status": "unknown",
-            "emoji": "❓",
-            "color_class": "result-abnormal",
-            "status_text": "ڕێژەکان نەدۆزرانەوە",
-            "meaning": f"ببورە، ناتوانم ڕێژە ئاساییەکانی {matched_test['Name']} بدۆزمەوە. تکایە ڕاستەوخۆ سەردانی پزیشک بکە.",
-            "action": "ئەنجامەکەت ببە بۆ پزیشکی پسپۆڕ",
-            "user_value": user_value,
-            "unit": "",
-            "min_val": "N/A",
-            "max_val": "N/A"
-        }
+    # Get first range as default
+    min_val = float(range_matches[0][0])
+    max_val = float(range_matches[0][1])
     
-    # Use the first range found (or try to match gender)
-    min_val = float(range_patterns[0][0])
-    max_val = float(range_patterns[0][1])
-    unit = range_patterns[0][2] if range_patterns[0][2] else "unit"
-    
-    # Try to find gender-specific range
+    # Try gender-specific
     if gender == "male":
-        for pattern in range_patterns:
-            if "پیاوان" in ranges_text or "male" in ranges_text.lower():
-                min_val = float(pattern[0])
-                max_val = float(pattern[1])
+        for i, (r, full_text) in enumerate(zip(range_matches, ranges_text.split('|'))):
+            if "پیاوان" in full_text:
+                min_val = float(r[0])
+                max_val = float(r[1])
                 break
     elif gender == "female":
-        for pattern in range_patterns:
-            if "ژنان" in ranges_text or "female" in ranges_text.lower():
-                min_val = float(pattern[0])
-                max_val = float(pattern[1])
+        for i, (r, full_text) in enumerate(zip(range_matches, ranges_text.split('|'))):
+            if "ژنان" in full_text:
+                min_val = float(r[0])
+                max_val = float(r[1])
                 break
+    
+    # Extract unit
+    unit_match = re.search(r'([a-zA-Z/µ]+)', ranges_text)
+    unit = unit_match.group(1) if unit_match else "unit"
     
     # Determine status
     if user_value < min_val:
-        status = "low"
-        emoji = "⚠️"
-        color_class = "result-abnormal"
-        status_text = "لە ئاستی ئاسایی نزمترە"
-        
-        # Get the test name without parentheses for better display
-        short_name = matched_test['Name'].split('(')[0].strip()
-        
-        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) نزمترە. ئەمە ڕەنگە نیشانەی کێشەیەکی تەندروستی بێت کە پێویستی بە لێکۆڵینەوەی زیاترە."
-        action = "پێشنیار دەکەم سەردانی پزیشکی پسپۆڕ بکەیت بۆ پشکنینی زیاتر و دەستنیشانکردنی هۆکاری سەرەکی."
-        
+        return create_result("low", user_value, min_val, max_val, unit, matched_test['Name'])
     elif user_value > max_val:
-        status = "high"
-        emoji = "🚨"
-        color_class = "result-critical" if user_value > max_val * 1.5 else "result-abnormal"
-        status_text = "لە ئاستی ئاسایی بەرزترە"
-        
-        short_name = matched_test['Name'].split('(')[0].strip()
-        
-        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە. ئەمە ڕەنگە نیشانەی هەوکردن، کێشەی ئەندامەکان، یان حاڵەتێکی پزیشکی تر بێت."
-        action = "پێشنیار دەکەم بە زووترین کات سەردانی پزیشکی پسپۆڕ بکەیت بۆ دەستنیشانکردنی ورد و چارەسەری گونجاو."
-        
+        critical = user_value > max_val * 1.5
+        return create_result("high" if not critical else "critical", user_value, min_val, max_val, unit, matched_test['Name'])
     else:
-        status = "normal"
-        emoji = "✅"
-        color_class = "result-normal"
-        status_text = "لە ئاستی ئاساییدایە"
-        
-        short_name = matched_test['Name'].split('(')[0].strip()
-        
-        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە. ئەمە نیشانەیەکی باشە و ئەندامە پەیوەندیدارەکانت بە باشی کاردەکەن."
-        action = "بەردەوام بە لەسەر شێوازی ژیانی تەندروست. پشکنینی ساڵانە ئەنجام بدە بۆ دڵنیابوونەوە."
+        return create_result("normal", user_value, min_val, max_val, unit, matched_test['Name'])
+
+def create_result(status, user_value, min_val, max_val, unit, test_name):
+    """Create consistent result dictionary with safe key access"""
     
-    return {
+    # Get short name
+    short_name = test_name.split('(')[0].strip() if '(' in test_name else test_name
+    
+    result = {
         "status": status,
-        "emoji": emoji,
-        "color_class": color_class,
-        "status_text": status_text,
-        "meaning": meaning,
-        "action": action,
         "user_value": user_value,
-        "unit": unit,
         "min_val": min_val,
         "max_val": max_val,
-        "test_name": matched_test['Name']
+        "unit": unit,
+        "test_name": short_name,
+        "test_name_full": test_name
     }
+    
+    if status == "normal":
+        result.update({
+            "emoji": "✅",
+            "color_class": "result-normal",
+            "status_text": "لە ئاستی ئاساییدایە",
+            "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە. ئەمە نیشانەیەکی باشە!",
+            "action": "بەردەوام بە لەسەر شێوازی ژیانی تەندروست. پشکنینی ساڵانە ئەنجام بدە."
+        })
+    elif status == "low":
+        result.update({
+            "emoji": "⚠️",
+            "color_class": "result-abnormal",
+            "status_text": "لە ئاستی ئاسایی نزمترە",
+            "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) نزمترە. ڕەنگە نیشانەی کێشەیەک بێت.",
+            "action": "پێشنیار دەکەم سەردانی پزیشکی پسپۆڕ بکەیت بۆ پشکنینی زیاتر."
+        })
+    elif status == "high":
+        result.update({
+            "emoji": "⚠️",
+            "color_class": "result-abnormal",
+            "status_text": "لە ئاستی ئاسایی بەرزترە",
+            "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە.",
+            "action": "پێشنیار دەکەم بە زووترین کات سەردانی پزیشکی پسپۆڕ بکەیت."
+        })
+    elif status == "critical":
+        result.update({
+            "emoji": "🚨",
+            "color_class": "result-critical",
+            "status_text": "زۆر بەرزە - مەترسیدار!",
+            "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) زۆر لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە. ئەمە حاڵەتێکی مەترسیدارە!",
+            "action": "یەکسەر پەیوەندی بە پزیشکەوە بکە یان سەردانی نەخۆشخانە بکە!"
+        })
+    else:
+        result.update({
+            "emoji": "❓",
+            "color_class": "result-abnormal",
+            "status_text": "پێویستی بە پشکنینی زیاترە",
+            "meaning": f"ببورە، ناتوانم شیکاری ورد بۆ {short_name} بکەم.",
+            "action": "تکایە ئەنجامەکەت ببە بۆ پزیشکی پسپۆڕ."
+        })
+    
+    return result
 
 # --- FAQ DATABASE ---
 FAQ_DATABASE = {
@@ -586,26 +524,26 @@ FAQ_DATABASE = {
 st.markdown("""
 <div class="main-header">
     <h1>🔬 ڕێبەری پشکنینە تاقیگەییەکان</h1>
-    <p>زیاتر لە ١٥ پشکنین | شیکاری زیرەک | پرسیار و وەڵام</p>
+    <p>شیکاری زیرەک | پرسیار و وەڵام</p>
 </div>
 """, unsafe_allow_html=True)
 
 # --- TABS ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "📋 پشکنینەکان", 
-    "🧠 شیکاری زیرەک", 
+    "🧠 شیکاری", 
     "📊 هێڵکاری",
-    "💬 پرسیار و وەڵام"
+    "💬 پرسیار"
 ])
 
-# --- TAB 1: Tests ---
+# --- TAB 1 ---
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        search_text = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...")
+        search_text = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...", key="search_tests")
     with col2:
         organs = ["هەموو"] + sorted(list(set([t['Organ'] for t in ALL_TESTS.values()])))
-        selected_organ = st.selectbox("🫀 ئەندامی لەش:", organs)
+        selected_organ = st.selectbox("🫀 ئەندامی لەش:", organs, key="organ_filter")
     
     filtered_tests = {}
     for key, test in ALL_TESTS.items():
@@ -627,80 +565,70 @@ with tab1:
             st.markdown(f"<div class='category-badge'>📂 {category}</div>", unsafe_allow_html=True)
             
             for test_key, test in tests.items():
-                with st.expander(f"{test['Icon']} {test['Name']} | 🫀 {test['Organ']}"):
+                with st.expander(f"{test['Icon']} {test['Name'][:50]}... | {test['Organ']}"):
                     st.markdown(f"""
                     <div class="test-card">
                         <p><b>📝 وەسف:</b> {test['Description']}</p>
                         <p><b>📊 ڕێژە ئاساییەکان:</b></p>
-                        <p style="background:#f3f4f6;padding:10px;border-radius:8px;">{test['Ranges']}</p>
+                        <p style="background:#f3f4f6;padding:8px 12px;border-radius:8px;font-size:0.85rem;">{test['Ranges']}</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
                     if 'FoodRecommendations' in test:
                         st.markdown(f"""
                         <div class="food-card">
-                            <h4>🥗 ڕێنمایی خۆراکی</h4>
+                            <h4>🥗 خۆراکی</h4>
                             <p>{test['FoodRecommendations']}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
-# --- TAB 2: AI Analysis ---
+# --- TAB 2 ---
 with tab2:
-    st.markdown("""
-    <div style="text-align:center;padding:20px;">
-        <h2 style="color:#4f46e5;">🧠 شیکاری زیرەکی ئەنجامەکان</h2>
-        <p style="color:#6b7280;">ئەنجامی پشکنینەکەت بنووسە و شیکاری وەربگرە</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;margin-bottom:15px;'>🧠 شیکاری زیرەکی ئەنجامەکان</h3>", unsafe_allow_html=True)
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     with col1:
-        test_choice = st.selectbox("🔬 پشکنین:", list(ALL_TESTS.keys()))
-    with col2:
+        test_choice = st.selectbox("🔬 پشکنین:", list(ALL_TESTS.keys()), key="ai_test")
         gender_choice = st.selectbox("👤 ڕەگەز:", ["general", "male", "female"], 
-                                     format_func=lambda x: {"general": "گشتی", "male": "پیاوان", "female": "ژنان"}[x])
-    with col3:
-        unit_choice = st.text_input("📏 یەکە:", value="mg/dL")
-    with col4:
-        user_result = st.number_input("🔢 ئەنجام:", value=0.0, step=0.1, format="%.1f")
+                                     format_func=lambda x: {"general": "گشتی", "male": "پیاوان", "female": "ژنان"}[x], key="ai_gender")
+    with col2:
+        unit_choice = st.text_input("📏 یەکە:", value="mg/dL", key="ai_unit")
+        user_result = st.number_input("🔢 ئەنجام:", value=0.0, step=0.1, format="%.1f", key="ai_value")
     
-    if st.button("🔍 شیکاری زیرەک ئەنجام بدە", use_container_width=True):
+    if st.button("🔍 شیکاری بکە", key="ai_button", use_container_width=True):
         if user_result > 0:
-            with st.spinner("🧠 سیستەم ئەنجامەکەت شیدەکاتەوە..."):
-                time.sleep(1)
+            with st.spinner("🧠 شیکاری دەکرێت..."):
+                time.sleep(0.8)
                 
                 result = ai_analyze(test_choice, user_result, gender_choice)
                 
                 st.markdown(f"""
                 <div class="ai-result-card">
                     <div class="{result['color_class']}">
-                        <div style="display:flex;align-items:center;gap:15px;margin-bottom:15px;">
-                            <span style="font-size:3rem;">{result['emoji']}</span>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <span style="font-size:1.8rem;">{result['emoji']}</span>
                             <div>
-                                <h3 style="margin:0;">{result['test_name']}</h3>
-                                <p style="margin:5px 0;font-weight:600;">{result['status_text']}</p>
+                                <h4 style="margin:0;font-size:1rem;">{result['test_name']}</h4>
+                                <p style="margin:3px 0;font-size:0.85rem;font-weight:600;">{result['status_text']}</p>
                             </div>
                         </div>
                         
-                        <div style="background:#f9fafb;border-radius:12px;padding:15px;margin:15px 0;">
-                            <p><b>📊 ئەنجامی تۆ:</b> <span style="font-size:1.5rem;font-weight:900;color:#4f46e5;">{result['user_value']}</span> {result['unit']}</p>
-                            <p><b>📏 مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}</p>
+                        <div style="background:#f9fafb;border-radius:8px;padding:10px;margin:10px 0;font-size:0.9rem;">
+                            <b>📊 ئەنجام:</b> {result['user_value']} {result['unit']}<br>
+                            <b>📏 مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}
                         </div>
                         
-                        <div style="background:#f0fdf4;border-radius:12px;padding:15px;margin:15px 0;">
-                            <p><b>📋 شیکاری:</b></p>
-                            <p style="font-size:1.05rem;line-height:1.8;">{result['meaning']}</p>
+                        <div style="margin:10px 0;font-size:0.9rem;">
+                            <b>📋 شیکاری:</b> {result['meaning']}
                         </div>
                         
-                        <div style="background:#eef2ff;border-radius:12px;padding:15px;margin:15px 0;">
-                            <p><b>💊 ڕێنمایی:</b></p>
-                            <p style="font-size:1.05rem;line-height:1.8;">{result['action']}</p>
+                        <div style="background:#eef2ff;border-radius:8px;padding:10px;margin:10px 0;font-size:0.9rem;">
+                            <b>💊 ڕێنمایی:</b> {result['action']}
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Save to history
                 st.session_state.history.append({
                     "date": datetime.now().strftime("%Y-%m-%d"),
                     "test": test_choice,
@@ -709,32 +637,30 @@ with tab2:
                     "status": result['status']
                 })
                 
-                # Show food
                 test_data = ALL_TESTS.get(test_choice, {})
                 if 'FoodRecommendations' in test_data:
                     st.markdown(f"""
                     <div class="food-card">
-                        <h4>🥗 ڕێنمایی خۆراکی</h4>
+                        <h4>🥗 خۆراکی</h4>
                         <p>{test_data['FoodRecommendations']}</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
-            st.warning("تکایە ئەنجامێکی دروست بنووسە")
+            st.warning("تکایە ئەنجامێک بنووسە")
 
-# --- TAB 3: Charts ---
+# --- TAB 3 ---
 with tab3:
-    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>📊 هێڵکاری گۆڕانکارییەکان</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>📊 گۆڕانکارییەکان</h3>", unsafe_allow_html=True)
     
     if len(st.session_state.history) > 0:
         df = pd.DataFrame(st.session_state.history)
         test_options = df['test'].unique()
-        selected_tests = st.multiselect("پشکنینەکان:", test_options, default=list(test_options)[:3])
+        selected_tests = st.multiselect("پشکنین:", test_options, default=list(test_options)[:3], key="chart_tests")
         
         if selected_tests:
             filtered_df = df[df['test'].isin(selected_tests)]
-            fig = px.line(filtered_df, x='date', y='value', color='test',
-                         title='گۆڕانکاری ئەنجامەکان', markers=True)
-            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white')
+            fig = px.line(filtered_df, x='date', y='value', color='test', markers=True)
+            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white', height=350)
             st.plotly_chart(fig, use_container_width=True)
             
             col1, col2, col3 = st.columns(3)
@@ -745,36 +671,33 @@ with tab3:
             with col3:
                 st.markdown(f'<div class="stat-card"><div class="stat-value">{filtered_df["value"].max():.1f}</div><div class="stat-label">بەرزترین</div></div>', unsafe_allow_html=True)
     else:
-        st.info("هێشتا هیچ ئەنجامێکت تۆمار نەکردووە.")
+        st.info("هێشتا ئەنجامێکت تۆمار نەکردووە")
 
-# --- TAB 4: FAQ ---
+# --- TAB 4 ---
 with tab4:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>💬 پرسیار و وەڵام</h3>", unsafe_allow_html=True)
     
-    faq_search = st.text_input("🔍 گەڕان لە پرسیارەکاندا:", placeholder="پرسیارێک بنووسە...")
+    faq_search = st.text_input("🔍 گەڕان:", placeholder="پرسیار بنووسە...", key="faq_search")
     
     if faq_search:
         filtered_faq = {k: v for k, v in FAQ_DATABASE.items() if faq_search.lower() in k.lower()}
         if filtered_faq:
             for q, a in filtered_faq.items():
                 with st.expander(f"❓ {q}"):
-                    st.markdown(f'<div class="faq-item"><p>{a}</p></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="faq-item"><p style="margin:0;">{a}</p></div>', unsafe_allow_html=True)
         else:
-            st.info("هیچ پرسیارێک نەدۆزرایەوە")
+            st.info("نەدۆزرایەوە")
     else:
-        cols = st.columns(2)
         questions = list(FAQ_DATABASE.items())
-        for i, (q, a) in enumerate(questions):
-            with cols[i % 2]:
-                with st.expander(f"❓ {q}"):
-                    st.markdown(f'<div class="faq-item"><p>{a}</p></div>', unsafe_allow_html=True)
+        for i, (q, a) in enumerate(questions[:12]):
+            with st.expander(f"❓ {q}"):
+                st.markdown(f'<div class="faq-item"><p style="margin:0;">{a}</p></div>', unsafe_allow_html=True)
 
 # --- FOOTER ---
 st.markdown("""
-<div class="glass-card" style="text-align:center;margin-top:30px;">
+<div class="glass-card" style="text-align:center;margin-top:20px;">
     <div class="warning-box">
-        <p>⚠️ ئەم سیستەمە تەنها بۆ ڕێنمایی سەرەتاییە و جێگەی سەردانی پزیشک ناگرێتەوە.</p>
+        <p style="margin:0;">⚠️ ئەم سیستەمە تەنها بۆ ڕێنماییە و جێگەی سەردانی پزیشک ناگرێتەوە</p>
     </div>
-    <p style="color:#6b7280;">© ٢٠٢٤ ڕێبەری پشکنینە تاقیگەییەکان</p>
 </div>
 """, unsafe_allow_html=True)
