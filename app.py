@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
+import re
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -76,14 +77,8 @@ st.markdown("""
     }
     
     @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .test-card:hover {
@@ -158,6 +153,7 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         transition: all 0.2s ease;
         gap: 15px;
+        flex-wrap: wrap;
     }
     
     .range-item:hover {
@@ -169,6 +165,7 @@ st.markdown("""
         font-weight: bold;
         color: #333;
         flex: 1;
+        min-width: 200px;
     }
     
     .range-value {
@@ -220,6 +217,67 @@ st.markdown("""
         text-align: center;
     }
     
+    /* شیکردنەوەی ئەنجام */
+    .interpretation-section {
+        background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 20px;
+        border: 2px dashed #7b1fa2;
+    }
+    
+    .interpretation-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #4a148c;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .result-normal {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-right: 5px solid #4caf50;
+        border-radius: 12px;
+        padding: 18px;
+        margin: 10px 0;
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    .result-abnormal {
+        background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        border-right: 5px solid #ff9800;
+        border-radius: 12px;
+        padding: 18px;
+        margin: 10px 0;
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    .result-critical {
+        background: linear-gradient(135deg, #ffebee, #ffcdd2);
+        border-right: 5px solid #f44336;
+        border-radius: 12px;
+        padding: 18px;
+        margin: 10px 0;
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .result-icon {
+        font-size: 2rem;
+        margin-left: 10px;
+    }
+    
+    .result-text {
+        font-size: 1.1rem;
+        line-height: 1.8;
+    }
+    
     .stButton button {
         background: linear-gradient(135deg, #1a237e, #3949ab) !important;
         color: white !important;
@@ -235,6 +293,10 @@ st.markdown("""
     .stButton button:hover {
         transform: translateY(-3px) !important;
         box-shadow: 0 8px 25px rgba(26,35,126,0.5) !important;
+    }
+    
+    .interpret-btn {
+        background: linear-gradient(135deg, #7b1fa2, #9c27b0) !important;
     }
     
     .search-box {
@@ -255,47 +317,54 @@ st.markdown("""
         display: inline-block;
     }
     
+    .result-summary {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .result-summary-normal {
+        border: 3px solid #4caf50;
+    }
+    
+    .result-summary-abnormal {
+        border: 3px solid #ff9800;
+    }
+    
+    .result-summary-critical {
+        border: 3px solid #f44336;
+    }
+    
     [dir="rtl"] {
         text-align: right !important;
         direction: rtl !important;
     }
     
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: #3949ab; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #1a237e; }
     
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #3949ab;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #1a237e;
-    }
-    
-    /* Search input styling */
-    .stTextInput input {
+    .stTextInput input, .stNumberInput input {
         border: 2px solid #e0e0e0 !important;
         border-radius: 15px !important;
-        padding: 15px 20px !important;
+        padding: 12px 20px !important;
         font-size: 1.1rem !important;
         transition: all 0.3s ease !important;
     }
     
-    .stTextInput input:focus {
-        border-color: #3949ab !important;
-        box-shadow: 0 0 0 3px rgba(57,73,171,0.1) !important;
+    .stTextInput input:focus, .stNumberInput input:focus {
+        border-color: #7b1fa2 !important;
+        box-shadow: 0 0 0 3px rgba(123,31,162,0.1) !important;
     }
     
-    .highlight {
-        background-color: #ffeb3b;
-        padding: 2px 5px;
-        border-radius: 3px;
+    .interpret-input-label {
+        font-weight: bold;
+        color: #4a148c;
+        margin-bottom: 5px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -304,7 +373,7 @@ st.markdown("""
 st.markdown("""
 <div class="header-card">
     <h1 style="font-size:2.5rem; margin-bottom:15px;">🔬 ڕێبەری پشکنینە تاقیگەییەکان</h1>
-    <p style="font-size:1.3rem; opacity:0.95;">گرنگترین و باوترین پشکنینە تاقیگەییەکان لەگەڵ ڕێژە ئاساییەکانیان</p>
+    <p style="font-size:1.3rem; opacity:0.95;">گرنگترین و باوترین پشکنینە تاقیگەییەکان | شیکردنەوەی ئەنجامەکانت</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -319,7 +388,212 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- ALL TESTS DATA ---
+# --- INTERPRETATION ENGINE (شیکەرەوەی ئەنجام) ---
+def interpret_result(test_id, test_name, user_value, range_item_label):
+    """
+    شیکردنەوەی ئەنجامی بەکارهێنەر
+    دەگەڕێتەوە: (status, message, color_class)
+    """
+    
+    # هەموو مەودا ئاساییەکان بەپێی پشکنین
+    normal_ranges = {
+        "cbc": {
+            "هیمۆگڵۆبین": {"male": (13.5, 17.5), "female": (12.0, 15.5), "unit": "g/dL"},
+            "WBC": {"all": (4500, 11000), "unit": "/µL"},
+            "Platelets": {"all": (150000, 450000), "unit": "/µL"}
+        },
+        "fbs": {
+            "FBS": {"all": (70, 99), "unit": "mg/dL", "pre_diabetes": (100, 125), "diabetes": 126}
+        },
+        "hba1c": {
+            "HbA1c": {"all": (0, 5.7), "unit": "%", "pre_diabetes": (5.7, 6.4), "diabetes": 6.5}
+        },
+        "lipid": {
+            "Total Cholesterol": {"all": (0, 200), "unit": "mg/dL"},
+            "Triglycerides": {"all": (0, 150), "unit": "mg/dL"},
+            "HDL": {"all": (40, 999), "unit": "mg/dL"},
+            "LDL": {"all": (0, 100), "unit": "mg/dL"}
+        },
+        "kft": {
+            "Creatinine male": {"male": (0.7, 1.3), "unit": "mg/dL"},
+            "Creatinine female": {"female": (0.6, 1.1), "unit": "mg/dL"},
+            "Urea": {"all": (15, 40), "unit": "mg/dL"}
+        },
+        "electrolytes": {
+            "Sodium": {"all": (135, 145), "unit": "mEq/L"},
+            "Potassium": {"all": (3.6, 5.2), "unit": "mEq/L"},
+            "Calcium": {"all": (8.5, 10.2), "unit": "mg/dL"}
+        },
+        "lft": {
+            "ALT": {"all": (7, 56), "unit": "U/L"},
+            "AST": {"all": (10, 40), "unit": "U/L"}
+        },
+        "tsh": {
+            "TSH": {"all": (0.4, 4.0), "unit": "mIU/L"}
+        },
+        "vitd": {
+            "Vitamin D": {"all": (30, 100), "unit": "ng/mL", "deficiency": 20}
+        },
+        "b12": {
+            "B12": {"all": (200, 900), "unit": "pg/mL"}
+        },
+        "ferritin": {
+            "Ferritin male": {"male": (24, 336), "unit": "ng/mL"},
+            "Ferritin female": {"female": (11, 307), "unit": "ng/mL"}
+        },
+        "uric_acid": {
+            "Uric Acid male": {"male": (3.4, 7.0), "unit": "mg/dL"},
+            "Uric Acid female": {"female": (2.4, 6.0), "unit": "mg/dL"}
+        },
+        "crp": {
+            "CRP": {"all": (0, 10), "unit": "mg/L"}
+        },
+        "esr": {
+            "ESR male": {"male": (0, 22), "unit": "mm/hr"},
+            "ESR female": {"female": (0, 29), "unit": "mm/hr"}
+        },
+        "troponin": {
+            "Troponin": {"all": (0, 0.04), "unit": "ng/mL", "critical": 0.04}
+        }
+    }
+    
+    if test_id not in normal_ranges:
+        return None, None, None
+    
+    # دۆزینەوەی مەودای ئاسایی
+    range_data = None
+    for key, value in normal_ranges[test_id].items():
+        if range_item_label and key in range_item_label:
+            range_data = value
+            break
+        elif not range_item_label:
+            range_data = value
+            break
+    
+    if not range_data:
+        return None, None, None
+    
+    # دیاریکردنی مەودا
+    if "male" in range_data and "female" not in range_data:
+        min_val, max_val = range_data["male"]
+    elif "female" in range_data and "male" not in range_data:
+        min_val, max_val = range_data["female"]
+    elif "all" in range_data:
+        min_val, max_val = range_data["all"]
+    else:
+        return None, None, None
+    
+    # شیکردنەوەی ئەنجام
+    if user_value >= min_val and user_value <= max_val:
+        status = "normal"
+        message = f"""
+        ✅ ئەنجامەکەت لە ئاستی ئاساییدایە!
+        <br><br>
+        <b>ئەنجامی تۆ:</b> {user_value} {range_data.get('unit', '')}<br>
+        <b>مەودای ئاسایی:</b> {min_val} - {max_val} {range_data.get('unit', '')}<br>
+        <br>
+        ئەنجامەکەت لە سنووری ئاساییدایە و پێویست بە نیگەرانی نییە. 
+        بەڵام ئەگەر نیشانەکانت بەردەوام بوون، سەردانی پزیشک بکە.
+        """
+        color_class = "result-normal"
+        
+        # پشکنینی تایبەت بۆ HbA1c و FBS
+        if test_id == "fbs" and "pre_diabetes" in range_data:
+            if user_value >= range_data["pre_diabetes"][0] and user_value <= range_data["pre_diabetes"][1]:
+                status = "abnormal"
+                message = f"""
+                ⚠️ ئەنجامەکەت لە قۆناغی پێش شەکرەدایە!
+                <br><br>
+                <b>ئەنجامی تۆ:</b> {user_value} mg/dL<br>
+                <b>مەودای پێش شەکرە:</b> {range_data['pre_diabetes'][0]} - {range_data['pre_diabetes'][1]} mg/dL<br>
+                <br>
+                ڕێنمایی: پێویستە ڕێجیم و وەرزش ڕێک بخەیت و سەردانی پزیشکی شەکرە بکەیت.
+                """
+                color_class = "result-abnormal"
+            elif user_value >= range_data.get("diabetes", 999):
+                status = "critical"
+                message = f"""
+                🚨 ئەنجامەکەت نیشانەی نەخۆشی شەکرەیە!
+                <br><br>
+                <b>ئەنجامی تۆ:</b> {user_value} mg/dL<br>
+                <b>ئاستی شەکرە:</b> 126 mg/dL یان زیاتر<br>
+                <br>
+                پێویستە بە زووترین کات سەردانی پزیشکی شەکرە بکەیت!
+                """
+                color_class = "result-critical"
+        
+        elif test_id == "hba1c" and "pre_diabetes" in range_data:
+            if user_value >= range_data["pre_diabetes"][0] and user_value <= range_data["pre_diabetes"][1]:
+                status = "abnormal"
+                message = f"""
+                ⚠️ ئەنجامەکەت لە قۆناغی پێش شەکرەدایە!
+                <br><br>
+                <b>ئەنجامی تۆ:</b> {user_value}%<br>
+                <b>مەودای پێش شەکرە:</b> {range_data['pre_diabetes'][0]}% - {range_data['pre_diabetes'][1]}%<br>
+                """
+                color_class = "result-abnormal"
+        
+        return status, message, color_class
+    
+    elif user_value < min_val:
+        status = "abnormal"
+        message = f"""
+        ⚠️ ئەنجامەکەت لە ئاستی ئاسایی کەمترە!
+        <br><br>
+        <b>ئەنجامی تۆ:</b> {user_value} {range_data.get('unit', '')}<br>
+        <b>مەودای ئاسایی:</b> {min_val} - {max_val} {range_data.get('unit', '')}<br>
+        <br>
+        ئەنجامەکەت کەمترە لە سنووری ئاسایی. پێویستە سەردانی پزیشک بکەیت 
+        بۆ دیاریکردنی هۆکار و چارەسەری گونجاو.
+        """
+        color_class = "result-abnormal"
+        
+        # پشکنینی تایبەت بۆ ڤیتامین دی
+        if test_id == "vitd" and user_value < range_data.get("deficiency", 20):
+            status = "critical"
+            message = f"""
+            🚨 کەمی ڤیتامین دی!
+            <br><br>
+            <b>ئەنجامی تۆ:</b> {user_value} ng/mL<br>
+            <b>مەودای ئاسایی:</b> {min_val} - {max_val} ng/mL<br>
+            <br>
+            ئەنجامەکەت نیشانەی کەمی ڤیتامین دییە. پێویستە سەردانی پزیشک بکەیت 
+            بۆ وەرگرتنی دەرمانی گونجاو.
+            """
+            color_class = "result-critical"
+        
+        return status, message, color_class
+    
+    else:  # user_value > max_val
+        status = "abnormal"
+        message = f"""
+        ⚠️ ئەنجامەکەت لە ئاستی ئاسایی زیاترە!
+        <br><br>
+        <b>ئەنجامی تۆ:</b> {user_value} {range_data.get('unit', '')}<br>
+        <b>مەودای ئاسایی:</b> {min_val} - {max_val} {range_data.get('unit', '')}<br>
+        <br>
+        ئەنجامەکەت زیاترە لە سنووری ئاسایی. پێویستە سەردانی پزیشک بکەیت 
+        بۆ دیاریکردنی هۆکار و چارەسەری گونجاو.
+        """
+        color_class = "result-abnormal"
+        
+        # پشکنینی تایبەت بۆ ترۆپۆنین
+        if test_id == "troponin" and user_value > range_data.get("critical", 0.04):
+            status = "critical"
+            message = f"""
+            🚨 ئەنجامی مەترسیدار! (فریاکەوتن)
+            <br><br>
+            <b>ئەنجامی تۆ:</b> {user_value} ng/mL<br>
+            <b>ئاستی ئاسایی:</b> نزیک بە سفر<br>
+            <br>
+            ئەم ئەنجامە نیشانەی زیانگەیشتن بە ماسولکەی دڵە!
+            <b>یەکسەر پەیوەندی بە فریاکەوتن بکە (١٢٢)!</b>
+            """
+            color_class = "result-critical"
+        
+        return status, message, color_class
+
+# --- ALL TESTS DATA (بە زیادکردنی ئایدی بۆ شیکردنەوە) ---
 all_tests = [
     # === پشکنینە بنەڕەتییەکان ===
     {
@@ -329,57 +603,57 @@ all_tests = [
         "category": "پشکنینە بنەڕەتییەکان",
         "description": "یەکێکە لە باوترین پشکنینەکان کە پێوانەی پێکهاتەکانی خوێن دەکات، وەک خڕۆکە سوورەکان، خڕۆکە سپییەکان و پەڕەکانی خوێن. یارمەتیدەرە بۆ دەستنیشانکردنی کەمخوێنی (ئەنیمیا)، هەوکردن، و کێشەکانی مەینبوونی خوێن.",
         "ranges": [
-            {"label": "هیمۆگڵۆبین (Hemoglobin) - پیاوان", "value": "13.5 - 17.5 g/dL", "type": "male"},
-            {"label": "هیمۆگڵۆبین (Hemoglobin) - ژنان", "value": "12.0 - 15.5 g/dL", "type": "female"},
-            {"label": "خڕۆکە سپییەکان (WBC)", "value": "4,500 - 11,000 /µL", "type": "normal"},
-            {"label": "پەڕەکانی خوێن (Platelets)", "value": "150,000 - 450,000 /µL", "type": "normal"},
+            {"label": "هیمۆگڵۆبین (Hemoglobin) - پیاوان", "value": "13.5 - 17.5 g/dL", "type": "male", "range_id": "هیمۆگڵۆبین"},
+            {"label": "هیمۆگڵۆبین (Hemoglobin) - ژنان", "value": "12.0 - 15.5 g/dL", "type": "female", "range_id": "هیمۆگڵۆبین"},
+            {"label": "خڕۆکە سپییەکان (WBC)", "value": "4,500 - 11,000 /µL", "type": "normal", "range_id": "WBC"},
+            {"label": "پەڕەکانی خوێن (Platelets)", "value": "150,000 - 450,000 /µL", "type": "normal", "range_id": "Platelets"},
         ]
     },
     {
         "id": "fbs",
-        "name": "شەکری ناو خوێن لە کاتی برسێتیدا (FBS - Fasting Blood Sugar)",
+        "name": "شەکری ناو خوێن لە کاتی برسێتیدا (FBS)",
         "icon": "🍬",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "ئەم پشکنینە بڕی گلوکۆز (شەکر) لە خوێندا دەپێوێت. دەبێت کەسەکە ٨ بۆ ١٢ کاتژمێر پێش پشکنینەکە هیچ شتێکی نەخواردبێت. بەکاردێت بۆ دەستنیشانکردنی نەخۆشی شەکرە یان قۆناغی پێش شەکرە.",
+        "description": "ئەم پشکنینە بڕی گلوکۆز (شەکر) لە خوێندا دەپێوێت. دەبێت کەسەکە ٨ بۆ ١٢ کاتژمێر پێش پشکنینەکە هیچ شتێکی نەخواردبێت.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "70 - 99 mg/dL", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی", "value": "70 - 99 mg/dL", "type": "normal", "range_id": "FBS"},
         ],
-        "note": "ئەگەر لە ١٠٠ تا ١٢٥ بێت، ئەوا قۆناغی پێش شەکرەیە، وە ئەگەر ١٢٦ یان زیاتر بێت، نیشانەی نەخۆشی شەکرەیە."
+        "note": "١٠٠-١٢٥ = پێش شەکرە | ١٢٦+ = شەکرە"
     },
     {
         "id": "hba1c",
         "name": "شەکری کەڵەکەبوو (HbA1c)",
         "icon": "📊",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "ئەم پشکنینە تێکڕای ڕێژەی شەکری خوێنت نیشان دەدات لە ماوەی ٢ بۆ ٣ مانگی ڕابردوو. باشترین ڕێگەیە بۆ کۆنتڕۆڵکردنی شەکرە.",
+        "description": "ئەم پشکنینە تێکڕای ڕێژەی شەکری خوێنت نیشان دەدات لە ماوەی ٢ بۆ ٣ مانگی ڕابردوو.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "کەمتر لە 5.7%", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی", "value": "کەمتر لە 5.7%", "type": "normal", "range_id": "HbA1c"},
         ],
-        "note": "نێوان 5.7% بۆ 6.4% وەک پێش شەکرە دادەنرێت، 6.5% یان زیاتر بە نەخۆشی شەکرە دادەنرێت."
+        "note": "5.7%-6.4% = پێش شەکرە | 6.5%+ = شەکرە"
     },
     {
         "id": "lipid",
         "name": "چەورییەکانی خوێن (Lipid Profile)",
         "icon": "❤️",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "کۆمەڵە پشکنینێکە بۆ پێوانەکردنی جۆرە جیاوازەکانی چەوری لە خوێندا. گرنگە بۆ هەڵسەنگاندنی مەترسییەکانی تووشبوون بە نەخۆشییەکانی دڵ و جەڵتە.",
+        "description": "کۆمەڵە پشکنینێکە بۆ پێوانەکردنی جۆرە جیاوازەکانی چەوری لە خوێندا. گرنگە بۆ هەڵسەنگاندنی مەترسییەکانی نەخۆشییەکانی دڵ.",
         "ranges": [
-            {"label": "کۆلیسترۆڵی گشتی (Total Cholesterol)", "value": "کەمتر لە 200 mg/dL", "type": "normal"},
-            {"label": "چەوری سیانی (Triglycerides)", "value": "کەمتر لە 150 mg/dL", "type": "normal"},
-            {"label": "چەورییە سوودبەخشەکان (HDL)", "value": "زیاتر لە 40 mg/dL", "type": "normal"},
-            {"label": "چەورییە زیانبەخشەکان (LDL)", "value": "کەمتر لە 100 mg/dL", "type": "normal"},
+            {"label": "کۆلیسترۆڵی گشتی", "value": "کەمتر لە 200 mg/dL", "type": "normal", "range_id": "Total Cholesterol"},
+            {"label": "چەوری سیانی (Triglycerides)", "value": "کەمتر لە 150 mg/dL", "type": "normal", "range_id": "Triglycerides"},
+            {"label": "HDL (چەوری سوودبەخش)", "value": "زیاتر لە 40 mg/dL", "type": "normal", "range_id": "HDL"},
+            {"label": "LDL (چەوری زیانبەخش)", "value": "کەمتر لە 100 mg/dL", "type": "normal", "range_id": "LDL"},
         ]
     },
     {
         "id": "kft",
-        "name": "پشکنینی فەرمانی گورچیلە (KFT - Kidney Function Tests)",
+        "name": "پشکنینی فەرمانی گورچیلە (KFT)",
         "icon": "🫘",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "پێوانەی توانای گورچیلەکان دەکات بۆ فلتەرکردن و پاککردنەوەی خوێن لە پاشماوەکان. سەرەکیترین دوو پشکنین بریتین لە یوریا و کریاتینین.",
+        "description": "پێوانەی توانای گورچیلەکان دەکات بۆ فلتەرکردنی خوێن. سەرەکیترین پشکنینەکان: کریاتینین و یوریا.",
         "ranges": [
-            {"label": "کریاتینین (Creatinine) - پیاوان", "value": "0.7 - 1.3 mg/dL", "type": "male"},
-            {"label": "کریاتینین (Creatinine) - ژنان", "value": "0.6 - 1.1 mg/dL", "type": "female"},
-            {"label": "یوریا (Blood Urea)", "value": "15 - 40 mg/dL", "type": "normal"},
+            {"label": "کریاتینین - پیاوان", "value": "0.7 - 1.3 mg/dL", "type": "male", "range_id": "Creatinine male"},
+            {"label": "کریاتینین - ژنان", "value": "0.6 - 1.1 mg/dL", "type": "female", "range_id": "Creatinine female"},
+            {"label": "یوریا (Blood Urea)", "value": "15 - 40 mg/dL", "type": "normal", "range_id": "Urea"},
         ]
     },
     {
@@ -387,22 +661,22 @@ all_tests = [
         "name": "پشکنینی ئەلیکترۆلیتەکان (Electrolytes)",
         "icon": "⚡",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "ئەم پشکنینانە بۆ زانینی هاوسەنگی خوێ و کانزاکانە لە لەشدا کە بۆ کارکردنی ماسولکە و دەمارەکان گرنگن.",
+        "description": "پێوانەی خوێ و کانزاکانی لەش: سۆدیۆم، پۆتاسیۆم، و کالیسیۆم کە بۆ کاری ماسولکە و دەمار گرنگن.",
         "ranges": [
-            {"label": "سۆدیۆم (Sodium)", "value": "135 - 145 mEq/L", "type": "normal"},
-            {"label": "پۆتاسیۆم (Potassium)", "value": "3.6 - 5.2 mEq/L", "type": "normal"},
-            {"label": "کالیسیۆم (Calcium)", "value": "8.5 - 10.2 mg/dL", "type": "normal"},
+            {"label": "سۆدیۆم (Sodium)", "value": "135 - 145 mEq/L", "type": "normal", "range_id": "Sodium"},
+            {"label": "پۆتاسیۆم (Potassium)", "value": "3.6 - 5.2 mEq/L", "type": "normal", "range_id": "Potassium"},
+            {"label": "کالیسیۆم (Calcium)", "value": "8.5 - 10.2 mg/dL", "type": "normal", "range_id": "Calcium"},
         ]
     },
     {
         "id": "lft",
-        "name": "پشکنینی فەرمانی جگەر (LFT - Liver Function Tests)",
+        "name": "پشکنینی فەرمانی جگەر (LFT)",
         "icon": "🫁",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "ئەم پشکنینانە بڕی ئەو ئەنزیم و پرۆتینانە دەپێون کە جگەر دەریاندەدات. بەرزبوونەوەی ڕێژەکانیان نیشانەیە بۆ هەوکردن یان تێکچوونی خانەکانی جگەر.",
+        "description": "پێوانەی ئەنزیمەکانی جگەر (ALT و AST) کە بەرزبوونەوەیان نیشانەی هەوکردن یان تێکچوونی جگەرە.",
         "ranges": [
-            {"label": "ALT (SGPT)", "value": "7 - 56 U/L", "type": "normal"},
-            {"label": "AST (SGOT)", "value": "10 - 40 U/L", "type": "normal"},
+            {"label": "ALT (SGPT)", "value": "7 - 56 U/L", "type": "normal", "range_id": "ALT"},
+            {"label": "AST (SGOT)", "value": "10 - 40 U/L", "type": "normal", "range_id": "AST"},
         ]
     },
     {
@@ -410,9 +684,9 @@ all_tests = [
         "name": "هۆرمۆنی ڕژێنی دەرەقی (TSH)",
         "icon": "🦋",
         "category": "پشکنینە بنەڕەتییەکان",
-        "description": "هۆرمۆنێکە لە مێشکەوە دەردەدرێت بۆ کۆنترۆڵکردنی ڕژێنی دەرەقی (غودەی دەرەقی). ئەم پشکنینە دیاری دەکات ئایا غودەکە تەمەڵە (گەر TSH بەرز بێت) یان زۆر چالاکە (گەر TSH نزم بێت).",
+        "description": "پشکنینی کارکردنی غودەی دەرەقی. بەرزبوونەوە = تەمەڵی، نزمبوونەوە = زۆر چالاکی.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی TSH", "value": "0.4 - 4.0 mIU/L", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی TSH", "value": "0.4 - 4.0 mIU/L", "type": "normal", "range_id": "TSH"},
         ]
     },
     {
@@ -420,20 +694,20 @@ all_tests = [
         "name": "ڤیتامین دی (Vitamin D3)",
         "icon": "☀️",
         "category": "پشکنینی ڤیتامینەکان",
-        "description": "پێوانەی بڕی ڤیتامین دی دەکات کە زۆر گرنگە بۆ تەندروستی ئێسک، هەڵمژینی کالیسیۆم، و بەهێزکردنی کۆئەندامی بەرگری.",
+        "description": "پێوانەی ڤیتامین دی کە بۆ تەندروستی ئێسک و بەرگری لەش گرنگە.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "30 - 100 ng/mL", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی", "value": "30 - 100 ng/mL", "type": "normal", "range_id": "Vitamin D"},
         ],
-        "note": "ئەگەر لە ٢٠ ng/mL کەمتر بێت، ئەوا کەسی تووشبوو کەمی ڤیتامین دی هەیە."
+        "note": "کەمتر لە ٢٠ ng/mL = کەمی ڤیتامین دی"
     },
     {
         "id": "b12",
         "name": "ڤیتامین B12",
         "icon": "💊",
         "category": "پشکنینی ڤیتامینەکان",
-        "description": "زۆر گرنگە بۆ تەندروستی دەمارەکان و دروستکردنی خڕۆکە سوورەکان. کەمی ئەم ڤیتامینە دەبێتە هۆی لاوازی، بێهێزی، و کێشەی بیرەوەری.",
+        "description": "گرنگە بۆ تەندروستی دەمارەکان و دروستکردنی خڕۆکە سوورەکان.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "200 - 900 pg/mL", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی", "value": "200 - 900 pg/mL", "type": "normal", "range_id": "B12"},
         ]
     },
     {
@@ -441,32 +715,31 @@ all_tests = [
         "name": "کۆگای ئاسن (Ferritin)",
         "icon": "🧲",
         "category": "پشکنینە تایبەتەکان",
-        "description": "فێریتین پڕۆتینێکە کە ئاسن لە خانەکاندا هەڵدەگرێت. ئەم پشکنینە بڕی ئەو ئاسنە خەزنکراوەی لەش دەپێوێت کە هۆکاری سەرەکییە بۆ دروستبوونی خڕۆکە سوورەکان و قژ و نینۆکێکی تەندروست.",
+        "description": "پێوانەی ئاسنی خەزنکراوی لەش کە بۆ دروستبوونی خڕۆکە سوورەکان پێویستە.",
         "ranges": [
-            {"label": "پیاوان", "value": "24 - 336 ng/mL", "type": "male"},
-            {"label": "ژنان", "value": "11 - 307 ng/mL", "type": "female"},
-        ],
-        "note": "لەکاتی سووڕی مانگانەدا ڕەنگە ڕێژەکە بەرەو کەمتر دابەزێت."
+            {"label": "پیاوان", "value": "24 - 336 ng/mL", "type": "male", "range_id": "Ferritin male"},
+            {"label": "ژنان", "value": "11 - 307 ng/mL", "type": "female", "range_id": "Ferritin female"},
+        ]
     },
     {
         "id": "uric_acid",
         "name": "پشکنینی ترشی یۆریک (Uric Acid)",
         "icon": "🦴",
         "category": "پشکنینە تایبەتەکان",
-        "description": "ماددەی یۆریک ئەسید پاشماوەی تێکشانی ماددە خۆراکییەکانە (پۆرین). بەرزبوونەوەی دەبێتە هۆی نەخۆشی ڕۆماتیزمی دەردە پاشا (Gout) و دروستبوونی بەردی گورچیلە.",
+        "description": "بەرزبوونەوەی دەبێتە هۆی نەخۆشی ڕۆماتیزمی دەردە پاشا (Gout) و بەردی گورچیلە.",
         "ranges": [
-            {"label": "پیاوان", "value": "3.4 - 7.0 mg/dL", "type": "male"},
-            {"label": "ژنان", "value": "2.4 - 6.0 mg/dL", "type": "female"},
+            {"label": "پیاوان", "value": "3.4 - 7.0 mg/dL", "type": "male", "range_id": "Uric Acid male"},
+            {"label": "ژنان", "value": "2.4 - 6.0 mg/dL", "type": "female", "range_id": "Uric Acid female"},
         ]
     },
     {
         "id": "crp",
-        "name": "پشکنینی هەوکردن (CRP - C-Reactive Protein)",
+        "name": "پشکنینی هەوکردن (CRP)",
         "icon": "🔥",
         "category": "پشکنینی هەوکردن",
-        "description": "ئەگەر ڕێژەکەی بەرزبێت، نیشانەیە بۆ بوونی هەوکردنێکی چالاک لە لەشدا (وەک هەوکردنی بەکتریا یان ڤایرۆس).",
+        "description": "بەرزبوونەوەی نیشانەی هەوکردنی چالاکە (بەکتریا یان ڤایرۆس).",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "کەمتر لە 10 mg/L", "type": "normal"},
+            {"label": "ڕێژەی ئاسایی", "value": "کەمتر لە 10 mg/L", "type": "normal", "range_id": "CRP"},
         ]
     },
     {
@@ -474,40 +747,38 @@ all_tests = [
         "name": "ڕێژەی نیشتنەوەی خڕۆکە سوورەکان (ESR)",
         "icon": "⏳",
         "category": "پشکنینی هەوکردن",
-        "description": "ڕێژەی نیشتنەوەی خڕۆکە سوورەکانە، بەکاردێت بۆ دەستنیشانکردنی هەوکردنی درێژخایەن یان جومگەکان.",
+        "description": "بۆ دەستنیشانکردنی هەوکردنی درێژخایەن یان نەخۆشی جومگەکان.",
         "ranges": [
-            {"label": "پیاوان", "value": "0 - 22 mm/hr", "type": "male"},
-            {"label": "ژنان", "value": "0 - 29 mm/hr", "type": "female"},
-        ],
-        "note": "بەپێی تەمەن و ڕەگەز دەگۆڕێت."
+            {"label": "پیاوان", "value": "0 - 22 mm/hr", "type": "male", "range_id": "ESR male"},
+            {"label": "ژنان", "value": "0 - 29 mm/hr", "type": "female", "range_id": "ESR female"},
+        ]
     },
     {
         "id": "troponin",
         "name": "پشکنینی ترۆپۆنین (Troponin)",
         "icon": "💔",
         "category": "پشکنینی فریاگوزاری",
-        "description": "پشکنینێکی زۆر گرنگ و فریاگوزارییە بۆ زانینی بوونی جەڵتەی دڵ. کاتێک ماسولکەی دڵ زیانی پێدەگات، ئەم ماددەیە دەچێتە ناو خوێنەوە.",
+        "description": "پشکنینی فریاگوزاری بۆ دەستنیشانکردنی جەڵتەی دڵ.",
         "ranges": [
-            {"label": "ڕێژەی ئاسایی", "value": "نزیک بە سفر", "type": "warning"},
+            {"label": "ڕێژەی ئاسایی", "value": "نزیک بە سفر", "type": "warning", "range_id": "Troponin"},
         ],
-        "note": "دەبێت زۆر نزم بێت (نزیک بە سفر)، بەرزبوونەوەی کەمێکیش نیشانەی مەترسییە."
+        "note": "🚨 بەرزبوونەوەی کەمێکیش نیشانەی مەترسییە!"
     },
 ]
 
-# --- SEARCH FUNCTIONALITY ---
+# --- SEARCH ---
 st.markdown('<div class="search-box">', unsafe_allow_html=True)
 search_query = st.text_input(
     "🔍 گەڕان بەناو پشکنینەکاندا...",
-    placeholder="ناوی پشکنین یان نیشانەکەت بنووسە...",
+    placeholder="ناوی پشکنین بنووسە...",
     key="search_input"
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- FILTER TESTS BASED ON SEARCH ---
+# --- FILTER TESTS ---
 if search_query:
     filtered_tests = []
     for test in all_tests:
-        # گەڕان لە ناو، وەسف، و نیشانەکاندا
         search_text = f"{test['name']} {test['description']} {test['category']}"
         for range_item in test['ranges']:
             search_text += f" {range_item['label']}"
@@ -521,15 +792,13 @@ if search_query:
         st.success(f"🔍 {len(filtered_tests)} پشکنین دۆزرایەوە بۆ: '{search_query}'")
         tests_to_display = filtered_tests
     else:
-        st.warning(f"😔 هیچ پشکنینێک نەدۆزرایەوە بۆ: '{search_query}'")
-        st.info("💡 پێشنیار: وشەیەکی تر تاقی بکەرەوە یان ڕێنووسەکە بپشکنە")
+        st.warning(f"😔 هیچ پشکنینێک نەدۆزرایەوە")
         tests_to_display = []
 else:
     tests_to_display = all_tests
 
-# --- DISPLAY TESTS BY CATEGORY ---
+# --- DISPLAY TESTS ---
 if tests_to_display:
-    # گروپکردنی پشکنینەکان بەپێی کاتێگۆری
     categories = {}
     for test in tests_to_display:
         cat = test['category']
@@ -537,16 +806,12 @@ if tests_to_display:
             categories[cat] = []
         categories[cat].append(test)
     
-    # پیشاندانی هەر کاتێگۆرییەک
     for category, tests in categories.items():
         st.markdown(f"<div class='category-title'>📂 {category}</div>", unsafe_allow_html=True)
         
         for i, test in enumerate(tests):
-            # دیاریکردنی کلیل بۆ ئەنیمەیشن
-            animation_delay = i * 0.1
-            
             st.markdown(f"""
-            <div class="test-card" style="animation-delay:{animation_delay}s;">
+            <div class="test-card" style="animation-delay:{i*0.1}s;">
                 <div class="test-header">
                     <div class="test-icon-large">{test['icon']}</div>
                     <div class="test-title">{test['name']}</div>
@@ -558,7 +823,6 @@ if tests_to_display:
                     <div class="normal-range-title">📊 ڕێژە ئاساییەکان:</div>
             """, unsafe_allow_html=True)
             
-            # پیشاندانی ڕێژە ئاساییەکان
             for range_item in test['ranges']:
                 if range_item['type'] == "female":
                     value_class = "range-value-female"
@@ -576,13 +840,84 @@ if tests_to_display:
             
             st.markdown("</div>", unsafe_allow_html=True)
             
-            # پیشاندانی تێبینی ئەگەر هەبێت
             if 'note' in test:
                 st.markdown(f"""
                 <div class="note-box">
                     💡 <b>تێبینی:</b> {test['note']}
                 </div>
                 """, unsafe_allow_html=True)
+            
+            # --- بەشی شیکردنەوەی ئەنجام ---
+            st.markdown(f"""
+            <div class="interpretation-section">
+                <div class="interpretation-title">🧪 شیکردنەوەی ئەنجامی تۆ</div>
+                <p style="color:#666; margin-bottom:15px;">
+                    ئەنجامی پشکنینەکەت بنووسە بۆ ئەوەی بزانیت لە چ ئاستێکدایە
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # هەڵبژاردنی پێوەر
+            range_options = [f"{r['label']} ({r['value']})" for r in test['ranges']]
+            selected_range = st.selectbox(
+                "پێوەر هەڵبژێرە:",
+                range_options,
+                key=f"range_select_{test['id']}_{i}"
+            )
+            
+            # داخڵکردنی ئەنجام
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                user_value = st.number_input(
+                    "ئەنجامی پشکنینەکەت:",
+                    value=0.0,
+                    step=0.1,
+                    format="%.1f",
+                    key=f"value_input_{test['id']}_{i}"
+                )
+            with col2:
+                interpret_btn = st.button(
+                    "🔍 شیکاری بکە",
+                    key=f"interpret_btn_{test['id']}_{i}",
+                    use_container_width=True
+                )
+            
+            # شیکردنەوە
+            if interpret_btn and user_value > 0:
+                selected_label = selected_range.split(" (")[0] if " (" in selected_range else selected_range
+                
+                status, message, color_class = interpret_result(
+                    test['id'], test['name'], user_value, selected_label
+                )
+                
+                if message:
+                    status_icons = {
+                        "normal": "✅",
+                        "abnormal": "⚠️",
+                        "critical": "🚨"
+                    }
+                    status_titles = {
+                        "normal": "ئەنجامی ئاسایی",
+                        "abnormal": "ئەنجامی نائاسایی",
+                        "critical": "ئەنجامی مەترسیدار"
+                    }
+                    
+                    st.markdown(f"""
+                    <div class="{color_class}">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <span style="font-size:2rem;">{status_icons.get(status, '📋')}</span>
+                            <h4 style="margin:0;color:#333;">{status_titles.get(status, '')}</h4>
+                        </div>
+                        <div class="result-text">{message}</div>
+                    </div>
+                    
+                    <div class="result-summary result-summary-{status}">
+                        <p style="font-size:1.1rem;font-weight:bold;">
+                            {status_icons.get(status, '')} 
+                            {'ئەنجامەکەت لە ئاستی ئاساییدایە' if status == 'normal' else 'پێویستە سەردانی پزیشک بکەیت'}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -594,11 +929,10 @@ st.markdown("""
     <div class="warning-box" style="margin-bottom:15px;">
         <h3 style="color:#c62828;">⚠️ تێبینییەکی گرنگ</h3>
         <p style="color:#333;">
-            ئەم ڕێژە ئاساییانە (Normal Ranges) لەوانەیە بەپێی ئەو ئامێر و تاقیگەیەی پشکنینەکەی تێدا دەکرێت 
-            کەمێک گۆڕانکارییان تێدا هەبێت. هەمیشە باشترین کار ئەوەیە <b>پزیشکی تایبەت</b> ئەنجامەکانت بۆ بخوێنێتەوە.
+            ئەم سیستەمە تەنها بۆ ڕێنمایی سەرەتاییە و نابێت جێگەی سەردانی پزیشک بگرێتەوە.
         </p>
     </div>
-    <p style="color:#666;">© ٢٠٢٤ ڕێبەری پشکنینە تاقیگەییەکان | هەموو زانیارییەکان تەنها بۆ مەبەستی ڕێنمایین</p>
-    <p style="color:#999; font-size:0.85rem;">وەشانی 2.0 | {len(all_tests)} پشکنین</p>
+    <p style="color:#666;">© ٢٠٢٤ ڕێبەری پشکنینە تاقیگەییەکان | شیکردنەوەی ئەنجامەکان</p>
+    <p style="color:#999; font-size:0.85rem;">وەشانی 3.0 | {len(all_tests)} پشکنین | بە توانای شیکردنەوە</p>
 </div>
 """, unsafe_allow_html=True)
