@@ -9,7 +9,6 @@ import base64
 from io import BytesIO
 import time
 import re
-from fpdf import FPDF
 
 # ============================================
 # PAGE CONFIGURATION
@@ -28,393 +27,113 @@ if 'history' not in st.session_state:
     st.session_state.history = []
 if 'reminders' not in st.session_state:
     st.session_state.reminders = []
-if 'doctor_notes' not in st.session_state:
-    st.session_state.doctor_notes = []
+if 'selected_symptoms' not in st.session_state:
+    st.session_state.selected_symptoms = []
 
 # ============================================
-# PREMIUM DARK-LIGHT HYBRID CSS
+# CSS - NO ARROW GLITCHES, CLEAR SELECTS, COMPACT TEXT
 # ============================================
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@300;400;500;600;700;800;900&display=swap');
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700;800;900&display=swap');
     
     * { font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }
     [data-testid="stSidebar"] { display: none; }
     
-    /* Hide Streamlit default arrow icons */
-    .st-emotion-cache-1qg05tj, .st-emotion-cache-1b6wplb, svg[data-testid="stExpanderToggle"] {
-        display: none !important;
-    }
+    /* Hide ALL SVG icons including Streamlit arrows */
+    svg { display: none !important; }
+    [data-testid="stExpanderToggle"] { display: none !important; }
+    .streamlit-expanderHeader svg { display: none !important; }
     
     /* Custom expander arrow */
-    .streamlit-expanderHeader::after {
-        content: '▼' !important;
-        font-size: 0.7rem !important;
-        margin-right: 8px !important;
-        color: #4f46e5 !important;
-        transition: transform 0.3s ease !important;
-        font-family: sans-serif !important;
-    }
+    .streamlit-expanderHeader::before { content: '▼ '; font-size: 9px; color: #6b7280; margin-left: 6px; font-family: Arial; }
     
-    /* Hide all SVG arrows */
-    svg[aria-hidden="true"] {
-        display: none !important;
-    }
+    html, body, [data-testid="stAppViewContainer"] { background: #f8fafc !important; }
     
-    /* Background */
-    html, body, [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%) !important;
-    }
+    /* Logo */
+    .logo-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; box-shadow: 0 3px 10px rgba(79,70,229,0.25); margin-bottom: 8px; }
+    .logo-icon { width: 18px; height: 18px; background: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.6rem; color: #4f46e5; font-weight: 900; }
     
-    /* Logo Badge */
-    .logo-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        color: white;
-        padding: 6px 14px;
-        border-radius: 25px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        box-shadow: 0 4px 12px rgba(79,70,229,0.3);
-        position: fixed;
-        top: 15px;
-        right: 15px;
-        z-index: 9999;
-    }
-    
-    .logo-badge .logo-icon {
-        width: 22px;
-        height: 22px;
-        background: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.7rem;
-        color: #4f46e5;
-        font-weight: 900;
-    }
-    
-    /* Main Header */
-    .main-header {
-        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4f46e5 60%, #7c3aed 100%);
-        border-radius: 24px;
-        padding: 30px 25px;
-        text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 15px 50px rgba(79, 70, 229, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-        position: relative;
-        overflow: hidden;
-    }
-    .main-header::before {
-        content: '';
-        position: absolute; top: -50%; left: -50%;
-        width: 200%; height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%);
-        animation: rotate 30s linear infinite;
-    }
-    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    
-    .main-header h1 { 
-        color: white !important; 
-        font-size: 2.2rem !important; 
-        font-weight: 900 !important; 
-        margin: 0 0 8px 0 !important; 
-        position: relative; z-index: 1;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    }
-    .main-header p { 
-        color: rgba(255,255,255,0.9) !important; 
-        font-size: 1rem !important; 
-        margin: 0 !important; 
-        position: relative; z-index: 1; 
-    }
-    
-    /* Developer Credit */
-    .dev-credit {
-        text-align: center;
-        padding: 8px;
-        margin: 5px 0 15px 0;
-        color: #6b7280;
-        font-size: 0.8rem;
-        font-weight: 500;
-    }
-    .dev-credit span {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-weight: 700;
-    }
+    /* Header */
+    .main-header { background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%); border-radius: 18px; padding: 18px; text-align: center; margin-bottom: 12px; box-shadow: 0 8px 25px rgba(79,70,229,0.2); }
+    .main-header h1 { color: white !important; font-size: 1.4rem !important; font-weight: 900 !important; margin: 0 0 3px 0 !important; }
+    .main-header p { color: rgba(255,255,255,0.85) !important; font-size: 0.72rem !important; margin: 0 !important; }
+    .dev-credit { text-align: center; font-size: 0.68rem; color: #6b7280; margin-bottom: 10px; }
+    .dev-credit span { color: #4f46e5; font-weight: 700; }
     
     /* Cards */
-    .glass-card {
-        background: white !important;
-        border-radius: 18px !important;
-        padding: 20px !important;
-        margin-bottom: 15px !important;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03) !important;
-        border: 1px solid rgba(0,0,0,0.04) !important;
-        transition: all 0.3s ease !important;
-    }
-    .glass-card:hover { 
-        transform: translateY(-2px); 
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06) !important; 
-    }
+    .glass-card { background: white !important; border-radius: 12px !important; padding: 12px !important; margin-bottom: 10px !important; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important; border: 1px solid #e5e7eb !important; font-size: 0.78rem !important; }
     
-    /* Symptom Grid */
-    .symptom-btn {
-        background: white !important;
-        border: 2px solid #e5e7eb !important;
-        border-radius: 14px !important;
-        padding: 12px 8px !important;
-        text-align: center !important;
-        cursor: pointer !important;
-        transition: all 0.25s ease !important;
-        font-size: 0.9rem !important;
-        font-weight: 500 !important;
-        color: #374151 !important;
-        width: 100% !important;
-        min-height: 50px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    .symptom-btn:hover {
-        border-color: #4f46e5 !important;
-        background: #eef2ff !important;
-        color: #4f46e5 !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 4px 12px rgba(79,70,229,0.15) !important;
-    }
+    /* CLEAR SELECT BOXES */
+    .stSelectbox label { color: #374151 !important; font-size: 0.75rem !important; font-weight: 600 !important; }
+    .stSelectbox > div > div { background: white !important; border: 2px solid #d1d5db !important; border-radius: 8px !important; font-size: 0.78rem !important; color: #1f2937 !important; min-height: 35px !important; }
+    .stSelectbox > div > div:hover { border-color: #4f46e5 !important; }
     
-    /* Result Boxes */
-    .result-box { 
-        border-radius: 14px; 
-        padding: 16px; 
-        margin: 10px 0; 
-        font-size: 0.9rem; 
-        line-height: 1.8; 
-    }
-    .result-normal { background: #f0fdf4; border-left: 4px solid #10b981; color: #065f46 !important; }
-    .result-abnormal { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e !important; }
-    .result-critical { 
-        background: #fef2f2; 
-        border-left: 4px solid #ef4444; 
-        color: #991b1b !important; 
-        animation: criticalPulse 2s infinite; 
-    }
-    .result-info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af !important; }
-    
-    @keyframes criticalPulse { 
-        0%, 100% { opacity: 1; } 
-        50% { opacity: 0.85; } 
-    }
+    /* CLEAR INPUTS */
+    .stTextInput label, .stNumberInput label, .stTextArea label { color: #374151 !important; font-size: 0.75rem !important; font-weight: 600 !important; }
+    .stTextInput input, .stNumberInput input, .stTextArea textarea { background: white !important; border: 2px solid #d1d5db !important; border-radius: 8px !important; color: #1f2937 !important; padding: 7px 10px !important; font-size: 0.78rem !important; }
+    .stTextInput input:focus, .stNumberInput input:focus { border-color: #4f46e5 !important; box-shadow: 0 0 0 3px rgba(79,70,229,0.06) !important; }
     
     /* Buttons */
-    .stButton button {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
-        color: white !important; 
-        border: none !important;
-        font-weight: 700 !important; 
-        border-radius: 14px !important;
-        padding: 12px 24px !important; 
-        font-size: 0.95rem !important;
-        box-shadow: 0 4px 15px rgba(79,70,229,0.3) !important;
-        transition: all 0.3s ease !important; 
-        width: 100% !important;
-        letter-spacing: 0.3px !important;
-    }
-    .stButton button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 8px 25px rgba(79,70,229,0.5) !important;
-        background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
-    }
+    .stButton button { background: linear-gradient(135deg, #4f46e5, #7c3aed) !important; color: white !important; border: none !important; font-weight: 600 !important; border-radius: 10px !important; padding: 7px 16px !important; font-size: 0.78rem !important; box-shadow: 0 3px 10px rgba(79,70,229,0.2) !important; }
+    .stButton button:hover { transform: translateY(-2px) !important; box-shadow: 0 5px 15px rgba(79,70,229,0.35) !important; }
     
-    /* Inputs */
-    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div {
-        background: white !important; 
-        border: 2px solid #e5e7eb !important;
-        border-radius: 12px !important; 
-        color: #1f2937 !important;
-        padding: 10px 16px !important; 
-        font-size: 0.9rem !important;
-        transition: all 0.3s ease !important;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
-        border-color: #4f46e5 !important; 
-        box-shadow: 0 0 0 4px rgba(79,70,229,0.06) !important;
-    }
+    /* Results */
+    .result-box { border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }
+    .result-normal { background: #f0fdf4; border-left: 4px solid #10b981; }
+    .result-abnormal { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .result-critical { background: #fef2f2; border-left: 4px solid #ef4444; }
+    .result-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
     
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { 
-        gap: 5px; 
-        background: white !important; 
-        border-radius: 16px; 
-        padding: 5px; 
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03); 
-        flex-wrap: wrap;
-    }
-    .stTabs [data-baseweb="tab"] { 
-        background: transparent !important; 
-        border-radius: 12px !important; 
-        color: #374151 !important; 
-        padding: 8px 12px !important; 
-        font-weight: 600 !important; 
-        font-size: 0.82rem !important; 
-        transition: all 0.3s !important; 
-        white-space: nowrap;
-    }
-    .stTabs [aria-selected="true"] { 
-        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important; 
-        color: white !important; 
-        box-shadow: 0 4px 12px rgba(79,70,229,0.3) !important; 
-    }
+    .food-card { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }
+    
+    .badge { display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }
+    
+    .reminder-card { background: white; border-radius: 10px; padding: 10px; margin: 5px 0; border: 1px solid #e5e7eb; border-left: 3px solid #4f46e5; font-size: 0.76rem; }
     
     /* Expander */
-    .streamlit-expanderHeader { 
-        background: #fafbfc !important; 
-        border-radius: 12px !important; 
-        border: 1px solid #e5e7eb !important; 
-        color: #1f2937 !important; 
-        font-weight: 700 !important; 
-        font-size: 0.9rem !important; 
-        padding: 10px 14px !important; 
-        transition: all 0.3s !important;
-    }
-    .streamlit-expanderHeader:hover { 
-        background: #f0f4ff !important; 
-        border-color: #c7d2fe !important; 
-    }
+    .streamlit-expanderHeader { background: #f9fafb !important; border-radius: 8px !important; border: 1px solid #e5e7eb !important; color: #1f2937 !important; font-weight: 600 !important; font-size: 0.78rem !important; padding: 7px 10px !important; }
+    .streamlit-expanderHeader:hover { background: #f0f4ff !important; }
     
-    /* Badges */
-    .badge { 
-        display: inline-block; 
-        background: #eef2ff; 
-        border: 1px solid #c7d2fe; 
-        border-radius: 20px; 
-        padding: 6px 18px; 
-        margin: 12px 0 8px 0; 
-        font-weight: 700; 
-        color: #3730a3 !important; 
-        font-size: 0.85rem; 
-    }
-    .badge-green { background: #f0fdf4; border-color: #86efac; color: #166534 !important; }
-    .badge-yellow { background: #fffbeb; border-color: #fde68a; color: #92400e !important; }
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] { gap: 3px; background: white !important; border-radius: 10px; padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex-wrap: wrap; }
+    .stTabs [data-baseweb="tab"] { background: transparent !important; border-radius: 8px !important; color: #374151 !important; padding: 5px 7px !important; font-weight: 600 !important; font-size: 0.7rem !important; }
+    .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #4f46e5, #7c3aed) !important; color: white !important; }
     
-    /* Food Card */
-    .food-card { 
-        background: linear-gradient(135deg, #fffbeb, #fff7ed); 
-        border: 1px solid #fde68a; 
-        border-radius: 14px; 
-        padding: 14px; 
-        margin: 10px 0; 
-        font-size: 0.85rem; 
-    }
-    .food-card h4 { color: #92400e !important; font-size: 1rem !important; margin: 0 0 8px 0 !important; }
-    
-    /* Stats */
-    .stat-card { 
-        background: white; 
-        border-radius: 14px; 
-        padding: 18px; 
-        text-align: center; 
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
-    }
-    .stat-value { font-size: 1.8rem; font-weight: 900; color: #4f46e5 !important; }
-    .stat-label { color: #6b7280 !important; font-size: 0.8rem; margin-top: 4px; }
-    
-    /* Reminder Card */
-    .reminder-card { 
-        background: white; 
-        border-radius: 14px; 
-        padding: 14px; 
-        margin: 8px 0; 
-        border: 1px solid #e5e7eb; 
-        border-left: 4px solid #4f46e5; 
-        font-size: 0.85rem; 
-        transition: all 0.3s; 
-    }
-    .reminder-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-    
-    /* Abbreviation Card */
-    .abbr-card { 
-        background: white; 
-        border-radius: 14px; 
-        padding: 16px; 
-        margin: 8px 0; 
-        border: 1px solid #e5e7eb; 
-        text-align: center; 
-        cursor: pointer; 
-        transition: all 0.3s; 
-    }
-    .abbr-card:hover { 
-        border-color: #4f46e5; 
-        background: #eef2ff; 
-        transform: translateY(-2px); 
-    }
-    .abbr-card h3 { color: #4f46e5 !important; margin: 0 0 5px 0 !important; }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
-    
-    /* Logo Watermark */
-    .watermark {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        opacity: 0.08;
-        font-size: 4rem;
-        font-weight: 900;
-        color: #4f46e5;
-        z-index: 0;
-        pointer-events: none;
-        transform: rotate(-15deg);
-    }
+    h3 { font-size: 1rem !important; margin-bottom: 6px !important; }
+    h4 { font-size: 0.88rem !important; }
+    p { font-size: 0.76rem !important; }
     
     [dir="rtl"] { text-align: right !important; direction: rtl !important; }
-    
-    @media (max-width: 768px) {
-        .main-header h1 { font-size: 1.3rem !important; }
-        .main-header p { font-size: 0.8rem !important; }
-        .stButton button { font-size: 0.8rem !important; padding: 8px 14px !important; }
-        .logo-badge { font-size: 0.65rem; padding: 4px 10px; top: 10px; right: 10px; }
-    }
-    
-    /* Custom Divider */
-    .divider-custom {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #4f46e5, #7c3aed, transparent);
-        margin: 20px 0;
-        border: none;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================
-# FLOATING LOGO + WATERMARK
+# LOGO + HEADER
 # ============================================
 st.markdown("""
-<div class="logo-badge">
-    <div class="logo-icon">DI</div>
-    Danyal Ismail
+<div style="text-align:center;">
+    <div class="logo-badge">
+        <span class="logo-icon">DI</span>
+        Danyal Ismail
+    </div>
 </div>
-<div class="watermark">DI</div>
+<div class="main-header">
+    <h1>🔬 ڕێبەری پشکنینە تاقیگەییەکان</h1>
+    <p>شیکاری نیشانەکان | کورتکراوەکان | ڕێنمایی وەرگرتن | گۆڕینی یەکە | یادخستنەوە</p>
+</div>
+<div class="dev-credit">
+    پەرەپێدراو لەلایەن <span>Danyal Ismail</span>
+</div>
 """, unsafe_allow_html=True)
 
 # ============================================
-# COMPLETE DATABASE (30+ Tests)
+# COMPLETE DATABASE - ALL 25+ TESTS
 # ============================================
 ALL_TESTS = {
     "پشکنینی تەواوی خوێن (CBC)": {
         "Name": "پشکنینی تەواوی خوێن (CBC)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "خوێن", "Icon": "🩸",
-        "Description": "پێوانەی پێکهاتەکانی خوێن: خڕۆکە سوورەکان، خڕۆکە سپییەکان و پەڕەکانی خوێن. یارمەتیدەرە بۆ دەستنیشانکردنی کەمخوێنی، هەوکردن، و کێشەکانی مەینبوونی خوێن.",
+        "Description": "پێوانەی پێکهاتەکانی خوێن: خڕۆکە سوورەکان، خڕۆکە سپییەکان و پەڕەکانی خوێن. یارمەتیدەرە بۆ دەستنیشانکردنی کەمخوێنی (ئەنیمیا)، هەوکردن، و کێشەکانی مەینبوونی خوێن.",
         "Ranges": "هیمۆگڵۆبین (پیاوان): 13.5-17.5 g/dL | (ژنان): 12.0-15.5 g/dL | WBC: 4,500-11,000 /µL | Platelets: 150,000-450,000 /µL | RBC: 4.7-6.1 / 4.2-5.4 million/µL",
         "FoodRecommendations": "🥩 گۆشتی سوور | 🥬 سپێناغ | 🍊 ڤیتامین C | ❌ دوور لە چا دوای نان"
     },
@@ -559,7 +278,7 @@ ALL_TESTS = {
 }
 
 # ============================================
-# SYMPTOM TO TEST MAPPING
+# SYMPTOM MAPPING
 # ============================================
 SYMPTOM_TESTS = {
     "بێهێزی": ["پشکنینی تەواوی خوێن (CBC)", "کۆگای ئاسن (Ferritin)", "ڤیتامین B12", "ڤیتامین دی (Vitamin D)", "شەکری ناو خوێن (FBS)"],
@@ -579,7 +298,7 @@ SYMPTOM_TESTS = {
 }
 
 # ============================================
-# ABBREVIATIONS DATABASE
+# ABBREVIATIONS
 # ============================================
 LAB_ABBREVIATIONS = {
     "CBC": "Complete Blood Count - پشکنینی تەواوی خوێن (پێوانەی خڕۆکە سوورە و سپییەکان و پەڕەکانی خوێن)",
@@ -605,140 +324,83 @@ LAB_ABBREVIATIONS = {
 }
 
 # ============================================
-# SAMPLE COLLECTION GUIDES
+# SAMPLE GUIDES
 # ============================================
 SAMPLE_GUIDES = {
-    "پشکنینی تەواوی خوێن (CBC)": "💉 نموونەی خوێن لە خوێنهێنەر وەردەگیرێت. پێویست بە برسیبوون نییە. دەتوانیت ئاوی ئاسایی بخۆیتەوە. ٢٤ کاتژمێر پێش وەرزشی قورس مەکە.",
-    "شەکری ناو خوێن (FBS)": "💉 **زۆر گرنگ:** پێویستە ٨-١٢ کاتژمێر برسی بیت (هیچ نەخۆیت). تەنها ئاوی ئاسایی ڕێگەپێدراوە. نموونە بەیانیان وەردەگیرێت.",
-    "چەورییەکانی خوێن (Lipid)": "💉 پێویستە ١٢-١٤ کاتژمێر برسی بیت. ٢٤ کاتژمێر پێش وەرزشی قورس و ٤٨ کاتژمێر پێش کحول مەخۆ.",
-    "فەرمانی گورچیلە (KFT)": "💉 پێویست بە برسیبوون نییە بەڵام باشترە ٨ کاتژمێر برسی بیت. ئاوی ئاسایی بخۆرەوە. وەرزشی قورس مەکە ٢٤ کاتژمێر پێش.",
-    "فەرمانی جگەر (LFT)": "💉 پێویست بە برسیبوون نییە. بەڵام ئەگەر لەگەڵ پشکنینی تر بکرێت، ڕەنگە پێویست بە برسیبوون بکات. کحول مەخۆرەوە ٤٨ کاتژمێر پێش.",
-    "هۆرمۆنی دەرەقی (TSH)": "💉 باشترین کات بەیانیانە. پێویست بە برسیبوون نییە. ئەگەر دەرمانی تایرۆید دەخۆیت، دوای وەرگرتنی نموونە بیخۆ.",
-    "کۆگای ئاسن (Ferritin)": "💉 پێویست بە برسیبوون نییە. بەیانیان باشترە چونکە ئاستی ئاسن لە ڕۆژدا دەگۆڕێت.",
-    "ترشی یۆریک (Uric Acid)": "💉 پێویست بە برسیبوون نییە. ٢٤ کاتژمێر پێش کحول و گۆشتی سوور کەم بکەرەوە.",
-    "پشکنینی میز (Urinalysis)": "🧪 **نموونەی یەکەمی بەیانیان باشترە.** ناوچەکە بە ئاو و سابوون پاک بکەرەوە. یەکەم بەشی میز فڕێ بدە و ناوەڕاستی میزەکە لە دەفتەری تایبەت کۆبکەرەوە.",
+    "پشکنینی تەواوی خوێن (CBC)": "💉 نموونەی خوێن لە خوێنهێنەر وەردەگیرێت. پێویست بە برسیبوون نییە. دەتوانیت ئاوی ئاسایی بخۆیتەوە.",
+    "شەکری ناو خوێن (FBS)": "💉 پێویستە ٨-١٢ کاتژمێر برسی بیت. تەنها ئاوی ئاسایی ڕێگەپێدراوە. نموونە بەیانیان وەردەگیرێت.",
+    "چەورییەکانی خوێن (Lipid)": "💉 پێویستە ١٢-١٤ کاتژمێر برسی بیت. ٤٨ کاتژمێر پێش کحول مەخۆ.",
+    "فەرمانی گورچیلە (KFT)": "💉 باشترە ٨ کاتژمێر برسی بیت. ئاوی ئاسایی بخۆرەوە.",
+    "فەرمانی جگەر (LFT)": "💉 پێویست بە برسیبوون نییە. کحول مەخۆرەوە ٤٨ کاتژمێر پێش.",
+    "هۆرمۆنی دەرەقی (TSH)": "💉 باشترین کات بەیانیانە. ئەگەر دەرمانی تایرۆید دەخۆیت، دوای پشکنین بیخۆ.",
+    "کۆگای ئاسن (Ferritin)": "💉 پێویست بە برسیبوون نییە. بەیانیان باشترە.",
+    "ترشی یۆریک (Uric Acid)": "💉 پێویست بە برسیبوون نییە. ٢٤ کاتژمێر پێش گۆشتی سوور کەم بکەرەوە.",
+    "پشکنینی میز (Urinalysis)": "🧪 نموونەی یەکەمی بەیانیان باشترە. ناوچەکە پاک بکەرەوە و ناوەڕاستی میزەکە کۆبکەرەوە.",
 }
 
 # ============================================
 # UNIT CONVERSIONS
 # ============================================
 UNIT_CONVERSIONS = {
-    "گلوکۆز (شەکر)": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0555, "formula": "× 0.0555"},
-    "کۆلیسترۆڵ": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0259, "formula": "× 0.0259"},
-    "Triglycerides": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0113, "formula": "× 0.0113"},
-    "کریاتینین": {"from": "mg/dL", "to": "µmol/L", "factor": 88.4, "formula": "× 88.4"},
-    "بیلیڕۆبین": {"from": "mg/dL", "to": "µmol/L", "factor": 17.1, "formula": "× 17.1"},
-    "کالیسیۆم": {"from": "mg/dL", "to": "mmol/L", "factor": 0.25, "formula": "× 0.25"},
-    "هیمۆگڵۆبین": {"from": "g/dL", "to": "g/L", "factor": 10, "formula": "× 10"},
+    "گلوکۆز (شەکر)": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0555},
+    "کۆلیسترۆڵ": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0259},
+    "Triglycerides": {"from": "mg/dL", "to": "mmol/L", "factor": 0.0113},
+    "کریاتینین": {"from": "mg/dL", "to": "µmol/L", "factor": 88.4},
+    "بیلیڕۆبین": {"from": "mg/dL", "to": "µmol/L", "factor": 17.1},
+    "کالیسیۆم": {"from": "mg/dL", "to": "mmol/L", "factor": 0.25},
+    "هیمۆگڵۆبین": {"from": "g/dL", "to": "g/L", "factor": 10},
 }
 
 # ============================================
-# FAQ DATABASE
-# ============================================
-FAQ_DATABASE = {
-    "ئاساییترین ڕێژەی هیمۆگڵۆبین بۆ پیاوان چییە؟": "ڕێژەی ئاسایی هیمۆگڵۆبین بۆ پیاوان ١٣.٥-١٧.٥ g/dL یە. ئەگەر لەم ئاستە نزمتر بوو، نیشانەی کەمخوێنییە.",
-    "بۆچی پشکنینی FBS دەکرێت؟": "بۆ دەستنیشانکردنی شەکرە. دەبێت ٨-١٢ کاتژمێر برسی بیت.",
-    "کاری خڕۆکە سپییەکان چییە؟": "بەرگری لەش ڕێکدەخەن و دژە ڤایرۆس و بەکتریا دەجەنگن.",
-    "هۆکاری بەرزبوونی یۆریک ئەسید چییە؟": "گۆشتی سوور، ماسی، کحول، یان کێشەی گورچیلە. دەبێتە هۆی Gout.",
-    "پشکنینی TSH بۆ چییە؟": "بۆ چالاکی غودەی دەرەقی. بەرز = تەمەڵی، نزم = زۆر چالاکی.",
-    "ڤیتامین B12 بۆ چییە؟": "بۆ تەندروستی دەمار و دروستکردنی خڕۆکە سوورەکان. کەمی = بێهێزی.",
-    "CRP چییە؟": "نیشاندەری هەوکردنی چالاک لە لەشدا. بەرزبوونەوە = هەوکردن.",
-    "ئاساییترین ڕێژەی کۆلیسترۆڵ چییە؟": "کەمتر لە ٢٠٠ mg/dL. بەرزتر = مەترسی نەخۆشی دڵ.",
-    "فێریتین چییە؟": "کۆگای ئاسنی لەش. کەمی = کەمخوێنی و ڕووتانەوەی قژ.",
-    "کەی پێویستە پشکنینی شەکرە بکەم؟": "لە تەمەنی ٤٥+ ساڵانە، یان زووتر ئەگەر مەترسیداریت (کێشی زیادە، مێژووی خێزان).",
-    "جیاوازی FBS و HbA1c چییە؟": "FBS شەکری ئێستایە (برسیبوون دەوێت). HbA1c تێکڕای ٣ مانگە (برسیبوون ناوێت).",
-    "چەند جارێک پشکنینی چەوری خوێن بکەم؟": "تەندروست: ٥ ساڵ جارێک. مەترسیدار: ساڵانە. لەژێر چارەسەری: ٣-٦ مانگ.",
-    "نیشانەی کەمی ئاسن چییە؟": "بێهێزی، ماندوێتی، ڕووتانەوەی قژ، نینۆکی لاواز، و ڕەنگی پێستی کاڵ.",
-    "ئایا ئاو خواردن پێش پشکنین ڕێگەی پێدراوە؟": "بەڵێ، ئاوی ئاسایی ڕێگەپێدراوە و تەنانەت پێشنیار دەکرێت.",
-    "پۆتاسیۆم بۆچی گرنگە؟": "بۆ کارکردنی ماسولکە و دڵ. بەرزبوونەوە = مەترسی بۆ دڵ.",
-}
-
-# ============================================
-# AI ANALYSIS ENGINE
+# AI ANALYSIS
 # ============================================
 def ai_analyze(test_name, user_value, gender="general"):
     matched_test = ALL_TESTS.get(test_name)
     if not matched_test:
-        return create_result("unknown", user_value, "N/A", "N/A", "unit", test_name)
+        return {"emoji":"❓","color_class":"result-abnormal","status_text":"نەناسراو","meaning":"ناتوانم شیکاری بکەم","action":"سەردانی پزیشک بکە","user_value":user_value,"unit":"","min_val":"N/A","max_val":"N/A","test_name":test_name}
     
     ranges_text = matched_test['Ranges']
     range_matches = re.findall(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)', ranges_text)
     if not range_matches:
-        return create_result("unknown", user_value, "N/A", "N/A", "unit", matched_test['Name'])
+        return {"emoji":"❓","color_class":"result-abnormal","status_text":"نەدۆزرایەوە","meaning":"ڕێژەکان نەدۆزرانەوە","action":"سەردانی پزیشک بکە","user_value":user_value,"unit":"","min_val":"N/A","max_val":"N/A","test_name":matched_test['Name']}
     
-    min_val = float(range_matches[0][0])
-    max_val = float(range_matches[0][1])
+    min_val = float(range_matches[0][0]); max_val = float(range_matches[0][1])
     
     if gender == "male":
-        for r, full_text in zip(range_matches, ranges_text.split('|')):
-            if "پیاوان" in full_text: min_val, max_val = float(r[0]), float(r[1]); break
+        for r, ft in zip(range_matches, ranges_text.split('|')):
+            if "پیاوان" in ft: min_val, max_val = float(r[0]), float(r[1]); break
     elif gender == "female":
-        for r, full_text in zip(range_matches, ranges_text.split('|')):
-            if "ژنان" in full_text: min_val, max_val = float(r[0]), float(r[1]); break
+        for r, ft in zip(range_matches, ranges_text.split('|')):
+            if "ژنان" in ft: min_val, max_val = float(r[0]), float(r[1]); break
     
     unit_match = re.search(r'([a-zA-Z/µ%]+)', ranges_text)
     unit = unit_match.group(1) if unit_match else "unit"
+    short_name = matched_test['Name'].split('(')[0].strip()
     
     if user_value < min_val:
-        return create_result("low", user_value, min_val, max_val, unit, matched_test['Name'])
+        return {"emoji":"⚠️","color_class":"result-abnormal","status_text":"لە ئاستی ئاسایی نزمترە","meaning":f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) نزمترە. پێویستە لێکۆڵینەوەی زیاتر بکرێت.","action":"پێشنیار دەکەم سەردانی پزیشکی پسپۆڕ بکەیت.","user_value":user_value,"unit":unit,"min_val":min_val,"max_val":max_val,"test_name":short_name}
     elif user_value > max_val:
         critical = user_value > max_val * 1.5
-        return create_result("critical" if critical else "high", user_value, min_val, max_val, unit, matched_test['Name'])
+        return {"emoji":"🚨","color_class":"result-critical" if critical else "result-abnormal","status_text":"زۆر بەرزە - مەترسیدار!" if critical else "لە ئاستی ئاسایی بەرزترە","meaning":f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە.","action":"یەکسەر پەیوەندی بە پزیشکەوە بکە!" if critical else "پێشنیار دەکەم بە زووترین کات سەردانی پزیشک بکەیت.","user_value":user_value,"unit":unit,"min_val":min_val,"max_val":max_val,"test_name":short_name}
     else:
-        return create_result("normal", user_value, min_val, max_val, unit, matched_test['Name'])
-
-def create_result(status, user_value, min_val, max_val, unit, test_name):
-    short_name = test_name.split('(')[0].strip() if '(' in test_name else test_name
-    result = {"status": status, "user_value": user_value, "min_val": min_val, "max_val": max_val, "unit": unit, "test_name": short_name}
-    
-    if status == "normal":
-        result.update({"emoji": "✅", "color_class": "result-normal", "status_text": "لە ئاستی ئاساییدایە 🎉", "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە. ئەمە نیشانەیەکی زۆر باشە!", "action": "بەردەوام بە لەسەر شێوازی ژیانی تەندروست. پشکنینی ساڵانە ئەنجام بدە."})
-    elif status == "low":
-        result.update({"emoji": "⚠️", "color_class": "result-abnormal", "status_text": "لە ئاستی ئاسایی نزمترە", "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) نزمترە.", "action": "پێشنیار دەکەم سەردانی پزیشکی پسپۆڕ بکەیت."})
-    elif status == "high":
-        result.update({"emoji": "⚠️", "color_class": "result-abnormal", "status_text": "لە ئاستی ئاسایی بەرزترە", "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە.", "action": "پێشنیار دەکەم بە زووترین کات سەردانی پزیشکی پسپۆڕ بکەیت."})
-    elif status == "critical":
-        result.update({"emoji": "🚨", "color_class": "result-critical", "status_text": "زۆر بەرزە - مەترسیدارە!", "meaning": f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) زۆر لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە!", "action": "🚨 یەکسەر پەیوەندی بە پزیشکەوە بکە یان سەردانی نەخۆشخانە بکە!"})
-    else:
-        result.update({"emoji": "❓", "color_class": "result-abnormal", "status_text": "پێویستی بە پشکنینی زیاترە", "meaning": f"ببورە، ناتوانم شیکاری ورد بۆ {short_name} بکەم.", "action": "تکایە ئەنجامەکەت ببە بۆ پزیشکی پسپۆڕ."})
-    
-    return result
+        return {"emoji":"✅","color_class":"result-normal","status_text":"لە ئاستی ئاساییدایە 🎉","meaning":f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە. ئەمە نیشانەیەکی زۆر باشە!","action":"بەردەوام بە لەسەر شێوازی ژیانی تەندروست.","user_value":user_value,"unit":unit,"min_val":min_val,"max_val":max_val,"test_name":short_name}
 
 # ============================================
-# HEADER WITH CREDIT
-# ============================================
-st.markdown("""
-<div class="main-header">
-    <h1>🔬 ڕێبەری پشکنینە تاقیگەییەکان</h1>
-    <p>شیکاری نیشانەکان | ڕوونکردنەوەی کورتکراوەکان | ڕێنمایی وەرگرتنی نموونە | گۆڕینی یەکەکان | یادخستنەوە</p>
-</div>
-<div class="dev-credit">
-    پەرەپێدراو لەلایەن <span>Danyal Ismail</span> | وەشانی 2.0
-</div>
-""", unsafe_allow_html=True)
-
-# ============================================
-# MAIN TABS (7 Tabs)
+# TABS (7 Tabs)
 # ============================================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🔍 شیکاری نیشانەکان",
-    "📋 پشکنینەکان", 
-    "🧠 شیکاری ئەنجام",
-    "📖 کورتکراوەکان",
-    "🧪 ڕێنمایی وەرگرتن",
-    "🔄 گۆڕینی یەکە",
-    "⏰ یادخستنەوە"
+    "🔍 نیشانەکان", "📋 پشکنینەکان", "🧠 شیکاری", 
+    "📖 کورتکراوە", "🧪 وەرگرتن", "🔄 یەکە", "⏰ یادخستنەوە"
 ])
 
 # ============================================
 # TAB 1: SYMPTOM CHECKER
 # ============================================
 with tab1:
-    st.markdown("<h3 style='color:#4f46e5;text-align:center;margin-bottom:5px;'>🔍 شیکاری نیشانەکان</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;color:#6b7280;font-size:0.9rem;'>نیشانەکانت هەڵبژێرە بۆ پێشنیاری پشکنینی گونجاو</p>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>🔍 شیکاری نیشانەکان</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:#6b7280;font-size:0.78rem;'>نیشانەکانت هەڵبژێرە بۆ پێشنیاری پشکنینی گونجاو</p>", unsafe_allow_html=True)
     
     all_symptoms = list(SYMPTOM_TESTS.keys())
-    selected_symptoms = []
     
     for i in range(0, len(all_symptoms), 4):
         cols = st.columns(4)
@@ -747,22 +409,21 @@ with tab1:
             if idx < len(all_symptoms):
                 symptom = all_symptoms[idx]
                 with cols[j]:
-                    if st.button(symptom, key=f"symptom_{idx}", use_container_width=True):
-                        if symptom not in selected_symptoms:
-                            selected_symptoms.append(symptom)
+                    if st.button(symptom, key=f"s_{idx}", use_container_width=True):
+                        if symptom not in st.session_state.selected_symptoms:
+                            st.session_state.selected_symptoms.append(symptom)
+                        else:
+                            st.session_state.selected_symptoms.remove(symptom)
+                        st.rerun()
     
-    if selected_symptoms:
-        st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
-        st.markdown(f"<p style='font-size:0.9rem;'><b>✅ نیشانەکان:</b> {', '.join(selected_symptoms)}</p>", unsafe_allow_html=True)
-        
-        recommended_tests = set()
-        for symptom in selected_symptoms:
-            for test in SYMPTOM_TESTS.get(symptom, []):
-                recommended_tests.add(test)
-        
-        st.markdown(f"<div class='badge'>🔬 پشکنینە پێشنیارکراوەکان ({len(recommended_tests)})</div>", unsafe_allow_html=True)
-        for test in recommended_tests:
-            st.markdown(f"""<div class="result-info result-box">🔬 <b>{test}</b></div>""", unsafe_allow_html=True)
+    if st.session_state.selected_symptoms:
+        st.markdown(f"<p style='font-size:0.78rem;margin-top:10px;'><b>✅ نیشانەکان:</b> {', '.join(st.session_state.selected_symptoms)}</p>", unsafe_allow_html=True)
+        recommended = set()
+        for s in st.session_state.selected_symptoms:
+            for t in SYMPTOM_TESTS.get(s, []): recommended.add(t)
+        st.markdown(f"<div class='badge'>🔬 پێشنیارکراوە ({len(recommended)})</div>", unsafe_allow_html=True)
+        for t in recommended:
+            st.markdown(f"""<div class="result-info result-box">🔬 <b>{t}</b></div>""", unsafe_allow_html=True)
 
 # ============================================
 # TAB 2: ALL TESTS
@@ -793,8 +454,8 @@ with tab2:
         for category, tests in categories_display.items():
             st.markdown(f"<div class='badge'>📂 {category}</div>", unsafe_allow_html=True)
             for test_key, test in tests.items():
-                with st.expander(f"{test['Icon']} {test['Name'][:55]}... | 🫀 {test['Organ']}"):
-                    st.markdown(f"""<div class="glass-card"><p><b>📝 وەسف:</b> {test['Description']}</p><p><b>📊 ڕێژە ئاساییەکان:</b></p><p style="background:#f3f4f6;padding:10px 14px;border-radius:8px;font-size:0.85rem;">{test['Ranges']}</p></div>""", unsafe_allow_html=True)
+                with st.expander(f"{test['Icon']} {test['Name'][:55]}... | {test['Organ']}"):
+                    st.markdown(f"""<div class="glass-card"><p><b>📝 وەسف:</b> {test['Description']}</p><p><b>📊 ڕێژە ئاساییەکان:</b></p><p style="background:#f3f4f6;padding:8px 10px;border-radius:6px;font-size:0.75rem;">{test['Ranges']}</p></div>""", unsafe_allow_html=True)
                     if 'FoodRecommendations' in test:
                         st.markdown(f"""<div class="food-card"><h4>🥗 ڕێنمایی خۆراکی</h4><p>{test['FoodRecommendations']}</p></div>""", unsafe_allow_html=True)
 
@@ -820,9 +481,9 @@ with tab3:
                 time.sleep(0.8)
                 result = ai_analyze(test_choice, user_result, gender_choice)
                 
-                st.markdown(f"""<div class="glass-card"><div class="{result['color_class']}"><span style="font-size:1.8rem;">{result['emoji']}</span> <b>{result['test_name']}</b> - {result['status_text']}</div><p style="margin-top:12px;"><b>📊 ئەنجامی تۆ:</b> {result['user_value']} {result['unit']}</p><p><b>📏 مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}</p><p><b>📋 شیکاری:</b> {result['meaning']}</p><p><b>💊 ڕێنمایی:</b> {result['action']}</p></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="glass-card"><div class="{result['color_class']}"><span style="font-size:1.5rem;">{result['emoji']}</span> <b>{result['test_name']}</b> - {result['status_text']}</div><p style="margin-top:8px;"><b>📊 ئەنجامی تۆ:</b> {result['user_value']} {result['unit']}</p><p><b>📏 مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}</p><p><b>📋 شیکاری:</b> {result['meaning']}</p><p><b>💊 ڕێنمایی:</b> {result['action']}</p></div>""", unsafe_allow_html=True)
                 
-                st.session_state.history.append({"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "test": test_choice, "value": user_result, "unit": unit_choice, "status": result['status'], "note": doctor_note})
+                st.session_state.history.append({"date":datetime.now().strftime("%Y-%m-%d %H:%M"),"test":test_choice,"value":user_result,"unit":unit_choice,"status":result['status'],"note":doctor_note})
                 
                 if doctor_note:
                     st.markdown(f"""<div class="result-info result-box"><b>📝 تێبینی:</b> {doctor_note}</div>""", unsafe_allow_html=True)
@@ -834,12 +495,10 @@ with tab3:
             st.warning("تکایە ئەنجامێکی دروست بنووسە")
 
 # ============================================
-# TAB 4-7: CONTINUE SAME PATTERN...
-# ============================================
-
 # TAB 4: ABBREVIATIONS
+# ============================================
 with tab4:
-    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>📖 ڕوونکردنەوەی کورتکراوە تاقیگەییەکان</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>📖 ڕوونکردنەوەی کورتکراوەکان</h3>", unsafe_allow_html=True)
     
     abbr_search = st.text_input("🔍 کورتکراوە بنووسە:", placeholder="بۆ نموونە: ALT, CBC, TSH...", key="abbr_search")
     
@@ -851,65 +510,84 @@ with tab4:
             st.warning("کورتکراوەکە نەدۆزرایەوە")
     else:
         st.markdown("<div class='badge'>📌 باوترین کورتکراوەکان</div>", unsafe_allow_html=True)
-        popular = ["CBC", "FBS", "HbA1c", "TSH", "ALT", "AST", "HDL", "LDL", "CRP", "KFT", "LFT", "WBC", "ESR", "PT", "INR", "GFR"]
+        popular = ["CBC","FBS","HbA1c","TSH","ALT","AST","HDL","LDL","CRP","KFT","LFT","WBC","ESR","PT","INR","GFR"]
         cols = st.columns(4)
         for i, abbr in enumerate(popular):
             with cols[i % 4]:
                 if st.button(f"🔤 {abbr}", key=f"abbr_{abbr}", use_container_width=True):
                     st.info(f"**{abbr}**: {LAB_ABBREVIATIONS[abbr]}")
 
+# ============================================
 # TAB 5: SAMPLE COLLECTION
+# ============================================
 with tab5:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>🧪 ڕێنمایی وەرگرتنی نموونە</h3>", unsafe_allow_html=True)
     sample_test = st.selectbox("پشکنین هەڵبژێرە:", list(SAMPLE_GUIDES.keys()), key="sample_test")
     if sample_test:
-        st.markdown(f"""<div class="glass-card"><div class="result-info result-box"><h4>🧪 {sample_test}</h4><p style="font-size:1.05rem;line-height:1.9;">{SAMPLE_GUIDES[sample_test]}</p></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="glass-card"><div class="result-info result-box"><h4>🧪 {sample_test}</h4><p style="font-size:0.85rem;line-height:1.8;">{SAMPLE_GUIDES[sample_test]}</p></div></div>""", unsafe_allow_html=True)
+    
+    st.markdown("<div class='badge'>💡 ڕێنمایی گشتی</div>", unsafe_allow_html=True)
+    st.markdown("""<div class="glass-card"><p>✅ ئاوی ئاسایی بخۆرەوە | ✅ دەرمانەکانت بەردەوام بە | ❌ ٤٨ کاتژمێر پێش کحول مەخۆ | ❌ جگەرە مەکێشە ٢ کاتژمێر پێش</p></div>""", unsafe_allow_html=True)
 
+# ============================================
 # TAB 6: UNIT CONVERTER
+# ============================================
 with tab6:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>🔄 گۆڕینی یەکەکان</h3>", unsafe_allow_html=True)
     conversion_choice = st.selectbox("جۆری پشکنین:", list(UNIT_CONVERSIONS.keys()), key="conv_choice")
+    
     if conversion_choice:
         conv = UNIT_CONVERSIONS[conversion_choice]
         col1, col2, col3 = st.columns([2, 1, 2])
-        with col1: from_value = st.number_input(f"بڕ بە {conv['from']}:", value=100.0, step=0.1, key="conv_from")
-        with col2: st.markdown("<div style='text-align:center;padding-top:35px;font-size:2rem;'>→</div>", unsafe_allow_html=True)
+        with col1:
+            from_value = st.number_input(f"بڕ بە {conv['from']}:", value=100.0, step=0.1, key="conv_from")
+        with col2:
+            st.markdown("<div style='text-align:center;padding-top:30px;font-size:1.5rem;'>→</div>", unsafe_allow_html=True)
         with col3:
             to_value = from_value * conv['factor']
             st.metric(f"بڕ بە {conv['to']}:", f"{to_value:.2f}")
-        st.markdown(f"""<div class="result-info result-box"><p><b>📐 هاوکۆلکە:</b> 1 {conv['from']} {conv['formula']} = {conv['to']}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="result-info result-box"><p><b>📐</b> 1 {conv['from']} = {conv['factor']} {conv['to']}</p></div>""", unsafe_allow_html=True)
 
+# ============================================
 # TAB 7: REMINDERS
+# ============================================
 with tab7:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>⏰ یادخستنەوەی پشکنین</h3>", unsafe_allow_html=True)
+    
     with st.expander("➕ زیادکردنی یادخستنەوە", expanded=True):
         col1, col2 = st.columns(2)
-        with col1: reminder_test = st.selectbox("جۆری پشکنین:", list(ALL_TESTS.keys()), key="reminder_test")
-        with col2: reminder_freq = st.selectbox("دووبارەبوونەوە:", ["ڕۆژانە","هەفتانە","مانگانە","سێ مانگ جارێک","ساڵانە"], key="reminder_freq")
-        reminder_note = st.text_input("📝 تێبینی:", key="reminder_note")
+        with col1:
+            reminder_test = st.selectbox("جۆری پشکنین:", list(ALL_TESTS.keys()), key="reminder_test")
+        with col2:
+            reminder_freq = st.selectbox("دووبارەبوونەوە:", ["مانگانە","سێ مانگ جارێک","شەش مانگ جارێک","ساڵانە"], key="reminder_freq")
+        reminder_note = st.text_input("📝 تێبینی:", placeholder="بۆ نموونە: پشکنینی شەکری مانگانە...", key="reminder_note")
+        
         if st.button("💾 تۆمارکردن", key="save_reminder", use_container_width=True):
-            st.session_state.reminders.append({"test": reminder_test, "frequency": reminder_freq, "note": reminder_note, "created": datetime.now().strftime("%Y-%m-%d %H:%M")})
+            st.session_state.reminders.append({"test":reminder_test,"frequency":reminder_freq,"note":reminder_note,"created":datetime.now().strftime("%Y-%m-%d %H:%M")})
             st.success("✅ تۆمارکرا!")
             st.rerun()
     
     if st.session_state.reminders:
         st.markdown(f"<div class='badge'>📅 یادخستنەوەکانت ({len(st.session_state.reminders)})</div>", unsafe_allow_html=True)
         for reminder in st.session_state.reminders:
-            st.markdown(f"""<div class="reminder-card"><b>🔬 {reminder['test']}</b><br>🔄 {reminder['frequency']} | 📝 {reminder['note']}<br><span style="color:#6b7280;font-size:0.8rem;">📅 {reminder['created']}</span></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="reminder-card"><b>🔬 {reminder['test']}</b><br>🔄 {reminder['frequency']} | 📝 {reminder['note']}<br><span style="color:#6b7280;font-size:0.7rem;">📅 {reminder['created']}</span></div>""", unsafe_allow_html=True)
+    
+    st.markdown("<div class='badge'>💡 گشتی</div>", unsafe_allow_html=True)
+    st.markdown("""<div class="glass-card"><p>🍬 شەکرە: FBS مانگانە | HbA1c هەر ٣ مانگ</p><p>❤️ دڵ: Lipid ساڵانە</p><p>🦋 دەرەقی: TSH هەر ٦-١٢ مانگ</p></div>""", unsafe_allow_html=True)
 
 # ============================================
 # HISTORY SECTION
 # ============================================
-with st.expander("📊 مێژووی ئەنجامەکانت و هەناردەکردن", expanded=False):
+with st.expander("📊 مێژووی ئەنجامەکانت", expanded=False):
     if len(st.session_state.history) > 0:
         df = pd.DataFrame(st.session_state.history)
         st.dataframe(df, use_container_width=True)
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 دابەزاندنی مێژوو (CSV)", csv, "my_lab_results.csv", "text/csv")
+        st.download_button("📥 CSV", csv, "results.csv", "text/csv")
     else:
         st.info("هێشتا هیچ ئەنجامێکت تۆمار نەکردووە")
 
 # ============================================
 # FOOTER
 # ============================================
-st.markdown("""<div class="glass-card" style="text-align:center;margin-top:20px;"><div class="result-critical" style="text-align:center;"><p style="margin:0;font-weight:700;">⚠️ ئەم سیستەمە تەنها بۆ ڕێنمایی سەرەتاییە و جێگەی سەردانی پزیشک ناگرێتەوە</p></div><p style="color:#6b7280;margin-top:10px;">© 2024 پەرەپێدراو لەلایەن <b>Danyal Ismail</b> | 30+ پشکنین | 7 بەشی تایبەت</p></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="glass-card" style="text-align:center;margin-top:15px;"><p style="color:#ef4444;font-weight:600;font-size:0.75rem;">⚠️ بۆ ڕێنمایی سەرەتاییە - جێگەی سەردانی پزیشک ناگرێتەوە</p><p style="color:#6b7280;font-size:0.7rem;">© 2024 <b>Danyal Ismail</b> | {len(ALL_TESTS)} پشکنین | ٧ بەش</p></div>""", unsafe_allow_html=True)
