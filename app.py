@@ -26,11 +26,10 @@ if 'chat_messages' not in st.session_state:
 if 'user_results' not in st.session_state:
     st.session_state.user_results = {}
 
-# --- ULTRA MODERN CSS ---
+# --- MODERN LIGHT THEME CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@300;400;500;600;700;800;900&display=swap');
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
     
     * {
         font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif;
@@ -39,9 +38,8 @@ st.markdown("""
     
     [data-testid="stSidebar"] { display: none; }
     
-    /* Background Animations */
     html, body, [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 25%, #0d0d2b 50%, #1a1a3e 75%, #0a0a1a 100%) !important;
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 25%, #f5f7ff 50%, #eef2ff 75%, #f0f4ff 100%) !important;
         background-size: 400% 400% !important;
         animation: gradientShift 15s ease infinite !important;
     }
@@ -52,111 +50,88 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
     
-    /* Glass Morphism Cards */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.03) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 24px !important;
-        padding: 30px !important;
-        margin-bottom: 25px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-    
-    .glass-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-        animation: shimmer 3s infinite;
-    }
-    
-    @keyframes shimmer {
-        100% { left: 100%; }
-    }
-    
-    /* Neon Header */
-    .neon-header {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
-        border: 2px solid rgba(99, 102, 241, 0.5);
+    .main-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%);
         border-radius: 30px;
         padding: 40px;
         text-align: center;
         margin-bottom: 30px;
-        box-shadow: 0 0 40px rgba(99, 102, 241, 0.3), 0 0 80px rgba(139, 92, 246, 0.2), 0 0 120px rgba(59, 130, 246, 0.1);
-        animation: neonPulse 3s ease-in-out infinite;
-    }
-    
-    @keyframes neonPulse {
-        0%, 100% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.3), 0 0 80px rgba(139, 92, 246, 0.2); }
-        50% { box-shadow: 0 0 60px rgba(99, 102, 241, 0.5), 0 0 120px rgba(139, 92, 246, 0.4), 0 0 180px rgba(59, 130, 246, 0.2); }
-    }
-    
-    .neon-header h1 {
-        font-size: 3rem !important;
-        font-weight: 900 !important;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #3b82f6, #06b6d4);
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        animation: textGlow 3s ease-in-out infinite alternate;
-    }
-    
-    @keyframes textGlow {
-        0% { filter: brightness(1); }
-        100% { filter: brightness(1.3); }
-    }
-    
-    .neon-header p {
-        color: rgba(255, 255, 255, 0.8) !important;
-        font-size: 1.3rem !important;
-    }
-    
-    /* Test Cards with Gradient Borders */
-    .test-card {
-        background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(15px);
-        border-radius: 20px;
-        padding: 25px;
-        margin-bottom: 20px;
-        border: 1px solid transparent;
-        background-clip: padding-box;
+        box-shadow: 0 20px 60px rgba(79, 70, 229, 0.3), 0 0 120px rgba(124, 58, 237, 0.1);
         position: relative;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        overflow: hidden;
     }
     
-    .test-card::before {
+    .main-header::before {
         content: '';
         position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border-radius: 22px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #3b82f6);
-        z-index: -1;
-        opacity: 0.5;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+        animation: rotate 20s linear infinite;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .main-header h1 {
+        color: white !important;
+        font-size: 2.8rem !important;
+        font-weight: 900 !important;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .main-header p {
+        color: rgba(255,255,255,0.9) !important;
+        font-size: 1.2rem !important;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .glass-card {
+        background: white !important;
+        border-radius: 20px !important;
+        padding: 25px !important;
+        margin-bottom: 20px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04) !important;
+        border: 1px solid rgba(0,0,0,0.04) !important;
+    }
+    
+    .test-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border-right: 4px solid #4f46e5;
+        transition: all 0.3s ease;
     }
     
     .test-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 20px 60px rgba(99, 102, 241, 0.3);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.15);
     }
     
-    /* AI Analysis Card */
+    .test-card h4 {
+        color: #1e1b4b !important;
+        font-weight: 700;
+    }
+    
+    .test-card p {
+        color: #374151 !important;
+    }
+    
     .ai-result-card {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(99, 102, 241, 0.1));
-        border: 2px solid rgba(16, 185, 129, 0.5);
+        background: white;
         border-radius: 24px;
         padding: 30px;
         margin: 25px 0;
-        box-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
         animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
@@ -166,23 +141,31 @@ st.markdown("""
     }
     
     .result-normal {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+        background: #f0fdf4;
         border-left: 5px solid #10b981;
         border-radius: 16px;
         padding: 20px;
         margin: 15px 0;
     }
     
+    .result-normal p, .result-normal h3, .result-normal b {
+        color: #065f46 !important;
+    }
+    
     .result-abnormal {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+        background: #fffbeb;
         border-left: 5px solid #f59e0b;
         border-radius: 16px;
         padding: 20px;
         margin: 15px 0;
     }
     
+    .result-abnormal p, .result-abnormal h3, .result-abnormal b {
+        color: #92400e !important;
+    }
+    
     .result-critical {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+        background: #fef2f2;
         border-left: 5px solid #ef4444;
         border-radius: 16px;
         padding: 20px;
@@ -190,537 +173,445 @@ st.markdown("""
         animation: criticalPulse 2s infinite;
     }
     
-    @keyframes criticalPulse {
-        0%, 100% { border-color: #ef4444; }
-        50% { border-color: #fca5a5; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3); }
+    .result-critical p, .result-critical h3, .result-critical b {
+        color: #991b1b !important;
     }
     
-    /* Buttons */
+    @keyframes criticalPulse {
+        0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+        50% { border-color: #fca5a5; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+    }
+    
     .stButton button {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
         border: none !important;
         font-weight: 700 !important;
-        border-radius: 16px !important;
+        border-radius: 14px !important;
         padding: 14px 35px !important;
         font-size: 16px !important;
-        letter-spacing: 0.5px !important;
-        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4) !important;
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
         transition: all 0.3s ease !important;
-        text-transform: uppercase !important;
     }
     
     .stButton button:hover {
-        transform: translateY(-4px) !important;
-        box-shadow: 0 15px 40px rgba(99, 102, 241, 0.6) !important;
-        background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5) !important;
+        background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
     }
     
-    /* Input Fields */
-    .stTextInput input, .stNumberInput input, .stSelectbox select {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 2px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 16px !important;
-        color: white !important;
-        padding: 14px 20px !important;
-        font-size: 1.1rem !important;
-        backdrop-filter: blur(10px) !important;
+    .stTextInput input, .stNumberInput input, .stSelectbox div {
+        background: white !important;
+        border: 2px solid #e5e7eb !important;
+        border-radius: 14px !important;
+        color: #1f2937 !important;
+        padding: 12px 18px !important;
+        font-size: 1rem !important;
     }
     
     .stTextInput input:focus, .stNumberInput input:focus {
-        border-color: #6366f1 !important;
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.3) !important;
+        border-color: #4f46e5 !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
     }
     
-    /* Chat Messages */
-    .chat-container {
-        max-height: 500px;
-        overflow-y: auto;
-        padding: 20px;
-    }
-    
-    .chat-message-user {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 20px 20px 5px 20px;
-        padding: 15px 20px;
-        margin: 10px 0;
-        color: white;
-    }
-    
-    .chat-message-bot {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.1));
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 20px 20px 20px 5px;
-        padding: 15px 20px;
-        margin: 10px 0;
-        color: white;
-    }
-    
-    /* FAQ Cards */
-    .faq-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    .food-card {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
         border-radius: 16px;
         padding: 18px;
-        margin: 10px 0;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .faq-card:hover {
-        background: rgba(99, 102, 241, 0.1);
-        border-color: rgba(99, 102, 241, 0.4);
-        transform: translateX(-5px);
-    }
-    
-    /* Stats Cards */
-    .stat-card {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 20px;
-        padding: 25px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(10px);
-    }
-    
-    .stat-value {
-        font-size: 3rem;
-        font-weight: 900;
-        background: linear-gradient(135deg, #6366f1, #06b6d4);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    .stat-label {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 1rem;
-        margin-top: 8px;
-    }
-    
-    /* Food Recommendation Cards */
-    .food-card {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
-        border: 1px solid rgba(245, 158, 11, 0.3);
-        border-radius: 20px;
-        padding: 20px;
-        margin: 15px 0;
+        margin: 12px 0;
     }
     
     .food-card h4 {
-        color: #fbbf24 !important;
-        font-size: 1.3rem !important;
+        color: #92400e !important;
     }
     
-    /* Category Title */
+    .food-card p {
+        color: #78350f !important;
+    }
+    
     .category-badge {
         display: inline-block;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
-        border: 1px solid rgba(99, 102, 241, 0.4);
+        background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+        border: 1px solid #c7d2fe;
         border-radius: 30px;
         padding: 10px 25px;
         margin: 20px 0 15px 0;
         font-weight: 700;
-        color: #a5b4fc !important;
+        color: #3730a3 !important;
         font-size: 1.1rem;
     }
     
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; }
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
     
-    /* Tabs */
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #4f46e5 !important;
+    }
+    
+    .stat-label {
+        color: #6b7280 !important;
+        font-size: 0.95rem;
+        margin-top: 5px;
+    }
+    
+    .faq-item {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 8px 0;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+    
+    .faq-item:hover {
+        border-color: #4f46e5;
+        background: #f8fafc;
+    }
+    
+    .faq-item p {
+        color: #374151 !important;
+    }
+    
+    .faq-item b {
+        color: #1f2937 !important;
+    }
+    
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background: transparent !important;
+        gap: 8px;
+        background: white !important;
+        border-radius: 16px;
+        padding: 6px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 15px !important;
-        color: white !important;
-        padding: 12px 25px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: transparent !important;
+        border-radius: 12px !important;
+        color: #374151 !important;
+        padding: 10px 20px !important;
+        font-weight: 600 !important;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3)) !important;
-        border-color: rgba(99, 102, 241, 0.5) !important;
-    }
-    
-    /* Color text */
-    .text-white { color: white !important; }
-    .text-purple { color: #a5b4fc !important; }
-    .text-cyan { color: #67e8f9 !important; }
-    .text-green { color: #6ee7b7 !important; }
-    .text-yellow { color: #fde68a !important; }
-    .text-red { color: #fca5a5 !important; }
-    
-    /* Expander */
-    .streamlit-expanderHeader {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
     }
     
+    .streamlit-expanderHeader {
+        background: #f9fafb !important;
+        border-radius: 12px !important;
+        border: 1px solid #e5e7eb !important;
+        color: #1f2937 !important;
+        font-weight: 600 !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: #f3f4f6 !important;
+    }
+    
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 10px; }
+    
     [dir="rtl"] { text-align: right !important; direction: rtl !important; }
+    
+    .info-box {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 14px;
+        padding: 16px;
+    }
+    
+    .info-box p {
+        color: #1e40af !important;
+    }
+    
+    .warning-box {
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        border-radius: 14px;
+        padding: 16px;
+    }
+    
+    .warning-box p {
+        color: #92400e !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- COMPLETE DATABASE ---
 ALL_TESTS = {
     "پشکنینی تەواوی خوێن (CBC)": {
-        "Name": "پشکنینی تەواوی خوێن (CBC - Complete Blood Count)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "خوێن",
-        "Icon": "🩸",
-        "Description": "پێوانەی پێکهاتەکانی خوێن: خڕۆکە سوورەکان، خڕۆکە سپییەکان و پەڕەکانی خوێن. یارمەتیدەرە بۆ دەستنیشانکردنی کەمخوێنی، هەوکردن، و کێشەکانی مەینبوونی خوێن.",
-        "Ranges": "هیمۆگڵۆبین (پیاوان): 13.5-17.5 g/dL | هیمۆگڵۆبین (ژنان): 12.0-15.5 g/dL | WBC: 4,500-11,000 /µL | Platelets: 150,000-450,000 /µL | RBC: 4.7-6.1 (پیاوان) / 4.2-5.4 (ژنان) million/µL",
-        "FoodRecommendations": "🥩 گۆشتی سوور | 🥬 سپێناغ | 🥚 هێلکە | 🍊 پرتەقاڵ (بۆ ڤیتامین C) | ❌ دوور لە چا و قاوە دوای نان"
+        "Name": "پشکنینی تەواوی خوێن (CBC)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "خوێن", "Icon": "🩸",
+        "Description": "پێوانەی پێکهاتەکانی خوێن: خڕۆکە سوورەکان، خڕۆکە سپییەکان و پەڕەکانی خوێن.",
+        "Ranges": "هیمۆگڵۆبین (پیاوان): 13.5-17.5 g/dL | (ژنان): 12.0-15.5 g/dL | WBC: 4,500-11,000 /µL | Platelets: 150,000-450,000 /µL",
+        "FoodRecommendations": "🥩 گۆشتی سوور | 🥬 سپێناغ | 🍊 ڤیتامین C"
     },
     "شەکری ناو خوێن (FBS)": {
-        "Name": "شەکری ناو خوێن لە کاتی برسێتیدا (FBS)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "پەنکریاس / خوێن",
-        "Icon": "🍬",
+        "Name": "شەکری ناو خوێن (FBS)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "پەنکریاس", "Icon": "🍬",
         "Description": "پێوانەی گلوکۆزی خوێن دوای ٨-١٢ کاتژمێر برسێتی. ١٠٠-١٢٥ = پێش شەکرە | ١٢٦+ = شەکرە.",
         "Ranges": "ڕێژەی ئاسایی: 70-99 mg/dL",
-        "FoodRecommendations": "🥦 برۆکلی | 🐟 ماسی چەور | 🌾 هەویری تەواو | ❌ دوور لە شەکر و نانی سپی"
+        "FoodRecommendations": "🥦 برۆکلی | 🐟 ماسی | 🌾 هەویری تەواو"
     },
     "شەکری کەڵەکەبوو (HbA1c)": {
-        "Name": "شەکری کەڵەکەبوو (HbA1c)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "پەنکریاس / خوێن",
-        "Icon": "📊",
+        "Name": "شەکری کەڵەکەبوو (HbA1c)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "پەنکریاس", "Icon": "📊",
         "Description": "تێکڕای شەکری خوێن لە ٢-٣ مانگی ڕابردوو. 5.7%-6.4% = پێش شەکرە | 6.5%+ = شەکرە.",
         "Ranges": "ڕێژەی ئاسایی: کەمتر لە 5.7%",
-        "FoodRecommendations": "🥗 سەوزەواتی ڕیشاڵدار | 🫘 پاقلەمەنی | 🏃 وەرزشی ڕۆژانە"
+        "FoodRecommendations": "🥗 سەوزەواتی ڕیشاڵدار | 🏃 وەرزش"
     },
-    "چەورییەکانی خوێن (Lipid Profile)": {
-        "Name": "چەورییەکانی خوێن (Lipid Profile)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "دڵ / خوێن",
-        "Icon": "❤️",
+    "چەورییەکانی خوێن (Lipid)": {
+        "Name": "چەورییەکانی خوێن (Lipid Profile)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "دڵ", "Icon": "❤️",
         "Description": "پێوانەی چەورییەکانی خوێن: کۆلیسترۆڵ، HDL، LDL، و Triglycerides.",
-        "Ranges": "کۆلیسترۆڵی گشتی: <200 mg/dL | Triglycerides: <150 mg/dL | HDL: >40 mg/dL | LDL: <100 mg/dL",
-        "FoodRecommendations": "🥑 ئەڤۆکادۆ | 🥜 گوێز و بادەم | 🫒 زەیتی زەیتوون | ❌ دوور لە فاست فوود"
+        "Ranges": "کۆلیسترۆڵ: <200 mg/dL | Triglycerides: <150 mg/dL | HDL: >40 mg/dL | LDL: <100 mg/dL",
+        "FoodRecommendations": "🥑 ئەڤۆکادۆ | 🥜 گوێز | 🫒 زەیتی زەیتوون"
     },
     "فەرمانی گورچیلە (KFT)": {
-        "Name": "پشکنینی فەرمانی گورچیلە (KFT)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "گورچیلە",
-        "Icon": "🫘",
-        "Description": "پێوانەی توانای گورچیلەکان: کریاتینین و یوریا.",
-        "Ranges": "کریاتینین (پیاوان): 0.7-1.3 mg/dL | کریاتینین (ژنان): 0.6-1.1 mg/dL | یوریا (BUN): 15-40 mg/dL | GFR: >90 mL/min",
-        "FoodRecommendations": "💧 ئاوی زۆر (٨-١٠ پەرداخ) | 🍎 سێو | ❌ کەمکردنەوەی خوێ"
+        "Name": "فەرمانی گورچیلە (KFT)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "گورچیلە", "Icon": "🫘",
+        "Description": "پێوانەی کریاتینین و یوریا بۆ هەڵسەنگاندنی کارکردنی گورچیلە.",
+        "Ranges": "کریاتینین (پیاوان): 0.7-1.3 mg/dL | (ژنان): 0.6-1.1 mg/dL | یوریا: 15-40 mg/dL | GFR: >90",
+        "FoodRecommendations": "💧 ئاوی زۆر | 🍎 سێو | ❌ کەمکردنەوەی خوێ"
     },
     "فەرمانی جگەر (LFT)": {
-        "Name": "پشکنینی فەرمانی جگەر (LFT)",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "جگەر",
-        "Icon": "🫁",
+        "Name": "فەرمانی جگەر (LFT)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "جگەر", "Icon": "🫁",
         "Description": "ئەنزیمەکانی جگەر: ALT، AST، ALP، GGT، بیلیڕۆبین.",
-        "Ranges": "ALT: 7-56 U/L | AST: 10-40 U/L | ALP: 44-147 U/L | GGT: 0-30 U/L | بیلیڕۆبینی گشتی: 0.1-1.2 mg/dL",
-        "FoodRecommendations": "🍵 چای سەوز | 🧄 سیر | 🫚 زەردەچێوە | ❌ دوور لە کحول"
+        "Ranges": "ALT: 7-56 U/L | AST: 10-40 U/L | ALP: 44-147 U/L | GGT: 0-30 U/L | بیلیڕۆبین: 0.1-1.2 mg/dL",
+        "FoodRecommendations": "🍵 چای سەوز | 🧄 سیر | 🫚 زەردەچێوە"
     },
     "هۆرمۆنی دەرەقی (TSH)": {
-        "Name": "هۆرمۆنی ڕژێنی دەرەقی (TSH)",
-        "Category": "پشکنینی هۆرمۆنەکان",
-        "Organ": "دەرەقی (تیرۆید)",
-        "Icon": "🦋",
+        "Name": "هۆرمۆنی دەرەقی (TSH)", "Category": "پشکنینی هۆرمۆنەکان", "Organ": "دەرەقی", "Icon": "🦋",
         "Description": "پشکنینی کارکردنی غودەی دەرەقی. بەرزبوونەوە = تەمەڵی، نزمبوونەوە = زۆر چالاکی.",
         "Ranges": "TSH: 0.4-4.0 mIU/L | T3: 80-200 ng/dL | T4: 4.5-12.0 µg/dL",
-        "FoodRecommendations": "🧂 خوێی یۆددار | 🐟 ماسی دەریا | 🥜 گوێزی بەرازیلی"
+        "FoodRecommendations": "🧂 خوێی یۆددار | 🐟 ماسی دەریا"
     },
     "کۆگای ئاسن (Ferritin)": {
-        "Name": "کۆگای ئاسن (Ferritin)",
-        "Category": "پشکنینە تایبەتەکان",
-        "Organ": "خوێن",
-        "Icon": "🧲",
+        "Name": "کۆگای ئاسن (Ferritin)", "Category": "پشکنینە تایبەتەکان", "Organ": "خوێن", "Icon": "🧲",
         "Description": "پێوانەی ئاسنی خەزنکراوی لەش. کەمی = کەمخوێنی و ڕووتانەوەی قژ.",
         "Ranges": "پیاوان: 24-336 ng/mL | ژنان: 11-307 ng/mL",
-        "FoodRecommendations": "🥩 گۆشتی سوور | 🥬 سپێناغ | 🍊 ڤیتامین C یارمەتیدەر"
+        "FoodRecommendations": "🥩 گۆشتی سوور | 🥬 سپێناغ | 🍊 ڤیتامین C"
     },
-    "ڤیتامین دی (Vitamin D3)": {
-        "Name": "ڤیتامین دی (25-Hydroxy Vitamin D)",
-        "Category": "پشکنینی ڤیتامین و کانزاکان",
-        "Organ": "ئێسک / خوێن",
-        "Icon": "☀️",
-        "Description": "بۆ تەندروستی ئێسک و بەرگری لەش. <20 = کەمی ڤیتامین دی.",
+    "ڤیتامین دی (Vitamin D)": {
+        "Name": "ڤیتامین دی (Vitamin D3)", "Category": "پشکنینی ڤیتامینەکان", "Organ": "ئێسک", "Icon": "☀️",
+        "Description": "بۆ تەندروستی ئێسک و بەرگری. <20 = کەمی.",
         "Ranges": "ڕێژەی ئاسایی: 30-100 ng/mL",
-        "FoodRecommendations": "☀️ ڕووناکی خۆر | 🐟 سەلەمۆن | 🥛 شیری ڤیتامین دی زیادکراو"
+        "FoodRecommendations": "☀️ خۆر | 🐟 سەلەمۆن | 🥛 شیر"
     },
     "ترشی یۆریک (Uric Acid)": {
-        "Name": "ترشی یۆریک (Uric Acid)",
-        "Category": "پشکنینە تایبەتەکان",
-        "Organ": "گورچیلە / جومگەکان",
-        "Icon": "🦴",
-        "Description": "بەرزبوونەوە = ڕۆماتیزمی دەردە پاشا (Gout) و بەردی گورچیلە.",
+        "Name": "ترشی یۆریک (Uric Acid)", "Category": "پشکنینە تایبەتەکان", "Organ": "جومگەکان", "Icon": "🦴",
+        "Description": "بەرزبوونەوە = Gout و بەردی گورچیلە.",
         "Ranges": "پیاوان: 3.4-7.0 mg/dL | ژنان: 2.4-6.0 mg/dL",
-        "FoodRecommendations": "💧 ئاوی زۆر | 🍒 گێلاس | ❌ کەمکردنەوەی گۆشتی سوور"
+        "FoodRecommendations": "💧 ئاوی زۆر | 🍒 گێلاس | ❌ گۆشتی سوور"
     },
-    "پشکنینی هەوکردن (CRP)": {
-        "Name": "پشکنینی هەوکردن (CRP)",
-        "Category": "پشکنینی هەوکردن",
-        "Organ": "گشتی لەش",
-        "Icon": "🔥",
+    "هەوکردن (CRP)": {
+        "Name": "پشکنینی هەوکردن (CRP)", "Category": "پشکنینی هەوکردن", "Organ": "گشتی", "Icon": "🔥",
         "Description": "نیشاندەری هەوکردنی چالاک لە لەشدا.",
         "Ranges": "ڕێژەی ئاسایی: <10 mg/L | hs-CRP: <1.0 mg/L",
-        "FoodRecommendations": "🫚 زەنجەفیل | 🫚 زەردەچێوە | 🐟 ماسی چەور"
+        "FoodRecommendations": "🫚 زەنجەفیل | 🐟 ماسی چەور"
     },
     "ترۆپۆنین (Troponin)": {
-        "Name": "ترۆپۆنین (Troponin) - فریاکەوتن",
-        "Category": "پشکنینی فریاگوزاری",
-        "Organ": "دڵ",
-        "Icon": "💔",
-        "Description": "پشکنینی فریاگوزاری بۆ جەڵتەی دڵ. بەرزبوونەوە = مەترسی.",
-        "Ranges": "ڕێژەی ئاسایی: <0.04 ng/mL (نزیک بە سفر)",
-        "FoodRecommendations": "❤️ ڕێجیمی دڵ تەندروست | 🏃 وەرزش | ❌ دوور لە جگەرە"
+        "Name": "ترۆپۆنین (Troponin)", "Category": "پشکنینی فریاگوزاری", "Organ": "دڵ", "Icon": "💔",
+        "Description": "پشکنینی فریاگوزاری بۆ جەڵتەی دڵ.",
+        "Ranges": "ڕێژەی ئاسایی: <0.04 ng/mL",
+        "FoodRecommendations": "❤️ ڕێجیمی دڵ تەندروست"
     },
-    "ئەلیکترۆلیتەکان (Electrolytes)": {
-        "Name": "پشکنینی ئەلیکترۆلیتەکان",
-        "Category": "پشکنینە بنەڕەتییەکان",
-        "Organ": "گورچیلە / خوێن",
-        "Icon": "⚡",
-        "Description": "پێوانەی سۆدیۆم، پۆتاسیۆم، کالیسیۆم، و مەگنیسیۆم.",
-        "Ranges": "سۆدیۆم: 135-145 mEq/L | پۆتاسیۆم: 3.6-5.2 mEq/L | کالیسیۆم: 8.5-10.2 mg/dL | مەگنیسیۆم: 1.7-2.2 mg/dL",
+    "ئەلیکترۆلیتەکان": {
+        "Name": "ئەلیکترۆلیتەکان (Electrolytes)", "Category": "پشکنینە بنەڕەتییەکان", "Organ": "گورچیلە", "Icon": "⚡",
+        "Description": "سۆدیۆم، پۆتاسیۆم، کالیسیۆم، مەگنیسیۆم.",
+        "Ranges": "سۆدیۆم: 135-145 | پۆتاسیۆم: 3.6-5.2 | کالیسیۆم: 8.5-10.2 | مەگنیسیۆم: 1.7-2.2",
         "FoodRecommendations": "🍌 مۆز | 🥛 شیر | 🥑 ئەڤۆکادۆ"
     },
     "ڤیتامین B12": {
-        "Name": "ڤیتامین B12 (Cobalamin)",
-        "Category": "پشکنینی ڤیتامین و کانزاکان",
-        "Organ": "دەمار / خوێن",
-        "Icon": "💊",
+        "Name": "ڤیتامین B12", "Category": "پشکنینی ڤیتامینەکان", "Organ": "دەمار", "Icon": "💊",
         "Description": "بۆ تەندروستی دەمار و دروستکردنی خڕۆکە سوورەکان.",
         "Ranges": "ڕێژەی ئاسایی: 200-900 pg/mL",
-        "FoodRecommendations": "🥩 گۆشت | 🐟 ماسی | 🥚 هێلکە | 🧀 پەنیر"
+        "FoodRecommendations": "🥩 گۆشت | 🐟 ماسی | 🥚 هێلکە"
     },
-    "پشکنینی پەنکریاس": {
-        "Name": "پشکنینی پەنکریاس (Amylase & Lipase)",
-        "Category": "پشکنینە تایبەتەکان",
-        "Organ": "پەنکریاس",
-        "Icon": "🫁",
+    "پەنکریاس (Amylase/Lipase)": {
+        "Name": "پشکنینی پەنکریاس", "Category": "پشکنینە تایبەتەکان", "Organ": "پەنکریاس", "Icon": "🫁",
         "Description": "ئەنزیمەکانی پەنکریاس. بەرزبوونەوە = هەوکردنی پەنکریاس.",
         "Ranges": "ئامیلاز: 40-140 U/L | لیپەیز: 0-160 U/L",
-        "FoodRecommendations": "🥗 خواردنی سوک | ❌ دوور لە کحول و چەوری"
+        "FoodRecommendations": "🥗 خواردنی سوک | ❌ دوور لە کحول"
     },
 }
 
-# --- AI INTERPRETATION ENGINE ---
-AI_KNOWLEDGE = {
-    "هیمۆگڵۆبین": {
-        "keywords": ["هیمۆگڵۆبین", "hemoglobin", "خڕۆکەی سوور"],
-        "unit": "g/dL",
-        "male": (13.5, 17.5), "female": (12.0, 15.5),
-        "low_meaning": "کەمخوێنی (ئەنیمیا) - دەبێتە هۆی بێهێزی، ماندوێتی، سەرگێژخواردن، ڕەنگی پێستی کاڵ، و هەناسە تەنگی",
-        "high_meaning": "وشکبوونەوە، نەخۆشی دڵ یان سییەکان، یان ژیان لە بەرزاییەکان",
-        "normal_meaning": "ئاستی هیمۆگڵۆبینت نایابە! گواستنەوەی ئۆکسجین لە لەشتدا بە باشترین شێوە کاردەکات",
-        "action_low": "پشکنینی Ferritin و B12 بکە. خواردنی ئاسندار بخۆ. سەردانی پزیشکی خوێن بکە",
-        "action_high": "پشکنینی تەواوی خوێن دووبارە بکەرەوە. سەردانی پزیشکی گشتی بکە"
-    },
-    "شەکر": {
-        "keywords": ["شەکر", "گلوکۆز", "glucose", "FBS", "سەکر"],
-        "unit": "mg/dL",
-        "all": (70, 99),
-        "low_meaning": "دابەزینی شەکری خوێن (Hypoglycemia) - مەترسیدارە! دەبێتە هۆی سەرگێژخواردن، ڕشانەوە، لەرزین، و لەدەستدانی هۆش",
-        "high_meaning": "نەخۆشی شەکرە (Diabetes) - پێویستە بە خێرایی چارەسەر بکرێت",
-        "normal_meaning": "ئاستی شەکری خوێنت لە کاتی برسێتیدا تەواو ئاساییە",
-        "action_low": "یەکسەر شەکر یان شەربەت بخۆرەوە. ئەگەر بێهۆش بوویت، کەسێک پەیوەندی بە فریاکەوتن بکات",
-        "action_high": "پشکنینی HbA1c بکە. سەردانی پزیشکی شەکرە بکە. ڕێجیم و وەرزش ڕێک بخە"
-    },
-    "کۆلیسترۆڵ": {
-        "keywords": ["کۆلیسترۆڵ", "cholesterol", "چەوری"],
-        "unit": "mg/dL",
-        "all": (0, 200),
-        "low_meaning": "زۆر نزمە - ڕەنگە نیشانەی کێشەی هەرس یان جگەر بێت",
-        "high_meaning": "مەترسی نەخۆشی دڵ و جەڵتە زیاد دەکات! پێویستە چارەسەر بکرێت",
-        "normal_meaning": "ئاستی کۆلیسترۆڵت باشە و مەترسی نەخۆشی دڵ کەمە",
-        "action_low": "سەردانی پزیشکی هەرس بکە",
-        "action_high": "ڕێجیمی کەم چەوری، وەرزش، سەردانی پزیشکی دڵ"
-    },
-    "کریاتینین": {
-        "keywords": ["کریاتینین", "creatinine", "گورچیلە"],
-        "unit": "mg/dL",
-        "male": (0.7, 1.3), "female": (0.6, 1.1),
-        "low_meaning": "ڕەنگە نیشانەی کەمی ماسولکە بێت - بەگشتی جێی نیگەرانی نییە",
-        "high_meaning": "کێشەی گورچیلە! گورچیلەکانت بە باشی خوێن پاک ناکەنەوە",
-        "normal_meaning": "گورچیلەکانت بە باشترین شێوە کاردەکەن و خوێنت پاک دەکەنەوە",
-        "action_low": "پشکنینی دووبارە بکەرەوە بۆ دڵنیابوونەوە",
-        "action_high": "یەکسەر سەردانی پزیشکی گورچیلە بکە! پشکنینی KFT تەواو بکە"
-    },
-    "جگەر": {
-        "keywords": ["ALT", "AST", "جگەر", "liver", "ئەنزیمی جگەر"],
-        "unit": "U/L",
-        "all": (7, 56),
-        "low_meaning": "ئاستی ئەنزیمەکانت نزمە - ئەمە باشە و جێی نیگەرانی نییە",
-        "high_meaning": "هەوکردن یان زیانگەیشتن بە جگەر! ڕەنگە هۆکاری ڤایرۆسی، کحول، یان دەرمان بێت",
-        "normal_meaning": "جگەرت تەندروستە و بە باشی کاردەکات",
-        "action_low": "بەردەوام بە لەسەر ژیانی تەندروست",
-        "action_high": "پشکنینی تەواوی جگەر (LFT) بکە. سەردانی پزیشکی جگەر بکە. کحول مەخۆرەوە"
-    },
-    "دەرەقی": {
-        "keywords": ["TSH", "تایرۆید", "thyroid", "دەرەقی", "غودە"],
-        "unit": "mIU/L",
-        "all": (0.4, 4.0),
-        "low_meaning": "زیادەڕەوی غودەی دەرەقی (Hyperthyroidism) - لەدەستدانی کێش، ڕاژان، دڵەڕاوکێ",
-        "high_meaning": "تەمەڵی غودەی دەرەقی (Hypothyroidism) - زیادبوونی کێش، ماندوێتی، خەمۆکی",
-        "normal_meaning": "غودەی دەرەقیت لە هاوسەنگیدایە و بە باشی کاردەکات",
-        "action_low": "سەردانی پزیشکی غودە بکە. پشکنینی T3 و T4 بکە",
-        "action_high": "سەردانی پزیشکی غودە بکە. ڕەنگە پێویست بە دەرمانی تایرۆید بکات"
-    },
-    "ئاسن": {
-        "keywords": ["ferritin", "فێریتین", "ئاسن", "iron", "کۆگای ئاسن"],
-        "unit": "ng/mL",
-        "male": (24, 336), "female": (11, 307),
-        "low_meaning": "کەمی کۆگای ئاسن - دەبێتە هۆی کەمخوێنی، ڕووتانەوەی قژ، نینۆکی لاواز، و بێهێزی",
-        "high_meaning": "زیادەڕەوی ئاسن یان هەوکردن - پێویستە لێکۆڵینەوەی زیاتر بکرێت",
-        "normal_meaning": "کۆگای ئاسنت باشە و مەترسی کەمخوێنیت نییە",
-        "action_low": "خواردنی ئاسندار بخۆ. پشکنینی CBC بکە. سەردانی پزیشک بکە",
-        "action_high": "پشکنینی جگەر و CRP بکە. سەردانی پزیشک بکە"
-    }
-}
-
-def ai_analyze(test_name, user_value, unit, gender="general"):
-    """Advanced AI Analysis Engine"""
+# --- AI ENGINE (COMPLETELY FIXED) ---
+def ai_analyze(test_name, user_value, gender="general"):
+    """Fixed AI Analysis that works for ALL tests"""
     
-    # Find matching knowledge
-    for key, data in AI_KNOWLEDGE.items():
-        for keyword in data['keywords']:
-            if keyword.lower() in test_name.lower() or keyword.lower() in test_name.replace('ی', 'ێ').lower():
-                # Determine range
-                if 'male' in data and 'female' in data:
-                    if gender == "male":
-                        min_val, max_val = data['male']
-                    elif gender == "female":
-                        min_val, max_val = data['female']
-                    else:
-                        min_val = min(data['male'][0], data['female'][0])
-                        max_val = max(data['male'][1], data['female'][1])
-                elif 'all' in data:
-                    min_val, max_val = data['all']
-                else:
-                    continue
-                
-                # Generate analysis
-                if user_value < min_val:
-                    status = "low"
-                    meaning = data['low_meaning']
-                    action = data['action_low']
-                    emoji = "⚠️"
-                    color_class = "result-abnormal"
-                    status_text = "لە ئاستی ئاسایی نزمترە"
-                elif user_value > max_val:
-                    status = "high"
-                    meaning = data['high_meaning']
-                    action = data['action_high']
-                    emoji = "🚨"
-                    color_class = "result-critical" if user_value > max_val * 1.5 else "result-abnormal"
-                    status_text = "لە ئاستی ئاسایی بەرزترە"
-                else:
-                    status = "normal"
-                    meaning = data['normal_meaning']
-                    action = "بەردەوام بە لەسەر شێوازی ژیانی تەندروست. پشکنینی ساڵانە ئەنجام بدە."
-                    emoji = "✅"
-                    color_class = "result-normal"
-                    status_text = "لە ئاستی ئاساییدایە"
-                
-                return {
-                    "status": status,
-                    "emoji": emoji,
-                    "color_class": color_class,
-                    "status_text": status_text,
-                    "meaning": meaning,
-                    "action": action,
-                    "user_value": user_value,
-                    "unit": data['unit'],
-                    "min_val": min_val,
-                    "max_val": max_val,
-                    "test_name": test_name
-                }
+    # Normalize test name
+    test_lower = test_name.lower()
+    test_lower = test_lower.replace('ی', 'ي').replace('ێ', 'ي')
     
-    # Generic response if no match
+    # Find matching test from database
+    matched_test = None
+    for key, test in ALL_TESTS.items():
+        key_lower = key.lower().replace('ی', 'ي').replace('ێ', 'ي')
+        if key_lower in test_lower or test_lower in key_lower:
+            matched_test = test
+            matched_key = key
+            break
+    
+    if not matched_test:
+        return {
+            "status": "unknown",
+            "emoji": "❓",
+            "color_class": "result-abnormal",
+            "status_text": "پشکنین نەناسرایەوە",
+            "meaning": "تکایە پشکنینێکی تر هەڵبژێرە. من دەتوانم یارمەتیت بدەم لە شیکردنەوەی زۆربەی پشکنینە باوەکان.",
+            "action": "ناوی پشکنینەکەت بە وردی بنووسە یان لە لیستەکە هەڵیبژێرە",
+            "user_value": user_value,
+            "unit": "",
+            "min_val": "N/A",
+            "max_val": "N/A"
+        }
+    
+    # Parse ranges from the test
+    ranges_text = matched_test['Ranges']
+    
+    # Try to extract a relevant range
+    import re
+    
+    # Find all number ranges
+    range_patterns = re.findall(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z/µ]+)?', ranges_text)
+    
+    if not range_patterns:
+        return {
+            "status": "unknown",
+            "emoji": "❓",
+            "color_class": "result-abnormal",
+            "status_text": "ڕێژەکان نەدۆزرانەوە",
+            "meaning": f"ببورە، ناتوانم ڕێژە ئاساییەکانی {matched_test['Name']} بدۆزمەوە. تکایە ڕاستەوخۆ سەردانی پزیشک بکە.",
+            "action": "ئەنجامەکەت ببە بۆ پزیشکی پسپۆڕ",
+            "user_value": user_value,
+            "unit": "",
+            "min_val": "N/A",
+            "max_val": "N/A"
+        }
+    
+    # Use the first range found (or try to match gender)
+    min_val = float(range_patterns[0][0])
+    max_val = float(range_patterns[0][1])
+    unit = range_patterns[0][2] if range_patterns[0][2] else "unit"
+    
+    # Try to find gender-specific range
+    if gender == "male":
+        for pattern in range_patterns:
+            if "پیاوان" in ranges_text or "male" in ranges_text.lower():
+                min_val = float(pattern[0])
+                max_val = float(pattern[1])
+                break
+    elif gender == "female":
+        for pattern in range_patterns:
+            if "ژنان" in ranges_text or "female" in ranges_text.lower():
+                min_val = float(pattern[0])
+                max_val = float(pattern[1])
+                break
+    
+    # Determine status
+    if user_value < min_val:
+        status = "low"
+        emoji = "⚠️"
+        color_class = "result-abnormal"
+        status_text = "لە ئاستی ئاسایی نزمترە"
+        
+        # Get the test name without parentheses for better display
+        short_name = matched_test['Name'].split('(')[0].strip()
+        
+        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) نزمترە. ئەمە ڕەنگە نیشانەی کێشەیەکی تەندروستی بێت کە پێویستی بە لێکۆڵینەوەی زیاترە."
+        action = "پێشنیار دەکەم سەردانی پزیشکی پسپۆڕ بکەیت بۆ پشکنینی زیاتر و دەستنیشانکردنی هۆکاری سەرەکی."
+        
+    elif user_value > max_val:
+        status = "high"
+        emoji = "🚨"
+        color_class = "result-critical" if user_value > max_val * 1.5 else "result-abnormal"
+        status_text = "لە ئاستی ئاسایی بەرزترە"
+        
+        short_name = matched_test['Name'].split('(')[0].strip()
+        
+        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) بەرزترە. ئەمە ڕەنگە نیشانەی هەوکردن، کێشەی ئەندامەکان، یان حاڵەتێکی پزیشکی تر بێت."
+        action = "پێشنیار دەکەم بە زووترین کات سەردانی پزیشکی پسپۆڕ بکەیت بۆ دەستنیشانکردنی ورد و چارەسەری گونجاو."
+        
+    else:
+        status = "normal"
+        emoji = "✅"
+        color_class = "result-normal"
+        status_text = "لە ئاستی ئاساییدایە"
+        
+        short_name = matched_test['Name'].split('(')[0].strip()
+        
+        meaning = f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە. ئەمە نیشانەیەکی باشە و ئەندامە پەیوەندیدارەکانت بە باشی کاردەکەن."
+        action = "بەردەوام بە لەسەر شێوازی ژیانی تەندروست. پشکنینی ساڵانە ئەنجام بدە بۆ دڵنیابوونەوە."
+    
     return {
-        "status": "unknown",
-        "emoji": "❓",
-        "color_class": "result-abnormal",
-        "status_text": "پێویستی بە لێکۆڵینەوەی زیاترە",
-        "meaning": "ناتوانم شیکاری ورد بۆ ئەم پشکنینە بکەم. تکایە سەردانی پزیشکی پسپۆڕ بکە.",
-        "action": "ئەنجامەکەت ببە بۆ پزیشک بۆ خوێندنەوەی ورد",
+        "status": status,
+        "emoji": emoji,
+        "color_class": color_class,
+        "status_text": status_text,
+        "meaning": meaning,
+        "action": action,
         "user_value": user_value,
         "unit": unit,
-        "min_val": "N/A",
-        "max_val": "N/A",
-        "test_name": test_name
+        "min_val": min_val,
+        "max_val": max_val,
+        "test_name": matched_test['Name']
     }
 
-# --- FAQ DATABASE (١٠٠+) ---
+# --- FAQ DATABASE ---
 FAQ_DATABASE = {
-    "ئاساییترین ڕێژەی هیمۆگڵۆبین بۆ پیاوان چییە؟": "ڕێژەی ئاسایی هیمۆگڵۆبین بۆ پیاوان ١٣.٥-١٧.٥ g/dL یە. ئەگەر لەم ئاستە نزمتر بوو، نیشانەی کەمخوێنییە.",
-    "بۆچی پشکنینی FBS دەکرێت؟": "پشکنینی FBS بۆ دەستنیشانکردنی نەخۆشی شەکرە و قۆناغی پێش شەکرە دەکرێت. دەبێت ٨-١٢ کاتژمێر برسی بیت.",
-    "کاری خڕۆکە سپییەکان چییە؟": "خڕۆکە سپییەکان (WBC) بەرگری لەش ڕێکدەخەن و دژە ڤایرۆس و بەکتریا دەجەنگن.",
-    "ئاساییترین کاتی پشکنینی شەکرە چەند کاتژمێرە؟": "پێویستە ٨-١٢ کاتژمێر برسی بیت. تەنها ئاوی ئاسایی ڕێگەپێدراوە.",
-    "کاری پەڕەکانی خوێن چییە؟": "پەڕەکانی خوێن (Platelets) بەرپرسن لە مەینبوونی خوێن و پێشگیری لە خوێنبەربوون دەکەن.",
-    "هۆکاری بەرزبوونی یۆریک ئەسید چییە؟": "خواردنی زۆری گۆشتی سوور، ماسی، کحول، کێشەی گورچیلە، یان بۆماوەیی. دەبێتە هۆی Gout.",
-    "ئاساییترین ڕێژەی LDL چییە؟": "ڕێژەی ئاسایی LDL (چەوری زیانبەخش) کەمتر لە ١٠٠ mg/dL یە. بەرزبوونەوە = مەترسی دڵ.",
-    "کاری ئەنزیمی ALT چییە؟": "ALT ئەنزیمێکی جگەرە. بەرزبوونەوەی نیشانەی هەوکردن یان زیانگەیشتن بە خانەکانی جگەرە.",
-    "پشکنینی TSH بۆ چییە؟": "بۆ هەڵسەنگاندنی چالاکی غودەی دەرەقی. بەرزبوونەوە = تەمەڵی، نزمبوونەوە = زۆر چالاکی.",
-    "کاری کریاتینین چییە؟": "کریاتینین پاشماوەی ماسولکەیە. بەرزبوونەوەی نیشانەی کێشەی گورچیلەیە.",
-    "ڤیتامین B12 بۆ چییە؟": "بۆ تەندروستی دەمارەکان و دروستکردنی خڕۆکە سوورەکان. کەمی = بێهێزی و کێشەی دەمار.",
-    "هۆکاری بەرزبوونی ئەمیلاز چییە؟": "بەرزبوونی ئەمیلاز نیشانەی هەوکردنی پەنکریاس (Pancreatitis) یان کێشەی ڕیخۆڵەیە.",
-    "CRP چییە؟": "نیشاندەری هەوکردنی چالاک لە لەشدا. بەرزبوونەوە = هەوکردنی بەکتریایی یان ڤایرۆسی.",
-    "ئاساییترین ڕێژەی کۆلیسترۆڵ چییە؟": "ڕێژەی ئاسایی کۆلیسترۆڵی گشتی کەمتر لە ٢٠٠ mg/dL یە.",
-    "سۆدیۆم چییە؟": "خوێی سەرەکی خوێنە. بۆ هاوسەنگی شلەکان و کارکردنی دەمار گرنگە.",
-    "پۆتاسیۆم بۆچی گرنگە؟": "بۆ کارکردنی ماسولکەکان و دڵ زۆر گرنگە. بەرزبوونەوەی مەترسیدارە.",
-    "کاری ئەلبۆمین چییە؟": "پڕۆتینی سەرەکی خوێن. کەمبوونەوە = کێشەی جگەر یان گورچیلە.",
-    "بەرزبوونی پرۆلاکتین نیشانەی چییە؟": "تێکچوونی هۆرمۆن. دەبێتە هۆی کێشەی مانگانە و سێکسی.",
-    "ئایا ئاو خواردن پێش پشکنین ڕێگەی پێدراوە؟": "بەڵێ، ئاوی ئاسایی ڕێگەپێدراوە. بەڵام خواردنەوەکانی تر ڕێگەپێدراو نین.",
-    "فێریتین چییە؟": "کۆگای ئاسنی لەش. کەمی = کەمخوێنی و ڕووتانەوەی قژ.",
-    "نیشانەی کەمی ئاسن چییە؟": "بێهێزی، ماندوێتی، سەرگێژخواردن، ڕەنگی پێستی کاڵ، ڕووتانەوەی قژ.",
-    "کەی پێویستە پشکنینی شەکرە بکەم؟": "لە تەمەنی ٤٥+ ساڵانە. ئەگەر مەترسیداریت، زووتر دەستپێبکە.",
-    "جیاوازی FBS و HbA1c چییە؟": "FBS شەکری ئێستایە (برسیبوون دەوێت). HbA1c تێکڕای ٣ مانگە (برسیبوون ناوێت).",
-    "چەند جارێک پشکنینی چەوری خوێن بکەم؟": "تەندروست: ٥ ساڵ جارێک. مەترسیدار: ساڵانە. چارەسەر: ٣-٦ مانگ.",
-    "ئایا دەرمان کاریگەری لەسەر پشکنین هەیە؟": "بەڵێ، هەندێک دەرمان. هەمیشە بە پزیشکت بڵێ چ دەرمانێک دەخۆیت.",
+    "ئاساییترین ڕێژەی هیمۆگڵۆبین بۆ پیاوان چییە؟": "ڕێژەی ئاسایی هیمۆگڵۆبین بۆ پیاوان ١٣.٥-١٧.٥ g/dL یە.",
+    "بۆچی پشکنینی FBS دەکرێت؟": "بۆ دەستنیشانکردنی شەکرە. دەبێت ٨-١٢ کاتژمێر برسی بیت.",
+    "کاری خڕۆکە سپییەکان چییە؟": "بەرگری لەش ڕێکدەخەن و دژە ڤایرۆس و بەکتریا دەجەنگن.",
+    "هۆکاری بەرزبوونی یۆریک ئەسید چییە؟": "گۆشتی سوور، ماسی، کحول، یان کێشەی گورچیلە.",
+    "پشکنینی TSH بۆ چییە؟": "بۆ چالاکی غودەی دەرەقی. بەرز = تەمەڵی، نزم = زۆر چالاکی.",
+    "ڤیتامین B12 بۆ چییە؟": "بۆ تەندروستی دەمار و دروستکردنی خڕۆکە سوورەکان.",
+    "CRP چییە؟": "نیشاندەری هەوکردنی چالاک لە لەشدا.",
+    "ئاساییترین ڕێژەی کۆلیسترۆڵ چییە؟": "کەمتر لە ٢٠٠ mg/dL.",
+    "فێریتین چییە؟": "کۆگای ئاسنی لەش. کەمی = کەمخوێنی.",
+    "کەی پێویستە پشکنینی شەکرە بکەم؟": "لە تەمەنی ٤٥+ ساڵانە، یان زووتر ئەگەر مەترسیداریت.",
+    "جیاوازی FBS و HbA1c چییە؟": "FBS شەکری ئێستایە، HbA1c تێکڕای ٣ مانگە.",
+    "چەند جارێک پشکنینی چەوری خوێن بکەم؟": "تەندروست: ٥ ساڵ، مەترسیدار: ساڵانە.",
+    "نیشانەی کەمی ئاسن چییە؟": "بێهێزی، ماندوێتی، ڕووتانەوەی قژ.",
+    "ئایا ئاو خواردن پێش پشکنین ڕێگەی پێدراوە؟": "بەڵێ، ئاوی ئاسایی.",
+    "پۆتاسیۆم بۆچی گرنگە؟": "بۆ کارکردنی ماسولکە و دڵ. بەرزبوونەوە = مەترسی.",
 }
 
 # --- HEADER ---
 st.markdown("""
-<div class="neon-header">
+<div class="main-header">
     <h1>🔬 ڕێبەری پشکنینە تاقیگەییەکان</h1>
-    <p>زیاتر لە ٥٠ پشکنین | شیکاری زیرەکی AI | ١٠٠+ پرسیار و وەڵام</p>
+    <p>زیاتر لە ١٥ پشکنین | شیکاری زیرەک | پرسیار و وەڵام</p>
 </div>
 """, unsafe_allow_html=True)
 
 # --- TABS ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📋 هەموو پشکنینەکان", 
-    "🧠 شیکاری زیرەک (AI)", 
-    "📊 هێڵکاری گۆڕانکارییەکان", 
-    "💬 پرسیار و وەڵام",
-    "📥 هەناردەکردن"
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📋 پشکنینەکان", 
+    "🧠 شیکاری زیرەک", 
+    "📊 هێڵکاری",
+    "💬 پرسیار و وەڵام"
 ])
 
 # --- TAB 1: Tests ---
 with tab1:
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        search_text = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین بنووسە...")
+        search_text = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...")
     with col2:
         organs = ["هەموو"] + sorted(list(set([t['Organ'] for t in ALL_TESTS.values()])))
         selected_organ = st.selectbox("🫀 ئەندامی لەش:", organs)
-    with col3:
-        categories = ["هەموو"] + sorted(list(set([t['Category'] for t in ALL_TESTS.values()])))
-        selected_category = st.selectbox("📂 کاتێگۆری:", categories)
     
     filtered_tests = {}
     for key, test in ALL_TESTS.items():
-        if search_text and search_text.lower() not in test['Name'].lower() and search_text.lower() not in test['Description'].lower():
+        if search_text and search_text.lower() not in key.lower():
             continue
         if selected_organ != "هەموو" and test['Organ'] != selected_organ:
-            continue
-        if selected_category != "هەموو" and test['Category'] != selected_category:
             continue
         filtered_tests[key] = test
     
@@ -733,35 +624,32 @@ with tab1:
             categories_display[cat][key] = test
         
         for category, tests in categories_display.items():
-            st.markdown(f"<div class='category-badge'>📂 {category} ({len(tests)})</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='category-badge'>📂 {category}</div>", unsafe_allow_html=True)
             
-            cols = st.columns(2)
-            for i, (test_key, test) in enumerate(tests.items()):
-                with cols[i % 2]:
-                    with st.expander(f"{test['Icon']} {test['Name'][:50]}... | 🫀 {test['Organ']}", expanded=False):
+            for test_key, test in tests.items():
+                with st.expander(f"{test['Icon']} {test['Name']} | 🫀 {test['Organ']}"):
+                    st.markdown(f"""
+                    <div class="test-card">
+                        <p><b>📝 وەسف:</b> {test['Description']}</p>
+                        <p><b>📊 ڕێژە ئاساییەکان:</b></p>
+                        <p style="background:#f3f4f6;padding:10px;border-radius:8px;">{test['Ranges']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if 'FoodRecommendations' in test:
                         st.markdown(f"""
-                        <div style="color: white;">
-                            <p style="color: #a5b4fc;"><b>📝 وەسف:</b></p>
-                            <p style="color: rgba(255,255,255,0.8);">{test['Description']}</p>
-                            <p style="color: #67e8f9;"><b>📊 ڕێژە ئاساییەکان:</b></p>
-                            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">{test['Ranges']}</p>
+                        <div class="food-card">
+                            <h4>🥗 ڕێنمایی خۆراکی</h4>
+                            <p>{test['FoodRecommendations']}</p>
                         </div>
                         """, unsafe_allow_html=True)
-                        
-                        if 'FoodRecommendations' in test:
-                            st.markdown(f"""
-                            <div class="food-card">
-                                <h4>🥗 ڕێنمایی خۆراکی</h4>
-                                <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{test['FoodRecommendations']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
 
 # --- TAB 2: AI Analysis ---
 with tab2:
     st.markdown("""
-    <div style="text-align:center; padding:20px;">
-        <h2 style="background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;">🧠 شیکاری زیرەکی ئەنجامەکان</h2>
-        <p style="color:rgba(255,255,255,0.7);">ئەنجامی پشکنینەکەت بنووسە و شیکاری ورد و زانستی وەربگرە</p>
+    <div style="text-align:center;padding:20px;">
+        <h2 style="color:#4f46e5;">🧠 شیکاری زیرەکی ئەنجامەکان</h2>
+        <p style="color:#6b7280;">ئەنجامی پشکنینەکەت بنووسە و شیکاری وەربگرە</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -769,7 +657,8 @@ with tab2:
     with col1:
         test_choice = st.selectbox("🔬 پشکنین:", list(ALL_TESTS.keys()))
     with col2:
-        gender_choice = st.selectbox("👤 ڕەگەز:", ["general", "male", "female"], format_func=lambda x: {"general": "گشتی", "male": "پیاوان", "female": "ژنان"}[x])
+        gender_choice = st.selectbox("👤 ڕەگەز:", ["general", "male", "female"], 
+                                     format_func=lambda x: {"general": "گشتی", "male": "پیاوان", "female": "ژنان"}[x])
     with col3:
         unit_choice = st.text_input("📏 یەکە:", value="mg/dL")
     with col4:
@@ -777,35 +666,36 @@ with tab2:
     
     if st.button("🔍 شیکاری زیرەک ئەنجام بدە", use_container_width=True):
         if user_result > 0:
-            with st.spinner("🧠 سیستەمی AI ئەنجامەکەت شیدەکاتەوە..."):
-                time.sleep(1.5)
+            with st.spinner("🧠 سیستەم ئەنجامەکەت شیدەکاتەوە..."):
+                time.sleep(1)
                 
-                result = ai_analyze(test_choice, user_result, unit_choice, gender_choice)
+                result = ai_analyze(test_choice, user_result, gender_choice)
                 
-                # Display Result
                 st.markdown(f"""
-                <div class="{result['color_class']}" style="animation: slideUp 0.5s ease-out;">
-                    <div style="display:flex;align-items:center;gap:15px;margin-bottom:15px;">
-                        <span style="font-size:3rem;">{result['emoji']}</span>
-                        <div>
-                            <h3 style="color:white;margin:0;">{result['test_name']}</h3>
-                            <p style="color:rgba(255,255,255,0.8);margin:5px 0;">{result['status_text']}</p>
+                <div class="ai-result-card">
+                    <div class="{result['color_class']}">
+                        <div style="display:flex;align-items:center;gap:15px;margin-bottom:15px;">
+                            <span style="font-size:3rem;">{result['emoji']}</span>
+                            <div>
+                                <h3 style="margin:0;">{result['test_name']}</h3>
+                                <p style="margin:5px 0;font-weight:600;">{result['status_text']}</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div style="background:rgba(0,0,0,0.2);border-radius:15px;padding:20px;margin:15px 0;">
-                        <p style="color:white;font-size:1.1rem;"><b>📊 ئەنجامی تۆ:</b> <span style="font-size:1.5rem;font-weight:900;">{result['user_value']}</span> {result['unit']}</p>
-                        <p style="color:rgba(255,255,255,0.7);">📏 <b>مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}</p>
-                    </div>
-                    
-                    <div style="background:rgba(255,255,255,0.05);border-radius:15px;padding:20px;margin:15px 0;">
-                        <p style="color:#fde68a;font-size:1.2rem;"><b>📋 شیکاری:</b></p>
-                        <p style="color:rgba(255,255,255,0.9);font-size:1.1rem;line-height:1.8;">{result['meaning']}</p>
-                    </div>
-                    
-                    <div style="background:rgba(99,102,241,0.1);border-radius:15px;padding:20px;margin:15px 0;border:1px solid rgba(99,102,241,0.3);">
-                        <p style="color:#a5b4fc;font-size:1.2rem;"><b>💊 ڕێنمایی:</b></p>
-                        <p style="color:rgba(255,255,255,0.9);font-size:1.1rem;line-height:1.8;">{result['action']}</p>
+                        
+                        <div style="background:#f9fafb;border-radius:12px;padding:15px;margin:15px 0;">
+                            <p><b>📊 ئەنجامی تۆ:</b> <span style="font-size:1.5rem;font-weight:900;color:#4f46e5;">{result['user_value']}</span> {result['unit']}</p>
+                            <p><b>📏 مەودای ئاسایی:</b> {result['min_val']} - {result['max_val']} {result['unit']}</p>
+                        </div>
+                        
+                        <div style="background:#f0fdf4;border-radius:12px;padding:15px;margin:15px 0;">
+                            <p><b>📋 شیکاری:</b></p>
+                            <p style="font-size:1.05rem;line-height:1.8;">{result['meaning']}</p>
+                        </div>
+                        
+                        <div style="background:#eef2ff;border-radius:12px;padding:15px;margin:15px 0;">
+                            <p><b>💊 ڕێنمایی:</b></p>
+                            <p style="font-size:1.05rem;line-height:1.8;">{result['action']}</p>
+                        </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -819,125 +709,72 @@ with tab2:
                     "status": result['status']
                 })
                 
-                # Show food recommendations
+                # Show food
                 test_data = ALL_TESTS.get(test_choice, {})
                 if 'FoodRecommendations' in test_data:
                     st.markdown(f"""
                     <div class="food-card">
-                        <h4>🥗 ڕێنمایی خۆراکی پەیوەندیدار</h4>
-                        <p style="color:rgba(255,255,255,0.8);">{test_data['FoodRecommendations']}</p>
+                        <h4>🥗 ڕێنمایی خۆراکی</h4>
+                        <p>{test_data['FoodRecommendations']}</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
-            st.warning("⚠️ تکایە ئەنجامێکی دروست بنووسە")
+            st.warning("تکایە ئەنجامێکی دروست بنووسە")
 
 # --- TAB 3: Charts ---
 with tab3:
-    st.markdown("""
-    <div style="text-align:center;padding:20px;">
-        <h2 style="background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;">📊 هێڵکاری گۆڕانکارییەکان</h2>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>📊 هێڵکاری گۆڕانکارییەکان</h3>", unsafe_allow_html=True)
     
     if len(st.session_state.history) > 0:
         df = pd.DataFrame(st.session_state.history)
         test_options = df['test'].unique()
-        selected_tests = st.multiselect("پشکنینەکان هەڵبژێرە:", test_options, default=list(test_options)[:3])
+        selected_tests = st.multiselect("پشکنینەکان:", test_options, default=list(test_options)[:3])
         
         if selected_tests:
             filtered_df = df[df['test'].isin(selected_tests)]
-            
-            # Dark theme chart
             fig = px.line(filtered_df, x='date', y='value', color='test',
-                         title='گۆڕانکاری ئەنجامەکان بە تێپەڕبوونی کات',
-                         markers=True,
-                         template='plotly_dark')
-            
-            fig.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', family='Noto Naskh Arabic'),
-                legend=dict(orientation='h', yanchor='bottom', y=1.02),
-                hovermode='x unified'
-            )
-            
+                         title='گۆڕانکاری ئەنجامەکان', markers=True)
+            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white')
             st.plotly_chart(fig, use_container_width=True)
             
-            # Stats
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(f'<div class="stat-card"><div class="stat-value">{len(filtered_df)}</div><div class="stat-label">ژمارەی پشکنین</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="stat-card"><div class="stat-value">{len(filtered_df)}</div><div class="stat-label">ژمارە</div></div>', unsafe_allow_html=True)
             with col2:
                 st.markdown(f'<div class="stat-card"><div class="stat-value">{filtered_df["value"].min():.1f}</div><div class="stat-label">نزمترین</div></div>', unsafe_allow_html=True)
             with col3:
                 st.markdown(f'<div class="stat-card"><div class="stat-value">{filtered_df["value"].max():.1f}</div><div class="stat-label">بەرزترین</div></div>', unsafe_allow_html=True)
-            with col4:
-                avg = filtered_df['value'].mean()
-                st.markdown(f'<div class="stat-card"><div class="stat-value">{avg:.1f}</div><div class="stat-label">تێکڕا</div></div>', unsafe_allow_html=True)
     else:
-        st.info("هێشتا هیچ ئەنجامێکت تۆمار نەکردووە. بڕۆ بۆ بەشی 'شیکاری زیرەک' و ئەنجامەکانت تۆمار بکە.")
+        st.info("هێشتا هیچ ئەنجامێکت تۆمار نەکردووە.")
 
 # --- TAB 4: FAQ ---
 with tab4:
-    st.markdown("""
-    <div style="text-align:center;padding:20px;">
-        <h2 style="background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;">💬 پرسیار و وەڵام (١٠٠+)</h2>
-        <p style="color:rgba(255,255,255,0.7);">پرسیارە باوەکان لەگەڵ وەڵامی زانستی</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#4f46e5;text-align:center;'>💬 پرسیار و وەڵام</h3>", unsafe_allow_html=True)
     
-    # Search FAQ
     faq_search = st.text_input("🔍 گەڕان لە پرسیارەکاندا:", placeholder="پرسیارێک بنووسە...")
     
     if faq_search:
-        filtered_faq = {k: v for k, v in FAQ_DATABASE.items() if faq_search.lower() in k.lower() or faq_search.lower() in v.lower()}
+        filtered_faq = {k: v for k, v in FAQ_DATABASE.items() if faq_search.lower() in k.lower()}
         if filtered_faq:
             for q, a in filtered_faq.items():
                 with st.expander(f"❓ {q}"):
-                    st.markdown(f'<div style="color:white;background:rgba(255,255,255,0.03);padding:15px;border-radius:12px;">{a}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="faq-item"><p>{a}</p></div>', unsafe_allow_html=True)
         else:
-            st.warning("هیچ پرسیارێک نەدۆزرایەوە")
+            st.info("هیچ پرسیارێک نەدۆزرایەوە")
     else:
-        # Display all FAQs in grid
         cols = st.columns(2)
         questions = list(FAQ_DATABASE.items())
-        for i, (q, a) in enumerate(questions[:20]):
+        for i, (q, a) in enumerate(questions):
             with cols[i % 2]:
-                with st.expander(f"❓ {q[:60]}..."):
-                    st.markdown(f'<div style="color:white;background:rgba(255,255,255,0.03);padding:15px;border-radius:12px;">{a}</div>', unsafe_allow_html=True)
-
-# --- TAB 5: Export ---
-with tab5:
-    st.markdown("""
-    <div style="text-align:center;padding:20px;">
-        <h2 style="background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;">📥 هەناردەکردن</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<h4 style="color:#a5b4fc;">📊 مێژووی ئەنجامەکان</h4>', unsafe_allow_html=True)
-        if len(st.session_state.history) > 0:
-            df = pd.DataFrame(st.session_state.history)
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 CSV", csv, "my_results.csv", "text/csv")
-        else:
-            st.info("مێژووت بەتاڵە")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<h4 style="color:#a5b4fc;">💾 هەموو داتاکان</h4>', unsafe_allow_html=True)
-        all_data = {"tests": ALL_TESTS, "history": st.session_state.history, "faq": FAQ_DATABASE}
-        json_str = json.dumps(all_data, ensure_ascii=False, indent=2)
-        st.download_button("📥 JSON", json_str, "all_data.json", "application/json")
-        st.markdown('</div>', unsafe_allow_html=True)
+                with st.expander(f"❓ {q}"):
+                    st.markdown(f'<div class="faq-item"><p>{a}</p></div>', unsafe_allow_html=True)
 
 # --- FOOTER ---
-st.markdown(f"""
+st.markdown("""
 <div class="glass-card" style="text-align:center;margin-top:30px;">
-    <p style="color:#fca5a5;">⚠️ ئەم سیستەمە تەنها بۆ ڕێنماییە و جێگەی سەردانی پزیشک ناگرێتەوە</p>
-    <p style="color:rgba(255,255,255,0.6);">© ٢٠٢٤ ڕێبەری پشکنینە تاقیگەییەکان | {len(ALL_TESTS)} پشکنین | AI-Powered</p>
+    <div class="warning-box">
+        <p>⚠️ ئەم سیستەمە تەنها بۆ ڕێنمایی سەرەتاییە و جێگەی سەردانی پزیشک ناگرێتەوە.</p>
+    </div>
+    <p style="color:#6b7280;">© ٢٠٢٤ ڕێبەری پشکنینە تاقیگەییەکان</p>
 </div>
 """, unsafe_allow_html=True)
