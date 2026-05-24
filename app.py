@@ -21,63 +21,122 @@ st.set_page_config(
 )
 
 # ============================================
-# SESSION STATE
+# SESSION STATE INITIALIZATION
 # ============================================
 if 'history' not in st.session_state:
     st.session_state.history = []
 if 'reminders' not in st.session_state:
-    st.session_state.reminders = []
+    # بارکردنی یادخستنەوەکان لە فایل
+    if os.path.exists("reminders.json"):
+        try:
+            with open("reminders.json", "r", encoding="utf-8") as f:
+                st.session_state.reminders = json.load(f)
+        except:
+            st.session_state.reminders = []
+    else:
+        st.session_state.reminders = []
 if 'selected_symptoms' not in st.session_state:
     st.session_state.selected_symptoms = []
+if 'dark_mode' not in st.session_state:
+    st.session_state.dark_mode = False
 
 # ============================================
-# CSS - FIX ALL ARROWS
+# FUNCTIONS FOR PERSISTENCE
 # ============================================
-st.markdown("""
+def save_reminders():
+    with open("reminders.json", "w", encoding="utf-8") as f:
+        json.dump(st.session_state.reminders, f, ensure_ascii=False, indent=2)
+
+# ============================================
+# CSS - DARK MODE + RTL + FIXED ARROWS
+# ============================================
+dark_css = """
+    html, body, [data-testid="stAppViewContainer"] {
+        background: #1e1e2f !important;
+        color: #e0e0e0 !important;
+    }
+    .glass-card, .stSelectbox [data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea {
+        background: #2a2a3d !important;
+        color: #e0e0e0 !important;
+        border-color: #444 !important;
+    }
+    .streamlit-expanderHeader {
+        background: #2a2a3d !important;
+        color: #e0e0e0 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: #2a2a3d !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #ccc !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+        color: white !important;
+    }
+    .main-header {
+        background: linear-gradient(135deg, #2d2d44 0%, #4f46e5 50%, #7c3aed 100%) !important;
+    }
+    .logo-badge {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+    }
+    .result-normal { background: #1b3a1b !important; }
+    .result-abnormal { background: #3a3510 !important; }
+    .result-critical { background: #3a1515 !important; }
+    .result-info { background: #0a2540 !important; }
+    .food-card { background: #3a3510 !important; border-color: #7c6e10 !important; }
+    .badge { background: #2a2a4a !important; border-color: #4f4f8f !important; color: #c7d2fe !important; }
+    .reminder-card { background: #2a2a3d !important; border-color: #444 !important; }
+    p, h3, h4, label, .stRadio label, .stMarkdown, .stSelectbox label, .stTextInput label, .stNumberInput label, .stTextArea label {
+        color: #e0e0e0 !important;
+    }
+    .dev-credit { color: #aaa !important; }
+    .dev-credit span { color: #818cf8 !important; }
+    .streamlit-expanderHeader::after { color: #aaa !important; }
+"""
+
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700;800;900&display=swap');
     
-    * { font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }
-    [data-testid="stSidebar"] { display: none; }
+    * {{ font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }}
+    [data-testid="stSidebar"] {{ display: none; }}
     
-    /* FIX: Remove ALL Streamlit default SVG icons/arrows completely */
-    svg { display: none !important; }
+    /* دروستکردنەوەی ئاراستە - RTL بە تەواوی */
+    .main > div {{
+        direction: rtl;
+        text-align: right;
+    }}
+    .stButton button, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea, .stRadio, .stTabs {{
+        direction: rtl;
+    }}
+    .row-widget.stHorizontalBlock {{
+        flex-direction: row-reverse;
+    }}
     
-    /* Remove baseweb arrows */
-    [data-baseweb="select"] svg { display: none !important; }
-    [data-baseweb="select"] [data-testid="stSelectbox"] svg { display: none !important; }
-    [data-testid="stSelectbox"] svg { display: none !important; }
-    
-    /* Remove expander arrows */
-    [data-testid="stExpanderToggle"] { display: none !important; }
-    
-    /* Remove tab arrows if any */
-    button svg { display: none !important; }
-    [role="tab"] svg { display: none !important; }
-    
-    /* Hide all arrow-related classes */
-    .st-emotion-cache-1qg05tj { display: none !important; }
-    .st-emotion-cache-1b6wplb { display: none !important; }
-    .st-emotion-cache-1v7f65g { display: none !important; }
-    .st-emotion-cache-1p1nydz { display: none !important; }
+    /* چاککردنی ئایکۆنەکان - تەنها فلێشەی ئیکسپاندەر لادەبەین */
+    .streamlit-expanderHeader svg {{
+        display: none !important;
+    }}
+    /* هێشتنەوەی ئایکۆنەکانی تر */
     
     /* Custom down indicator for expanders */
-    .streamlit-expanderHeader::after {
+    .streamlit-expanderHeader::after {{
         content: '▼' !important;
         font-size: 8px !important;
-        margin-left: 6px !important;
+        margin-right: 6px !important;
         color: #9ca3af !important;
         font-family: Arial, sans-serif !important;
         display: inline-block !important;
-    }
+    }}
     
     /* Background */
-    html, body, [data-testid="stAppViewContainer"] {
+    html, body, [data-testid="stAppViewContainer"] {{
         background: #f8fafc !important;
-    }
+    }}
     
     /* Logo */
-    .logo-badge {
+    .logo-badge {{
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -89,8 +148,8 @@ st.markdown("""
         font-weight: 700;
         box-shadow: 0 3px 10px rgba(79,70,229,0.25);
         margin-bottom: 8px;
-    }
-    .logo-icon {
+    }}
+    .logo-icon {{
         width: 18px;
         height: 18px;
         background: white;
@@ -101,24 +160,24 @@ st.markdown("""
         font-size: 0.6rem;
         color: #4f46e5;
         font-weight: 900;
-    }
+    }}
     
     /* Header */
-    .main-header {
+    .main-header {{
         background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%);
         border-radius: 18px;
         padding: 18px;
         text-align: center;
         margin-bottom: 12px;
         box-shadow: 0 8px 25px rgba(79,70,229,0.2);
-    }
-    .main-header h1 { color: white !important; font-size: 1.4rem !important; font-weight: 900 !important; margin: 0 0 3px 0 !important; }
-    .main-header p { color: rgba(255,255,255,0.85) !important; font-size: 0.72rem !important; margin: 0 !important; }
-    .dev-credit { text-align: center; font-size: 0.68rem; color: #6b7280; margin-bottom: 10px; }
-    .dev-credit span { color: #4f46e5; font-weight: 700; }
+    }}
+    .main-header h1 {{ color: white !important; font-size: 1.4rem !important; font-weight: 900 !important; margin: 0 0 3px 0 !important; }}
+    .main-header p {{ color: rgba(255,255,255,0.85) !important; font-size: 0.72rem !important; margin: 0 !important; }}
+    .dev-credit {{ text-align: center; font-size: 0.68rem; color: #6b7280; margin-bottom: 10px; }}
+    .dev-credit span {{ color: #4f46e5; font-weight: 700; }}
     
     /* Cards */
-    .glass-card {
+    .glass-card {{
         background: white !important;
         border-radius: 12px !important;
         padding: 12px !important;
@@ -126,57 +185,57 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;
         border: 1px solid #e5e7eb !important;
         font-size: 0.78rem !important;
-    }
+    }}
     
-    /* SELECT BOXES - VERY CLEAR */
-    .stSelectbox label {
+    /* SELECT BOXES */
+    .stSelectbox label {{
         color: #1f2937 !important;
         font-size: 0.78rem !important;
         font-weight: 600 !important;
         margin-bottom: 4px !important;
-    }
-    .stSelectbox [data-baseweb="select"] {
+    }}
+    .stSelectbox [data-baseweb="select"] {{
         background: white !important;
-    }
-    .stSelectbox [data-baseweb="select"] > div {
+    }}
+    .stSelectbox [data-baseweb="select"] > div {{
         background: white !important;
         border: 2px solid #9ca3af !important;
         border-radius: 8px !important;
         min-height: 38px !important;
-    }
-    .stSelectbox [data-baseweb="select"] > div:hover {
+    }}
+    .stSelectbox [data-baseweb="select"] > div:hover {{
         border-color: #4f46e5 !important;
-    }
-    .stSelectbox [data-baseweb="select"] input {
+    }}
+    .stSelectbox [data-baseweb="select"] input {{
         font-size: 0.82rem !important;
         color: #1f2937 !important;
-    }
-    .stSelectbox [data-baseweb="select"] [aria-selected="true"] {
+    }}
+    .stSelectbox [data-baseweb="select"] [aria-selected="true"] {{
         background: #4f46e5 !important;
         color: white !important;
-    }
+    }}
     
     /* INPUT FIELDS */
-    .stTextInput label, .stNumberInput label, .stTextArea label {
+    .stTextInput label, .stNumberInput label, .stTextArea label {{
         color: #1f2937 !important;
         font-size: 0.78rem !important;
         font-weight: 600 !important;
-    }
-    .stTextInput input, .stNumberInput input, .stTextArea textarea {
+    }}
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {{
         background: white !important;
         border: 2px solid #9ca3af !important;
         border-radius: 8px !important;
         color: #1f2937 !important;
         padding: 8px 12px !important;
         font-size: 0.82rem !important;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    }}
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {{
         border-color: #4f46e5 !important;
         box-shadow: 0 0 0 3px rgba(79,70,229,0.1) !important;
-    }
+    }}
     
     /* Buttons */
-    .stButton button {
+    .stButton button {{
         background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
         border: none !important;
@@ -186,27 +245,27 @@ st.markdown("""
         font-size: 0.8rem !important;
         box-shadow: 0 3px 10px rgba(79,70,229,0.2) !important;
         width: 100% !important;
-    }
-    .stButton button:hover {
+    }}
+    .stButton button:hover {{
         transform: translateY(-2px) !important;
         box-shadow: 0 5px 15px rgba(79,70,229,0.35) !important;
-    }
+    }}
     
     /* Results */
-    .result-box { border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }
-    .result-normal { background: #f0fdf4; border-left: 4px solid #10b981; }
-    .result-abnormal { background: #fffbeb; border-left: 4px solid #f59e0b; }
-    .result-critical { background: #fef2f2; border-left: 4px solid #ef4444; }
-    .result-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .result-box {{ border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }}
+    .result-normal {{ background: #f0fdf4; border-left: 4px solid #10b981; }}
+    .result-abnormal {{ background: #fffbeb; border-left: 4px solid #f59e0b; }}
+    .result-critical {{ background: #fef2f2; border-left: 4px solid #ef4444; }}
+    .result-info {{ background: #eff6ff; border-left: 4px solid #3b82f6; }}
     
-    .food-card { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }
+    .food-card {{ background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }}
     
-    .badge { display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }
+    .badge {{ display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }}
     
-    .reminder-card { background: white; border-radius: 10px; padding: 10px; margin: 5px 0; border: 1px solid #e5e7eb; border-left: 3px solid #4f46e5; font-size: 0.76rem; }
+    .reminder-card {{ background: white; border-radius: 10px; padding: 10px; margin: 5px 0; border: 1px solid #e5e7eb; border-left: 3px solid #4f46e5; font-size: 0.76rem; }}
     
     /* Expander */
-    .streamlit-expanderHeader {
+    .streamlit-expanderHeader {{
         background: #f9fafb !important;
         border-radius: 8px !important;
         border: 1px solid #e5e7eb !important;
@@ -214,56 +273,69 @@ st.markdown("""
         font-weight: 600 !important;
         font-size: 0.78rem !important;
         padding: 8px 12px !important;
-    }
-    .streamlit-expanderHeader:hover { background: #f0f4ff !important; }
+    }}
+    .streamlit-expanderHeader:hover {{ background: #f0f4ff !important; }}
     
     /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
+    .stTabs [data-baseweb="tab-list"] {{
         gap: 3px;
         background: white !important;
         border-radius: 10px;
         padding: 3px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         flex-wrap: wrap;
-    }
-    .stTabs [data-baseweb="tab"] {
+    }}
+    .stTabs [data-baseweb="tab"] {{
         background: transparent !important;
         border-radius: 8px !important;
         color: #374151 !important;
         padding: 6px 8px !important;
         font-weight: 600 !important;
         font-size: 0.72rem !important;
-    }
-    .stTabs [aria-selected="true"] {
+    }}
+    .stTabs [aria-selected="true"] {{
         background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
-    }
+    }}
     
-    h3 { font-size: 1rem !important; margin-bottom: 6px !important; }
-    h4 { font-size: 0.88rem !important; }
-    p { font-size: 0.78rem !important; }
+    h3 {{ font-size: 1rem !important; margin-bottom: 6px !important; }}
+    h4 {{ font-size: 0.88rem !important; }}
+    p {{ font-size: 0.78rem !important; }}
     
     /* Radio buttons */
-    .stRadio label { color: #1f2937 !important; font-size: 0.8rem !important; }
+    .stRadio label {{ color: #1f2937 !important; font-size: 0.8rem !important; }}
     
     /* Dropdown menu items */
-    [role="listbox"] [role="option"] {
+    [role="listbox"] [role="option"] {{
         font-size: 0.82rem !important;
         color: #1f2937 !important;
         padding: 8px 12px !important;
-    }
-    [role="listbox"] [role="option"]:hover {
+    }}
+    [role="listbox"] [role="option"]:hover {{
         background: #eef2ff !important;
-    }
+    }}
     
-    [dir="rtl"] { text-align: right !important; direction: rtl !important; }
+    [dir="rtl"] {{ text-align: right !important; direction: rtl !important; }}
     
-    @media (max-width: 768px) {
-        .main-header h1 { font-size: 1.1rem !important; }
-        .stButton button { font-size: 0.72rem !important; padding: 6px 12px !important; }
-    }
+    /* دۆخی تاریک */
+    {"body.dark-mode {" + dark_css + "}" if st.session_state.dark_mode else ""}
+    
+    @media (max-width: 768px) {{
+        .main-header h1 {{ font-size: 1.1rem !important; }}
+        .stButton button {{ font-size: 0.72rem !important; padding: 6px 12px !important; }}
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================
+# DARK MODE TOGGLE
+# ============================================
+col_toggle1, col_toggle2 = st.columns([1, 4])
+with col_toggle1:
+    dark = st.toggle("🌙 دۆخی تاریک", value=st.session_state.dark_mode)
+    if dark != st.session_state.dark_mode:
+        st.session_state.dark_mode = dark
+        st.rerun()
 
 # ============================================
 # LOGO + HEADER
@@ -285,7 +357,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
-# COMPLETE DATABASE - 25 Tests
+# COMPLETE DATABASE - 25 Tests (same as before)
 # ============================================
 ALL_TESTS = {
     "پشکنینی تەواوی خوێن (CBC)": {
@@ -505,7 +577,25 @@ UNIT_CONVERSIONS = {
 }
 
 # ============================================
-# AI ANALYSIS
+# HELPER: AUTO DETECT UNIT FROM RANGES
+# ============================================
+def detect_unit(test_name):
+    test = ALL_TESTS.get(test_name)
+    if not test:
+        return ""
+    ranges = test["Ranges"]
+    # هەوڵدان بۆ دۆزینەوەی یەکە لە یەکەم مەودا
+    match = re.search(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z/µ%]+)', ranges)
+    if match:
+        return match.group(3)
+    # بۆ ئەوانەی تەنها یەک ژمارەیان هەیە وەک <5.7%
+    match2 = re.search(r'[<>]\s*\d+\.?\d*\s*([a-zA-Z/µ%]+)', ranges)
+    if match2:
+        return match2.group(1)
+    return ""
+
+# ============================================
+# AI ANALYSIS (Rule-based)
 # ============================================
 def ai_analyze(test_name, user_value, gender="general"):
     matched_test = ALL_TESTS.get(test_name)
@@ -526,8 +616,7 @@ def ai_analyze(test_name, user_value, gender="general"):
         for r, ft in zip(range_matches, ranges_text.split('|')):
             if "ژنان" in ft: min_val, max_val = float(r[0]), float(r[1]); break
     
-    unit_match = re.search(r'([a-zA-Z/µ%]+)', ranges_text)
-    unit = unit_match.group(1) if unit_match else "unit"
+    unit = detect_unit(test_name)
     short_name = matched_test['Name'].split('(')[0].strip()
     
     if user_value < min_val:
@@ -539,10 +628,31 @@ def ai_analyze(test_name, user_value, gender="general"):
         return {"emoji":"✅","color_class":"result-normal","status_text":"لە ئاستی ئاساییدایە 🎉","meaning":f"ئەنجامی {short_name}ی تۆ ({user_value} {unit}) لە مەودای ئاسایی ({min_val}-{max_val} {unit}) دایە.","action":"بەردەوام بە لەسەر شێوازی ژیانی تەندروست.","user_value":user_value,"unit":unit,"min_val":min_val,"max_val":max_val,"test_name":short_name}
 
 # ============================================
+# GENERATE REPORT TEXT
+# ============================================
+def generate_report(analysis_result, test_info, note=""):
+    report = f"""
+    ڕاپۆرتی شیکاری پشکنینی تاقیگەیی
+    -----------------------------------
+    ناوی پشکنین: {analysis_result['test_name']}
+    ئەنجام: {analysis_result['user_value']} {analysis_result['unit']}
+    مەودای ئاسایی: {analysis_result['min_val']} - {analysis_result['max_val']} {analysis_result['unit']}
+    دۆخ: {analysis_result['status_text']}
+    واتا: {analysis_result['meaning']}
+    ڕێنمایی: {analysis_result['action']}
+    """
+    if test_info and 'FoodRecommendations' in test_info:
+        report += f"\n    ڕێنمایی خۆراکی: {test_info['FoodRecommendations']}"
+    if note:
+        report += f"\n    تێبینی پزیشک: {note}"
+    report += "\n    -------------------------------\n    ئەم ڕاپۆرتە بۆ مەبەستی ڕێنماییە و جێگەی سەردانی پزیشک ناگرێتەوە."
+    return report
+
+# ============================================
 # TABS
 # ============================================
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🔍 نیشانەکان", "📋 پشکنینەکان", "🧠 شیکاری", 
+    "🔍 نیشانەکان", "📋 پشکنینەکان", "🧠 شیکاری ئەنجام", 
     "📖 کورتکراوە", "🧪 وەرگرتن", "🔄 یەکە", "⏰ یادخستنەوە"
 ])
 
@@ -611,7 +721,7 @@ with tab2:
                         st.markdown(f"""<div class="food-card"><h4>🥗</h4><p>{test['FoodRecommendations']}</p></div>""", unsafe_allow_html=True)
 
 # ============================================
-# TAB 3: AI
+# TAB 3: AI / شیکاری ئەنجام
 # ============================================
 with tab3:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>🧠 شیکاری ئەنجام</h3>", unsafe_allow_html=True)
@@ -619,20 +729,26 @@ with tab3:
     with c1:
         test_choice = st.selectbox("🔬 پشکنین:", list(ALL_TESTS.keys()), key="ai_test")
         gender_choice = st.selectbox("👤 ڕەگەز:", ["general","male","female"], format_func=lambda x: {"general":"گشتی","male":"پیاوان","female":"ژنان"}[x], key="ai_gender")
+        # یەکەی ئۆتۆماتیکی
+        auto_unit = detect_unit(test_choice)
+        unit_choice = st.text_input("📏 یەکە:", value=auto_unit if auto_unit else "mg/dL", key="ai_unit")
     with c2:
-        unit_choice = st.text_input("📏 یەکە:", value="mg/dL", key="ai_unit")
         user_result = st.number_input("🔢 ئەنجام:", value=0.0, step=0.1, format="%.1f", key="ai_value")
     doctor_note = st.text_area("📝 تێبینی پزیشک:", key="doctor_note")
     
     if st.button("🔍 شیکاری بکە", key="ai_btn", use_container_width=True):
         if user_result > 0:
             with st.spinner("🧠 شیکاری دەکرێت..."):
-                time.sleep(0.8)
+                time.sleep(0.5)
                 result = ai_analyze(test_choice, user_result, gender_choice)
                 st.markdown(f"""<div class="glass-card"><div class="{result['color_class']}"><span style="font-size:1.5rem;">{result['emoji']}</span> <b>{result['test_name']}</b> - {result['status_text']}</div><p style="margin-top:8px;"><b>📊</b> {result['user_value']} {result['unit']} | <b>📏</b> {result['min_val']}-{result['max_val']} {result['unit']}</p><p><b>📋</b> {result['meaning']}</p><p><b>💊</b> {result['action']}</p></div>""", unsafe_allow_html=True)
-                st.session_state.history.append({"date":datetime.now().strftime("%Y-%m-%d"),"test":test_choice,"value":user_result,"status":result['status'],"note":doctor_note})
+                st.session_state.history.append({"date":datetime.now().strftime("%Y-%m-%d"),"test":test_choice,"value":user_result,"unit":result['unit'],"status":result['status_text'],"note":doctor_note})
                 if doctor_note: st.info(f"📝 {doctor_note}")
                 if 'FoodRecommendations' in ALL_TESTS.get(test_choice,{}): st.markdown(f"""<div class="food-card"><h4>🥗</h4><p>{ALL_TESTS[test_choice]['FoodRecommendations']}</p></div>""", unsafe_allow_html=True)
+                
+                # داگرتنی ڕاپۆرت
+                report_text = generate_report(result, ALL_TESTS.get(test_choice), doctor_note)
+                st.download_button("📥 داگرتنی ڕاپۆرت", data=report_text, file_name="lab_report.txt", mime="text/plain")
         else:
             st.warning("ئەنجام بنووسە")
 
@@ -674,7 +790,7 @@ with tab6:
         st.metric(f"{conv['to']}:", f"{v * conv['factor']:.2f}")
 
 # ============================================
-# TAB 7: REMINDERS
+# TAB 7: REMINDERS (PERSISTENT)
 # ============================================
 with tab7:
     st.markdown("<h3 style='color:#4f46e5;text-align:center;'>⏰ یادخستنەوە</h3>", unsafe_allow_html=True)
@@ -683,19 +799,38 @@ with tab7:
     rn = st.text_input("تێبینی:", key="rn")
     if st.button("💾 تۆمارکردن", key="sr", use_container_width=True):
         st.session_state.reminders.append({"test":rt,"freq":rf,"note":rn,"date":datetime.now().strftime("%Y-%m-%d")})
+        save_reminders()
         st.success("✅ تۆمارکرا!")
         st.rerun()
-    for r in st.session_state.reminders:
-        st.markdown(f"""<div class="reminder-card"><b>🔬 {r['test']}</b> | 🔄 {r['freq']} | 📝 {r['note']}</div>""", unsafe_allow_html=True)
+    if st.session_state.reminders:
+        for i, r in enumerate(st.session_state.reminders):
+            col_r1, col_r2 = st.columns([4,1])
+            with col_r1:
+                st.markdown(f"""<div class="reminder-card"><b>🔬 {r['test']}</b> | 🔄 {r['freq']} | 📝 {r['note']}</div>""", unsafe_allow_html=True)
+            with col_r2:
+                if st.button("🗑️ سڕینەوە", key=f"del_{i}"):
+                    st.session_state.reminders.pop(i)
+                    save_reminders()
+                    st.rerun()
 
 # ============================================
-# HISTORY
+# HISTORY WITH TRENDING
 # ============================================
 with st.expander("📊 مێژووی ئەنجامەکانت", expanded=False):
     if st.session_state.history:
         df = pd.DataFrame(st.session_state.history)
         st.dataframe(df, use_container_width=True)
         st.download_button("📥 CSV", df.to_csv(index=False).encode('utf-8'), "results.csv", "text/csv")
+        
+        # هێڵکاری پێشکەوتن ئەگەر پشکنینێک زیاتر لە جارێک هەبێت
+        test_counts = df['test'].value_counts()
+        multi_tests = test_counts[test_counts >= 2].index.tolist()
+        if multi_tests:
+            st.markdown("#### 📈 ڕەوتی ئەنجامەکان")
+            selected_trend = st.selectbox("پشکنین بۆ هێڵکاری:", multi_tests, key="trend_test")
+            trend_df = df[df['test'] == selected_trend].sort_values("date")
+            fig = px.line(trend_df, x="date", y="value", markers=True, title=f"ڕەوتی {selected_trend}")
+            st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("هێشتا هیچ ئەنجامێکت نییە")
 
