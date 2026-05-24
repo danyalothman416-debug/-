@@ -47,20 +47,19 @@ def save_reminders():
         json.dump(st.session_state.reminders, f, ensure_ascii=False, indent=2)
 
 # ============================================
-# CSS - RTL + DARK MODE + ARROW FIX
+# CSS - تەواو چاکسازی فلێشەکان و RTL
 # ============================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700;800;900&display=swap');
     
     * { font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }
-    
+
     /* ========== RTL GLOBAL FIX ========== */
     html, body, [data-testid="stAppViewContainer"] {
         direction: rtl !important;
         text-align: right !important;
     }
-    
     .stButton, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea, .stRadio, .stTabs, .stCheckbox, .stDateInput {
         direction: rtl !important;
         text-align: right !important;
@@ -71,32 +70,55 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] {
         flex-direction: row-reverse !important;
     }
-    
-    /* ========== ئایکۆنی فلێشە بەتەواوی لادەبەین و جێگۆڕکێ دەکەین ========== */
+
+    /* ========== شاردنەوەی ھەموو فلێشە SVG ـەکان ========== */
     [data-baseweb="select"] svg,
+    [data-baseweb="select"] [data-testid="stSelectbox"] svg,
     [data-testid="stSelectbox"] svg,
-    .streamlit-expanderHeader svg {
+    .streamlit-expanderHeader svg,
+    [data-baseweb="select"] [role="presentation"],
+    [data-baseweb="select"] span[role="presentation"] {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        pointer-events: none !important;
     }
-    
+
+    /* ========== دروستکردنی فلێشەی خۆڕاگر بۆ سێلێکت ========== */
+    [data-baseweb="select"] > div:first-child {
+        position: relative !important;
+    }
     [data-baseweb="select"] > div:first-child::after {
         content: "▼" !important;
         font-size: 0.7rem !important;
-        margin-right: 8px !important;
+        position: absolute !important;
+        left: 10px !important;   /* لەبەر RTL، left بەکاردێنین بۆ ئەوەی لەلای چەپ بمێنێتەوە */
+        top: 50% !important;
+        transform: translateY(-50%) !important;
         color: #4f46e5 !important;
         font-family: Arial, sans-serif !important;
-        display: inline-block !important;
+        pointer-events: none !important;
+        z-index: 10 !important;
     }
-    
+
+    /* ========== دروستکردنی فلێشە بۆ ئیکسپاندەر ========== */
+    .streamlit-expanderHeader {
+        position: relative !important;
+    }
     .streamlit-expanderHeader::after {
         content: "▼" !important;
         font-size: 0.7rem !important;
-        margin-right: 6px !important;
+        position: absolute !important;
+        left: 12px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
         color: #4f46e5 !important;
         font-family: Arial, sans-serif !important;
-        display: inline-block !important;
+        pointer-events: none !important;
     }
-    
+
     /* ========== BACKGROUND & TYPOGRAPHY ========== */
     html, body, [data-testid="stAppViewContainer"] {
         background: #f8fafc !important;
@@ -161,6 +183,7 @@ st.markdown("""
         border: 2px solid #9ca3af !important;
         border-radius: 8px !important;
         min-height: 38px !important;
+        padding-left: 30px !important; /* جێگە بۆ ئایکۆنەکەمان */
     }
     .stSelectbox [data-baseweb="select"] > div:hover { border-color: #4f46e5 !important; }
     .stSelectbox [data-baseweb="select"] [aria-selected="true"] {
@@ -195,10 +218,10 @@ st.markdown("""
     .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79,70,229,0.35) !important; }
     
     .result-box { border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }
-    .result-normal { background: #f0fdf4; border-left: 4px solid #10b981; }
-    .result-abnormal { background: #fffbeb; border-left: 4px solid #f59e0b; }
-    .result-critical { background: #fef2f2; border-left: 4px solid #ef4444; }
-    .result-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .result-normal { background: #f0fdf4; border-right: 4px solid #10b981; }
+    .result-abnormal { background: #fffbeb; border-right: 4px solid #f59e0b; }
+    .result-critical { background: #fef2f2; border-right: 4px solid #ef4444; }
+    .result-info { background: #eff6ff; border-right: 4px solid #3b82f6; }
     
     .food-card { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }
     .badge { display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }
@@ -211,7 +234,8 @@ st.markdown("""
         color: #1f2937 !important;
         font-weight: 600 !important;
         font-size: 0.78rem !important;
-        padding: 8px 12px !important;
+        padding: 8px 30px 8px 12px !important; /* جێگە بۆ فلێشە */
+        position: relative !important;
     }
     .streamlit-expanderHeader:hover { background: #f0f4ff !important; }
     
