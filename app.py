@@ -26,7 +26,6 @@ st.set_page_config(
 if 'history' not in st.session_state:
     st.session_state.history = []
 if 'reminders' not in st.session_state:
-    # بارکردنی یادخستنەوەکان لە فایل
     if os.path.exists("reminders.json"):
         try:
             with open("reminders.json", "r", encoding="utf-8") as f:
@@ -48,95 +47,62 @@ def save_reminders():
         json.dump(st.session_state.reminders, f, ensure_ascii=False, indent=2)
 
 # ============================================
-# CSS - DARK MODE + RTL + FIXED ARROWS
+# CSS - RTL + DARK MODE + ARROW FIX
 # ============================================
-dark_css = """
-    html, body, [data-testid="stAppViewContainer"] {
-        background: #1e1e2f !important;
-        color: #e0e0e0 !important;
-    }
-    .glass-card, .stSelectbox [data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea {
-        background: #2a2a3d !important;
-        color: #e0e0e0 !important;
-        border-color: #444 !important;
-    }
-    .streamlit-expanderHeader {
-        background: #2a2a3d !important;
-        color: #e0e0e0 !important;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        background: #2a2a3d !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #ccc !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
-        color: white !important;
-    }
-    .main-header {
-        background: linear-gradient(135deg, #2d2d44 0%, #4f46e5 50%, #7c3aed 100%) !important;
-    }
-    .logo-badge {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
-    }
-    .result-normal { background: #1b3a1b !important; }
-    .result-abnormal { background: #3a3510 !important; }
-    .result-critical { background: #3a1515 !important; }
-    .result-info { background: #0a2540 !important; }
-    .food-card { background: #3a3510 !important; border-color: #7c6e10 !important; }
-    .badge { background: #2a2a4a !important; border-color: #4f4f8f !important; color: #c7d2fe !important; }
-    .reminder-card { background: #2a2a3d !important; border-color: #444 !important; }
-    p, h3, h4, label, .stRadio label, .stMarkdown, .stSelectbox label, .stTextInput label, .stNumberInput label, .stTextArea label {
-        color: #e0e0e0 !important;
-    }
-    .dev-credit { color: #aaa !important; }
-    .dev-credit span { color: #818cf8 !important; }
-    .streamlit-expanderHeader::after { color: #aaa !important; }
-"""
-
-st.markdown(f"""
+st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700;800;900&display=swap');
     
-    * {{ font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }}
-    [data-testid="stSidebar"] {{ display: none; }}
+    * { font-family: 'Noto Naskh Arabic', 'Segoe UI', sans-serif !important; }
     
-    /* دروستکردنەوەی ئاراستە - RTL بە تەواوی */
-    .main > div {{
-        direction: rtl;
-        text-align: right;
-    }}
-    .stButton button, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea, .stRadio, .stTabs {{
-        direction: rtl;
-    }}
-    .row-widget.stHorizontalBlock {{
-        flex-direction: row-reverse;
-    }}
+    /* ========== RTL GLOBAL FIX ========== */
+    html, body, [data-testid="stAppViewContainer"] {
+        direction: rtl !important;
+        text-align: right !important;
+    }
     
-    /* چاککردنی ئایکۆنەکان - تەنها فلێشەی ئیکسپاندەر لادەبەین */
-    .streamlit-expanderHeader svg {{
+    .stButton, .stSelectbox, .stTextInput, .stNumberInput, .stTextArea, .stRadio, .stTabs, .stCheckbox, .stDateInput {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    .row-widget.stHorizontalBlock {
+        flex-direction: row-reverse !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        flex-direction: row-reverse !important;
+    }
+    
+    /* ========== ئایکۆنی فلێشە بەتەواوی لادەبەین و جێگۆڕکێ دەکەین ========== */
+    [data-baseweb="select"] svg,
+    [data-testid="stSelectbox"] svg,
+    .streamlit-expanderHeader svg {
         display: none !important;
-    }}
-    /* هێشتنەوەی ئایکۆنەکانی تر */
+    }
     
-    /* Custom down indicator for expanders */
-    .streamlit-expanderHeader::after {{
-        content: '▼' !important;
-        font-size: 8px !important;
-        margin-right: 6px !important;
-        color: #9ca3af !important;
+    [data-baseweb="select"] > div:first-child::after {
+        content: "▼" !important;
+        font-size: 0.7rem !important;
+        margin-right: 8px !important;
+        color: #4f46e5 !important;
         font-family: Arial, sans-serif !important;
         display: inline-block !important;
-    }}
+    }
     
-    /* Background */
-    html, body, [data-testid="stAppViewContainer"] {{
+    .streamlit-expanderHeader::after {
+        content: "▼" !important;
+        font-size: 0.7rem !important;
+        margin-right: 6px !important;
+        color: #4f46e5 !important;
+        font-family: Arial, sans-serif !important;
+        display: inline-block !important;
+    }
+    
+    /* ========== BACKGROUND & TYPOGRAPHY ========== */
+    html, body, [data-testid="stAppViewContainer"] {
         background: #f8fafc !important;
-    }}
+    }
     
-    /* Logo */
-    .logo-badge {{
+    .logo-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -148,8 +114,8 @@ st.markdown(f"""
         font-weight: 700;
         box-shadow: 0 3px 10px rgba(79,70,229,0.25);
         margin-bottom: 8px;
-    }}
-    .logo-icon {{
+    }
+    .logo-icon {
         width: 18px;
         height: 18px;
         background: white;
@@ -160,24 +126,22 @@ st.markdown(f"""
         font-size: 0.6rem;
         color: #4f46e5;
         font-weight: 900;
-    }}
+    }
     
-    /* Header */
-    .main-header {{
+    .main-header {
         background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 50%, #7c3aed 100%);
         border-radius: 18px;
         padding: 18px;
         text-align: center;
         margin-bottom: 12px;
         box-shadow: 0 8px 25px rgba(79,70,229,0.2);
-    }}
-    .main-header h1 {{ color: white !important; font-size: 1.4rem !important; font-weight: 900 !important; margin: 0 0 3px 0 !important; }}
-    .main-header p {{ color: rgba(255,255,255,0.85) !important; font-size: 0.72rem !important; margin: 0 !important; }}
-    .dev-credit {{ text-align: center; font-size: 0.68rem; color: #6b7280; margin-bottom: 10px; }}
-    .dev-credit span {{ color: #4f46e5; font-weight: 700; }}
+    }
+    .main-header h1 { color: white !important; font-size: 1.4rem !important; font-weight: 900 !important; margin: 0 0 3px 0 !important; }
+    .main-header p { color: rgba(255,255,255,0.85) !important; font-size: 0.72rem !important; margin: 0 !important; }
+    .dev-credit { text-align: center; font-size: 0.68rem; color: #6b7280; margin-bottom: 10px; }
+    .dev-credit span { color: #4f46e5; font-weight: 700; }
     
-    /* Cards */
-    .glass-card {{
+    .glass-card {
         background: white !important;
         border-radius: 12px !important;
         padding: 12px !important;
@@ -185,57 +149,39 @@ st.markdown(f"""
         box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;
         border: 1px solid #e5e7eb !important;
         font-size: 0.78rem !important;
-    }}
+    }
     
-    /* SELECT BOXES */
-    .stSelectbox label {{
+    .stSelectbox label, .stTextInput label, .stNumberInput label, .stTextArea label {
         color: #1f2937 !important;
         font-size: 0.78rem !important;
         font-weight: 600 !important;
-        margin-bottom: 4px !important;
-    }}
-    .stSelectbox [data-baseweb="select"] {{
-        background: white !important;
-    }}
-    .stSelectbox [data-baseweb="select"] > div {{
+    }
+    .stSelectbox [data-baseweb="select"] > div {
         background: white !important;
         border: 2px solid #9ca3af !important;
         border-radius: 8px !important;
         min-height: 38px !important;
-    }}
-    .stSelectbox [data-baseweb="select"] > div:hover {{
-        border-color: #4f46e5 !important;
-    }}
-    .stSelectbox [data-baseweb="select"] input {{
-        font-size: 0.82rem !important;
-        color: #1f2937 !important;
-    }}
-    .stSelectbox [data-baseweb="select"] [aria-selected="true"] {{
+    }
+    .stSelectbox [data-baseweb="select"] > div:hover { border-color: #4f46e5 !important; }
+    .stSelectbox [data-baseweb="select"] [aria-selected="true"] {
         background: #4f46e5 !important;
         color: white !important;
-    }}
+    }
     
-    /* INPUT FIELDS */
-    .stTextInput label, .stNumberInput label, .stTextArea label {{
-        color: #1f2937 !important;
-        font-size: 0.78rem !important;
-        font-weight: 600 !important;
-    }}
-    .stTextInput input, .stNumberInput input, .stTextArea textarea {{
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {
         background: white !important;
         border: 2px solid #9ca3af !important;
         border-radius: 8px !important;
         color: #1f2937 !important;
         padding: 8px 12px !important;
         font-size: 0.82rem !important;
-    }}
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {{
+    }
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
         border-color: #4f46e5 !important;
         box-shadow: 0 0 0 3px rgba(79,70,229,0.1) !important;
-    }}
+    }
     
-    /* Buttons */
-    .stButton button {{
+    .stButton button {
         background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
         border: none !important;
@@ -245,27 +191,20 @@ st.markdown(f"""
         font-size: 0.8rem !important;
         box-shadow: 0 3px 10px rgba(79,70,229,0.2) !important;
         width: 100% !important;
-    }}
-    .stButton button:hover {{
-        transform: translateY(-2px) !important;
-        box-shadow: 0 5px 15px rgba(79,70,229,0.35) !important;
-    }}
+    }
+    .stButton button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79,70,229,0.35) !important; }
     
-    /* Results */
-    .result-box {{ border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }}
-    .result-normal {{ background: #f0fdf4; border-left: 4px solid #10b981; }}
-    .result-abnormal {{ background: #fffbeb; border-left: 4px solid #f59e0b; }}
-    .result-critical {{ background: #fef2f2; border-left: 4px solid #ef4444; }}
-    .result-info {{ background: #eff6ff; border-left: 4px solid #3b82f6; }}
+    .result-box { border-radius: 8px; padding: 10px; margin: 6px 0; font-size: 0.78rem; line-height: 1.6; }
+    .result-normal { background: #f0fdf4; border-left: 4px solid #10b981; }
+    .result-abnormal { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .result-critical { background: #fef2f2; border-left: 4px solid #ef4444; }
+    .result-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
     
-    .food-card {{ background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }}
+    .food-card { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px; margin: 6px 0; font-size: 0.76rem; }
+    .badge { display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }
+    .reminder-card { background: white; border-radius: 10px; padding: 10px; margin: 5px 0; border: 1px solid #e5e7eb; border-right: 3px solid #4f46e5; font-size: 0.76rem; }
     
-    .badge {{ display: inline-block; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 15px; padding: 4px 12px; margin: 6px 0 5px 0; font-weight: 700; color: #3730a3 !important; font-size: 0.73rem; }}
-    
-    .reminder-card {{ background: white; border-radius: 10px; padding: 10px; margin: 5px 0; border: 1px solid #e5e7eb; border-left: 3px solid #4f46e5; font-size: 0.76rem; }}
-    
-    /* Expander */
-    .streamlit-expanderHeader {{
+    .streamlit-expanderHeader {
         background: #f9fafb !important;
         border-radius: 8px !important;
         border: 1px solid #e5e7eb !important;
@@ -273,59 +212,60 @@ st.markdown(f"""
         font-weight: 600 !important;
         font-size: 0.78rem !important;
         padding: 8px 12px !important;
-    }}
-    .streamlit-expanderHeader:hover {{ background: #f0f4ff !important; }}
+    }
+    .streamlit-expanderHeader:hover { background: #f0f4ff !important; }
     
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {{
+    .stTabs [data-baseweb="tab-list"] {
         gap: 3px;
         background: white !important;
         border-radius: 10px;
         padding: 3px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         flex-wrap: wrap;
-    }}
-    .stTabs [data-baseweb="tab"] {{
+    }
+    .stTabs [data-baseweb="tab"] {
         background: transparent !important;
         border-radius: 8px !important;
         color: #374151 !important;
         padding: 6px 8px !important;
         font-weight: 600 !important;
         font-size: 0.72rem !important;
-    }}
-    .stTabs [aria-selected="true"] {{
+    }
+    .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
         color: white !important;
-    }}
+    }
     
-    h3 {{ font-size: 1rem !important; margin-bottom: 6px !important; }}
-    h4 {{ font-size: 0.88rem !important; }}
-    p {{ font-size: 0.78rem !important; }}
-    
-    /* Radio buttons */
-    .stRadio label {{ color: #1f2937 !important; font-size: 0.8rem !important; }}
-    
-    /* Dropdown menu items */
-    [role="listbox"] [role="option"] {{
-        font-size: 0.82rem !important;
-        color: #1f2937 !important;
-        padding: 8px 12px !important;
-    }}
-    [role="listbox"] [role="option"]:hover {{
-        background: #eef2ff !important;
-    }}
-    
-    [dir="rtl"] {{ text-align: right !important; direction: rtl !important; }}
-    
-    /* دۆخی تاریک */
-    {"body.dark-mode {" + dark_css + "}" if st.session_state.dark_mode else ""}
-    
-    @media (max-width: 768px) {{
-        .main-header h1 {{ font-size: 1.1rem !important; }}
-        .stButton button {{ font-size: 0.72rem !important; padding: 6px 12px !important; }}
-    }}
+    @media (max-width: 768px) {
+        .main-header h1 { font-size: 1.1rem !important; }
+        .stButton button { font-size: 0.72rem !important; padding: 6px 12px !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
+
+if st.session_state.dark_mode:
+    st.markdown("""
+    <style>
+        html, body, [data-testid="stAppViewContainer"] { background: #1e1e2f !important; color: #e0e0e0 !important; }
+        .glass-card, .stSelectbox [data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea { background: #2a2a3d !important; color: #e0e0e0 !important; border-color: #444 !important; }
+        .streamlit-expanderHeader { background: #2a2a3d !important; color: #e0e0e0 !important; }
+        .stTabs [data-baseweb="tab-list"] { background: #2a2a3d !important; }
+        .stTabs [data-baseweb="tab"] { color: #ccc !important; }
+        .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #7c3aed, #4f46e5) !important; color: white !important; }
+        .main-header { background: linear-gradient(135deg, #2d2d44 0%, #4f46e5 50%, #7c3aed 100%) !important; }
+        .logo-badge { background: linear-gradient(135deg, #4f46e5, #7c3aed) !important; }
+        .result-normal { background: #1b3a1b !important; }
+        .result-abnormal { background: #3a3510 !important; }
+        .result-critical { background: #3a1515 !important; }
+        .result-info { background: #0a2540 !important; }
+        .food-card { background: #3a3510 !important; border-color: #7c6e10 !important; }
+        .badge { background: #2a2a4a !important; border-color: #4f4f8f !important; color: #c7d2fe !important; }
+        .reminder-card { background: #2a2a3d !important; border-color: #444 !important; }
+        p, h3, h4, label, .stRadio label, .stSelectbox label, .stTextInput label, .stNumberInput label, .stTextArea label { color: #e0e0e0 !important; }
+        .dev-credit { color: #aaa !important; }
+        .dev-credit span { color: #818cf8 !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ============================================
 # DARK MODE TOGGLE
@@ -357,7 +297,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
-# COMPLETE DATABASE - 25 Tests (same as before)
+# COMPLETE DATABASE - 25 Tests
 # ============================================
 ALL_TESTS = {
     "پشکنینی تەواوی خوێن (CBC)": {
@@ -584,11 +524,9 @@ def detect_unit(test_name):
     if not test:
         return ""
     ranges = test["Ranges"]
-    # هەوڵدان بۆ دۆزینەوەی یەکە لە یەکەم مەودا
     match = re.search(r'(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z/µ%]+)', ranges)
     if match:
         return match.group(3)
-    # بۆ ئەوانەی تەنها یەک ژمارەیان هەیە وەک <5.7%
     match2 = re.search(r'[<>]\s*\d+\.?\d*\s*([a-zA-Z/µ%]+)', ranges)
     if match2:
         return match2.group(1)
@@ -729,7 +667,6 @@ with tab3:
     with c1:
         test_choice = st.selectbox("🔬 پشکنین:", list(ALL_TESTS.keys()), key="ai_test")
         gender_choice = st.selectbox("👤 ڕەگەز:", ["general","male","female"], format_func=lambda x: {"general":"گشتی","male":"پیاوان","female":"ژنان"}[x], key="ai_gender")
-        # یەکەی ئۆتۆماتیکی
         auto_unit = detect_unit(test_choice)
         unit_choice = st.text_input("📏 یەکە:", value=auto_unit if auto_unit else "mg/dL", key="ai_unit")
     with c2:
@@ -746,7 +683,6 @@ with tab3:
                 if doctor_note: st.info(f"📝 {doctor_note}")
                 if 'FoodRecommendations' in ALL_TESTS.get(test_choice,{}): st.markdown(f"""<div class="food-card"><h4>🥗</h4><p>{ALL_TESTS[test_choice]['FoodRecommendations']}</p></div>""", unsafe_allow_html=True)
                 
-                # داگرتنی ڕاپۆرت
                 report_text = generate_report(result, ALL_TESTS.get(test_choice), doctor_note)
                 st.download_button("📥 داگرتنی ڕاپۆرت", data=report_text, file_name="lab_report.txt", mime="text/plain")
         else:
@@ -822,7 +758,6 @@ with st.expander("📊 مێژووی ئەنجامەکانت", expanded=False):
         st.dataframe(df, use_container_width=True)
         st.download_button("📥 CSV", df.to_csv(index=False).encode('utf-8'), "results.csv", "text/csv")
         
-        # هێڵکاری پێشکەوتن ئەگەر پشکنینێک زیاتر لە جارێک هەبێت
         test_counts = df['test'].value_counts()
         multi_tests = test_counts[test_counts >= 2].index.tolist()
         if multi_tests:
