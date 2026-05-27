@@ -17,7 +17,7 @@ pandas
 fpdf
 streamlit-folium
 streamlit
-plotly
+fpdf
 streamlit
 pandas
 plotly
@@ -27,7 +27,7 @@ geopy
 streamlit
 pandas
 plotly
-folium
+scikit
 streamlit-folium
 streamlit-option-menu
 google-generativeai
@@ -36,7 +36,8 @@ pandas
 plotly
 google-generativeai
 openpyxl
-qrcode
+
 pillow
 fpdf
 numpy
+qrcode
