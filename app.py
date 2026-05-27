@@ -104,6 +104,10 @@ if 'repairs' not in st.session_state:
     st.session_state.repairs = pd.DataFrame(columns=['ID', 'ناوی کڕیار', 'جۆری مۆبایل', 'کێشە', 'بەرواری وەرگرتن', 'بەرواری گەڕاندنەوە', 'نرخی چاککردنەوە', 'ڕەوش'])
 if 'loyalty_points' not in st.session_state:
     st.session_state.loyalty_points = {}
+if 'last_sale_invoice' not in st.session_state:
+    st.session_state.last_sale_invoice = None
+if 'show_invoice' not in st.session_state:
+    st.session_state.show_invoice = False
 
 # ================== HELPER FUNCTIONS ==================
 def add_sale(product_name, price, customer_name, discount_code="", employee=""):
@@ -126,6 +130,17 @@ def add_sale(product_name, price, customer_name, discount_code="", employee=""):
     # نوێکردنەوەی ئاستی کارمەند
     if employee:
         update_employee_performance(employee, final_price)
+    
+    # دروستکردنی فاکتوور
+    sale_data = {
+        'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'customer': customer_name,
+        'product': product_name,
+        'price': price,
+        'final_price': final_price
+    }
+    st.session_state.last_sale_invoice = generate_invoice(sale_data)
+    st.session_state.show_invoice = True
     
     return True
 
@@ -170,31 +185,35 @@ def update_employee_performance(employee, sale_amount):
         st.session_state.employees.at[idx, 'پاداشت'] += sale_amount * 0.02
 
 def generate_invoice(sale_data):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # هێدەر
-    pdf.set_font("Arial", "B", 20)
-    pdf.cell(0, 10, "Mobile Shop Invoice", ln=True, align="C")
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(10)
-    
-    # زانیاری فرۆشتن
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 10, f"Date: {sale_data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}", ln=True)
-    pdf.cell(0, 10, f"Customer: {sale_data.get('customer', 'N/A')}", ln=True)
-    pdf.cell(0, 10, f"Product: {sale_data.get('product', 'N/A')}", ln=True)
-    pdf.cell(0, 10, f"Original Price: ${sale_data.get('price', 0)}", ln=True)
-    pdf.cell(0, 10, f"Final Price: ${sale_data.get('final_price', 0)}", ln=True)
-    
-    # QR Code
-    qr = qrcode.make(f"Invoice: {datetime.now().strftime('%Y%m%d%H%M%S')}")
-    qr.save("temp_qr.png")
-    pdf.image("temp_qr.png", x=150, y=30, w=40)
-    
-    pdf.output("temp_invoice.pdf")
-    with open("temp_invoice.pdf", "rb") as f:
-        return f.read()
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # هێدەر
+        pdf.set_font("Arial", "B", 20)
+        pdf.cell(0, 10, "Mobile Shop Invoice", ln=True, align="C")
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(10)
+        
+        # زانیاری فرۆشتن
+        pdf.set_font("Arial", "", 12)
+        pdf.cell(0, 10, f"Date: {sale_data.get('date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}", ln=True)
+        pdf.cell(0, 10, f"Customer: {sale_data.get('customer', 'N/A')}", ln=True)
+        pdf.cell(0, 10, f"Product: {sale_data.get('product', 'N/A')}", ln=True)
+        pdf.cell(0, 10, f"Original Price: ${sale_data.get('price', 0)}", ln=True)
+        pdf.cell(0, 10, f"Final Price: ${sale_data.get('final_price', 0)}", ln=True)
+        
+        # QR Code
+        qr = qrcode.make(f"Invoice: {datetime.now().strftime('%Y%m%d%H%M%S')}")
+        qr.save("temp_qr.png")
+        pdf.image("temp_qr.png", x=150, y=30, w=40)
+        
+        pdf.output("temp_invoice.pdf")
+        with open("temp_invoice.pdf", "rb") as f:
+            return f.read()
+    except Exception as e:
+        st.error(f"کێشەیەک ڕوویدا لە دروستکردنی فاکتوور: {e}")
+        return None
 
 def check_low_stock():
     if not st.session_state.inventory.empty:
@@ -288,6 +307,7 @@ if main_choice == "💰 تۆمارکردنی فرۆشتن":
         col1, col2 = st.columns([2, 1])
         
         with col1:
+            # لێرەدا فۆرم بەکاردەهێنین بەڵام download_button لە دەرەوەی فۆرم دادەنێین
             with st.form("advanced_sale_form"):
                 product_name = st.text_input("📱 ناوی بەرهەم", placeholder="بۆ نموونە: iPhone 15 Pro")
                 
@@ -316,35 +336,26 @@ if main_choice == "💰 تۆمارکردنی فرۆشتن":
                         employee = ""
                         st.info("هیچ کارمەندێک تۆمار نەکراوە")
                 
-                submit_button = st.form_submit_button("➕ تۆمارکردنی فرۆشتن", use_container_width=True)
-                
-                if submit_button:
-                    if product_name and original_price > 0 and customer_name:
-                        if add_sale(product_name, original_price, customer_name, discount_code, employee):
-                            st.success(f"✅ فرۆشتنی {product_name} بە نرخی ${final_price:,.2f} بۆ {customer_name} تۆمار کرا!")
-                            
-                            # دروستکردنی فاکتوور
-                            sale_data = {
-                                'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                'customer': customer_name,
-                                'product': product_name,
-                                'price': original_price,
-                                'final_price': final_price
-                            }
-                            invoice_data = generate_invoice(sale_data)
-                            
-                            col_dl1, col_dl2 = st.columns(2)
-                            with col_dl1:
-                                st.download_button(
-                                    "📄 داگرتنی فاکتوور (PDF)",
-                                    invoice_data,
-                                    "invoice.pdf",
-                                    "application/pdf"
-                                )
-                            with col_dl2:
-                                st.balloons()
-                    else:
-                        st.error("⚠️ تکایە هەموو خانە پێویستەکان پڕ بکەرەوە!")
+                submitted = st.form_submit_button("➕ تۆمارکردنی فرۆشتن", use_container_width=True)
+            
+            # لە دەرەوەی فۆرم، دوای پێشکەشکردن
+            if submitted:
+                if product_name and original_price > 0 and customer_name:
+                    if add_sale(product_name, original_price, customer_name, discount_code, employee):
+                        st.success(f"✅ فرۆشتنی {product_name} بە نرخی ${final_price:,.2f} بۆ {customer_name} تۆمار کرا!")
+                        st.balloons()
+                        
+                        # پیشاندانی دوگمەی داگرتنی فاکتوور لە دەرەوەی فۆرم
+                        if st.session_state.last_sale_invoice:
+                            st.download_button(
+                                label="📄 داگرتنی فاکتوور (PDF)",
+                                data=st.session_state.last_sale_invoice,
+                                file_name="invoice.pdf",
+                                mime="application/pdf",
+                                key="download_invoice_new"
+                            )
+                else:
+                    st.error("⚠️ تکایە هەموو خانە پێویستەکان پڕ بکەرەوە!")
         
         with col2:
             st.subheader("📈 دوایین فرۆشتنەکان")
@@ -416,7 +427,14 @@ if main_choice == "💰 تۆمارکردنی فرۆشتن":
                     'final_price': sale['نرخی کۆتایی']
                 }
                 invoice_data = generate_invoice(sale_data)
-                st.download_button("📄 داگرتنی فاکتوور", invoice_data, "invoice.pdf", "application/pdf")
+                if invoice_data:
+                    st.download_button(
+                        label="📄 داگرتنی فاکتوور",
+                        data=invoice_data,
+                        file_name="invoice.pdf",
+                        mime="application/pdf",
+                        key="download_invoice_manual"
+                    )
         else:
             st.info("هیچ فرۆشتنێک نییە بۆ دروستکردنی فاکتوور")
 
