@@ -1,10 +1,8 @@
 streamlit>
 folium>
 streamlit-folium>
-pandas>
 firebase-admin>
 requests>
-pandas
 pytz
 streamlit
 Pillow
@@ -13,13 +11,11 @@ python-bidi
 pandas
 streamlit-js-eval
 streamlit
-pandas
 fpdf
 streamlit-folium
 streamlit
 fpdf
 streamlit
-pandas
 plotly
 folium
 streamlit-folium
@@ -32,11 +28,9 @@ streamlit-folium
 streamlit-option-menu
 google-generativeai
 streamlit
-pandas
 plotly
 google-generativeai
 openpyxl
-
 pillow
 fpdf
 numpy
