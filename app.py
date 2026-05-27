@@ -14,6 +14,8 @@ import json
 import pickle
 import warnings
 import os
+import tempfile
+
 warnings.filterwarnings('ignore')
 
 # Try importing scikit-learn (optional)
@@ -132,116 +134,172 @@ def init_session():
 init_session()
 
 # ================== HELPER FUNCTIONS ==================
-def add_sale(product_name, price, customer_name, discount_code="", employee=""):
-    final_price = apply_discount(price, discount_code)
-    new_sale = pd.DataFrame({
-        'ناوی بەرهەم': [product_name], 'نرخ': [float(price)],
-        'کاتی فرۆشتن': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-        'ناوی کڕیار': [customer_name], 'کۆدی داشکاندن': [discount_code],
-        'نرخی کۆتایی': [final_price], 'کارمەند': [employee]
-    })
-    st.session_state.sales = pd.concat([st.session_state.sales, new_sale], ignore_index=True)
-    add_loyalty_points(customer_name, final_price)
-    if employee: update_employee_performance(employee, final_price)
-    st.session_state.last_sale_invoice = generate_invoice({
-        'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'customer': customer_name, 'product': product_name,
-        'price': price, 'final_price': final_price
-    })
-    return True
-
 def apply_discount(price, code):
     if code and not st.session_state.discounts.empty:
         d = st.session_state.discounts[st.session_state.discounts['کۆدی داشکاندن'] == code]
-        if not d.empty: return price * (1 - d['ڕێژە'].iloc[0] / 100)
+        if not d.empty: 
+            return price * (1 - d['ڕێژە'].iloc[0] / 100)
     return price
 
 def add_loyalty_points(customer, amount):
     points = int(amount / 10)
     st.session_state.loyalty_points[customer] = st.session_state.loyalty_points.get(customer, 0) + points
     total = st.session_state.loyalty_points[customer]
-    level = "🏆 پلاتینیۆم" if total >= 1000 else ("🥇 زێڕین" if total >= 500 else ("🥈 زیوین" if total >= 200 else "🥉 ئاسایی"))
+    if total >= 1000:
+        level = "🏆 پلاتینیۆم"
+    elif total >= 500:
+        level = "🥇 زێڕین"
+    elif total >= 200:
+        level = "🥈 زیوین"
+    else:
+        level = "🥉 ئاسایی"
+    
     if customer in st.session_state.customers['ناوی کڕیار'].values:
         idx = st.session_state.customers[st.session_state.customers['ناوی کڕیار'] == customer].index[0]
         st.session_state.customers.at[idx, 'خاڵەکان'] = total
         st.session_state.customers.at[idx, 'ئاست'] = level
-        st.session_state.customers.at[idx, 'کۆی کڕین'] += amount
+        st.session_state.customers.at[idx, 'کۆی کڕین'] = st.session_state.customers.at[idx, 'کۆی کڕین'] + amount if pd.notna(st.session_state.customers.at[idx, 'کۆی کڕین']) else amount
 
 def update_employee_performance(emp, amount):
-    if emp in st.session_state.employees['ناوی کارمەند'].values:
+    if emp and emp in st.session_state.employees['ناوی کارمەند'].values:
         idx = st.session_state.employees[st.session_state.employees['ناوی کارمەند'] == emp].index[0]
-        st.session_state.employees.at[idx, 'ژمارەی فرۆشتن'] += 1
-        st.session_state.employees.at[idx, 'کۆی فرۆشتن'] += amount
-        st.session_state.employees.at[idx, 'پاداشت'] += amount * 0.02
+        st.session_state.employees.at[idx, 'ژمارەی فرۆشتن'] = st.session_state.employees.at[idx, 'ژمارەی فرۆشتن'] + 1 if pd.notna(st.session_state.employees.at[idx, 'ژمارەی فرۆشتن']) else 1
+        st.session_state.employees.at[idx, 'کۆی فرۆشتن'] = st.session_state.employees.at[idx, 'کۆی فرۆشتن'] + amount if pd.notna(st.session_state.employees.at[idx, 'کۆی فرۆشتن']) else amount
+        st.session_state.employees.at[idx, 'پاداشت'] = st.session_state.employees.at[idx, 'پاداشت'] + (amount * 0.02) if pd.notna(st.session_state.employees.at[idx, 'پاداشت']) else (amount * 0.02)
+
+def add_sale(product_name, price, customer_name, discount_code="", employee=""):
+    try:
+        if not product_name or price <= 0 or not customer_name:
+            st.error("تکایە ناوی بەرهەم، نرخ و ناوی کڕیار پڕ بکەرەوە")
+            return False
+        
+        final_price = apply_discount(price, discount_code)
+        new_sale = pd.DataFrame({
+            'ناوی بەرهەم': [product_name], 
+            'نرخ': [float(price)],
+            'کاتی فرۆشتن': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+            'ناوی کڕیار': [customer_name], 
+            'کۆدی داشکاندن': [discount_code],
+            'نرخی کۆتایی': [final_price], 
+            'کارمەند': [employee]
+        })
+        st.session_state.sales = pd.concat([st.session_state.sales, new_sale], ignore_index=True)
+        add_loyalty_points(customer_name, final_price)
+        if employee: 
+            update_employee_performance(employee, final_price)
+        st.session_state.last_sale_invoice = generate_invoice({
+            'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'customer': customer_name, 
+            'product': product_name,
+            'price': price, 
+            'final_price': final_price
+        })
+        return True
+    except Exception as e:
+        st.error(f"هەڵە لە تۆمارکردنی فرۆشتن: {str(e)}")
+        return False
 
 def generate_invoice(data):
     try:
-        pdf = FPDF(); pdf.add_page()
-        pdf.set_font("Arial", "B", 20)
-        pdf.cell(0, 10, "Mobile Shop Invoice", ln=True, align="C")
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(10)
-        pdf.set_font("Arial", "", 12)
-        pdf.cell(0, 10, f"Date: {data.get('date', '')}", ln=True)
-        pdf.cell(0, 10, f"Customer: {data.get('customer', '')}", ln=True)
-        pdf.cell(0, 10, f"Product: {data.get('product', '')}", ln=True)
-        pdf.cell(0, 10, f"Price: ${data.get('final_price', 0)}", ln=True)
-        try:
-            qr = qrcode.make(f"INV{datetime.now().strftime('%Y%m%d%H%M%S')}")
-            qr.save("temp_qr.png")
-            pdf.image("temp_qr.png", x=150, y=30, w=40)
-        except: pass
-        pdf.output("temp_invoice.pdf")
-        with open("temp_invoice.pdf", "rb") as f: result = f.read()
-        for f in ["temp_qr.png", "temp_invoice.pdf"]:
-            if os.path.exists(f): os.remove(f)
-        return result
-    except: return None
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 20)
+            pdf.cell(0, 10, "Mobile Shop Invoice", ln=True, align="C")
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(10)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Date: {data.get('date', '')}", ln=True)
+            pdf.cell(0, 10, f"Customer: {data.get('customer', '')}", ln=True)
+            pdf.cell(0, 10, f"Product: {data.get('product', '')}", ln=True)
+            pdf.cell(0, 10, f"Price: ${data.get('final_price', 0):.2f}", ln=True)
+            
+            # Add QR code
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_qr:
+                    qr = qrcode.make(f"INV{datetime.now().strftime('%Y%m%d%H%M%S')}")
+                    qr.save(tmp_qr.name)
+                    pdf.image(tmp_qr.name, x=150, y=30, w=40)
+                    os.unlink(tmp_qr.name)
+            except Exception as qr_err:
+                pass
+            
+            pdf.output(tmp_pdf.name)
+            with open(tmp_pdf.name, "rb") as f:
+                result = f.read()
+            os.unlink(tmp_pdf.name)
+            return result
+    except Exception as e:
+        return None
 
 def check_low_stock():
-    if not st.session_state.inventory.empty:
+    if not st.session_state.inventory.empty and 'ژمارەی دانەکان' in st.session_state.inventory.columns and 'کەمترین ژمارە' in st.session_state.inventory.columns:
         return st.session_state.inventory[st.session_state.inventory['ژمارەی دانەکان'] < st.session_state.inventory['کەمترین ژمارە']]
     return pd.DataFrame()
 
 def check_expiring_warranty():
-    if not st.session_state.warranty.empty:
-        today = datetime.now().date()
-        dates = pd.to_datetime(st.session_state.warranty['بەرواری کۆتایی گەرەنتی']).dt.date
-        return st.session_state.warranty[((dates - today).dt.days <= 30) & ((dates - today).dt.days >= 0)]
+    if not st.session_state.warranty.empty and 'بەرواری کۆتایی گەرەنتی' in st.session_state.warranty.columns:
+        try:
+            today = datetime.now().date()
+            st.session_state.warranty['بەرواری کۆتایی گەرەنتی'] = pd.to_datetime(st.session_state.warranty['بەرواری کۆتایی گەرەنتی']).dt.date
+            dates = st.session_state.warranty['بەرواری کۆتایی گەرەنتی']
+            return st.session_state.warranty[((dates - today).dt.days <= 30) & ((dates - today).dt.days >= 0)]
+        except:
+            return pd.DataFrame()
     return pd.DataFrame()
 
 def check_upcoming_installments():
-    if not st.session_state.installments.empty:
-        today = datetime.now().date()
-        return st.session_state.installments[(pd.to_datetime(st.session_state.installments['بەرواری داهاتووی قیست']).dt.date - today).dt.days <= 7]
+    if not st.session_state.installments.empty and 'بەرواری داهاتووی قیست' in st.session_state.installments.columns:
+        try:
+            today = datetime.now().date()
+            st.session_state.installments['بەرواری داهاتووی قیست'] = pd.to_datetime(st.session_state.installments['بەرواری داهاتووی قیست']).dt.date
+            return st.session_state.installments[(st.session_state.installments['بەرواری داهاتووی قیست'] - today).dt.days <= 7]
+        except:
+            return pd.DataFrame()
     return pd.DataFrame()
 
 def check_birthdays():
     today = datetime.now()
     birthdays = []
-    if not st.session_state.customers.empty:
+    if not st.session_state.customers.empty and 'ڕێکەوتی لەدایکبوون' in st.session_state.customers.columns:
         for _, c in st.session_state.customers.iterrows():
-            if c['ڕێکەوتی لەدایکبوون']:
-                bd = pd.to_datetime(c['ڕێکەوتی لەدایکبوون'])
-                if bd.month == today.month and bd.day == today.day:
-                    birthdays.append(c['ناوی کڕیار'])
+            if c['ڕێکەوتی لەدایکبوون'] and pd.notna(c['ڕێکەوتی لەدایکبوون']):
+                try:
+                    bd = pd.to_datetime(c['ڕێکەوتی لەدایکبوون'])
+                    if bd.month == today.month and bd.day == today.day:
+                        birthdays.append(c['ناوی کڕیار'])
+                except:
+                    pass
     return birthdays
 
 def export_to_excel(df, sheet="Data"):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as w: df.to_excel(w, sheet_name=sheet, index=False)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name=sheet, index=False)
     return output.getvalue()
 
 def get_download_link(data, filename):
-    return f'<a href="data:application/octet-stream;base64,{base64.b64encode(data).decode()}" download="{filename}">📥 {filename}</a>'
+    b64 = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}">📥 {filename}</a>'
 
 def backup_data():
-    all_data = {k: v.to_dict() if hasattr(v, 'to_dict') else v for k, v in st.session_state.items() if not k.startswith('_')}
+    all_data = {}
+    for k, v in st.session_state.items():
+        if not k.startswith('_'):
+            if hasattr(v, 'to_dict'):
+                all_data[k] = v.to_dict()
+            else:
+                all_data[k] = v
     all_data['backup_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return json.dumps(all_data, default=str), pickle.dumps(all_data)
 
 def restore_data(uploaded_file):
     try:
-        data = json.loads(uploaded_file.read()) if uploaded_file.name.endswith('.json') else pickle.loads(uploaded_file.read())
+        if uploaded_file.name.endswith('.json'):
+            data = json.loads(uploaded_file.read().decode('utf-8'))
+        else:
+            data = pickle.loads(uploaded_file.read())
+        
         for key in data:
             if key != 'backup_date' and key in st.session_state:
                 if isinstance(data[key], dict) and hasattr(st.session_state[key], 'empty'):
@@ -249,12 +307,56 @@ def restore_data(uploaded_file):
                 else:
                     st.session_state[key] = data[key]
         return True
-    except: return False
+    except Exception as e:
+        st.error(f"هەڵە لە گەڕاندنەوەی بەکاپ: {str(e)}")
+        return False
+
+def create_sample_data():
+    """Create sample data for testing"""
+    if st.session_state.sales.empty:
+        sample_sale = pd.DataFrame({
+            'ناوی بەرهەم': ['iPhone 15 Pro', 'Samsung Galaxy S24', 'Google Pixel 8'],
+            'نرخ': [1000, 900, 800],
+            'کاتی فرۆشتن': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")] * 3,
+            'ناوی کڕیار': ['ئەحمەد', 'سارا', 'محەمەد'],
+            'کۆدی داشکاندن': ['', '', ''],
+            'نرخی کۆتایی': [1000, 900, 800],
+            'کارمەند': ['ڕێباز', 'ڕێباز', 'هەڵگورد']
+        })
+        st.session_state.sales = sample_sale
+        
+    if st.session_state.inventory.empty:
+        sample_inv = pd.DataFrame({
+            'ناوی کەلوپەل': ['iPhone 15 Pro', 'Samsung Galaxy S24', 'Google Pixel 8', 'Charger', 'Phone Case'],
+            'ژمارەی دانەکان': [15, 12, 8, 50, 100],
+            'نرخی کڕین': [700, 600, 550, 15, 5],
+            'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")] * 5,
+            'کەمترین ژمارە': [5, 5, 5, 20, 30]
+        })
+        st.session_state.inventory = sample_inv
+    
+    if st.session_state.employees.empty:
+        sample_emp = pd.DataFrame({
+            'ناوی کارمەند': ['ڕێباز', 'هەڵگورد', 'دڵشاد'],
+            'پلە': ['بەڕێوەبەر', 'فرۆشیار', 'فرۆشیار'],
+            'مووچە': [1000, 600, 600],
+            'بەرواری دەستبەکاربوون': [datetime.now().strftime("%Y-%m-%d")] * 3,
+            'ژمارەی فرۆشتن': [0, 0, 0],
+            'کۆی فرۆشتن': [0, 0, 0],
+            'پاداشت': [0, 0, 0]
+        })
+        st.session_state.employees = sample_emp
+        
+    st.success("✅ داتای نموونەیی دروست کرا!")
 
 # ================== SIDEBAR ==================
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/shop.png", width=80)
     st.title("📱 مینوی سەرەکی")
+    
+    # Sample data button
+    if st.button("📊 داتای نموونەیی دروست بکە"):
+        create_sample_data()
     
     st.markdown("---")
     st.markdown("### 🔔 ئاگادارییەکان")
@@ -262,21 +364,25 @@ with st.sidebar:
     low = check_low_stock()
     if not low.empty:
         with st.expander(f"⚠️ {len(low)} کەلوپەلی کەم!", expanded=True):
-            for _, i in low.iterrows(): st.error(f"📦 {i['ناوی کەلوپەل']}: {i['ژمارەی دانەکان']} دانە")
+            for _, i in low.iterrows(): 
+                st.error(f"📦 {i['ناوی کەلوپەل']}: {i['ژمارەی دانەکان']} دانە")
     
     exp = check_expiring_warranty()
     if not exp.empty:
         with st.expander(f"⏰ {len(exp)} گەرەنتی نزیک!", expanded=False):
-            for _, w in exp.iterrows(): st.warning(f"📱 {w['ناوی کڕیار']}")
+            for _, w in exp.iterrows(): 
+                st.warning(f"📱 {w['ناوی کڕیار']}")
     
     inst = check_upcoming_installments()
     if not inst.empty:
         with st.expander(f"💳 {len(inst)} قیستی نزیک!", expanded=False):
-            for _, i in inst.iterrows(): st.warning(f"💰 {i['ناوی کڕیار']}: ${i['مانگانە']:,.2f}")
+            for _, i in inst.iterrows(): 
+                st.warning(f"💰 {i['ناوی کڕیار']}: ${i['مانگانە']:,.2f}")
     
     bdays = check_birthdays()
     if bdays:
-        for b in bdays: st.success(f"🎂 {b}")
+        for b in bdays: 
+            st.success(f"🎂 ڕۆژی لەدایکبوونی {b} پیرۆز بێت!")
     
     st.markdown("---")
     
@@ -284,22 +390,24 @@ with st.sidebar:
         "💰 فرۆشتن": ["📝 فرۆشتنی نوێ", "📋 لیست", "🧾 فاکتوور", "📷 سکانی بارکۆد"],
         "📦 کۆگا": ["📝 زیادکردن", "📋 لیست", "🔄 بەڕێوەبردن", "🏭 دابینکەران", "📋 داواکاری کڕین"],
         "🛡️ گەرەنتی": ["📝 تۆمارکردن", "📋 لیست", "⚠️ ئاگاداری"],
-        "📊 قازانج": ["💰 خەمڵاندن", "📈 هێڵکاری", "📋 ڕاپۆرت", "💸 خەرجی", "📄 ڕاپۆرتی PDF"],
+        "📊 قازانج": ["💰 خەمڵاندن", "📈 هێڵکاری", "📄 ڕاپۆرتی PDF", "💸 خەرجی"],
         "👥 کڕیاران": ["📝 زیادکردن", "📋 لیست", "⭐ خاڵ", "🌟 هەڵسەنگاندن"],
-        "💳 قیست": ["📝 نوێ", "📋 لیست", "📊 بەدواداچوون", "💵 پارەدان"],
+        "💳 قیست": ["📝 نوێ", "📋 لیست", "💵 پارەدان"],
         "🏷️ داشکاندن": ["📝 نوێ", "📋 لیست", "🎉 بۆنە", "📢 مارکێتینگ"],
         "👨‍💼 کارمەندان": ["📝 زیادکردن", "📋 لیست", "📊 ئاست", "🕐 ئامادەبوون", "💰 مووچە"],
-        "🔧 چاککردنەوە": ["📝 تۆمارکردن", "📋 لیست", "🔄 بەڕێوەبردن"],
+        "🔧 چاککردنەوە": ["📝 تۆمارکردن", "📋 لیست"],
         "🚚 گەیاندن": ["📝 نوێ", "📋 لیست"],
         "📱 پەیام": ["📝 ناردن", "📋 مێژوو"],
         "🎫 پشتیوانی": ["📝 تیکت", "📋 تیکتەکان", "💬 چات"],
         "📅 ڕۆژمێر": ["📝 کاری نوێ", "📋 کارەکان", "📅 ڕۆژمێر"],
-        "📊 داشبۆرد": ["🎯 سەرەکی", "🔮 پێشبینیکردن", "📊 بەراورد", "📈 شیکاری"],
-        "⚙️ ڕێکخستن": ["💾 بەکاپ", "🎨 ڕووکار", "🔔 ئاگادارییەکان"]
+        "📊 داشبۆرد": ["🎯 سەرەکی", "📈 شیکاری"],
+        "⚙️ ڕێکخستن": ["💾 بەکاپ", "🔔 ئاگادارییەکان"]
     }
     
     main_choice = st.selectbox("بەشێک هەڵبژێرە:", list(menu.keys()))
-    sub_choice = st.radio("ژێربەش:", menu[main_choice]) if main_choice in menu else None
+    sub_choice = None
+    if main_choice in menu:
+        sub_choice = st.radio("ژێربەش:", menu[main_choice])
     
     st.markdown("---")
     st.markdown("### 📊 کورتە")
@@ -314,429 +422,692 @@ with st.sidebar:
 # ================== MAIN CONTENT ==================
 st.markdown('<p class="main-header">📱 سیستەمی بەڕێوەبردنی دوکانی مۆبایل</p>', unsafe_allow_html=True)
 
-# ================== 1. SALES ==================
-if main_choice == "💰 فرۆشتن" and sub_choice == "📝 فرۆشتنی نوێ":
-    st.header("📝 فرۆشتنی نوێ")
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        with st.form("sale"):
-            p = st.text_input("📱 بەرهەم", placeholder="iPhone 15 Pro")
-            pr, cu = st.columns(2)
-            price = pr.number_input("💵 نرخ ($)", min_value=0.0, step=10.0)
-            cust = cu.text_input("👤 کڕیار")
-            dc, em = st.columns(2)
-            code = dc.text_input("🏷️ کۆدی داشکاندن")
-            emp = em.selectbox("👨‍💼 کارمەند", [""] + list(st.session_state.employees['ناوی کارمەند'])) if not st.session_state.employees.empty else ""
-            fp = apply_discount(price, code) if code else price
-            if code and fp != price: st.success(f"💰 کۆتایی: ${fp:,.2f}")
-            if st.form_submit_button("➕ تۆمارکردن"):
-                if p and price > 0 and cust:
-                    add_sale(p, price, cust, code, emp)
-                    st.success(f"✅ فرۆشرا بە ${fp:,.2f}"); st.balloons()
-                    if st.session_state.last_sale_invoice:
-                        st.download_button("📄 فاکتوور", st.session_state.last_sale_invoice, "invoice.pdf", "application/pdf")
-                else: st.error("هەموو خانەکان پڕ بکە!")
-    with c2:
-        if not st.session_state.sales.empty:
-            st.subheader("📈 دوایین فرۆشتن")
-            st.dataframe(st.session_state.sales.tail(5)[['ناوی بەرهەم','نرخی کۆتایی','ناوی کڕیار']])
-
-elif main_choice == "💰 فرۆشتن" and sub_choice == "📋 لیست":
-    st.header("📋 لیستی فرۆشتنەکان")
-    if not st.session_state.sales.empty:
-        f1, f2, f3 = st.columns(3)
-        df = f1.date_input("📅 بەروار", value=None)
-        pf = f2.multiselect("📱 بەرهەم", st.session_state.sales['ناوی بەرهەم'].unique())
-        cf = f3.text_input("👤 گەڕان")
-        flt = st.session_state.sales.copy()
-        if df:
-            flt['d'] = pd.to_datetime(flt['کاتی فرۆشتن']).dt.date
-            flt = flt[flt['d'] == df]
-        if pf: flt = flt[flt['ناوی بەرهەم'].isin(pf)]
-        if cf: flt = flt[flt['ناوی کڕیار'].str.contains(cf, case=False)]
-        st.dataframe(flt)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("ژمارە", len(flt))
-        c2.metric("کۆی داهات", f"${flt['نرخی کۆتایی'].sum():,.2f}")
-        c3.metric("تێکڕا", f"${flt['نرخی کۆتایی'].mean():,.2f}" if not flt.empty else "$0")
-        if st.button("📥 Excel"): st.markdown(get_download_link(export_to_excel(flt, 'Sales'), 'sales.xlsx'), unsafe_allow_html=True)
-    else: st.info("هیچ فرۆشتنێک نییە")
-
-elif main_choice == "💰 فرۆشتن" and sub_choice == "🧾 فاکتوور":
-    st.header("🧾 فاکتوور")
-    if not st.session_state.sales.empty:
-        s = st.selectbox("فرۆشتن", range(len(st.session_state.sales)), format_func=lambda x: f"{st.session_state.sales.iloc[x]['ناوی بەرهەم']} - {st.session_state.sales.iloc[x]['ناوی کڕیار']}")
-        if st.button("🧾 دروستکردن"):
-            r = st.session_state.sales.iloc[s]
-            inv = generate_invoice({'date': r['کاتی فرۆشتن'], 'customer': r['ناوی کڕیار'], 'product': r['ناوی بەرهەم'], 'final_price': r['نرخی کۆتایی']})
-            if inv: st.download_button("📄 فاکتوور", inv, "invoice.pdf", "application/pdf")
-
-elif main_choice == "💰 فرۆشتن" and sub_choice == "📷 سکانی بارکۆد":
-    st.header("📷 سکانی بارکۆد")
-    bc = st.text_input("🔢 بارکۆد", placeholder="سکان بکە یان بنووسە...")
-    if bc:
-        prod = None
-        if not st.session_state.inventory.empty:
-            for _, r in st.session_state.inventory.iterrows():
-                if bc.lower() in r['ناوی کەلوپەل'].lower(): prod = r; break
-        if prod is not None:
-            st.success(f"✅ {prod['ناوی کەلوپەل']}")
-            c1, c2 = st.columns(2)
-            c1.metric("نرخ", f"${prod['نرخی کڕین']:,.2f}")
-            c1.metric("دانە", prod['ژمارەی دانەکان'])
-            pr = c2.number_input("نرخی فرۆشتن", value=float(prod['نرخی کڕین'])*1.3)
-            cust = c2.text_input("کڕیار")
-            if st.button("🛒 فرۆشتنی خێرا") and cust:
-                add_sale(prod['ناوی کەلوپەل'], pr, cust)
-                st.success("✅ فرۆشرا!"); st.balloons()
-        else: st.error("❌ نەدۆزرایەوە!")
-
-# ================== 2. INVENTORY ==================
-elif main_choice == "📦 کۆگا" and sub_choice == "📝 زیادکردن":
-    st.header("📝 زیادکردنی کەلوپەل")
-    with st.form("inv"):
-        n = st.text_input("🏷️ ناو")
-        s, p = st.columns(2)
-        stk = s.number_input("📦 دانە", min_value=1, step=1)
-        prc = p.number_input("💰 نرخ ($)", min_value=0.0, step=1.0)
-        mn = st.number_input("⚠️ ئاستی ئاگاداری", min_value=1, value=5)
-        if st.form_submit_button("➕ زیادکردن"):
-            if n and stk > 0:
-                ni = pd.DataFrame({'ناوی کەلوپەل': [n], 'ژمارەی دانەکان': [stk], 'نرخی کڕین': [prc], 'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")], 'کەمترین ژمارە': [mn]})
-                st.session_state.inventory = pd.concat([st.session_state.inventory, ni], ignore_index=True)
-                st.success(f"✅ {stk} دانە {n} زیاد کرا!")
-
-elif main_choice == "📦 کۆگا" and sub_choice == "📋 لیست":
-    st.header("📋 کۆگا")
-    if not st.session_state.inventory.empty:
-        d = st.session_state.inventory.copy()
-        d['کۆی بەها'] = d['ژمارەی دانەکان'] * d['نرخی کڕین']
-        d['ڕەوش'] = d.apply(lambda x: '🔴 کەم' if x['ژمارەی دانەکان'] < x['کەمترین ژمارە'] else '🟢 باش', axis=1)
-        st.dataframe(d)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("جۆر", len(d))
-        c2.metric("دانە", d['ژمارەی دانەکان'].sum())
-        c3.metric("بەها", f"${d['کۆی بەها'].sum():,.2f}")
-        if st.button("📥 Excel"): st.markdown(get_download_link(export_to_excel(d, 'Inventory'), 'inventory.xlsx'), unsafe_allow_html=True)
-
-elif main_choice == "📦 کۆگا" and sub_choice == "🔄 بەڕێوەبردن":
-    st.header("🔄 بەڕێوەبردنی کۆگا")
-    if not st.session_state.inventory.empty:
-        it = st.selectbox("کەلوپەل", st.session_state.inventory['ناوی کەلوپەل'])
-        ci = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == it].iloc[0]
-        st.info(f"ئێستا: {ci['ژمارەی دانەکان']} | ${ci['نرخی کڕین']}")
-        c1, c2 = st.columns(2)
-        ch = c1.number_input("گۆڕانکاری (+/-)", value=0, step=1)
-        np = c2.number_input("نرخی نوێ (0=بێ گۆڕان)", value=0.0)
-        if st.button("🔄 نوێکردنەوە"):
-            idx = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == it].index[0]
-            if ch != 0:
-                ns = ci['ژمارەی دانەکان'] + ch
-                if ns >= 0: st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] = ns
-                else: st.error("ناتوانێت سالب بێت!"); st.stop()
-            if np > 0: st.session_state.inventory.at[idx, 'نرخی کڕین'] = np
-            st.success("✅ نوێ کرایەوە!"); st.rerun()
-
-elif main_choice == "📦 کۆگا" and sub_choice == "🏭 دابینکەران":
-    st.header("🏭 دابینکەران")
-    with st.form("sup"):
-        c = st.text_input("🏢 کۆمپانیا")
-        ct = st.text_input("👤 بەرپرس")
-        ph = st.text_input("📞 مۆبایل")
-        em = st.text_input("📧 ئیمەیڵ")
-        ad = st.text_input("📍 ناونیشان")
-        pt = st.text_input("📦 جۆری کەلوپەل")
-        if st.form_submit_button("➕ زیادکردن") and c:
-            ns = pd.DataFrame({'ID': [f"SUP{datetime.now().strftime('%Y%m%d%H%M%S')}"], 'ناوی کۆمپانیا': [c], 'بەرپرس': [ct], 'مۆبایل': [ph], 'ئیمەیڵ': [em], 'ناونیشان': [ad], 'جۆری کەلوپەل': [pt]})
-            st.session_state.suppliers = pd.concat([st.session_state.suppliers, ns], ignore_index=True)
-            st.success("✅ زیاد کرا!")
-    if not st.session_state.suppliers.empty: st.dataframe(st.session_state.suppliers)
-
-elif main_choice == "📦 کۆگا" and sub_choice == "📋 داواکاری کڕین":
-    st.header("📋 داواکاری کڕین")
-    low = check_low_stock()
-    if not low.empty: st.warning(f"⚠️ {len(low)} کەلوپەل کەمە!")
-    with st.form("po"):
-        sup = st.selectbox("دابینکەر", st.session_state.suppliers['ناوی کۆمپانیا']) if not st.session_state.suppliers.empty else st.text_input("دابینکەر")
-        prod = st.selectbox("کەلوپەل", st.session_state.inventory['ناوی کەلوپەل']) if not st.session_state.inventory.empty else st.text_input("کەلوپەل")
-        qty = st.number_input("دانە", min_value=1, value=10)
-        prc = st.number_input("نرخ ($)", min_value=0.0)
-        st.info(f"کۆی نرخ: ${qty*prc:,.2f}")
-        if st.form_submit_button("📝 دروستکردن") and sup and prod:
-            np = pd.DataFrame({'ID': [f"PO{datetime.now().strftime('%Y%m%d%H%M%S')}"], 'دابینکەر': [sup], 'کەلوپەل': [prod], 'دانە': [qty], 'نرخ': [prc], 'کۆی نرخ': [qty*prc], 'ڕەوش': ['چاوەڕوان']})
-            st.session_state.purchase_orders = pd.concat([st.session_state.purchase_orders, np], ignore_index=True)
-            st.success("✅ تۆمار کرا!")
-    if not st.session_state.purchase_orders.empty: st.dataframe(st.session_state.purchase_orders)
-
-# ================== 3. WARRANTY ==================
-elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📝 تۆمارکردن":
-    st.header("📝 گەرەنتی نوێ")
-    with st.form("war"):
-        c = st.text_input("👤 کڕیار")
-        i, d = st.columns(2)
-        im = i.text_input("📱 IMEI (15)")
-        dm = d.text_input("📱 جۆری مۆبایل")
-        we = st.date_input("📅 کۆتایی گەرەنتی", min_value=datetime.now().date())
-        if st.form_submit_button("➕ تۆمارکردن") and c and im and len(im)==15 and im.isdigit():
-            nw = pd.DataFrame({'ناوی کڕیار': [c], 'ژمارەی IMEI': [im], 'بەرواری کۆتایی گەرەنتی': [we.strftime("%Y-%m-%d")], 'جۆری مۆبایل': [dm]})
-            st.session_state.warranty = pd.concat([st.session_state.warranty, nw], ignore_index=True)
-            st.success("✅ تۆمار کرا!")
-
-elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📋 لیست":
-    st.header("📋 گەرەنتییەکان")
-    if not st.session_state.warranty.empty:
-        d = st.session_state.warranty.copy()
-        d['کۆتایی'] = pd.to_datetime(d['بەرواری کۆتایی گەرەنتی'])
-        d['ڕۆژ'] = (d['کۆتایی'] - datetime.now()).dt.days
-        d['ڕەوش'] = d['ڕۆژ'].apply(lambda x: '🔴 بەسەرچوو' if x<0 else ('🔴 زۆر نزیک' if x<=7 else ('🟡 نزیک' if x<=30 else '🟢 چالاک')))
-        st.dataframe(d)
-        if st.button("📥 Excel"): st.markdown(get_download_link(export_to_excel(d, 'Warranty'), 'warranty.xlsx'), unsafe_allow_html=True)
-
-elif main_choice == "🛡️ گەرەنتی" and sub_choice == "⚠️ ئاگاداری":
-    st.header("⚠️ ئاگادارییەکان")
-    exp = check_expiring_warranty()
-    if not exp.empty:
-        st.warning(f"⚠️ {len(exp)} گەرەنتی نزیکە!")
-        for _, w in exp.iterrows(): st.markdown(f"<div class='customer-card'><h4>📱 {w['جۆری مۆبایل']}</h4><p>👤 {w['ناوی کڕیار']}</p><p>📅 {w['بەرواری کۆتایی گەرەنتی']}</p></div>", unsafe_allow_html=True)
-    else: st.success("✅ هیچ گەرەنتییەکی نزیک نییە!")
-
-# ================== 4. PROFIT ==================
-elif main_choice == "📊 قازانج":
-    ts = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
-    tc = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
-    te = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
-    p = ts - tc - te
-    pm = (p/ts*100) if ts > 0 else 0
-    
-    if sub_choice == "💰 خەمڵاندن":
-        st.header("💰 قازانج")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.markdown('<div class="metric-card">', unsafe_allow_html=True); c1.metric("فرۆشتن", f"${ts:,.2f}"); c1.markdown('</div>', unsafe_allow_html=True)
-        c2.markdown('<div class="metric-card">', unsafe_allow_html=True); c2.metric("تێچوو", f"${tc:,.2f}"); c2.markdown('</div>', unsafe_allow_html=True)
-        c3.markdown('<div class="metric-card">', unsafe_allow_html=True); c3.metric("خەرجی", f"${te:,.2f}"); c3.markdown('</div>', unsafe_allow_html=True)
-        c4.markdown('<div class="metric-card">', unsafe_allow_html=True); c4.metric("قازانج", f"${p:,.2f}", f"{pm:.1f}%"); c4.markdown('</div>', unsafe_allow_html=True)
-        if pm > 30: st.success("🎉 زۆر باشە!")
-        elif pm > 15: st.info("👍 باشە")
-        elif pm > 0: st.warning("⚠️ کەمە")
-        else: st.error("❌ زیانە!")
-    
-    elif sub_choice == "📈 هێڵکاری":
-        st.header("📈 هێڵکاری")
-        fig = go.Figure(data=[go.Bar(name='فرۆشتن', x=['دارایی'], y=[ts], marker_color='#2ecc71'), go.Bar(name='تێچوو', x=['دارایی'], y=[tc], marker_color='#e74c3c'), go.Bar(name='خەرجی', x=['دارایی'], y=[te], marker_color='#f39c12'), go.Bar(name='قازانج', x=['دارایی'], y=[p], marker_color='#3498db')])
-        fig.update_layout(barmode='group', height=500); st.plotly_chart(fig)
-    
-    elif sub_choice == "📄 ڕاپۆرتی PDF":
-        st.header("📄 ڕاپۆرتی PDF")
-        rt = st.selectbox("جۆر", ["دارایی", "فرۆشتن", "کۆگا", "گشتی"])
-        if st.button("📄 دروستکردن"):
-            try:
-                pdf = FPDF(); pdf.add_page()
-                pdf.set_font("Arial", "B", 20); pdf.cell(0, 10, f"Mobile Shop - {rt}", ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-                pdf.cell(0, 10, f"Total Sales: ${ts:,.2f}", ln=True)
-                pdf.cell(0, 10, f"Net Profit: ${p:,.2f}", ln=True)
-                rpt = pdf.output(dest='S').encode('latin-1')
-                st.download_button("📥 داگرتن", rpt, f"report_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
-                st.success("✅ دروست کرا!")
-            except: st.error("هەڵە!")
-
-# ================== 5. CUSTOMERS ==================
-elif main_choice == "👥 کڕیاران" and sub_choice == "🌟 هەڵسەنگاندن":
-    st.header("🌟 هەڵسەنگاندن")
-    if not st.session_state.customers.empty:
-        c = st.selectbox("کڕیار", st.session_state.customers['ناوی کڕیار'])
-        pr = st.session_state.sales[st.session_state.sales['ناوی کڕیار']==c]['ناوی بەرهەم'].unique()
-        if len(pr)>0:
-            p = st.selectbox("بەرهەم", pr)
-            r = st.slider("ئەستێرە", 1, 5, 5)
-            st.markdown(f"### {'⭐'*r}{'☆'*(5-r)}")
-            cm = st.text_area("سەرنج")
-            if st.button("📝 تۆمارکردن"):
-                nr = pd.DataFrame({'کڕیار': [c], 'بەرهەم': [p], 'ئەستێرە': [r], 'سەرنج': [cm], 'بەروار': [datetime.now().strftime("%Y-%m-%d")]})
-                st.session_state.reviews = pd.concat([st.session_state.reviews, nr], ignore_index=True)
-                st.success("✅ تۆمار کرا!")
-                if r <= 2: st.warning("⚠️ پێویستی بە پەیوەندییە!")
-    if not st.session_state.reviews.empty:
-        st.metric("تێکڕای ئەستێرە", f"{st.session_state.reviews['ئەستێرە'].mean():.1f} ⭐")
-        st.dataframe(st.session_state.reviews)
-
-# ================== 6. INSTALLMENTS ==================
-elif main_choice == "💳 قیست" and sub_choice == "💵 پارەدان":
-    st.header("💵 پارەدان")
-    m = st.selectbox("شێواز", ["💵 کاش", "💳 کارت", "📱 مۆبایل"])
-    a = st.number_input("بڕ ($)", min_value=0.0)
-    if m == "💵 کاش":
-        r = st.number_input("پارەی وەرگیراو", min_value=0.0)
-        if r>0:
-            ch = r-a
-            if ch >= 0: st.success(f"💰 باقی: ${ch:,.2f}")
-            else: st.error(f"کەمە! ${abs(ch):,.2f}")
-    elif m == "💳 کارت":
-        st.text_input("ژمارەی کارت", placeholder="**** **** **** ****")
-        if st.button("💳 پارەدان"): st.success("✅ ئەنجامدرا!")
-    elif m == "📱 مۆبایل":
-        st.info("📱 ئەپی بانکی بەکاربهێنە")
-        if st.button("✅ پشتڕاستکردنەوە"): st.success("✅ پشتڕاست کرا!")
-
-# ================== 7. DISCOUNTS & MARKETING ==================
-elif main_choice == "🏷️ داشکاندن" and sub_choice == "📢 مارکێتینگ":
-    st.header("📢 هەڵمەتی مارکێتینگ")
-    with st.form("camp"):
-        n = st.text_input("ناوی هەڵمەت")
-        t = st.selectbox("جۆر", ["📱 سۆشیال", "📧 ئیمەیڵ", "📩 SMS", "🎯 گووگڵ"])
-        b = st.number_input("بودجە ($)", min_value=0.0)
-        s, e = st.columns(2)
-        stt = s.date_input("دەستپێک")
-        end = e.date_input("کۆتایی")
-        if st.form_submit_button("➕ دروستکردن") and n:
-            st.success(f"✅ هەڵمەتی {n} دروست کرا!")
-
-# ================== 8. EMPLOYEES ==================
-elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "🕐 ئامادەبوون":
-    st.header("🕐 ئامادەبوون")
-    if not st.session_state.employees.empty:
-        e = st.selectbox("کارمەند", st.session_state.employees['ناوی کارمەند'])
-        c1, c2, c3 = st.columns(3)
-        if c1.button("🏃 هاتن"):
-            na = pd.DataFrame({'کارمەند': [e], 'بەروار': [datetime.now().strftime("%Y-%m-%d")], 'کاتی هاتن': [datetime.now().strftime("%H:%M:%S")], 'کاتی ڕۆیشتن': [''], 'کاتژمێر': [0], 'ڕەوش': ['ئامادە']})
-            st.session_state.attendance = pd.concat([st.session_state.attendance, na], ignore_index=True)
-            st.success(f"✅ {e} هات")
-        if c2.button("🚶 ڕۆیشتن"):
-            idx = st.session_state.attendance[(st.session_state.attendance['کارمەند']==e)&(st.session_state.attendance['بەروار']==datetime.now().strftime("%Y-%m-%d"))].index
-            if len(idx)>0:
-                st.session_state.attendance.at[idx[-1], 'کاتی ڕۆیشتن'] = datetime.now().strftime("%H:%M:%S")
-                st.success(f"✅ {e} ڕۆیشت")
-            else: st.error("سەرەتا هاتن تۆمار بکە!")
-        if c3.button("❌ عدم"):
-            na = pd.DataFrame({'کارمەند': [e], 'بەروار': [datetime.now().strftime("%Y-%m-%d")], 'کاتی هاتن': [''], 'کاتی ڕۆیشتن': [''], 'کاتژمێر': [0], 'ڕەوش': ['عدم']})
-            st.session_state.attendance = pd.concat([st.session_state.attendance, na], ignore_index=True)
-            st.warning(f"⚠️ {e} عدم")
-    if not st.session_state.attendance.empty: st.dataframe(st.session_state.attendance.tail(20))
-
-elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "💰 مووچە":
-    st.header("💰 مووچە")
-    if not st.session_state.employees.empty:
-        e = st.selectbox("کارمەند", st.session_state.employees['ناوی کارمەند'])
-        m = st.selectbox("مانگ", range(1,13), index=datetime.now().month-1)
-        ed = st.session_state.employees[st.session_state.employees['ناوی کارمەند']==e]
-        base = ed['مووچە'].iloc[0] if not ed.empty else 0
-        bonus = ed['پاداشت'].iloc[0] if not ed.empty else 0
-        absences = 0
-        if not st.session_state.attendance.empty:
-            ma = st.session_state.attendance[(st.session_state.attendance['کارمەند']==e)&(pd.to_datetime(st.session_state.attendance['بەروار']).dt.month==m)&(st.session_state.attendance['ڕەوش']=='عدم')]
-            absences = len(ma)
-        ded = (base/30)*absences
-        total = base + bonus - ded
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("بنەڕەتی", f"${base:,.2f}")
-        c2.metric("پاداشت", f"${bonus:,.2f}")
-        c3.metric("کەمکردنەوە", f"${ded:,.2f}")
-        c4.metric("💵 کۆی گشتی", f"${total:,.2f}")
-
-# ================== 9. TASKS CALENDAR ==================
-elif main_choice == "📅 ڕۆژمێر" and sub_choice == "📝 کاری نوێ":
-    st.header("📝 کاری نوێ")
-    with st.form("task"):
-        t = st.text_input("ناونیشان")
-        d = st.text_area("وەسف")
-        dl = st.date_input("وادە", min_value=datetime.now().date())
-        p = st.selectbox("لەولەوەپێشی", ["🔴 بەرز", "🟡 مامناوەند", "🟢 نزم"])
-        a = st.selectbox("کارمەند", st.session_state.employees['ناوی کارمەند']) if not st.session_state.employees.empty else "خۆم"
-        if st.form_submit_button("➕ زیادکردن") and t:
-            nt = pd.DataFrame({'ناونیشان': [t], 'وەسف': [d], 'وادە': [dl.strftime("%Y-%m-%d")], 'لەولەوەپێشی': [p], 'کارمەند': [a], 'ڕەوش': ['چاوەڕوان']})
-            st.session_state.tasks = pd.concat([st.session_state.tasks, nt], ignore_index=True)
-            st.success("✅ زیاد کرا!")
-
-elif main_choice == "📅 ڕۆژمێر" and sub_choice == "📅 ڕۆژمێر":
-    st.header("📅 ڕۆژمێر")
-    today = datetime.now()
-    st.subheader(f"📌 {today.strftime('%A, %B %d, %Y')}")
-    bdays = check_birthdays()
-    if bdays:
-        st.balloons()
-        for b in bdays: st.success(f"🎂 {b}!")
-    if not st.session_state.tasks.empty:
-        tt = st.session_state.tasks[st.session_state.tasks['وادە']==today.strftime("%Y-%m-%d")]
-        if not tt.empty:
-            for _, t in tt.iterrows(): st.markdown(f"<div class='customer-card'><strong>{t['لەولەوەپێشی']}</strong> {t['ناونیشان']}<br><small>👤 {t['کارمەند']} | ⏰ {t['ڕەوش']}</small></div>", unsafe_allow_html=True)
-        else: st.success("✅ هیچ کارێک بۆ ئەمڕۆ نییە!")
-
-# ================== 10. ADVANCED ANALYTICS ==================
-elif main_choice == "📊 داشبۆرد" and sub_choice == "📈 شیکاری":
-    st.header("📈 شیکاری پێشکەوتوو")
-    tab1, tab2 = st.tabs(["📊 گەیج", "📈 هێڵکاری"])
-    with tab1:
-        c1, c2 = st.columns(2)
+try:
+    # ================== 1. SALES ==================
+    if main_choice == "💰 فرۆشتن" and sub_choice == "📝 فرۆشتنی نوێ":
+        st.header("📝 فرۆشتنی نوێ")
+        c1, c2 = st.columns([2, 1])
         with c1:
-            sat = st.session_state.reviews['ئەستێرە'].mean()*20 if not st.session_state.reviews.empty else 85
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=sat, title={'text': "ڕەزامەندی %"}, gauge={'axis': {'range': [0,100]}, 'bar': {'color': "#667eea"}}))
-            st.plotly_chart(fig)
+            with st.form("sale_form"):
+                product_name = st.text_input("📱 بەرهەم", placeholder="iPhone 15 Pro")
+                col1, col2 = st.columns(2)
+                price = col1.number_input("💵 نرخ ($)", min_value=0.0, step=10.0, value=0.0)
+                customer_name = col2.text_input("👤 ناوی کڕیار")
+                col3, col4 = st.columns(2)
+                discount_code = col3.text_input("🏷️ کۆدی داشکاندن")
+                employee = col4.selectbox("👨‍💼 کارمەند", [""] + list(st.session_state.employees['ناوی کارمەند'].values)) if not st.session_state.employees.empty else ""
+                
+                if discount_code:
+                    final_price = apply_discount(price, discount_code)
+                    if final_price != price:
+                        st.success(f"💰 نرخی کۆتایی دوای داشکاندن: ${final_price:,.2f}")
+                
+                if st.form_submit_button("➕ تۆمارکردنی فرۆشتن"):
+                    if product_name and price > 0 and customer_name:
+                        if add_sale(product_name, price, customer_name, discount_code, employee):
+                            st.success(f"✅ فرۆشتن بە سەرکەوتوویی تۆمار کرا! نرخی کۆتایی: ${apply_discount(price, discount_code):,.2f}")
+                            st.balloons()
+                            if st.session_state.last_sale_invoice:
+                                st.download_button(
+                                    label="📄 داگرتنی فاکتوور",
+                                    data=st.session_state.last_sale_invoice,
+                                    file_name=f"invoice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                                    mime="application/pdf"
+                                )
+                    else:
+                        st.error("❌ تکایە ناوی بەرهەم، نرخ و ناوی کڕیار پڕ بکەرەوە!")
+        
         with c2:
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=ts if 'ts' in dir() else 0, title={'text': "فرۆشتن $"}, gauge={'axis': {'range': [0, max(ts*1.5 if 'ts' in dir() else 1000, 1000)]}, 'bar': {'color': "#667eea"}}))
-            st.plotly_chart(fig)
-    with tab2:
+            if not st.session_state.sales.empty:
+                st.subheader("📈 دوایین فرۆشتنەکان")
+                st.dataframe(st.session_state.sales.tail(5)[['ناوی بەرهەم', 'نرخی کۆتایی', 'ناوی کڕیار']], use_container_width=True)
+
+    elif main_choice == "💰 فرۆشتن" and sub_choice == "📋 لیست":
+        st.header("📋 لیستی فرۆشتنەکان")
         if not st.session_state.sales.empty:
-            sm = st.session_state.sales.copy()
-            sm['m'] = pd.to_datetime(sm['کاتی فرۆشتن']).dt.month
-            ms = sm.groupby('m')['نرخی کۆتایی'].sum()
-            fig = px.line(x=ms.index, y=ms.values, labels={'x':'مانگ', 'y':'فرۆشتن'})
-            st.plotly_chart(fig)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                filter_date = st.date_input("📅 بەروار", value=None)
+            with col2:
+                products = st.session_state.sales['ناوی بەرهەم'].unique().tolist() if 'ناوی بەرهەم' in st.session_state.sales.columns else []
+                product_filter = st.multiselect("📱 بەرهەم", products)
+            with col3:
+                search_customer = st.text_input("👤 گەڕان بە ناوی کڕیار")
+            
+            filtered_sales = st.session_state.sales.copy()
+            if filter_date:
+                filtered_sales['date'] = pd.to_datetime(filtered_sales['کاتی فرۆشتن']).dt.date
+                filtered_sales = filtered_sales[filtered_sales['date'] == filter_date]
+            if product_filter:
+                filtered_sales = filtered_sales[filtered_sales['ناوی بەرهەم'].isin(product_filter)]
+            if search_customer:
+                filtered_sales = filtered_sales[filtered_sales['ناوی کڕیار'].str.contains(search_customer, case=False, na=False)]
+            
+            st.dataframe(filtered_sales, use_container_width=True)
+            
+            col_a, col_b, col_c = st.columns(3)
+            col_a.metric("📊 ژمارەی فرۆشتن", len(filtered_sales))
+            col_b.metric("💰 کۆی داهات", f"${filtered_sales['نرخی کۆتایی'].sum():,.2f}")
+            col_c.metric("📈 تێکڕای فرۆشتن", f"${filtered_sales['نرخی کۆتایی'].mean():,.2f}" if not filtered_sales.empty else "$0")
+            
+            if st.button("📥 هەناردەکردن بۆ Excel"):
+                excel_data = export_to_excel(filtered_sales, 'Sales')
+                st.markdown(get_download_link(excel_data, 'sales_report.xlsx'), unsafe_allow_html=True)
+        else:
+            st.info("📭 هیچ فرۆشتنێک تۆمار نەکراوە")
 
-# ================== 11. SETTINGS ==================
-elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "💾 بەکاپ":
-    st.header("💾 بەکاپ و گەڕاندنەوە")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📥 دروستکردنی بەکاپ"):
-            jb, pb = backup_data()
-            st.download_button("📥 JSON", jb, f"backup_{datetime.now().strftime('%Y%m%d')}.json", "application/json")
-            st.download_button("📥 Pickle", pb, f"backup_{datetime.now().strftime('%Y%m%d')}.pkl", "application/octet-stream")
-            st.success("✅ دروست کرا!")
-    with c2:
-        uf = st.file_uploader("فایلی بەکاپ", type=['json','pkl'])
-        if uf and st.button("🔄 گەڕاندنەوە"):
-            if restore_data(uf): st.success("✅ گەڕێندرایەوە!"); st.balloons()
+    elif main_choice == "💰 فرۆشتن" and sub_choice == "🧾 فاکتوور":
+        st.header("🧾 دروستکردنی فاکتوور")
+        if not st.session_state.sales.empty:
+            sale_options = [f"{row['ناوی بەرهەم']} - {row['ناوی کڕیار']} - {row['کاتی فرۆشتن']}" for _, row in st.session_state.sales.iterrows()]
+            selected_sale = st.selectbox("📝 فرۆشتنی هەڵبژێرە", range(len(sale_options)), format_func=lambda x: sale_options[x])
+            
+            if st.button("🧾 دروستکردنی فاکتوور"):
+                sale_data = st.session_state.sales.iloc[selected_sale]
+                invoice_data = {
+                    'date': sale_data['کاتی فرۆشتن'],
+                    'customer': sale_data['ناوی کڕیار'],
+                    'product': sale_data['ناوی بەرهەم'],
+                    'price': sale_data['نرخ'],
+                    'final_price': sale_data['نرخی کۆتایی']
+                }
+                invoice_pdf = generate_invoice(invoice_data)
+                if invoice_pdf:
+                    st.download_button(
+                        label="📄 داگرتنی فاکتوور",
+                        data=invoice_pdf,
+                        file_name=f"invoice_{sale_data['ناوی کڕیار']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf"
+                    )
+                    st.success("✅ فاکتوور بە سەرکەوتوویی دروست کرا!")
+                else:
+                    st.error("❌ هەڵە لە دروستکردنی فاکتووردا")
+        else:
+            st.info("📭 سەرەتا فرۆشتنێک تۆمار بکە")
 
-elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "🔔 ئاگادارییەکان":
-    st.header("🔔 ئاگادارییە زیرەکەکان")
-    nots = []
-    for _, i in check_low_stock().iterrows(): nots.append(('error', f"📦 {i['ناوی کەلوپەل']}: {i['ژمارەی دانەکان']} دانە"))
-    for _, w in check_expiring_warranty().iterrows():
-        d = (pd.to_datetime(w['بەرواری کۆتایی گەرەنتی']).date()-datetime.now().date()).days
-        nots.append(('warning' if d<=7 else 'info', f"⏰ {w['ناوی کڕیار']} {d} ڕۆژ"))
-    for _, i in check_upcoming_installments().iterrows(): nots.append(('info', f"💳 {i['ناوی کڕیار']}: ${i['مانگانە']:,.2f}"))
-    for b in check_birthdays(): nots.append(('success', f"🎂 {b}"))
-    if nots:
-        for t, m in nots:
-            if t=='error': st.error(m)
-            elif t=='warning': st.warning(m)
-            elif t=='info': st.info(m)
-            elif t=='success': st.success(m); st.balloons()
-    else: st.success("✅ هیچ ئاگادارییەک نییە!")
+    elif main_choice == "💰 فرۆشتن" and sub_choice == "📷 سکانی بارکۆد":
+        st.header("📷 سکانی بارکۆد")
+        barcode = st.text_input("🔢 بارکۆد یان ناوی بەرهەم", placeholder="سکان یان بنووسە...")
+        
+        if barcode:
+            found_product = None
+            if not st.session_state.inventory.empty:
+                for _, row in st.session_state.inventory.iterrows():
+                    if barcode.lower() in row['ناوی کەلوپەل'].lower():
+                        found_product = row
+                        break
+            
+            if found_product is not None:
+                st.success(f"✅ بەرهەم دۆزرایەوە: {found_product['ناوی کەلوپەل']}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("📦 ژمارەی دانەکان", found_product['ژمارەی دانەکان'])
+                    st.metric("💰 نرخی کڕین", f"${found_product['نرخی کڕین']:,.2f}")
+                with col2:
+                    selling_price = st.number_input("💰 نرخی فرۆشتن", min_value=0.0, value=float(found_product['نرخی کڕین']) * 1.3, step=10.0)
+                    customer_name = st.text_input("👤 ناوی کڕیار")
+                
+                if st.button("🛒 فرۆشتنی خێرا") and customer_name:
+                    if add_sale(found_product['ناوی کەلوپەل'], selling_price, customer_name):
+                        st.success("✅ فرۆشتن تۆمار کرا!")
+                        st.balloons()
+            else:
+                st.error("❌ بەرهەم نەدۆزرایەوە!")
 
-# ================== DEFAULT DASHBOARD ==================
-elif main_choice == "📊 داشبۆرد" and sub_choice == "🎯 سەرەکی":
-    st.header("🎯 داشبۆردی سەرەکی")
-    today = datetime.now().date()
-    ts_today = 0
-    if not st.session_state.sales.empty:
-        stt = st.session_state.sales.copy()
-        stt['d'] = pd.to_datetime(stt['کاتی فرۆشتن']).dt.date
-        ts_today = stt[stt['d']==today]['نرخی کۆتایی'].sum()
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown('<div class="metric-card">', unsafe_allow_html=True); c1.metric("💰 ئەمڕۆ", f"${ts_today:,.2f}"); c1.markdown('</div>', unsafe_allow_html=True)
-    c2.markdown('<div class="metric-card">', unsafe_allow_html=True); c2.metric("📦 کەم", len(check_low_stock())); c2.markdown('</div>', unsafe_allow_html=True)
-    pr = len(st.session_state.repairs[st.session_state.repairs['ڕەوش'].isin(['چاوەڕوان','لەژێر کاردایە'])]) if not st.session_state.repairs.empty else 0
-    c3.markdown('<div class="metric-card">', unsafe_allow_html=True); c3.metric("🔧 چاککردنەوە", pr); c3.markdown('</div>', unsafe_allow_html=True)
-    at = len(st.session_state.tickets[st.session_state.tickets['ڕەوش']=='کراوە']) if not st.session_state.tickets.empty else 0
-    c4.markdown('<div class="metric-card">', unsafe_allow_html=True); c4.metric("🎫 تیکت", at); c4.markdown('</div>', unsafe_allow_html=True)
+    # ================== 2. INVENTORY ==================
+    elif main_choice == "📦 کۆگا" and sub_choice == "📝 زیادکردن":
+        st.header("📝 زیادکردنی کەلوپەلی نوێ")
+        with st.form("inventory_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                item_name = st.text_input("🏷️ ناوی کەلوپەل")
+                quantity = st.number_input("📦 ژمارەی دانەکان", min_value=1, step=1, value=1)
+            with col2:
+                purchase_price = st.number_input("💰 نرخی کڕین ($)", min_value=0.0, step=1.0, value=0.0)
+                min_stock = st.number_input("⚠️ کەمترین ئاستی ئاگاداری", min_value=1, value=5, step=1)
+            
+            if st.form_submit_button("➕ زیادکردنی کەلوپەل"):
+                if item_name and quantity > 0:
+                    new_item = pd.DataFrame({
+                        'ناوی کەلوپەل': [item_name],
+                        'ژمارەی دانەکان': [quantity],
+                        'نرخی کڕین': [purchase_price],
+                        'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
+                        'کەمترین ژمارە': [min_stock]
+                    })
+                    st.session_state.inventory = pd.concat([st.session_state.inventory, new_item], ignore_index=True)
+                    st.success(f"✅ {quantity} دانە {item_name} بە سەرکەوتوویی زیاد کرا!")
+                else:
+                    st.error("❌ تکایە ناوی کەلوپەل و ژمارەی دانەکان پڕ بکەرەوە")
+
+    elif main_choice == "📦 کۆگا" and sub_choice == "📋 لیست":
+        st.header("📋 لیستی کەلوپەلەکان")
+        if not st.session_state.inventory.empty:
+            inventory_display = st.session_state.inventory.copy()
+            inventory_display['کۆی بەها'] = inventory_display['ژمارەی دانەکان'] * inventory_display['نرخی کڕین']
+            inventory_display['ڕەوش'] = inventory_display.apply(
+                lambda x: '🔴 کەمە' if x['ژمارەی دانەکان'] < x['کەمترین ژمارە'] else '🟢 باشە', 
+                axis=1
+            )
+            st.dataframe(inventory_display, use_container_width=True)
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("📦 جۆری کەلوپەل", len(inventory_display))
+            col2.metric("🔢 کۆی دانەکان", inventory_display['ژمارەی دانەکان'].sum())
+            col3.metric("💰 کۆی بەها", f"${inventory_display['کۆی بەها'].sum():,.2f}")
+            
+            if st.button("📥 هەناردەکردن بۆ Excel"):
+                excel_data = export_to_excel(inventory_display, 'Inventory')
+                st.markdown(get_download_link(excel_data, 'inventory_report.xlsx'), unsafe_allow_html=True)
+        else:
+            st.info("📭 هیچ کەلوپەلێک لە کۆگادا نییە")
+
+    elif main_choice == "📦 کۆگا" and sub_choice == "🔄 بەڕێوەبردن":
+        st.header("🔄 بەڕێوەبردنی کۆگا")
+        if not st.session_state.inventory.empty:
+            item_list = st.session_state.inventory['ناوی کەلوپەل'].tolist()
+            selected_item = st.selectbox("📦 کەلوپەلی هەڵبژێرە", item_list)
+            
+            current_item = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == selected_item].iloc[0]
+            st.info(f"📊 زانیاری ئێستا:\n- ژمارەی دانەکان: {current_item['ژمارەی دانەکان']}\n- نرخی کڕین: ${current_item['نرخی کڕین']:,.2f}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                quantity_change = st.number_input("🔄 گۆڕانی ژمارە (+/-)", value=0, step=1)
+            with col2:
+                new_price = st.number_input("💰 نرخی نوێ (بەجێهێشتنی 0 بۆ نەگۆڕان)", value=0.0, step=10.0)
+            
+            if st.button("💾 نوێکردنەوە"):
+                idx = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == selected_item].index[0]
+                
+                if quantity_change != 0:
+                    new_quantity = current_item['ژمارەی دانەکان'] + quantity_change
+                    if new_quantity >= 0:
+                        st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] = new_quantity
+                    else:
+                        st.error("❌ ناتوانیت ژمارەی دانەکان بکەیت بە سالب!")
+                        st.stop()
+                
+                if new_price > 0:
+                    st.session_state.inventory.at[idx, 'نرخی کڕین'] = new_price
+                
+                st.success("✅ کۆگا بە سەرکەوتوویی نوێ کرایەوە!")
+                st.rerun()
+        else:
+            st.info("📭 هیچ کەلوپەلێک لە کۆگادا نییە")
+
+    elif main_choice == "📦 کۆگا" and sub_choice == "🏭 دابینکەران":
+        st.header("🏭 بەڕێوەبردنی دابینکەران")
+        
+        with st.form("supplier_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                company_name = st.text_input("🏢 ناوی کۆمپانیا")
+                contact_person = st.text_input("👤 ناوی بەرپرس")
+                phone = st.text_input("📞 ژمارەی مۆبایل")
+            with col2:
+                email = st.text_input("📧 ئیمەیڵ")
+                address = st.text_area("📍 ناونیشان")
+                product_type = st.text_input("📦 جۆری کەلوپەل")
+            
+            if st.form_submit_button("➕ زیادکردنی دابینکەر") and company_name:
+                new_supplier = pd.DataFrame({
+                    'ID': [f"SUP{datetime.now().strftime('%Y%m%d%H%M%S')}"],
+                    'ناوی کۆمپانیا': [company_name],
+                    'بەرپرس': [contact_person],
+                    'مۆبایل': [phone],
+                    'ئیمەیڵ': [email],
+                    'ناونیشان': [address],
+                    'جۆری کەلوپەل': [product_type]
+                })
+                st.session_state.suppliers = pd.concat([st.session_state.suppliers, new_supplier], ignore_index=True)
+                st.success(f"✅ دابینکەر {company_name} زیاد کرا!")
+        
+        if not st.session_state.suppliers.empty:
+            st.subheader("📋 لیستی دابینکەران")
+            st.dataframe(st.session_state.suppliers, use_container_width=True)
+
+    # ================== 3. WARRANTY ==================
+    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📝 تۆمارکردن":
+        st.header("📝 تۆمارکردنی گەرەنتی نوێ")
+        with st.form("warranty_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                customer_name = st.text_input("👤 ناوی کڕیار")
+                imei = st.text_input("📱 ژمارەی IMEI (15 ژمارە)")
+            with col2:
+                phone_model = st.text_input("📱 جۆری مۆبایل")
+                warranty_end = st.date_input("📅 بەرواری کۆتایی گەرەنتی", min_value=datetime.now().date())
+            
+            if st.form_submit_button("➕ تۆمارکردن") and customer_name and imei and len(imei) == 15 and imei.isdigit():
+                new_warranty = pd.DataFrame({
+                    'ناوی کڕیار': [customer_name],
+                    'ژمارەی IMEI': [imei],
+                    'بەرواری کۆتایی گەرەنتی': [warranty_end.strftime("%Y-%m-%d")],
+                    'جۆری مۆبایل': [phone_model]
+                })
+                st.session_state.warranty = pd.concat([st.session_state.warranty, new_warranty], ignore_index=True)
+                st.success("✅ گەرەنتی بە سەرکەوتوویی تۆمار کرا!")
+            elif imei and len(imei) != 15:
+                st.error("❌ ژمارەی IMEI دەبێت 15 ژمارە بێت!")
+
+    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📋 لیست":
+        st.header("📋 لیستی گەرەنتییەکان")
+        if not st.session_state.warranty.empty:
+            warranty_display = st.session_state.warranty.copy()
+            warranty_display['بەرواری کۆتایی'] = pd.to_datetime(warranty_display['بەرواری کۆتایی گەرەنتی'])
+            warranty_display['ڕۆژی ماوە'] = (warranty_display['بەرواری کۆتایی'] - datetime.now()).dt.days
+            warranty_display['ڕەوش'] = warranty_display['ڕۆژی ماوە'].apply(
+                lambda x: '🔴 بەسەرچووە' if x < 0 else ('🔴 نزیکە' if x <= 7 else ('🟡 30 ڕۆژ' if x <= 30 else '🟢 چالاکە'))
+            )
+            st.dataframe(warranty_display[['ناوی کڕیار', 'جۆری مۆبایل', 'ژمارەی IMEI', 'بەرواری کۆتایی گەرەنتی', 'ڕۆژی ماوە', 'ڕەوش']], use_container_width=True)
+            
+            if st.button("📥 هەناردەکردن"):
+                excel_data = export_to_excel(warranty_display, 'Warranty')
+                st.markdown(get_download_link(excel_data, 'warranty_list.xlsx'), unsafe_allow_html=True)
+        else:
+            st.info("📭 هیچ گەرەنتییەک تۆمار نەکراوە")
+
+    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "⚠️ ئاگاداری":
+        st.header("⚠️ ئاگادارییەکانی گەرەنتی")
+        expiring_warranties = check_expiring_warranty()
+        if not expiring_warranties.empty:
+            st.warning(f"⚠️ {len(expiring_warranties)} گەرەنتی لە 30 ڕۆژی داهاتوودا کۆتایی دێت!")
+            for _, warranty in expiring_warranties.iterrows():
+                days_left = (pd.to_datetime(warranty['بەرواری کۆتایی گەرەنتی']).date() - datetime.now().date()).days
+                st.markdown(f"""
+                <div class='customer-card'>
+                    <h4>📱 {warranty['جۆری مۆبایل']}</h4>
+                    <p>👤 {warranty['ناوی کڕیار']}</p>
+                    <p>📅 کۆتایی: {warranty['بەرواری کۆتایی گەرەنتی']} ({days_left} ڕۆژ ماوە)</p>
+                    <p>🔢 IMEI: {warranty['ژمارەی IMEI']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("✅ هیچ گەرەنتییەکی نزیک لە کۆتایی هاتن نییە!")
+
+    # ================== 4. PROFIT ==================
+    elif main_choice == "📊 قازانج" and sub_choice == "💰 خەمڵاندن":
+        st.header("💰 خەمڵاندنی قازانج")
+        
+        total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
+        total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
+        total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
+        net_profit = total_sales - total_cost - total_expenses
+        profit_margin = (net_profit / total_sales * 100) if total_sales > 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col1.metric("💰 کۆی فرۆشتن", f"${total_sales:,.2f}")
+        col1.markdown('</div>', unsafe_allow_html=True)
+        
+        col2.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col2.metric("💸 کۆی تێچوو", f"${total_cost:,.2f}")
+        col2.markdown('</div>', unsafe_allow_html=True)
+        
+        col3.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col3.metric("📊 کۆی خەرجی", f"${total_expenses:,.2f}")
+        col3.markdown('</div>', unsafe_allow_html=True)
+        
+        col4.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col4.metric("💰 قازانجی خالص", f"${net_profit:,.2f}", f"{profit_margin:.1f}%")
+        col4.markdown('</div>', unsafe_allow_html=True)
+        
+        if profit_margin > 30:
+            st.success("🎉 ئاستی قازانج زۆر باشە! بەردەوام بە!")
+        elif profit_margin > 15:
+            st.info("👍 ئاستی قازانج باشە، بەڵام دەتوانی باشتر بکەیت")
+        elif profit_margin > 0:
+            st.warning("⚠️ ئاستی قازانج کەمە، پێویستی بە باشترکردنە")
+        else:
+            st.error("❌ دوکانەکە لە زیاندا! پێویستی بە ڕێکخستنەوە")
+
+    elif main_choice == "📊 قازانج" and sub_choice == "📈 هێڵکاری":
+        st.header("📈 هێڵکاری قازانج")
+        
+        total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
+        total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
+        total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
+        net_profit = total_sales - total_cost - total_expenses
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name='کۆی فرۆشتن', x=['دارایی'], y=[total_sales], marker_color='#2ecc71'))
+        fig.add_trace(go.Bar(name='کۆی تێچوو', x=['دارایی'], y=[total_cost], marker_color='#e74c3c'))
+        fig.add_trace(go.Bar(name='کۆی خەرجی', x=['دارایی'], y=[total_expenses], marker_color='#f39c12'))
+        fig.add_trace(go.Bar(name='قازانجی خالص', x=['دارایی'], y=[net_profit], marker_color='#3498db'))
+        
+        fig.update_layout(
+            title="هێڵکاری دارایی دوکان",
+            barmode='group',
+            height=500,
+            showlegend=True,
+            font=dict(size=12)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif main_choice == "📊 قازانج" and sub_choice == "📄 ڕاپۆرتی PDF":
+        st.header("📄 دروستکردنی ڕاپۆرتی PDF")
+        
+        report_type = st.selectbox("جۆری ڕاپۆرت", ["دارایی", "فرۆشتن", "کۆگا", "گشتی"])
+        
+        if st.button("📄 دروستکردنی ڕاپۆرت"):
+            try:
+                total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
+                net_profit = total_sales - ((st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0) - (st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0)
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", "B", 20)
+                    pdf.cell(0, 10, f"Mobile Shop - ڕاپۆرتی {report_type}", ln=True, align="C")
+                    pdf.ln(10)
+                    pdf.set_font("Arial", "", 12)
+                    pdf.cell(0, 10, f"بەروار: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+                    pdf.cell(0, 10, f"کۆی فرۆشتن: ${total_sales:,.2f}", ln=True)
+                    pdf.cell(0, 10, f"قازانجی خالص: ${net_profit:,.2f}", ln=True)
+                    
+                    if report_type == "فرۆشتن" and not st.session_state.sales.empty:
+                        pdf.ln(5)
+                        pdf.set_font("Arial", "B", 14)
+                        pdf.cell(0, 10, "وردەکاری فرۆشتنەکان:", ln=True)
+                        pdf.set_font("Arial", "", 10)
+                        for _, sale in st.session_state.sales.tail(10).iterrows():
+                            pdf.cell(0, 8, f"{sale['ناوی بەرهەم']} - ${sale['نرخی کۆتایی']:,.2f} - {sale['ناوی کڕیار']}", ln=True)
+                    
+                    pdf.output(tmp_pdf.name)
+                    with open(tmp_pdf.name, "rb") as f:
+                        pdf_data = f.read()
+                    os.unlink(tmp_pdf.name)
+                    
+                    st.download_button(
+                        label="📥 داگرتنی ڕاپۆرت",
+                        data=pdf_data,
+                        file_name=f"report_{report_type}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf"
+                    )
+                    st.success("✅ ڕاپۆرت بە سەرکەوتوویی دروست کرا!")
+            except Exception as e:
+                st.error(f"هەڵە لە دروستکردنی ڕاپۆرت: {str(e)}")
+
+    elif main_choice == "📊 قازانج" and sub_choice == "💸 خەرجی":
+        st.header("💸 تۆمارکردنی خەرجی")
+        with st.form("expense_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                expense_date = st.date_input("📅 بەروار", value=datetime.now().date())
+                expense_type = st.selectbox("📋 جۆری خەرجی", ["کرێ", "مووچە", "کارەبا", "ئاو", "ئینتەرنێت", "گواستنەوە", "ڕیکلام", "چاککردنەوە", "تر"])
+            with col2:
+                expense_amount = st.number_input("💰 بڕی خەرجی ($)", min_value=0.0, step=10.0)
+                expense_note = st.text_area("📝 تێبینی")
+            
+            if st.form_submit_button("➕ تۆمارکردنی خەرجی"):
+                if expense_amount > 0:
+                    new_expense = pd.DataFrame({
+                        'بەروار': [expense_date.strftime("%Y-%m-%d")],
+                        'جۆر': [expense_type],
+                        'بڕ': [expense_amount],
+                        'تێبینی': [expense_note]
+                    })
+                    st.session_state.expenses = pd.concat([st.session_state.expenses, new_expense], ignore_index=True)
+                    st.success(f"✅ خەرجی {expense_type} بە بڕی ${expense_amount:,.2f} تۆمار کرا!")
+                else:
+                    st.error("❌ تکایە بڕی خەرجی پڕ بکەرەوە")
+        
+        if not st.session_state.expenses.empty:
+            st.subheader("📋 مێژووی خەرجییەکان")
+            st.dataframe(st.session_state.expenses, use_container_width=True)
+            st.metric("💰 کۆی خەرجییەکان", f"${st.session_state.expenses['بڕ'].sum():,.2f}")
+
+    # ================== 5. CUSTOMERS ==================
+    elif main_choice == "👥 کڕیاران" and sub_choice == "📝 زیادکردن":
+        st.header("📝 زیادکردنی کڕیاری نوێ")
+        with st.form("customer_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                cust_name = st.text_input("👤 ناوی کڕیار")
+                cust_phone = st.text_input("📞 ژمارەی مۆبایل")
+                cust_email = st.text_input("📧 ئیمەیڵ")
+            with col2:
+                cust_address = st.text_area("📍 ناونیشان")
+                cust_birthday = st.date_input("🎂 ڕێکەوتی لەدایکبوون", value=None)
+            
+            if st.form_submit_button("➕ زیادکردنی کڕیار") and cust_name:
+                new_customer = pd.DataFrame({
+                    'ناوی کڕیار': [cust_name],
+                    'ژمارەی مۆبایل': [cust_phone],
+                    'ئیمەیڵ': [cust_email],
+                    'ناونیشان': [cust_address],
+                    'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
+                    'ڕێکەوتی لەدایکبوون': [cust_birthday.strftime("%Y-%m-%d") if cust_birthday else ''],
+                    'کۆی کڕین': [0],
+                    'خاڵەکان': [0],
+                    'ئاست': ['🥉 ئاسایی']
+                })
+                st.session_state.customers = pd.concat([st.session_state.customers, new_customer], ignore_index=True)
+                st.success(f"✅ کڕیار {cust_name} بە سەرکەوتوویی زیاد کرا!")
+                st.balloons()
+
+    elif main_choice == "👥 کڕیاران" and sub_choice == "📋 لیست":
+        st.header("📋 لیستی کڕیاران")
+        if not st.session_state.customers.empty:
+            st.dataframe(st.session_state.customers, use_container_width=True)
+            if st.button("📥 هەناردەکردن"):
+                excel_data = export_to_excel(st.session_state.customers, 'Customers')
+                st.markdown(get_download_link(excel_data, 'customers_list.xlsx'), unsafe_allow_html=True)
+        else:
+            st.info("📭 هیچ کڕیارێک تۆمار نەکراوە")
+
+    elif main_choice == "👥 کڕیاران" and sub_choice == "⭐ خاڵ":
+        st.header("⭐ خاڵەکانی کڕیاران")
+        if not st.session_state.customers.empty:
+            loyalty_df = st.session_state.customers[['ناوی کڕیار', 'کۆی کڕین', 'خاڵەکان', 'ئاست']].copy()
+            loyalty_df = loyalty_df.sort_values('خاڵەکان', ascending=False)
+            st.dataframe(loyalty_df, use_container_width=True)
+            
+            top_customer = loyalty_df.iloc[0] if not loyalty_df.empty else None
+            if top_customer is not None:
+                st.success(f"🏆 کڕیاری هەفتە: {top_customer['ناوی کڕیار']} - {top_customer['خاڵەکان']} خاڵ!")
+        else:
+            st.info("📭 هیچ کڕیارێک تۆمار نەکراوە")
+
+    # ================== 6. EMPLOYEES ==================
+    elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "📝 زیادکردن":
+        st.header("📝 زیادکردنی کارمەندی نوێ")
+        with st.form("employee_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                emp_name = st.text_input("👤 ناوی کارمەند")
+                emp_position = st.selectbox("📋 پلە", ["فرۆشیار", "بەڕێوەبەر", "تەکنیکار", "پاککەرەوە"])
+            with col2:
+                emp_salary = st.number_input("💰 مووچە ($)", min_value=0.0, step=50.0)
+                emp_start_date = st.date_input("📅 بەرواری دەستبەکاربوون", value=datetime.now().date())
+            
+            if st.form_submit_button("➕ زیادکردنی کارمەند") and emp_name:
+                new_employee = pd.DataFrame({
+                    'ناوی کارمەند': [emp_name],
+                    'پلە': [emp_position],
+                    'مووچە': [emp_salary],
+                    'بەرواری دەستبەکاربوون': [emp_start_date.strftime("%Y-%m-%d")],
+                    'ژمارەی فرۆشتن': [0],
+                    'کۆی فرۆشتن': [0],
+                    'پاداشت': [0]
+                })
+                st.session_state.employees = pd.concat([st.session_state.employees, new_employee], ignore_index=True)
+                st.success(f"✅ کارمەند {emp_name} زیاد کرا!")
+        
+        if not st.session_state.employees.empty:
+            st.subheader("📋 لیستی کارمەندان")
+            st.dataframe(st.session_state.employees, use_container_width=True)
+
+    # ================== 7. DASHBOARD ==================
+    elif main_choice == "📊 داشبۆرد" and sub_choice == "🎯 سەرەکی":
+        st.header("🎯 داشبۆردی سەرەکی")
+        
+        today = datetime.now().date()
+        today_sales = 0
+        if not st.session_state.sales.empty:
+            sales_today = st.session_state.sales.copy()
+            sales_today['date'] = pd.to_datetime(sales_today['کاتی فرۆشتن']).dt.date
+            today_sales = sales_today[sales_today['date'] == today]['نرخی کۆتایی'].sum()
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col1.metric("💰 فرۆشتی ئەمڕۆ", f"${today_sales:,.2f}")
+        col1.markdown('</div>', unsafe_allow_html=True)
+        
+        col2.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col2.metric("📦 کەلوپەلی کەم", len(check_low_stock()))
+        col2.markdown('</div>', unsafe_allow_html=True)
+        
+        active_repairs = len(st.session_state.repairs[st.session_state.repairs['ڕەوش'] == 'چاوەڕوان']) if not st.session_state.repairs.empty else 0
+        col3.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col3.metric("🔧 چاککردنەوە", active_repairs)
+        col3.markdown('</div>', unsafe_allow_html=True)
+        
+        open_tickets = len(st.session_state.tickets[st.session_state.tickets['ڕەوش'] == 'کراوە']) if not st.session_state.tickets.empty else 0
+        col4.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        col4.metric("🎫 تیکتی کراوە", open_tickets)
+        col4.markdown('</div>', unsafe_allow_html=True)
+
+    elif main_choice == "📊 داشبۆرد" and sub_choice == "📈 شیکاری":
+        st.header("📈 شیکاری پێشکەوتوو")
+        
+        tab1, tab2 = st.tabs(["📊 ئامارەکان", "📈 هێڵکاری"])
+        
+        with tab1:
+            col1, col2 = st.columns(2)
+            with col1:
+                satisfaction = st.session_state.reviews['ئەستێرە'].mean() * 20 if not st.session_state.reviews.empty else 85
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=satisfaction,
+                    title={'text': "ڕەزامەندی کڕیاران (%)"},
+                    gauge={'axis': {'range': [0, 100]}, 'bar': {'color': "#667eea"}}
+                ))
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=total_sales,
+                    title={'text': "کۆی فرۆشتن ($)"},
+                    gauge={'axis': {'range': [0, max(total_sales * 1.5, 10000)]}, 'bar': {'color': "#667eea"}}
+                ))
+                st.plotly_chart(fig, use_container_width=True)
+        
+        with tab2:
+            if not st.session_state.sales.empty:
+                sales_monthly = st.session_state.sales.copy()
+                sales_monthly['month'] = pd.to_datetime(sales_monthly['کاتی فرۆشتن']).dt.month
+                monthly_sales = sales_monthly.groupby('month')['نرخی کۆتایی'].sum()
+                
+                fig = px.line(
+                    x=monthly_sales.index, 
+                    y=monthly_sales.values,
+                    labels={'x': 'مانگ', 'y': 'فرۆشتن ($)'},
+                    title="هێڵکاری فرۆشتن بەپێی مانگ"
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+
+    # ================== 8. SETTINGS ==================
+    elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "💾 بەکاپ":
+        st.header("💾 بەکاپ و گەڕاندنەوە")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📤 دروستکردنی بەکاپ")
+            if st.button("📥 دروستکردنی بەکاپ"):
+                json_backup, pickle_backup = backup_data()
+                st.download_button(
+                    label="📥 داگرتنی بەکاپ (JSON)",
+                    data=json_backup,
+                    file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+                st.download_button(
+                    label="📥 داگرتنی بەکاپ (Pickle)",
+                    data=pickle_backup,
+                    file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl",
+                    mime="application/octet-stream"
+                )
+                st.success("✅ بەکاپ بە سەرکەوتوویی دروست کرا!")
+        
+        with col2:
+            st.subheader("🔄 گەڕاندنەوەی بەکاپ")
+            uploaded_file = st.file_uploader("فایلی بەکاپ هەڵبژێرە", type=['json', 'pkl'])
+            if uploaded_file and st.button("🔄 گەڕاندنەوە"):
+                if restore_data(uploaded_file):
+                    st.success("✅ داتا بە سەرکەوتوویی گەڕێندرایەوە!")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error("❌ هەڵە لە گەڕاندنەوەی بەکاپدا")
+
+    elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "🔔 ئاگادارییەکان":
+        st.header("🔔 ئاگادارییە زیرەکەکان")
+        
+        notifications = []
+        
+        for _, item in check_low_stock().iterrows():
+            notifications.append(('error', f"📦 کەلوپەلی {item['ناوی کەلوپەل']} کەمە! (ماوە: {item['ژمارەی دانەکان']} دانە)"))
+        
+        for _, warranty in check_expiring_warranty().iterrows():
+            days_left = (pd.to_datetime(warranty['بەرواری کۆتایی گەرەنتی']).date() - datetime.now().date()).days
+            notifications.append(('warning', f"⏰ گەرەنتی {warranty['ناوی کڕیار']} لە {days_left} ڕۆژی دیکەدا کۆتایی دێت!"))
+        
+        for _, installment in check_upcoming_installments().iterrows():
+            notifications.append(('info', f"💳 قیستی {installment['ناوی کڕیار']} نزیکە! بڕ: ${installment['مانگانە']:,.2f}"))
+        
+        for birthday in check_birthdays():
+            notifications.append(('success', f"🎂 ڕۆژی لەدایکبوونی {birthday} پیرۆز بێت!"))
+        
+        if notifications:
+            for notif_type, message in notifications:
+                if notif_type == 'error':
+                    st.error(message)
+                elif notif_type == 'warning':
+                    st.warning(message)
+                elif notif_type == 'info':
+                    st.info(message)
+                elif notif_type == 'success':
+                    st.success(message)
+        else:
+            st.success("✅ هیچ ئاگادارییەک نییە! هەموو شتێک لە ڕێگای خۆیدایە.")
+
+    # ================== OTHER SECTIONS (Quick Info) ==================
+    else:
+        st.info(f"""
+        ### 👋 بەخێربێیت بۆ سیستەمی بەڕێوەبردنی دوکانی مۆبایل!
+        
+        **ڕێنمایی خێرا:**
+        - 🏠 لە شریتی لای ڕاستەوە بەشێک هەڵبژێرە
+        - 💰 بۆ فرۆشتن، بەشی "فرۆشتن" هەڵبژێرە
+        - 📦 بۆ بەڕێوەبردنی کۆگا، بەشی "کۆگا" هەڵبژێرە
+        - 👥 بۆ بەڕێوەبردنی کڕیاران، بەشی "کڕیاران" هەڵبژێرە
+        
+        **تایبەتمەندییەکان:**
+        - 15 بەشی جیاواز
+        - پشتیوانی فاکتوور و ڕاپۆرت
+        - سیستەمی خاڵ و پاداشت
+        - بەکاپ و گەڕاندنەوە
+        - ڕاپۆرتەکانی PDF و Excel
+        
+        📌 دەتوانیت بە دوگمەی "داتای نموونەیی" لە شریتی لاتەنیشتەوە، داتای تاقیکردنەوە دروست بکەیت.
+        """)
+
+except Exception as e:
+    st.error(f"هەڵەیەک ڕوویدا: {str(e)}")
+    st.info("تکایە پەڕەکە نوێ بکەرەوە یان پەیوەندی بە پشتیوانییەوە بکەن.")
 
 # ================== FOOTER ==================
 st.markdown("---")
 st.markdown("""
     <div class="footer">
         <h3>📱 سیستەمی بەڕێوەبردنی دوکانی مۆبایل</h3>
-        <p>© 2024 | 15 بەش | AI | پشتیوانی ڕاستەوخۆ</p>
+        <p>© 2024 | 15+ بەشی جیاواز | ڕاپۆرتی زیرەک | پشتیوانی ڕاستەوخۆ</p>
+        <p>🔧 وەشانی 2.0 - تەواو پاڵپشتیکراو بۆ Streamlit</p>
     </div>
 """, unsafe_allow_html=True)
