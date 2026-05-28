@@ -6,3 +6,15 @@ fpdf>=1.7.2
 openpyxl>=3.1.0
 Pillow>=9.5.0
 numpy>=1.24.0
+banner.jpg
+cover.jpg
+cover2.jpg
+shield.jpg
+uc.jpg
+itunes.jpg
+yello.jpg
+fastpay.jpg
+fib.jpg
+asia.jpg
+korek.jpg
+zain.jpg
