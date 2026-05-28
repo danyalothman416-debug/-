@@ -189,7 +189,6 @@ def apply_discount(price, code):
     if code and not st.session_state.discounts.empty:
         d = st.session_state.discounts[st.session_state.discounts['کۆدی داشکاندن'] == code]
         if not d.empty:
-            # Check if discount is active
             try:
                 today = datetime.now().date()
                 start_date = pd.to_datetime(d['بەرواری دەستپێک'].iloc[0]).date() if pd.notna(d['بەرواری دەستپێک'].iloc[0]) else None
@@ -291,6 +290,22 @@ def add_sale(product_name, price, customer_name, discount_code="", employee="", 
         if employee: 
             update_employee_performance(employee, total_amount)
         
+        # Auto-add customer if not exists
+        if not st.session_state.customers.empty:
+            if customer_name not in st.session_state.customers['ناوی کڕیار'].values:
+                new_customer = pd.DataFrame({
+                    'ناوی کڕیار': [customer_name],
+                    'ژمارەی مۆبایل': [''],
+                    'ئیمەیڵ': [''],
+                    'ناونیشان': [''],
+                    'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
+                    'ڕێکەوتی لەدایکبوون': [''],
+                    'کۆی کڕین': [0],
+                    'خاڵەکان': [0],
+                    'ئاست': ['🥉 ئاسایی']
+                })
+                st.session_state.customers = safe_concat(st.session_state.customers, new_customer)
+        
         st.session_state.last_sale_invoice = generate_invoice({
             'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'customer': customer_name, 
@@ -311,7 +326,6 @@ def generate_invoice(data):
             pdf = FPDF()
             pdf.add_page()
             
-            # Header
             pdf.set_font("Arial", "B", 24)
             pdf.cell(0, 15, "MOBILE SHOP", ln=True, align="C")
             pdf.set_font("Arial", "", 12)
@@ -319,13 +333,11 @@ def generate_invoice(data):
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(10)
             
-            # Invoice details
             pdf.set_font("Arial", "", 10)
             pdf.cell(0, 6, f"Date: {data.get('date', '')}", ln=True)
             pdf.cell(0, 6, f"Customer: {data.get('customer', '')}", ln=True)
             pdf.ln(5)
             
-            # Product details
             pdf.set_font("Arial", "B", 10)
             pdf.cell(80, 8, "Product", 1)
             pdf.cell(25, 8, "Qty", 1, align="C")
@@ -347,7 +359,6 @@ def generate_invoice(data):
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, f"Total Amount: ${data.get('final_price', 0):.2f}", ln=True, align="R")
             
-            # QR Code
             try:
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_qr:
                     qr = qrcode.make(f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}")
@@ -357,7 +368,6 @@ def generate_invoice(data):
             except:
                 pass
             
-            # Footer
             pdf.ln(20)
             pdf.set_font("Arial", "I", 8)
             pdf.cell(0, 5, "Thank you for your purchase!", ln=True, align="C")
@@ -540,7 +550,6 @@ with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/shop.png", width=80)
     st.title("📱 مینوی سەرەکی")
     
-    # Sample data button
     if st.button("📊 داتای نموونەیی دروست بکە"):
         create_sample_data()
     
@@ -616,22 +625,36 @@ try:
         c1, c2 = st.columns([2, 1])
         with c1:
             with st.form("sale_form"):
-                product_options = [""] + list(st.session_state.inventory['ناوی کەلوپەل'].values) if not st.session_state.inventory.empty else [""]
-                product_name = st.selectbox("📱 ناوی بەرهەم", product_options)
+                # FIXED: Use text_input with datalist for product name
+                product_list = list(st.session_state.inventory['ناوی کەلوپەل'].values) if not st.session_state.inventory.empty else []
+                product_name = st.text_input("📱 ناوی بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
+                
+                # Show suggestions if available
+                if product_list and product_name:
+                    suggestions = [p for p in product_list if product_name.lower() in p.lower()][:5]
+                    if suggestions:
+                        st.caption(f"💡 پێشنیار: {', '.join(suggestions)}")
                 
                 col1, col2 = st.columns(2)
                 quantity = col1.number_input("📦 ژمارە", min_value=1, value=1, step=1)
                 price = col2.number_input("💵 نرخ ($)", min_value=0.0, step=10.0, value=0.0)
                 
                 col3, col4 = st.columns(2)
-                customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                customer_name = col3.selectbox("👤 ناوی کڕیار", customer_options)
-                discount_code = col4.text_input("🏷️ کۆدی داشکاندن")
+                # FIXED: Use text_input for customer name with suggestions
+                customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
+                customer_name = col3.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                
+                if customer_list and customer_name:
+                    cust_suggestions = [c for c in customer_list if customer_name.lower() in c.lower()][:5]
+                    if cust_suggestions:
+                        col3.caption(f"💡 {', '.join(cust_suggestions)}")
+                
+                discount_code = col4.text_input("🏷️ کۆدی داشکاندن", placeholder="ئارەزوومەندانە")
                 
                 employee_options = [""] + list(st.session_state.employees['ناوی کارمەند'].values) if not st.session_state.employees.empty else [""]
                 employee = st.selectbox("👨‍💼 کارمەند", employee_options)
                 
-                if discount_code:
+                if discount_code and price > 0:
                     final_price = apply_discount(price, discount_code)
                     if final_price != price:
                         st.success(f"💰 نرخی کۆتایی دوای داشکاندن: ${final_price * quantity:,.2f}")
@@ -661,7 +684,6 @@ try:
         if not st.session_state.sales.empty:
             filtered_sales = st.session_state.sales.copy()
             
-            # Filters
             col1, col2, col3 = st.columns(3)
             if not st.session_state.employees.empty:
                 emp_filter = col1.selectbox("پاڵێو بە کارمەند", ["هەموو"] + list(st.session_state.employees['ناوی کارمەند'].unique()))
@@ -743,8 +765,10 @@ try:
                         selling_price = st.number_input("💰 نرخی فرۆشتن ($)", min_value=0.0, value=float(suggested_price), step=10.0)
                         quantity = st.number_input("📦 ژمارەی دانە", min_value=1, max_value=int(found_item['ژمارەی دانەکان']), value=1)
                     with col2:
-                        customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                        customer_name = st.selectbox("👤 کڕیار", customer_options)
+                        # FIXED: Use text_input for customer name
+                        customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
+                        customer_name = st.text_input("👤 کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                        
                         employee_options = [""] + list(st.session_state.employees['ناوی کارمەند'].values) if not st.session_state.employees.empty else [""]
                         employee = st.selectbox("👨‍💼 کارمەند", employee_options)
                     
@@ -757,7 +781,7 @@ try:
                                 st.balloons()
                                 st.rerun()
                         else:
-                            st.error("❌ تکایە ناوی کڕیار دیاری بکە")
+                            st.error("❌ تکایە ناوی کڕیار بنووسە")
             else:
                 st.error("❌ بەرهەم نەدۆزرایەوە! تکایە بارکۆد یان ناوێکی دروست بنووسە")
 
@@ -767,7 +791,7 @@ try:
         with st.form("inventory_form"):
             col1, col2 = st.columns(2)
             with col1:
-                item_name = st.text_input("🏷️ ناوی کەلوپەل")
+                item_name = st.text_input("🏷️ ناوی کەلوپەل *")
                 quantity = st.number_input("📦 ژمارەی دانەکان", min_value=1, step=1, value=1)
                 barcode = st.text_input("🔢 بارکۆد (ئارەزوومەندانە)", placeholder="1234567890123")
             with col2:
@@ -778,17 +802,24 @@ try:
             
             if st.form_submit_button("➕ زیادکردنی کەلوپەل"):
                 if item_name and quantity > 0:
-                    new_item = pd.DataFrame({
-                        'ناوی کەلوپەل': [item_name],
-                        'ژمارەی دانەکان': [quantity],
-                        'نرخی کڕین': [purchase_price],
-                        'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
-                        'کەمترین ژمارە': [min_stock],
-                        'بارکۆد': [barcode if barcode else ''],
-                        'دابینکەر': [supplier if supplier else '']
-                    })
-                    st.session_state.inventory = safe_concat(st.session_state.inventory, new_item)
-                    st.success(f"✅ {quantity} دانە {item_name} بە سەرکەوتوویی زیاد کرا!")
+                    # Check if item already exists
+                    if not st.session_state.inventory.empty and item_name in st.session_state.inventory['ناوی کەلوپەل'].values:
+                        idx = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == item_name].index[0]
+                        st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] += quantity
+                        if purchase_price > 0:
+                            st.session_state.inventory.at[idx, 'نرخی کڕین'] = purchase_price
+                        st.success(f"✅ {quantity} دانە بە {item_name} زیاد کرا! کۆی ئێستا: {st.session_state.inventory.at[idx, 'ژمارەی دانەکان']} دانە")
+                    else:
+                        new_item = pd.DataFrame({
+                            'ناوی کەلوپەل': [item_name],
+                            'ژمارەی دانەکان': [quantity],
+                            'نرخی کڕین': [purchase_price],
+                            'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
+                            'کەمترین ژمارە': [min_stock],
+                            'بارکۆد': [barcode if barcode else '']
+                        })
+                        st.session_state.inventory = safe_concat(st.session_state.inventory, new_item)
+                        st.success(f"✅ {quantity} دانە {item_name} بە سەرکەوتوویی زیاد کرا!")
                     st.rerun()
                 else:
                     st.error("❌ تکایە ناوی کەلوپەل و ژمارەی دانەکان پڕ بکەرەوە")
@@ -804,7 +835,6 @@ try:
                 axis=1
             )
             
-            # Search
             search = st.text_input("🔍 گەڕان...", placeholder="ناوی کەلوپەل بنووسە...")
             if search:
                 inventory_display = inventory_display[inventory_display['ناوی کەلوپەل'].str.contains(search, case=False)]
@@ -867,7 +897,7 @@ try:
             with st.form("supplier_form"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    company_name = st.text_input("🏢 ناوی کۆمپانیا")
+                    company_name = st.text_input("🏢 ناوی کۆمپانیا *")
                     contact_person = st.text_input("👤 ناوی بەرپرس")
                     phone = st.text_input("📞 ژمارەی مۆبایل")
                 with col2:
@@ -906,7 +936,7 @@ try:
         with st.form("discount_form"):
             col1, col2 = st.columns(2)
             with col1:
-                code = st.text_input("🏷️ کۆدی داشکاندن", placeholder="SUMMER2024")
+                code = st.text_input("🏷️ کۆدی داشکاندن *", placeholder="SUMMER2024")
                 percentage = st.slider("📊 ڕێژەی داشکاندن %", 0, 100, 10)
             with col2:
                 start_date = st.date_input("📅 بەرواری دەستپێک", value=datetime.now().date())
@@ -963,10 +993,22 @@ try:
         with st.form("installment_form"):
             col1, col2 = st.columns(2)
             with col1:
-                customer_options = st.session_state.customers['ناوی کڕیار'].tolist() if not st.session_state.customers.empty else []
-                customer = st.selectbox("👤 کڕیار", customer_options)
-                product_options = st.session_state.inventory['ناوی کەلوپەل'].tolist() if not st.session_state.inventory.empty else []
-                product = st.selectbox("📱 بەرهەم", product_options)
+                # FIXED: Use text_input for customer name
+                customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
+                customer = st.text_input("👤 کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                if customer_list and customer:
+                    suggestions = [c for c in customer_list if customer.lower() in c.lower()][:5]
+                    if suggestions:
+                        st.caption(f"💡 {', '.join(suggestions)}")
+                
+                # FIXED: Use text_input for product name
+                product_list = list(st.session_state.inventory['ناوی کەلوپەل'].values) if not st.session_state.inventory.empty else []
+                product = st.text_input("📱 بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
+                if product_list and product:
+                    suggestions = [p for p in product_list if product.lower() in p.lower()][:5]
+                    if suggestions:
+                        st.caption(f"💡 {', '.join(suggestions)}")
+                
                 total_price = st.number_input("💰 کۆی نرخ ($)", min_value=0.0, step=50.0, value=0.0)
             with col2:
                 down_payment = st.number_input("💵 پارەی پێشەکی ($)", min_value=0.0, step=50.0, value=0.0)
@@ -1013,7 +1055,6 @@ try:
         if not st.session_state.installments.empty:
             display_df = st.session_state.installments.copy()
             
-            # Filter by status
             status_filter = st.selectbox("ڕەوش", ["هەموو", "چالاکە", "تەواو بوو"])
             if status_filter != "هەموو":
                 display_df = display_df[display_df['ڕەوش'] == status_filter]
@@ -1121,11 +1162,11 @@ try:
         with st.form("warranty_form"):
             col1, col2 = st.columns(2)
             with col1:
-                customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                customer_name = st.selectbox("👤 ناوی کڕیار", customer_options)
-                imei = st.text_input("📱 ژمارەی IMEI (15 ژمارە)")
+                # FIXED: Use text_input for customer name
+                customer_name = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                imei = st.text_input("📱 ژمارەی IMEI (15 ژمارە)", max_chars=15)
             with col2:
-                phone_model = st.text_input("📱 جۆری مۆبایل")
+                phone_model = st.text_input("📱 جۆری مۆبایل *", placeholder="جۆری مۆبایل بنووسە...")
                 warranty_end = st.date_input("📅 بەرواری کۆتایی گەرەنتی", min_value=datetime.now().date())
             
             if st.form_submit_button("➕ تۆمارکردن") and customer_name and imei:
@@ -1178,10 +1219,10 @@ try:
         with st.form("repair_form"):
             col1, col2 = st.columns(2)
             with col1:
-                customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                customer = st.selectbox("👤 ناوی کڕیار", customer_options)
-                phone_model = st.text_input("📱 جۆری مۆبایل")
-                issue = st.text_area("🔧 کێشە", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...")
+                # FIXED: Use text_input for customer name
+                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                phone_model = st.text_input("📱 جۆری مۆبایل *", placeholder="جۆری مۆبایل بنووسە...")
+                issue = st.text_area("🔧 کێشە *", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...")
             with col2:
                 received_date = st.date_input("📅 بەرواری وەرگرتن", value=datetime.now().date())
                 expected_return = st.date_input("📅 بەرواری پێشبینیکراوی گەڕاندنەوە", value=datetime.now().date() + timedelta(days=7))
@@ -1217,7 +1258,6 @@ try:
             
             st.dataframe(filtered, use_container_width=True)
             
-            # Update status
             st.subheader("🔄 نوێکردنەوەی ڕەوش")
             if not filtered.empty:
                 repair_to_update = st.selectbox("چاککردنەوە هەڵبژێرە", filtered['ID'].tolist())
@@ -1230,7 +1270,6 @@ try:
                     st.success(f"✅ ڕەوشی چاککردنەوە نوێ کرایەوە بۆ '{new_status}'")
                     st.rerun()
             
-            # Statistics
             col_a, col_b, col_c = st.columns(3)
             col_a.metric("📊 کۆی چاککردنەوەکان", len(st.session_state.repairs))
             col_b.metric("⏳ چاوەڕوان", len(st.session_state.repairs[st.session_state.repairs['ڕەوش'] == 'چاوەڕوان']))
@@ -1244,12 +1283,12 @@ try:
         with st.form("delivery_form"):
             col1, col2 = st.columns(2)
             with col1:
-                customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                customer = st.selectbox("👤 ناوی کڕیار", customer_options)
+                # FIXED: Use text_input
+                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
                 phone = st.text_input("📞 ژمارەی مۆبایل")
-                address = st.text_area("📍 ناونیشانی گەیاندن")
+                address = st.text_area("📍 ناونیشانی گەیاندن *")
             with col2:
-                product = st.text_input("📦 بەرهەم")
+                product = st.text_input("📦 بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
                 delivery_date = st.date_input("📅 بەرواری داواکاری", value=datetime.now().date())
                 delivery_cost = st.number_input("💰 تێچووی گەیاندن ($)", min_value=0.0, step=5.0)
             
@@ -1286,7 +1325,6 @@ try:
             
             st.dataframe(filtered, use_container_width=True)
             
-            # Update delivery status
             if not filtered.empty:
                 st.subheader("🔄 نوێکردنەوەی ڕەوش")
                 delivery_to_update = st.selectbox("داواکاری هەڵبژێرە", filtered['ID'].tolist())
@@ -1311,13 +1349,13 @@ try:
         with st.form("ticket_form"):
             col1, col2 = st.columns(2)
             with col1:
-                customer_options = [""] + list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else [""]
-                customer = st.selectbox("👤 ناوی کڕیار", customer_options)
-                subject = st.text_input("📋 بابەت")
+                # FIXED: Use text_input
+                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
+                subject = st.text_input("📋 بابەت *")
             with col2:
                 priority = st.selectbox("🔺 لەولەوەپێشی", ["نزم", "مامناوەند", "بەرز", "زۆر بەرز"])
             
-            issue = st.text_area("📝 کێشە", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...", height=150)
+            issue = st.text_area("📝 کێشە *", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...", height=150)
             
             if st.form_submit_button("📤 ناردنی تیکت"):
                 if customer and subject and issue:
@@ -1353,10 +1391,11 @@ try:
             
             st.dataframe(filtered, use_container_width=True)
             
-            # Respond to ticket
             if not filtered.empty:
                 st.subheader("📝 وەڵامدانەوە")
-                ticket_to_answer = st.selectbox("تیکت هەڵبژێرە", filtered[filtered['ڕەوش'] == 'کراوە']['ID'].tolist() if not filtered[filtered['ڕەوش'] == 'کراوە'].empty else filtered['ID'].tolist())
+                open_tickets = filtered[filtered['ڕەوش'] == 'کراوە']
+                ticket_ids = open_tickets['ID'].tolist() if not open_tickets.empty else filtered['ID'].tolist()
+                ticket_to_answer = st.selectbox("تیکت هەڵبژێرە", ticket_ids)
                 response = st.text_area("وەڵام", height=100)
                 close_ticket = st.checkbox("تیکتەکە دابخە")
                 
@@ -1377,7 +1416,7 @@ try:
         with st.form("customer_form"):
             col1, col2 = st.columns(2)
             with col1:
-                cust_name = st.text_input("👤 ناوی کڕیار")
+                cust_name = st.text_input("👤 ناوی کڕیار *")
                 cust_phone = st.text_input("📞 ژمارەی مۆبایل")
                 cust_email = st.text_input("📧 ئیمەیڵ")
             with col2:
@@ -1385,7 +1424,6 @@ try:
                 cust_birthday = st.date_input("🎂 ڕێکەوتی لەدایکبوون", value=None)
             
             if st.form_submit_button("➕ زیادکردنی کڕیار") and cust_name:
-                # Check for duplicate
                 if not st.session_state.customers.empty and cust_name in st.session_state.customers['ناوی کڕیار'].values:
                     st.error(f"❌ کڕیار {cust_name} پێشتر تۆمار کراوە!")
                 else:
@@ -1408,7 +1446,6 @@ try:
     elif main_choice == "👥 کڕیاران" and sub_choice == "📋 لیستی کڕیاران":
         st.header("📋 لیستی کڕیاران")
         if not st.session_state.customers.empty:
-            # Search
             search = st.text_input("🔍 گەڕان...", placeholder="ناوی کڕیار یان ژمارە...")
             display_df = st.session_state.customers.copy()
             if search:
@@ -1441,7 +1478,6 @@ try:
                 top_customer = loyalty_df.iloc[0]
                 st.success(f"🏆 کڕیاری هەفتە: {top_customer['ناوی کڕیار']} - {top_customer['خاڵەکان']} خاڵ!")
             
-            # Points chart
             fig = px.bar(loyalty_df.head(10), x='ناوی کڕیار', y='خاڵەکان', color='ئاست', title='باشترین 10 کڕیار')
             st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1458,7 +1494,6 @@ try:
             st.balloons()
         
         if not st.session_state.customers.empty:
-            # Upcoming birthdays this month
             this_month = st.session_state.customers.copy()
             this_month['birth_date'] = pd.to_datetime(this_month['ڕێکەوتی لەدایکبوون'], errors='coerce')
             this_month = this_month.dropna(subset=['birth_date'])
@@ -1479,7 +1514,7 @@ try:
         with st.form("employee_form"):
             col1, col2 = st.columns(2)
             with col1:
-                emp_name = st.text_input("👤 ناوی کارمەند")
+                emp_name = st.text_input("👤 ناوی کارمەند *")
                 emp_position = st.selectbox("📋 پلە", ["فرۆشیار", "بەڕێوەبەر", "تەکنیکار", "پاککەرەوە", "گەیاندن"])
             with col2:
                 emp_salary = st.number_input("💰 مووچە ($)", min_value=0.0, step=50.0, value=600.0)
@@ -1513,7 +1548,6 @@ try:
                 if excel_data:
                     st.markdown(get_download_link(excel_data, 'employees_list.xlsx'), unsafe_allow_html=True)
             
-            # Salary summary
             total_salary = st.session_state.employees['مووچە'].sum()
             total_bonus = st.session_state.employees['پاداشت'].sum()
             st.metric("💰 کۆی مووچە و پاداشت", f"${total_salary + total_bonus:,.2f}")
@@ -1619,7 +1653,6 @@ try:
         fig.update_layout(title="هێڵکاری دارایی دوکان", barmode='group', height=500)
         st.plotly_chart(fig, use_container_width=True)
         
-        # Expense breakdown
         if not st.session_state.expenses.empty:
             expense_by_type = st.session_state.expenses.groupby('جۆر')['بڕ'].sum()
             fig2 = px.pie(values=expense_by_type.values, names=expense_by_type.index, title='دابەشکردنی خەرجییەکان')
@@ -1638,7 +1671,6 @@ try:
                     pdf = FPDF()
                     pdf.add_page()
                     
-                    # Title
                     pdf.set_font("Arial", "B", 20)
                     pdf.cell(0, 15, f"Mobile Shop - ڕاپۆرتی {report_type}", ln=True, align="C")
                     pdf.ln(5)
@@ -1710,7 +1742,6 @@ try:
         if not st.session_state.expenses.empty:
             st.subheader("📋 مێژووی خەرجییەکان")
             
-            # Filter by type
             expense_type_filter = st.selectbox("پاڵێو بە جۆر", ["هەموو"] + list(st.session_state.expenses['جۆر'].unique()))
             filtered_expenses = st.session_state.expenses.copy()
             if expense_type_filter != "هەموو":
@@ -1738,7 +1769,6 @@ try:
             sales_today['date'] = pd.to_datetime(sales_today['کاتی فرۆشتن']).dt.date
             today_sales = sales_today[sales_today['date'] == today]['نرخی کۆتایی'].sum()
         
-        # Main metrics
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
@@ -1762,25 +1792,20 @@ try:
             st.metric("💳 قیستی چالاک", active_installments)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Quick actions
         st.markdown("---")
         st.subheader("🚀 کردارە خێراکان")
         col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
             if st.button("💰 فرۆشتنی نوێ"):
-                st.session_state['nav_to'] = ("💰 فرۆشتن", "📝 فرۆشتنی نوێ")
                 st.rerun()
         with col_b:
             if st.button("📦 زیادکردنی کەلوپەل"):
-                st.session_state['nav_to'] = ("📦 کۆگا", "📝 زیادکردنی کەلوپەل")
                 st.rerun()
         with col_c:
             if st.button("👥 کڕیاری نوێ"):
-                st.session_state['nav_to'] = ("👥 کڕیاران", "📝 زیادکردنی کڕیار")
                 st.rerun()
         with col_d:
             if st.button("💸 خەرجی نوێ"):
-                st.session_state['nav_to'] = ("📊 قازانج", "💸 خەرجییەکان")
                 st.rerun()
 
     elif main_choice == "📊 داشبۆرد" and sub_choice == "📈 شیکاری":
@@ -1791,7 +1816,6 @@ try:
             sales_data['date'] = pd.to_datetime(sales_data['کاتی فرۆشتن']).dt.date
             sales_data['month'] = pd.to_datetime(sales_data['کاتی فرۆشتن']).dt.month
             
-            # Monthly sales
             monthly_sales = sales_data.groupby('month')['نرخی کۆتایی'].sum()
             
             fig = px.line(
@@ -1806,18 +1830,15 @@ try:
             
             col1, col2 = st.columns(2)
             with col1:
-                # Top products
                 top_products = sales_data.groupby('ناوی بەرهەم')['نرخی کۆتایی'].sum().nlargest(5)
                 fig2 = px.pie(values=top_products.values, names=top_products.index, title='باشترین 5 بەرهەم')
                 st.plotly_chart(fig2, use_container_width=True)
             
             with col2:
-                # Top customers
                 top_customers = sales_data.groupby('ناوی کڕیار')['نرخی کۆتایی'].sum().nlargest(5)
                 fig3 = px.bar(x=top_customers.index, y=top_customers.values, title='باشترین 5 کڕیار')
                 st.plotly_chart(fig3, use_container_width=True)
             
-            # Daily sales trend
             daily_sales = sales_data.groupby('date')['نرخی کۆتایی'].sum()
             fig4 = px.line(x=daily_sales.index, y=daily_sales.values, title='فرۆشتی ڕۆژانە', markers=True)
             st.plotly_chart(fig4, use_container_width=True)
@@ -1865,24 +1886,19 @@ try:
         
         notifications = []
         
-        # Low stock
         for _, item in check_low_stock().iterrows():
             notifications.append(('error', f"📦 کەلوپەلی {item['ناوی کەلوپەل']} کەمە! (ماوە: {item['ژمارەی دانەکان']} دانە)"))
         
-        # Expiring warranty
         for _, warranty in check_expiring_warranty().iterrows():
             days_left = (warranty['بەرواری کۆتایی گەرەنتی'] - datetime.now().date()).days if pd.notna(warranty['بەرواری کۆتایی گەرەنتی']) else 0
             notifications.append(('warning', f"⏰ گەرەنتی {warranty['ناوی کڕیار']} ({days_left} ڕۆژ ماوە)"))
         
-        # Upcoming installments
         for _, installment in check_upcoming_installments().iterrows():
             notifications.append(('info', f"💳 قیستی {installment['ناوی کڕیار']}: ${installment['مانگانە']:,.2f}"))
         
-        # Birthdays
         for birthday in check_birthdays():
             notifications.append(('success', f"🎂 ڕۆژی لەدایکبوونی {birthday} پیرۆز بێت!"))
         
-        # Overdue installments
         if not st.session_state.installments.empty:
             today = datetime.now().date()
             active_inst = st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە'].copy()
@@ -1905,7 +1921,6 @@ try:
         else:
             st.success("✅ هیچ ئاگادارییەک نییە! هەموو شتێک لە ڕێگای خۆیدایە.")
         
-        # Notification summary
         st.markdown("---")
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("⚠️ کەلوپەلی کەم", len(check_low_stock()))
@@ -1950,6 +1965,6 @@ st.markdown("""
     <div class="footer">
         <h3>📱 سیستەمی بەڕێوەبردنی دوکانی مۆبایل</h3>
         <p>© 2024 | 15+ بەشی جیاواز | ڕاپۆرتی زیرەک | پشتیوانی قیست | پشتیوانی بارکۆد</p>
-        <p>🔧 وەشانی 3.0 - تەواو پاڵپشتیکراو و بێ کێشە</p>
+        <p>🔧 وەشانی 3.1 - تەواو پاڵپشتیکراو و بێ کێشە (ناوی بەرهەم و کڕیار دەنووسرێت)</p>
     </div>
 """, unsafe_allow_html=True)
