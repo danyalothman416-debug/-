@@ -554,7 +554,8 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 📊 کورتە")
-    
+  results = calculate_actual_profit()
+print(results)  
     total_sales, total_cost, total_expenses, net_profit, profit_margin = calculate_actual_profit()
     
     c1, c2, c3 = st.columns(3)
