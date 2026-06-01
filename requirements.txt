@@ -6,15 +6,3 @@ fpdf
 openpyxl
 Pillow
 numpy
-banner.jpg
-cover.jpg
-cover2.jpg
-shield.jpg
-uc.jpg
-itunes.jpg
-yello.jpg
-fastpay.jpg
-fib.jpg
-asia.jpg
-korek.jpg
-zain.jpg
