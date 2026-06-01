@@ -1,43 +1,20 @@
-products = [
-{
-"name":"iPhone Cover",
-"price":10,
-"image":"cover.jpg"
-},
+// Customer.java
+public class Customer {
+    private String id;
+    private String name;
+    private String phoneNumber;
+    private double totalDebt;
+    private String lastTransactionDate;
 
-{
-"name":"PUBG UC",
-"price":20,
-"image":"uc.jpg"
-}
-]
+    public Customer(String id, String name, String phoneNumber, double totalDebt, String lastTransactionDate) {
+        this.id = id;
+        this.name = name;
+        this.phoneNumber = phoneNumber;
+        this.totalDebt = totalDebt;
+        this.lastTransactionDate = lastTransactionDate;
+    }
 
-for p in products:
-
-    st.markdown(
-    '<div class="product-card">',
-    unsafe_allow_html=True
-    )
-
-    st.image(
-    p["image"],
-    use_container_width=True
-    )
-
-    st.subheader(
-    p["name"]
-    )
-
-    st.write(
-    f'{p["price"]}$'
-    )
-
-    st.button(
-    "Buy",
-    key=p["name"]
-    )
-
-    st.markdown(
-    "</div>",
-    unsafe_allow_html=True
-    )
+    // Getters
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getPhoneNumber() { return phone
