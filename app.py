@@ -1,259 +1,223 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-import json
 import os
 
-# ==================== DATA MANAGEMENT ====================
-DATA_FILE = "debts_data.json"
-
-def load_data():
-    """بارکردنی داتا لە فایلی JSON"""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
-
-def save_data(data):
-    """پاشەکەوتکردنی داتا لە فایلی JSON"""
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# ==================== INITIALIZE SESSION ====================
-if "customers" not in st.session_state:
-    st.session_state.customers = load_data()
-
-# ==================== SIDEBAR ====================
-st.sidebar.title("📱 دوکانی مۆبایل")
-st.sidebar.markdown("---")
-menu = st.sidebar.radio(
-    "📋 هەڵبژاردن:",
-    ["🏠 سەرەکی", "➕ زیادکردنی قەرز", "📊 لیستی قەرزەکان", "🔍 گەڕان", "ℹ️ دەربارە"]
+# ڕێکخستنی پەیج
+st.set_page_config(
+    page_title="دوکانی مۆبایل",
+    page_icon="📱",
+    layout="wide"
 )
 
-# ==================== FUNCTIONS ====================
-def add_customer(name, phone, amount, phone_model):
-    """زیادکردنی کڕیاری نوێ"""
-    customer = {
-        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
-        "name": name,
-        "phone": phone,
-        "phone_model": phone_model,
-        "amount": amount,
-        "paid": 0,
-        "remaining": amount,
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "transactions": [{
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "type": "قەرز",
-            "amount": amount,
-            "balance": amount
-        }]
+# CSSـی تایبەت بۆ جوانترکردن
+st.markdown("""
+<style>
+    .product-card {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        background-color: #fafafa;
     }
-    st.session_state.customers.append(customer)
-    save_data(st.session_state.customers)
+    .product-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #1e3c72;
+    }
+    .product-price {
+        font-size: 18px;
+        color: #ff6600;
+        font-weight: bold;
+    }
+    .btn-buy {
+        background-color: #ff6600;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 5px;
+        text-decoration: none;
+    }
+    .sidebar-header {
+        font-size: 24px;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-def add_payment(customer_id, amount):
-    """زیادکردنی پارەدان"""
-    for customer in st.session_state.customers:
-        if customer["id"] == customer_id:
-            customer["paid"] += amount
-            customer["remaining"] = customer["amount"] - customer["paid"]
-            customer["transactions"].append({
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "type": "پارەدان",
-                "amount": amount,
-                "balance": customer["remaining"]
-            })
-            break
-    save_data(st.session_state.customers)
+# ناونیشان
+st.title("📱 دوکانی مۆبایل")
+st.markdown("---")
 
-def calculate_totals():
-    """ژماردنی کۆی گشتی"""
-    total_debt = sum(c["amount"] for c in st.session_state.customers)
-    total_paid = sum(c["paid"] for c in st.session_state.customers)
-    total_remaining = sum(c["remaining"] for c in st.session_state.customers)
-    return total_debt, total_paid, total_remaining
+# زانیاری مۆبایلەکان
+products = [
+    {
+        "ناو": "iPhone 15 Pro Max",
+        "براند": "Apple",
+        "نرخ": 1299,
+        "ڕەنگ": "تیتانیۆمی شین",
+        "RAM": "8GB",
+        "شاشە": "6.7 ئینج",
+        "کامێرا": "48MP",
+        "باتری": "4422mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=iPhone+15+Pro+Max",
+        "وەسف": "بەهێزترین مۆبایلی ئەپڵ بە چیپی A17 Pro"
+    },
+    {
+        "ناو": "Samsung Galaxy S24 Ultra",
+        "براند": "Samsung",
+        "نرخ": 1199,
+        "ڕەنگ": "ڕەشی تایبەت",
+        "RAM": "12GB",
+        "شاشە": "6.8 ئینج",
+        "کامێرا": "200MP",
+        "باتری": "5000mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=Galaxy+S24+Ultra",
+        "وەسف": "مۆبایلێکی ئەندرۆیدی پلە یەک بە S Pen"
+    },
+    {
+        "ناو": "Xiaomi 14 Pro",
+        "براند": "Xiaomi",
+        "نرخ": 799,
+        "ڕەنگ": "سپی",
+        "RAM": "12GB",
+        "شاشە": "6.73 ئینج",
+        "کامێرا": "50MP",
+        "باتری": "4880mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=Xiaomi+14+Pro",
+        "وەسف": "بە کوالێتی و نرخێکی گونجاو"
+    },
+    {
+        "ناو": "Google Pixel 8 Pro",
+        "براند": "Google",
+        "نرخ": 899,
+        "ڕەنگ": "خۆڵەمێشی",
+        "RAM": "12GB",
+        "شاشە": "6.7 ئینج",
+        "کامێرا": "50MP",
+        "باتری": "5050mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=Pixel+8+Pro",
+        "وەسف": "باشترین کامێرا و سیستەمی خاوێنی ئەندرۆید"
+    },
+    {
+        "ناو": "OnePlus 12",
+        "براند": "OnePlus",
+        "نرخ": 699,
+        "ڕەنگ": "شینی ئاسمان",
+        "RAM": "16GB",
+        "شاشە": "6.82 ئینج",
+        "کامێرا": "50MP",
+        "باتری": "5400mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=OnePlus+12",
+        "وەسف": "باتری بەهێز و بارگاوی خێرا"
+    },
+    {
+        "ناو": "Nothing Phone (2)",
+        "براند": "Nothing",
+        "نرخ": 599,
+        "ڕەنگ": "ڕەش",
+        "RAM": "12GB",
+        "شاشە": "6.7 ئینج",
+        "کامێرا": "50MP",
+        "باتری": "4700mAh",
+        "وێنە": "https://via.placeholder.com/300x200.png?text=Nothing+Phone+2",
+        "وەسف": "دیزاینێکی یەکتا بە LED Glyph Interface"
+    },
+]
 
-# ==================== MAIN PAGE ====================
-if menu == "🏠 سەرەکی":
-    st.title("📱 سیستەمی بەڕێوەبردنی قەرزەکانی دوکانی مۆبایل")
-    st.markdown("---")
-    
-    # Statistics
-    total_debt, total_paid, total_remaining = calculate_totals()
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("💰 کۆی قەرزەکان", f"${total_debt:,.0f}")
-    with col2:
-        st.metric("✅ پارە دراوەکان", f"${total_paid:,.0f}")
-    with col3:
-        st.metric("⏳ ماوە", f"${total_remaining:,.0f}", delta="-$"+str(total_remaining) if total_remaining > 0 else "تەواو")
-    
-    st.markdown("---")
-    
-    # Recent customers
-    st.subheader("🕐 دوایین کڕیارەکان")
-    if st.session_state.customers:
-        recent = sorted(st.session_state.customers, key=lambda x: x["date"], reverse=True)[:5]
-        for customer in recent:
-            with st.expander(f"👤 {customer['name']} - {customer['phone_model']}"):
-                st.write(f"📞 **ژمارە:** {customer['phone']}")
-                st.write(f"💰 **کۆی قەرز:** ${customer['amount']:,.0f}")
-                st.write(f"✅ **پارە دراوە:** ${customer['paid']:,.0f}")
-                st.write(f"⏳ **ماوە:** ${customer['remaining']:,.0f}")
-                progress = customer['paid'] / customer['amount'] if customer['amount'] > 0 else 0
-                st.progress(progress)
-                st.caption(f"📅 بەروار: {customer['date']}")
-    else:
-        st.info("👈 هیچ کڕیارێک تۆمار نەکراوە")
+# Sidebar - فلتەر و گەڕان
+st.sidebar.title("🔍 فلتەر و گەڕان")
 
-# ==================== ADD DEBT ====================
-elif menu == "➕ زیادکردنی قەرز":
-    st.title("➕ زیادکردنی قەرزی نوێ")
-    
-    with st.form("add_debt_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input("👤 ناوی کڕیار*")
-            phone = st.text_input("📞 ژمارەی مۆبایل")
-        with col2:
-            phone_model = st.text_input("📱 مۆدێلی مۆبایل*")
-            amount = st.number_input("💰 بڕی قەرز*", min_value=0.0, step=100.0)
-        
-        note = st.text_area("📝 تێبینی (ئارەزوومەندانە)")
-        
-        submitted = st.form_submit_button("💾 تۆمارکردن", use_container_width=True)
-        
-        if submitted:
-            if name and phone_model and amount > 0:
-                add_customer(name, phone, amount, phone_model)
-                st.success("✅ قەرزەکە بە سەرکەوتویی تۆمار کرا!")
-                st.balloons()
-            else:
-                st.error("❌ تکایە ناو و مۆدێلی مۆبایل و بڕی قەرز پڕ بکەرەوە")
+# گەڕان
+search = st.sidebar.text_input("بە دوای مۆبایلێکدا بگەڕێ...")
 
-# ==================== DEBT LIST ====================
-elif menu == "📊 لیستی قەرزەکان":
-    st.title("📊 لیستی هەموو قەرزەکان")
-    
-    if st.session_state.customers:
-        # Filters
-        filter_option = st.selectbox(
-            "🔍 ڕیزکردن:",
-            ["هەمووی", "💸 پارە ماو", "✅ پارە دراو", "⏰ بەپێی بەروار"]
-        )
-        
-        df = pd.DataFrame(st.session_state.customers)
-        
-        if filter_option == "💸 پارە ماو":
-            df = df[df["remaining"] > 0]
-        elif filter_option == "✅ پارە دراو":
-            df = df[df["remaining"] == 0]
-        elif filter_option == "⏰ بەپێی بەروار":
-            df = df.sort_values("date", ascending=False)
-        
-        st.markdown(f"**ژمارەی کڕیارەکان:** {len(df)}")
-        
-        # Display table
-        display_df = df[["name", "phone_model", "amount", "paid", "remaining", "date"]].copy()
-        display_df.columns = ["ناو", "مۆبایل", "کۆی قەرز", "دراوە", "ماوە", "بەروار"]
-        
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "کۆی قەرز": st.column_config.NumberColumn(format="$%d"),
-                "دراوە": st.column_config.NumberColumn(format="$%d"),
-                "ماوە": st.column_config.NumberColumn(format="$%d")
-            }
-        )
-        
-        # Manage payments
-        st.markdown("---")
-        st.subheader("💳 پارەدان")
-        
-        customer_names = [f"{c['name']} ({c['phone_model']}) - ${c['remaining']:,.0f}" for c in st.session_state.customers if c["remaining"] > 0]
-        
-        if customer_names:
-            selected = st.selectbox("کڕیار هەڵبژێرە:", customer_names)
-            payment_amount = st.number_input("💰 بڕی پارەدان:", min_value=0.0, step=50.0)
+# فلتەری براند
+brands = ["هەموو", "Apple", "Samsung", "Xiaomi", "Google", "OnePlus", "Nothing"]
+selected_brand = st.sidebar.selectbox("براند", brands)
+
+# فلتەری نرخ
+st.sidebar.subheader("مەزانی نرخ")
+min_price, max_price = st.sidebar.slider(
+    "نرخ (دۆلار)",
+    min_value=0, max_value=2000,
+    value=(0, 2000),
+    step=50
+)
+
+# فلتەرکردنی بەرهەمەکان
+filtered_products = products
+
+if search:
+    filtered_products = [p for p in filtered_products if search.lower() in p["ناو"].lower() or search.lower() in p["براند"].lower()]
+
+if selected_brand != "هەموو":
+    filtered_products = [p for p in filtered_products if p["براند"] == selected_brand]
+
+filtered_products = [p for p in filtered_products if min_price <= p["نرخ"] <= max_price]
+
+# سەبەتە (cart)
+if "cart" not in st.session_state:
+    st.session_state.cart = []
+
+# نیشاندانی بەرهەمەکان
+st.header(f"📱 بەرهەمەکان ({len(filtered_products)})")
+
+cols = st.columns(3)
+for idx, product in enumerate(filtered_products):
+    col = cols[idx % 3]
+    with col:
+        with st.container():
+            st.markdown(f"""
+            <div class="product-card">
+                <div style="text-align: center;">
+                    <img src="{product['وێنە']}" width="100%">
+                </div>
+                <div class="product-title">{product['ناو']}</div>
+                <div class="product-price">${product['نرخ']}</div>
+                <p>{product['وەسف']}</p>
+                <p><b>براند:</b> {product['براند']} | <b>ڕەنگ:</b> {product['ڕەنگ']}</p>
+                <p><b>RAM:</b> {product['RAM']} | <b>شاشە:</b> {product['شاشە']}</p>
+                <p><b>کامێرا:</b> {product['کامێرا']} | <b>باتری:</b> {product['باتری']}</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            if st.button("💳 پارەدان", type="primary", use_container_width=True):
-                selected_customer = st.session_state.customers[customer_names.index(selected)]
-                if payment_amount > 0 and payment_amount <= selected_customer["remaining"]:
-                    add_payment(selected_customer["id"], payment_amount)
-                    st.success("✅ پارەدان تۆمار کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ بڕی پارەدان دەبێت لە ماوە کەمتر یان یەکسان بێت")
-        else:
-            st.success("🎉 هیچ قەرزێکی ماو نییە!")
-    else:
-        st.info("👈 هیچ کڕیارێک تۆمار نەکراوە")
+            if st.button(f"🛒 زیادکردن بۆ سەبەتە", key=f"btn_{idx}"):
+                st.session_state.cart.append(product)
+                st.success(f"✅ {product['ناو']} زیاد کرا بۆ سەبەتە!")
 
-# ==================== SEARCH ====================
-elif menu == "🔍 گەڕان":
-    st.title("🔍 گەڕان بەدوای کڕیاردا")
-    
-    search = st.text_input("🔍 ناوی کڕیار یان مۆدێلی مۆبایل:")
-    
-    if search:
-        results = [c for c in st.session_state.customers if search.lower() in c["name"].lower() or search.lower() in c["phone_model"].lower()]
-        
-        if results:
-            st.success(f"📊 {len(results)} کڕیار دۆزرایەوە")
-            for customer in results:
-                with st.container():
-                    st.markdown(f"### 👤 {customer['name']}")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.write(f"📱 **مۆبایل:** {customer['phone_model']}")
-                        st.write(f"📞 **ژمارە:** {customer['phone']}")
-                    with col2:
-                        st.write(f"💰 **قەرز:** ${customer['amount']:,.0f}")
-                        st.write(f"✅ **دراوە:** ${customer['paid']:,.0f}")
-                    with col3:
-                        st.write(f"⏳ **ماوە:** ${customer['remaining']:,.0f}")
-                        progress = customer['paid'] / customer['amount'] if customer['amount'] > 0 else 0
-                        st.progress(progress)
-                    
-                    # Transaction history
-                    with st.expander("📜 مێژووی وەصڵەکان"):
-                        if customer.get("transactions"):
-                            trans_df = pd.DataFrame(customer["transactions"])
-                            trans_df.columns = ["بەروار", "جۆر", "بڕ", "باڵانس"]
-                            st.dataframe(trans_df, use_container_width=True, hide_index=True)
-                    
-                    st.markdown("---")
-        else:
-            st.warning("👈 هیچ کڕیارێک نەدۆزرایەوە")
+# سەبەتە (Cart Page)
+st.markdown("---")
+st.header("🛒 سەبەتەی من")
 
-# ==================== ABOUT ====================
-elif menu == "ℹ️ دەربارە":
-    st.title("ℹ️ دەربارەی سیستەمەکە")
-    st.markdown("""
-    ### 📱 سیستەمی بەڕێوەبردنی قەرزەکانی دوکانی مۆبایل
+if len(st.session_state.cart) == 0:
+    st.info("سەبەتەکەت بەتاڵە!")
+else:
+    total = 0
+    for i, item in enumerate(st.session_state.cart):
+        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+        with col1:
+            st.write(item["ناو"])
+        with col2:
+            st.write(item["براند"])
+        with col3:
+            st.write(f"${item['نرخ']}")
+        with col4:
+            if st.button(f"❌ لابردن", key=f"remove_{i}"):
+                st.session_state.cart.pop(i)
+                st.rerun()
+        total += item["نرخ"]
     
-    **وەشانی 1.0**
+    st.markdown("---")
+    st.subheader(f"📊 کۆی گشتی: **${total}**")
     
-    **تایبەتمەندییەکان:**
-    - ➕ تۆمارکردنی قەرزی کڕیاران
-    - 💰 بەڕێوەبردنی پارەدانەکان
-    - 📊 بینینی لیستی قەرزەکان
-    - 🔍 گەڕان بەدوای کڕیاردا
-    - 📜 مێژووی وەصڵەکان
-    - 💾 پاشەکەوتکردنی داتاکان
-    
-    **چۆنیەتی بەکارهێنان:**
-    1. لە **زیادکردنی قەرز** قەرزی نوێ تۆمار دەکەیت
-    2. لە **لیستی قەرزەکان** دەتوانیت پارەدان تۆمار بکەیت
-    3. لە **گەڕان** بەدوای کڕیارێکی دیاریکراو دا بگەڕێیت
-    """)
+    if st.button("✅ تەواوکردنی کڕین"):
+        st.balloons()
+        st.success("سوپاس بۆ کڕینتان! پەیوەندیمان پێوە دەکەین بۆ پشتڕاستکردنەوە.")
+        st.session_state.cart = []
 
-# ==================== FOOTER ====================
-st.sidebar.markdown("---")
-st.sidebar.caption(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-st.sidebar.caption("© 2024 دوکانی مۆبایل - هەموو مافێک پارێزراوە")
+# پێداچوونەوە (Footer)
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: gray;">
+    <p>© 2024 دوکانی مۆبایل - هەموو مافەکان پارێزراون</p>
+    <p>📞 پەیوەندی: 0770-XXX-XXXX | ✉️ ئیمەیل: mobile@shop.krd</p>
+</div>
+""", unsafe_allow_html=True)
