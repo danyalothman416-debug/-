@@ -1,1 +1,815 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 دوکانی مۆبایل</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        /* هێدەر */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .header .cart-icon {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            font-size: 2rem;
+            cursor: pointer;
+            background: white;
+            color: #667eea;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        /* گەڕان */
+        .search-box {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .search-box input {
+            width: 80%;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            text-align: right;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* کەتێگۆری */
+        .categories {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 0 20px;
+            margin-bottom: 20px;
+        }
+        
+        .cat-btn {
+            padding: 12px 25px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .cat-btn:hover, .cat-btn.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* بەرهەمەکان */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 300px;
+            object-fit: contain;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+        
+        .product-info {
+            padding: 20px;
+        }
+        
+        .product-brand {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .product-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .product-description {
+            color: #777;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .product-specs {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .product-specs span {
+            display: inline-block;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 3px;
+            font-size: 0.85rem;
+            border: 1px solid #ddd;
+        }
+        
+        .price-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+        
+        .price {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .old-price {
+            text-decoration: line-through;
+            color: #dc3545;
+            font-size: 1.1rem;
+            margin-right: 10px;
+        }
+        
+        .discount {
+            background: #dc3545;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .add-to-cart {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .add-to-cart:hover {
+            transform: scale(1.05);
+        }
+        
+        .out-of-stock {
+            background: #ddd;
+            cursor: not-allowed;
+        }
+        
+        /* سەبەتە */
+        .cart-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cart-modal.active {
+            display: flex;
+        }
+        
+        .cart-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .total {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .checkout-btn {
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        /* فۆرم */
+        .form-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .form-modal.active {
+            display: flex;
+        }
+        
+        .form-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .form-content input,
+        .form-content textarea,
+        .form-content select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            text-align: right;
+        }
+        
+        .form-content label {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-top: 10px;
+            text-align: right;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: none;
+            z-index: 3000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(-300px);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+        
+        .notification.show {
+            display: block;
+        }
+        
+        /* فووەتەر */
+        .footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+        }
+        
+        .whatsapp-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #25D366;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(37, 211, 102, 0.5);
+            z-index: 500;
+            text-decoration: none;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
 
+<!-- هێدەر -->
+<div class="header">
+    <h1>📱 دوکانی مۆبایل</h1>
+    <p>نوێترین مۆبایلەکان بە باشترین نرخ</p>
+    <div class="cart-icon" onclick="toggleCart()">
+        🛒
+        <span class="cart-count" id="cartCount">0</span>
+    </div>
+</div>
+
+<!-- گەڕان -->
+<div class="search-box">
+    <input type="text" id="searchInput" placeholder="🔍 گەڕان بەدوای مۆبایل..." onkeyup="filterProducts()">
+</div>
+
+<!-- کەتێگۆرییەکان -->
+<div class="categories">
+    <button class="cat-btn active" onclick="filterByCategory('all', this)">هەموو</button>
+    <button class="cat-btn" onclick="filterByCategory('iphone', this)">📱 ئایفۆن</button>
+    <button class="cat-btn" onclick="filterByCategory('samsung', this)">📱 سامسونگ</button>
+    <button class="cat-btn" onclick="filterByCategory('xiaomi', this)">📱 شیاومی</button>
+    <button class="cat-btn" onclick="filterByCategory('google', this)">📱 گوگڵ</button>
+    <button class="cat-btn" onclick="filterByCategory('oneplus', this)">📱 وەن پڵەس</button>
+    <button class="cat-btn" onclick="filterByCategory('huawei', this)">📱 هواوی</button>
+</div>
+
+<!-- بەرهەمەکان -->
+<div class="products-grid" id="productsGrid"></div>
+
+<!-- مۆدالی سەبەتە -->
+<div class="cart-modal" id="cartModal">
+    <div class="cart-content">
+        <button class="close-btn" onclick="toggleCart()">✕</button>
+        <h2 style="text-align: center; margin-bottom: 20px;">🛒 سەبەتەی کڕین</h2>
+        <div id="cartItems"></div>
+        <div class="total" id="cartTotal">کۆی گشتی: 0 د.ع</div>
+        <button class="checkout-btn" onclick="openCheckout()">📦 تەواوکردنی داواکاری</button>
+    </div>
+</div>
+
+<!-- فۆرمی داواکاری -->
+<div class="form-modal" id="checkoutModal">
+    <div class="form-content">
+        <h2 style="text-align: center; margin-bottom: 20px;">📝 زانیاری داواکاری</h2>
+        <form onsubmit="submitOrder(event)">
+            <label>👤 ناوی تەواو</label>
+            <input type="text" id="customerName" required placeholder="ناوی خۆت بنووسە">
+            
+            <label>📱 ژمارەی تەلەفۆن</label>
+            <input type="tel" id="customerPhone" required placeholder="0770-XXX-XXXX">
+            
+            <label>🏙️ شار</label>
+            <select id="customerCity" required>
+                <option value="">شار هەڵبژێرە</option>
+                <option>سلێمانی</option>
+                <option>هەولێر</option>
+                <option>دهۆک</option>
+                <option>کەرکوک</option>
+                <option>بەغداد</option>
+            </select>
+            
+            <label>📍 ناونیشان</label>
+            <textarea id="customerAddress" required placeholder="ناونیشانی تەواوت بنووسە" rows="3"></textarea>
+            
+            <button type="submit" class="checkout-btn" style="margin-top: 20px;">✅ تەواوکردنی داواکاری</button>
+            <button type="button" class="remove-btn" style="margin-top: 10px; width: 100%;" onclick="closeCheckout()">🔙 گەڕانەوە</button>
+        </form>
+    </div>
+</div>
+
+<!-- نۆتیفیکەیشن -->
+<div class="notification" id="notification"></div>
+
+<!-- دوگمەی واتساپ -->
+<a href="https://wa.me/9647701234567" target="_blank" class="whatsapp-btn" title="پەیوەندیمان پێوەبکە">
+    💬
+</a>
+
+<!-- فووەتەر -->
+<div class="footer">
+    <p>© 2024 دوکانی مۆبایل. هەموو مافەکان پارێزراون.</p>
+    <p>📞 0770-123-4567 | 📧 info@mobileshop.com</p>
+    <p>دروستکراوە بە ❤️ لە کوردستان</p>
+</div>
+
+<script>
+// داتای بەرهەمەکان
+const products = [
+    {
+        id: 1,
+        name: 'ئایفۆن ١٥ پرۆ مەکس',
+        brand: 'Apple',
+        category: 'iphone',
+        price: 1450000,
+        oldPrice: 1650000,
+        description: 'نوێترین ئایفۆن لەگەڵ کامێرای ٤٨ مێگاپێکسڵ و پڕۆسێسەری A17 Pro',
+        specs: ['6.7" OLED', '48MP', 'A17 Pro', '4422mAh', '256GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/apple/apple-iphone-15-pro-max-1.jpg',
+        stock: 15
+    },
+    {
+        id: 2,
+        name: 'سامسونگ گالاکسی S24 ئەلترا',
+        brand: 'Samsung',
+        category: 'samsung',
+        price: 1350000,
+        oldPrice: 1500000,
+        description: 'گالاکسی S24 ئەلترا لەگەڵ پێنسی S-Pen و کامێرای ٢٠٠ مێگاپێکسڵ',
+        specs: ['6.8" AMOLED', '200MP', 'Snapdragon 8 Gen 3', '5000mAh', '512GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/samsung/samsung-galaxy-s24-ultra-1.jpg',
+        stock: 12
+    },
+    {
+        id: 3,
+        name: 'شیاومی ١٤ پرۆ',
+        brand: 'Xiaomi',
+        category: 'xiaomi',
+        price: 850000,
+        oldPrice: 950000,
+        description: 'مۆبایلی بەهێز لەگەڵ کامێرای لایکا و پڕۆسێسەری Snapdragon 8 Gen 3',
+        specs: ['6.73" AMOLED', '50MP x3', 'Snapdragon 8 Gen 3', '4880mAh', '256GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/xiaomi/xiaomi-14-pro-1.jpg',
+        stock: 20
+    },
+    {
+        id: 4,
+        name: 'گوگڵ پێکسڵ ٨ پرۆ',
+        brand: 'Google',
+        category: 'google',
+        price: 1100000,
+        oldPrice: 1200000,
+        description: 'مۆبایلی گوگڵ لەگەڵ ئەندڕۆیدی پاك و کامێرای ژیری دەستکرد',
+        specs: ['6.7" LTPO OLED', '50MP', 'Tensor G3', '5050mAh', '128GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/google/google-pixel-8-pro-1.jpg',
+        stock: 8
+    },
+    {
+        id: 5,
+        name: 'وەن پڵەس ١٢',
+        brand: 'OnePlus',
+        category: 'oneplus',
+        price: 950000,
+        oldPrice: 1050000,
+        description: 'مۆبایلی خێرا و بەهێز لەگەڵ شاشەی 120Hz و بارگاویکەری خێرا',
+        specs: ['6.82" AMOLED', '50MP', 'Snapdragon 8 Gen 3', '5400mAh', '256GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/oneplus/oneplus-12-1.jpg',
+        stock: 10
+    },
+    {
+        id: 6,
+        name: 'هواوی P60 پرۆ',
+        brand: 'Huawei',
+        category: 'huawei',
+        price: 750000,
+        oldPrice: 850000,
+        description: 'مۆبایلی هواوی لەگەڵ کامێرای نایاب و دیزاینی جوان',
+        specs: ['6.67" OLED', '48MP', 'Snapdragon 8+ Gen 1', '4815mAh', '256GB'],
+        image: 'https://fdn2.gsmarena.com/vv/pics/huawei/huawei-p60-pro-1.jpg',
+        stock: 7
+    }
+];
+
+// سەبەتەی کڕین
+let cart = [];
+let currentCategory = 'all';
+
+// نیشاندانی بەرهەمەکان
+function displayProducts(productsToShow) {
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = '';
+    
+    productsToShow.forEach(product => {
+        const discount = product.oldPrice ? Math.round((1 - product.price/product.oldPrice) * 100) : 0;
+        
+        grid.innerHTML += `
+            <div class="product-card">
+                <img src="${product.image}" alt="${product.name}" class="product-image" 
+                     onerror="this.src='https://via.placeholder.com/300x300?text=No+Image'">
+                <div class="product-info">
+                    <div class="product-brand">${product.brand}</div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-description">${product.description}</div>
+                    <div class="product-specs">
+                        ${product.specs.map(spec => `<span>${spec}</span>`).join('')}
+                    </div>
+                    <div class="price-section">
+                        <div>
+                            ${product.oldPrice ? `<span class="old-price">${product.oldPrice.toLocaleString()} د.ع</span>` : ''}
+                            <span class="price">${product.price.toLocaleString()} د.ع</span>
+                        </div>
+                        ${discount > 0 ? `<span class="discount">-${discount}%</span>` : ''}
+                    </div>
+                    <button class="add-to-cart ${product.stock === 0 ? 'out-of-stock' : ''}" 
+                            ${product.stock === 0 ? 'disabled' : ''}
+                            onclick="addToCart(${product.id})">
+                        ${product.stock > 0 ? '🛒 زیادکردن بۆ سەبەتە' : '❌ تەواو بووە'}
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// فلتیەر بە کەتێگۆری
+function filterByCategory(category, btn) {
+    currentCategory = category;
+    
+    // چالاککردنی دوگمە
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    filterProducts();
+}
+
+// گەڕان و فلتیەر
+function filterProducts() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    
+    let filtered = products;
+    
+    if (currentCategory !== 'all') {
+        filtered = filtered.filter(p => p.category === currentCategory);
+    }
+    
+    if (searchTerm) {
+        filtered = filtered.filter(p => 
+            p.name.toLowerCase().includes(searchTerm) ||
+            p.brand.toLowerCase().includes(searchTerm) ||
+            p.description.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    displayProducts(filtered);
+}
+
+// زیادکردن بۆ سەبەتە
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    
+    const existingItem = cart.find(item => item.id === productId);
+    if (existingItem) {
+        existingItem.quantity++;
+    } else {
+        cart.push({...product, quantity: 1});
+    }
+    
+    updateCartCount();
+    showNotification(`${product.name} زیادکرا بۆ سەبەتە ✅`);
+}
+
+// نوێکردنەوەی ژمارەی سەبەتە
+function updateCartCount() {
+    const count = cart.reduce((total, item) => total + item.quantity, 0);
+    document.getElementById('cartCount').textContent = count;
+}
+
+// کردنەوە و داخستنی سەبەتە
+function toggleCart() {
+    const modal = document.getElementById('cartModal');
+    modal.classList.toggle('active');
+    displayCartItems();
+}
+
+// نیشاندانی ناوەڕۆکی سەبەتە
+function displayCartItems() {
+    const cartItems = document.getElementById('cartItems');
+    
+    if (cart.length === 0) {
+        cartItems.innerHTML = '<p style="text-align: center; padding: 30px;">🛒 سەبەتەکەت بەتاڵە</p>';
+        document.getElementById('cartTotal').textContent = 'کۆی گشتی: 0 د.ع';
+        return;
+    }
+    
+    let html = '';
+    let total = 0;
+    
+    cart.forEach(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        
+        html += `
+            <div class="cart-item">
+                <div>
+                    <strong>${item.name}</strong><br>
+                    <small>${item.quantity} x ${item.price.toLocaleString()} د.ع</small>
+                </div>
+                <div>
+                    <strong>${itemTotal.toLocaleString()} د.ع</strong>
+                    <button class="remove-btn" onclick="removeFromCart(${item.id})">🗑️</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    cartItems.innerHTML = html;
+    document.getElementById('cartTotal').textContent = `کۆی گشتی: ${total.toLocaleString()} د.ع`;
+}
+
+// سڕینەوە لە سەبەتە
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.id !== productId);
+    updateCartCount();
+    displayCartItems();
+}
+
+// فۆرمی داواکاری
+function openCheckout() {
+    if (cart.length === 0) {
+        showNotification('⚠️ سەبەتەکەت بەتاڵە!');
+        return;
+    }
+    document.getElementById('cartModal').classList.remove('active');
+    document.getElementById('checkoutModal').classList.add('active');
+}
+
+function closeCheckout() {
+    document.getElementById('checkoutModal').classList.remove('active');
+}
+
+// ناردنی داواکاری
+function submitOrder(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('customerName').value;
+    const phone = document.getElementById('customerPhone').value;
+    const city = document.getElementById('customerCity').value;
+    const address = document.getElementById('customerAddress').value;
+    
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // دروستکردنی پەیامی واتساپ
+    let message = `📱 داواکاری نوێ%0A%0A`;
+    message += `👤 ناو: ${name}%0A`;
+    message += `📱 تەلەفۆن: ${phone}%0A`;
+    message += `📍 ناونیشان: ${address}، ${city}%0A%0A`;
+    message += `🛒 بەرهەمەکان:%0A`;
+    
+    cart.forEach(item => {
+        message += `- ${item.name} (${item.quantity}x)%0A`;
+    });
+    
+    message += `%0A💰 کۆی گشتی: ${total.toLocaleString()} د.ع`;
+    
+    // کردنەوەی واتساپ
+    const whatsappNumber = '9647701234567'; // ژمارەی واتساپی دوکان
+    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
+    
+    // سڕینەوەی سەبەتە
+    cart = [];
+    updateCartCount();
+    document.getElementById('checkoutModal').classList.remove('active');
+    
+    showNotification('✅ داواکاریت بە سەرکەوتوویی تۆمارکرا! لە واتساپ پەیوەندیت پێوە دەکەین');
+    
+    // ڕیستارتکردنی فۆرم
+    document.getElementById('customerName').value = '';
+    document.getElementById('customerPhone').value = '';
+    document.getElementById('customerCity').value = '';
+    document.getElementById('customerAddress').value = '';
+}
+
+// نۆتیفیکەیشن
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// دەستپێکردن
+displayProducts(products);
+updateCartCount();
+</script>
+
+</body>
+</html>
