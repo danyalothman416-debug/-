@@ -1,5 +1,3 @@
-streamlit
-pandas
-sqlite3
-pillow
-python-dotenv
+streamlit==1.28.1
+pandas==2.1.3
+Pillow==10.1.0
