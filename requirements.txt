@@ -1,5 +1,4 @@
 streamlit
 pandas
-sqlite3
-pillow
-python-dotenv
+plotly
+streamlit-option-menu
