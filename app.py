@@ -20,12 +20,21 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.feature_extraction.text import TfidfVectorizer
 import warnings
 warnings.filterwarnings('ignore')
+import sqlite3
+import os
+import base64
+from io import BytesIO
+import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import Counter
+import hashlib
+import uuid
 
 # ================================
 # 1. ڕێکخستنی ڕووکاری پەڕە
 # ================================
 st.set_page_config(
-    page_title="ڕاهێنەری پزیشکی - Medical Training Simulator Pro",
+    page_title="ڕاهێنەری پزیشکی Pro Max - Medical Training Simulator",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -36,273 +45,439 @@ st.set_page_config(
 # ================================
 st.markdown("""
 <style>
-    /* 2.1 ستایلە سەرەکییەکان */
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap');
+    /* 2.1 باکگراوندی پشت */
+    .stApp {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #0f0c29);
+        min-height: 100vh;
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+    }
+    
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .main {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        border-radius: 35px;
+        padding: 2.5rem;
+        margin: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        animation: fadeIn 1s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
     
     .main-header {
-        font-size: 3.2rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-size: 3.8rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #4facfe 100%);
+        background-size: 300% 300%;
+        animation: headerGradient 4s ease infinite;
         color: white;
         text-align: center;
-        padding: 2.2rem;
-        border-radius: 28px;
+        padding: 2.8rem;
+        border-radius: 35px;
         margin-bottom: 2.5rem;
-        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.4);
-        animation: fadeInDown 0.8s ease-out;
+        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.5);
         font-family: 'Noto Naskh Arabic', sans-serif;
-        letter-spacing: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    @keyframes headerGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .main-header::before {
+        content: '🩺';
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 4rem;
+        opacity: 0.3;
+    }
+    
+    .main-header::after {
+        content: '⚕️';
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 4rem;
+        opacity: 0.3;
     }
     
     @keyframes fadeInDown {
-        from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+        from { opacity: 0; transform: translateY(-50px) scale(0.95); }
         to { opacity: 1; transform: translateY(0) scale(1); }
     }
     
     @keyframes pulse {
         0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
-        50% { transform: scale(1.02); box-shadow: 0 0 20px 10px rgba(102, 126, 234, 0.2); }
+        50% { transform: scale(1.04); box-shadow: 0 0 40px 20px rgba(102, 126, 234, 0.2); }
         100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
     }
     
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateX(-20px); }
+    @keyframes glow {
+        0% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+        50% { box-shadow: 0 0 60px rgba(102, 126, 234, 0.6), 0 0 100px rgba(118, 75, 162, 0.3); }
+        100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-12px); }
+        100% { transform: translateY(0px); }
+    }
+    
+    @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(50px); }
         to { opacity: 1; transform: translateX(0); }
     }
     
     .case-card {
-        background: linear-gradient(145deg, #f0f4ff, #e8edff);
-        padding: 2rem;
-        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 28px;
         border-left: 8px solid #667eea;
         margin: 1.2rem 0;
-        transition: all 0.4s ease;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-        animation: slideIn 0.6s ease-out;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        animation: slideInLeft 0.6s ease-out;
+        color: #fff;
         position: relative;
         overflow: hidden;
     }
     
-    .case-card::after {
+    .case-card::before {
         content: '';
         position: absolute;
         top: -50%;
         right: -50%;
         width: 100%;
         height: 100%;
-        background: radial-gradient(circle, rgba(102,126,234,0.05) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(102,126,234,0.08) 0%, transparent 70%);
         pointer-events: none;
     }
     
     .case-card:hover {
-        transform: translateY(-5px) scale(1.01);
-        box-shadow: 0 15px 45px rgba(102, 126, 234, 0.25);
+        transform: translateY(-10px) scale(1.01);
+        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.3);
+        border-color: #764ba2;
+        background: rgba(255, 255, 255, 0.1);
     }
     
     .success-box {
-        background: linear-gradient(135deg, #d4edda, #b8e0c8);
-        padding: 2rem;
-        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.3), rgba(40, 167, 69, 0.08));
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
         border-left: 8px solid #28a745;
-        box-shadow: 0 8px 30px rgba(40, 167, 69, 0.25);
+        box-shadow: 0 10px 45px rgba(40, 167, 69, 0.2);
         animation: pulse 2s infinite;
+        color: #fff;
+        border: 1px solid rgba(40, 167, 69, 0.15);
     }
     
     .error-box {
-        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-        padding: 2rem;
-        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.3), rgba(220, 53, 69, 0.08));
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
         border-left: 8px solid #dc3545;
-        box-shadow: 0 8px 30px rgba(220, 53, 69, 0.2);
+        box-shadow: 0 10px 45px rgba(220, 53, 69, 0.2);
+        color: #fff;
+        border: 1px solid rgba(220, 53, 69, 0.15);
     }
     
     .quiz-card {
-        background: linear-gradient(135deg, #ffffff, #f8f9ff);
-        padding: 2.8rem;
-        border-radius: 24px;
-        box-shadow: 0 12px 50px rgba(0,0,0,0.1);
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(20px);
+        padding: 3rem;
+        border-radius: 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         margin: 1.5rem 0;
         border: 2px solid rgba(102, 126, 234, 0.15);
-        transition: all 0.3s ease;
+        transition: all 0.4s ease;
+        color: #fff;
         position: relative;
         overflow: hidden;
+        animation: slideInRight 0.6s ease-out;
     }
     
     .quiz-card::before {
         content: '📝';
         position: absolute;
-        top: 10px;
-        right: 20px;
-        font-size: 3rem;
-        opacity: 0.1;
+        top: 15px;
+        right: 25px;
+        font-size: 5rem;
+        opacity: 0.05;
     }
     
     .quiz-card:hover {
-        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.2);
-        transform: translateY(-3px);
+        box-shadow: 0 30px 80px rgba(102, 126, 234, 0.3);
+        transform: translateY(-6px);
+        border-color: #764ba2;
+        background: rgba(255, 255, 255, 0.1);
     }
     
     .progress-container {
-        background: #e9ecef;
-        border-radius: 18px;
-        height: 18px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 25px;
+        height: 22px;
         overflow: hidden;
         margin: 1rem 0;
-        box-shadow: inset 0 3px 6px rgba(0,0,0,0.06);
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.2);
+        position: relative;
     }
     
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
-        background-size: 200% 100%;
-        border-radius: 18px;
-        transition: width 1.2s ease;
-        animation: shimmer 2.5s infinite linear;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #4facfe, #667eea);
+        background-size: 400% 100%;
+        border-radius: 25px;
+        transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: shimmer 4s infinite linear;
+        position: relative;
+    }
+    
+    .progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        animation: shine 2s infinite;
+    }
+    
+    @keyframes shine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
     }
     
     @keyframes shimmer {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
+        0% { background-position: 400% 0; }
+        100% { background-position: -400% 0; }
     }
     
     .stat-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 20px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         text-align: center;
         border-top: 6px solid #667eea;
-        transition: all 0.4s ease;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.04);
         cursor: default;
+        animation: float 6s ease-in-out infinite;
     }
     
     .stat-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.2);
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        border-top-color: #f093fb;
     }
     
     .stat-number {
-        font-size: 3rem;
+        font-size: 4rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea, #f093fb, #4facfe);
+        background-size: 200% 200%;
+        animation: numberGradient 3s ease infinite;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        text-shadow: none;
+    }
+    
+    @keyframes numberGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
     
     .badge-level {
         display: inline-block;
-        padding: 0.5rem 1.8rem;
-        border-radius: 30px;
+        padding: 0.6rem 2.2rem;
+        border-radius: 40px;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea, #f093fb);
         color: white;
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
         animation: pulse 3s infinite;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
     }
     
     .footer-style {
         text-align: center;
-        padding: 3rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        padding: 3.5rem;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
         color: white;
-        border-radius: 28px;
+        border-radius: 35px;
         margin-top: 3rem;
-        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255, 255, 255, 0.04);
         animation: fadeIn 1s ease-out;
     }
     
     .drug-card {
-        background: linear-gradient(145deg, #f8f9ff, #eef1ff);
-        padding: 1.5rem;
-        border-radius: 18px;
-        border: 2px solid rgba(102, 126, 234, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        padding: 1.8rem;
+        border-radius: 22px;
+        border: 2px solid rgba(102, 126, 234, 0.08);
         margin: 0.8rem 0;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
         position: relative;
+        animation: slideInLeft 0.5s ease-out;
     }
     
     .drug-card:hover {
-        transform: translateY(-3px);
-        border-color: #667eea;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        transform: translateY(-6px) scale(1.01);
+        border-color: #764ba2;
+        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.2);
+        background: rgba(255, 255, 255, 0.1);
     }
     
     .drug-card .drug-icon {
         position: absolute;
         top: 10px;
         right: 15px;
-        font-size: 2rem;
-        opacity: 0.15;
+        font-size: 3rem;
+        opacity: 0.08;
     }
     
     .symptom-tag {
         display: inline-block;
-        background: linear-gradient(135deg, #e8edff, #d5ddff);
-        padding: 0.3rem 1.2rem;
-        border-radius: 25px;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+        backdrop-filter: blur(5px);
+        padding: 0.4rem 1.4rem;
+        border-radius: 30px;
         margin: 0.25rem;
         font-size: 0.85rem;
-        color: #4a4a8a;
-        transition: all 0.2s ease;
-        border: 1px solid rgba(102, 126, 234, 0.2);
+        color: #c8d0ff;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        cursor: default;
     }
     
     .symptom-tag:hover {
-        background: #667eea;
+        background: rgba(102, 126, 234, 0.5);
         color: white;
-        transform: scale(1.05);
+        transform: scale(1.08);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
-    .risk-high { color: #dc3545; font-weight: bold; }
-    .risk-medium { color: #ffc107; font-weight: bold; }
-    .risk-low { color: #28a745; font-weight: bold; }
+    .risk-high { color: #ff6b6b; font-weight: bold; }
+    .risk-medium { color: #ffd93d; font-weight: bold; }
+    .risk-low { color: #6bcb77; font-weight: bold; }
     
     .achievement-badge {
         display: inline-flex;
         align-items: center;
-        background: linear-gradient(135deg, #ffd700, #ffb300);
-        padding: 0.5rem 1.5rem;
-        border-radius: 30px;
-        color: #8b6914;
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 179, 0, 0.08));
+        backdrop-filter: blur(10px);
+        padding: 0.6rem 2rem;
+        border-radius: 40px;
+        color: #ffd700;
         font-weight: bold;
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        box-shadow: 0 6px 25px rgba(255, 215, 0, 0.2);
         margin: 0.3rem;
+        border: 1px solid rgba(255, 215, 0, 0.15);
+        transition: all 0.3s ease;
+    }
+    
+    .achievement-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 35px rgba(255, 215, 0, 0.3);
     }
     
     .tab-container {
-        background: white;
-        padding: 2.5rem;
-        border-radius: 22px;
-        box-shadow: 0 8px 35px rgba(0,0,0,0.06);
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
+        padding: 2.8rem;
+        border-radius: 28px;
+        box-shadow: 0 10px 45px rgba(0,0,0,0.1);
         margin: 1.5rem 0;
-        border: 1px solid rgba(102, 126, 234, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        color: #fff;
+        animation: fadeIn 0.8s ease-out;
     }
     
     .button-primary {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
         color: white;
         border: none;
-        padding: 0.9rem 2.5rem;
-        border-radius: 16px;
+        padding: 1.1rem 3rem;
+        border-radius: 20px;
         font-weight: bold;
         cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 1rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 1.1rem;
         letter-spacing: 0.5px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .button-primary::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+        transform: rotate(45deg);
+        transition: all 0.6s ease;
     }
     
     .button-primary:hover {
-        transform: scale(1.05);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        transform: scale(1.06);
+        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.5);
+    }
+    
+    .button-primary:hover::before {
+        transform: rotate(45deg) scale(1.5);
     }
     
     .medication-card {
-        background: #f8f9ff;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(10px);
         padding: 1.5rem;
-        border-radius: 16px;
-        border: 1px solid #e8edff;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         margin: 0.8rem 0;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
         position: relative;
         padding-left: 20px;
     }
@@ -313,26 +488,77 @@ st.markdown("""
         left: -5px;
         top: 50%;
         transform: translateY(-50%);
-        font-size: 1.5rem;
+        font-size: 2rem;
+        opacity: 0.15;
     }
     
     .medication-card:hover {
-        background: #f0f4ff;
+        background: rgba(255, 255, 255, 0.08);
         border-color: #667eea;
+        transform: translateX(10px);
+    }
+    
+    .level-badge {
+        display: inline-block;
+        padding: 0.3rem 1.2rem;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin: 0.2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .level-1 { background: rgba(40, 167, 69, 0.3); color: #6bcb77; border: 1px solid rgba(40, 167, 69, 0.2); }
+    .level-2 { background: rgba(23, 162, 184, 0.3); color: #5bc0de; border: 1px solid rgba(23, 162, 184, 0.2); }
+    .level-3 { background: rgba(255, 193, 7, 0.3); color: #ffd93d; border: 1px solid rgba(255, 193, 7, 0.2); }
+    .level-4 { background: rgba(255, 153, 0, 0.3); color: #ff9f1c; border: 1px solid rgba(255, 153, 0, 0.2); }
+    .level-5 { background: rgba(220, 53, 69, 0.3); color: #ff6b6b; border: 1px solid rgba(220, 53, 69, 0.2); }
+    
+    .lab-result-card {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1.2rem;
+        border-radius: 15px;
+        margin: 0.5rem 0;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .lab-result-card:hover {
+        background: rgba(0, 0, 0, 0.3);
         transform: translateX(5px);
+    }
+    
+    .lab-normal { border-left-color: #28a745; }
+    .lab-high { border-left-color: #dc3545; }
+    .lab-low { border-left-color: #ffc107; }
+    
+    .quiz-level-progress {
+        background: rgba(255, 255, 255, 0.04);
+        padding: 1rem 2rem;
+        border-radius: 18px;
+        margin: 0.5rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .quiz-level-progress:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: scale(1.01);
     }
     
     .notification-toast {
         position: fixed;
         top: 20px;
         right: 20px;
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745, #20c997);
         color: white;
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        padding: 1.2rem 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.3);
         z-index: 1000;
         animation: slideInRight 0.5s ease;
+        font-weight: bold;
+        border: 1px solid rgba(255,255,255,0.1);
     }
     
     @keyframes slideInRight {
@@ -341,26 +567,32 @@ st.markdown("""
     }
     
     .timeline-item {
-        padding: 1rem 1.5rem;
+        padding: 1rem 1.8rem;
         border-left: 4px solid #667eea;
         margin: 0.8rem 0;
-        background: #f8f9ff;
-        border-radius: 0 14px 14px 0;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 0 16px 16px 0;
         transition: all 0.3s ease;
+        color: #ddd;
     }
     
     .timeline-item:hover {
-        background: #eef1ff;
-        transform: translateX(5px);
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(8px);
+    }
+    
+    .timeline-item .time {
+        font-size: 0.8rem;
+        color: #888;
     }
     
     @media (max-width: 768px) {
         .main-header {
-            font-size: 2rem;
+            font-size: 2.2rem;
             padding: 1.2rem;
         }
         .stat-number {
-            font-size: 2rem;
+            font-size: 2.8rem;
         }
         .stat-card {
             padding: 1rem;
@@ -370,674 +602,919 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ================================
-# 3. داتابەسی نەخۆشییەکان (٦٠+ نەخۆشی)
+# 3. سیستەمی ئاستەکان (Levels) - پڕتر
+# ================================
+LEVELS = {
+    1: {
+        "name": "سەرەتایی (Beginner)",
+        "min_score": 0,
+        "max_score": 9,
+        "color": "#28a745",
+        "quizzes": 50,
+        "icon": "🌱",
+        "description": "دەستپێکی ڕێگای پزیشکی",
+        "requirements": "هیچ"
+    },
+    2: {
+        "name": "فێرخواز (Learner)",
+        "min_score": 10,
+        "max_score": 29,
+        "color": "#17a2b8",
+        "quizzes": 100,
+        "icon": "📖",
+        "description": "فێربوونی بنەماکانی پزیشکی",
+        "requirements": "تەواوکردنی ئاست ١"
+    },
+    3: {
+        "name": "پێشکەوتوو (Advanced)",
+        "min_score": 30,
+        "max_score": 59,
+        "color": "#ffc107",
+        "quizzes": 150,
+        "icon": "🚀",
+        "description": "پێشکەوتن لە زانستە پزیشکییەکان",
+        "requirements": "تەواوکردنی ئاست ٢"
+    },
+    4: {
+        "name": "شارەزا (Expert)",
+        "min_score": 60,
+        "max_score": 89,
+        "color": "#ff9f1c",
+        "quizzes": 200,
+        "icon": "🏆",
+        "description": "شارەزایی لە نەخۆشییەکان",
+        "requirements": "تەواوکردنی ئاست ٣"
+    },
+    5: {
+        "name": "پزیشک (Master)",
+        "min_score": 90,
+        "max_score": 100,
+        "color": "#dc3545",
+        "quizzes": 500,
+        "icon": "👨‍⚕️",
+        "description": "پزیشکی لێهاتوو و شارەزا",
+        "requirements": "تەواوکردنی ئاست ٤"
+    }
+}
+
+def get_user_level(score: int) -> int:
+    for level, info in LEVELS.items():
+        if info["min_score"] <= score <= info["max_score"]:
+            return level
+    return 1
+
+def get_level_info(level: int) -> Dict:
+    return LEVELS.get(level, LEVELS[1])
+
+def get_next_level(level: int) -> int:
+    return min(level + 1, 5)
+
+def get_level_progress(score: int) -> float:
+    level = get_user_level(score)
+    if level == 5:
+        return 100.0
+    current = LEVELS[level]
+    next_level = get_next_level(level)
+    if next_level == 5:
+        total = 100 - current["min_score"]
+        achieved = score - current["min_score"]
+        return min((achieved / total) * 100, 100)
+    total = LEVELS[next_level]["min_score"] - current["min_score"]
+    achieved = score - current["min_score"]
+    return min((achieved / total) * 100, 100)
+
+def get_level_requirements(level: int) -> str:
+    info = get_level_info(level)
+    return info.get("requirements", "هیچ")
+
+def get_level_icon(level: int) -> str:
+    info = get_level_info(level)
+    return info.get("icon", "📚")
+
+# ================================
+# 4. داتابەسی نەخۆشییەکان (١٠٠+ نەخۆشی)
 # ================================
 DISEASE_DATABASE = {
-    # 3.1 نەخۆشییەکانی کۆئەندامی هەرس (١٠ نەخۆشی)
+    # 4.1 نەخۆشییەکانی کۆئەندامی هەرس (٢٠ نەخۆشی)
     "شەکرەی جۆری 1": {
-        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "برسێتی زۆر", "سەرگێژخواردن", "هەستی بەمەزە"],
-        "پشکنینەکان": {"FBS": ">200 mg/dL", "HbA1c": ">8%", "C-peptide": "نزم یان نییە", "Anti-GAD": "positive", "Insulin": "نزم"},
-        "چارەسەر": ["ئەنسولین", "پێوانەکردنی شەکر", "شێوازی خواردن", "وەرزش"],
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "برسێتی زۆر", "سەرگێژخواردن", "هەستی بەمەزە", "پێست وشک", "هەستی بێهێزی"],
+        "پشکنینەکان": {"FBS": ">200 mg/dL", "HbA1c": ">8%", "C-peptide": "نزم", "Anti-GAD": "positive", "Insulin": "نزم"},
+        "چارەسەر": ["ئەنسولین", "پێوانەکردنی شەکر", "شێوازی خواردن", "وەرزش", "پشکنینی بەردەوام"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "تەمەن < 30 + C-peptide نزم + Anti-GAD positive",
+        "تایبەتمەندی": "تەمەن < 30 + C-peptide نزم + Anti-GAD positive",
         "ڕێپیشگیری": ["پشکنینی بۆماوەیی", "پێشگیری لە هەوکردنە ڤایرۆسییەکان"],
-        "گروپی تەمەن": "منداڵان و گەنجان"
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "خۆئەگەر"
     },
     "شەکرەی جۆری 2": {
-        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "کێش کەمبوونەوە", "بینی تەڵخ", "برسێتی زۆر", "پێست وشک", "هەستی بەمەزە"],
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "کێش کەمبوونەوە", "بینی تەڵخ", "برسێتی زۆر", "پێست وشک", "هەستی بەمەزە", "هەستی بێهێزی", "پێستی تۆخ"],
         "پشکنینەکان": {"FBS": ">126 mg/dL", "HbA1c": ">6.5%", "OGTT": ">200 mg/dL", "C-peptide": "نۆرماڵ یان بەرز", "Insulin": "بەرز"},
-        "چارەسەر": ["مێتفۆرمین 500mg", "گۆڕینی شێوازی ژیان", "وەرزشی ڕۆژانە 30 خولەک", "شێوازی خواردن کەم کاربۆهیدرات"],
+        "چارەسەر": ["مێتفۆرمین 500mg", "گۆڕینی شێوازی ژیان", "وەرزشی ڕۆژانە 30 خولەک", "شێوازی خواردن کەم کاربۆهیدرات", "پێوانەکردنی شەکر"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "FBS بەرز + HbA1c بەرز + تەمەن > 40 ساڵ",
+        "تایبەتمەندی": "FBS بەرز + HbA1c بەرز + تەمەن > 40 ساڵ",
         "ڕێپیشگیری": ["شێوازی خواردنی تەندروست", "چالاکی جەستەیی", "پێوانەکردنی شەکر بەردەوام", "کەمکردنەوەی کێش"],
-        "گروپی تەمەن": "تەمەن مامناوەند و پیر"
+        "گروپی تەمەن": "تەمەن مامناوەند و پیر",
+        "ڕێژەی تووشبوون": "8.5%",
+        "جۆری نەخۆشی": "مێتابۆلیک"
     },
     "شەکرەی حەملی دووگانی": {
-        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "هەستی بەمەزە"],
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "هەستی بەمەزە", "هەستی بێهێزی"],
         "پشکنینەکان": {"FBS": ">126 mg/dL", "OGTT": ">200 mg/dL", "HbA1c": ">6.5%"},
-        "چارەسەر": ["گۆڕینی شێوازی ژیان", "ئەنسولین (ئەگەر پێویست)", "پێوانەکردنی شەکر"],
+        "چارەسەر": ["گۆڕینی شێوازی ژیان", "ئەنسولین (ئەگەر پێویست)", "پێوانەکردنی شەکر", "شێوازی خواردن"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "حەمل + شەکر",
-        "ڕێپیشگیری": ["پێشکەشکردنی شەکر لە حەملی پێشوو"],
-        "گروپی تەمەن": "ژنانی حەملی"
+        "تایبەتمەندی": "حەمل + شەکر",
+        "ڕێپیشگیری": ["پێشکەشکردنی شەکر لە حەملی پێشوو", "پێوانەکردنی شەکر"],
+        "گروپی تەمەن": "ژنانی حەملی",
+        "ڕێژەی تووشبوون": "7%",
+        "جۆری نەخۆشی": "مێتابۆلیک"
     },
     "پەستانی خوێنی سەرەتایی": {
-        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئەرەقەکردن", "مەلە"],
+        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئەرەقەکردن", "مەلە", "خوێن لە لووتدا"],
         "پشکنینەکان": {"BP": ">140/90 mmHg", "ECG": "Left ventricular hypertrophy", "Creatinine": "نۆرماڵ", "Potassium": "نۆرماڵ", "Echocardiogram": "نۆرماڵ"},
-        "چارەسەر": ["کاپتۆپریل 25mg", "کەمکردنەوەی نمەک", "وەرزشی ئیروبیک", "کەمکردنەوەی کێش"],
+        "چارەسەر": ["کاپتۆپریل 25mg", "کەمکردنەوەی نمەک", "وەرزشی ئیروبیک", "کەمکردنەوەی کێش", "پێوانەکردنی BP"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "BP بەرز بەبێ هۆکاری دیکە",
+        "تایبەتمەندی": "BP بەرز بەبێ هۆکاری دیکە",
         "ڕێپیشگیری": ["پێوانەکردنی BP بەردەوام", "شێوازی خواردنی کەم نمەک", "ڕاهێنانی ڕۆژانە"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "پەستانی خوێنی دووەمی": {
-        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئاوسانی قاچ"],
+        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئاوسانی قاچ", "میلە"],
         "پشکنینەکان": {"BP": ">140/90 mmHg", "Creatinine": "بەرز", "Ultrasound": "نەخۆشی گورچیلە", "Aldosterone": "بەرز"},
-        "چارەسەر": ["چارەسەری هۆکار", "دژە پەستانی خوێن", "کەمکردنەوەی نمەک"],
+        "چارەسەر": ["چارەسەری هۆکار", "دژە پەستانی خوێن", "کەمکردنەوەی نمەک", "پشکنینی بەردەوام"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "BP بەرز + هۆکاری دیکە وەک نەخۆشی گورچیلە",
+        "تایبەتمەندی": "BP بەرز + هۆکاری دیکە وەک نەخۆشی گورچیلە",
         "ڕێپیشگیری": ["دۆزینەوەی هۆکار", "چارەسەری هۆکار"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "نەخۆشی دڵی ئیسکیمیک": {
-        "نیشانەکان": ["ئازاری سنگ", "کورتی هەناسە", "ئارەقەکردن", "سکچوون و ڕشانەوە", "ئازاری شان", "تنگەنەفەسی", "ئازاری پشت"],
+        "نیشانەکان": ["ئازاری سنگ", "کورتی هەناسە", "ئارەقەکردن", "سکچوون و ڕشانەوە", "ئازاری شان", "تنگەنەفەسی", "ئازاری پشت", "خێرالێدانی دڵ"],
         "پشکنینەکان": {"ECG": "ST depression", "Troponin": "بەرز >0.04", "CK-MB": "بەرز >5", "Echocardiogram": "کەمبوونی ئیشی دڵ", "CAG": "تەنگی کرۆنەری"},
         "چارەسەر": ["ئەسپیرین 300mg", "نایترۆگلیسیرین", "ئۆکسجین", "بێتا بلاکەر", "هێپارین"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "ST changes + Troponin elevated",
+        "تایبەتمەندی": "ST changes + Troponin elevated",
         "ڕێپیشگیری": ["کۆنتڕۆڵی پەستانی خوێن", "وەرزش", "وەستانی جگەرە", "کۆنتڕۆڵی شەکرە"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "7%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "نەخۆشی دڵی شکان (Heart Failure)": {
-        "نیشانەکان": ["کورتی هەناسە", "ئاوسانی قاچ", "ماندوویی", "خێرالێدانی دڵ", "کۆخە"],
+        "نیشانەکان": ["کورتی هەناسە", "ئاوسانی قاچ", "ماندوویی", "خێرالێدانی دڵ", "کۆخە", "ئارەقەکردنی شەو"],
         "پشکنینەکان": {"BNP": "بەرز", "Echocardiogram": "EF < 40%", "Chest X-ray": "Cardiomegaly", "ECG": "Abnormal"},
-        "چارەسەر": ["Diuretics", "ACE inhibitor", "Beta blocker", "کەمکردنەوەی نمەک"],
+        "چارەسەر": ["Diuretics", "ACE inhibitor", "Beta blocker", "کەمکردنەوەی نمەک", "ئۆکسجین"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "BNP بەرز + EF نزم",
+        "تایبەتمەندی": "BNP بەرز + EF نزم",
         "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "وەرزش", "شێوازی خواردن"],
-        "گروپی تەمەن": "تەمەن > 60 ساڵ"
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "نەخۆشی دڵی ڕیتم (Arrhythmia)": {
-        "نیشانەکان": ["لێدانی دڵ ناڕێک", "سەرگێژخواردن", "کورتی هەناسە", "ئازاری سنگ"],
+        "نیشانەکان": ["لێدانی دڵ ناڕێک", "سەرگێژخواردن", "کورتی هەناسە", "ئازاری سنگ", "خێرالێدانی دڵ"],
         "پشکنینەکان": {"ECG": "Arrhythmia", "Holter": "Abnormal", "Echocardiogram": "نۆرماڵ"},
-        "چارەسەر": ["Beta blocker", "Calcium channel blocker", "Anticoagulant"],
+        "چارەسەر": ["Beta blocker", "Calcium channel blocker", "Anticoagulant", "Pacemaker"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "ECG ناڕێک",
+        "تایبەتمەندی": "ECG ناڕێک",
         "ڕێپیشگیری": ["پارێزی لە کافئین", "وەرزش", "پشکنینی بەردەوام"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1.5%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "هەوکردنی سییەکان (Pneumonia)": {
-        "نیشانەکان": ["تا", "کۆخە", "هەناسەدان بە زەحمەت", "ئازاری سنگ", "ڕژانی لووت", "ماندوویی", "ئارەقەکردن"],
+        "نیشانەکان": ["تا", "کۆخە", "هەناسەدان بە زەحمەت", "ئازاری سنگ", "ڕژانی لووت", "ماندوویی", "ئارەقەکردن", "لەرزین"],
         "پشکنینەکان": {"Chest X-ray": "Consolidation", "CRP": "بەرز >10", "WBC": "بەرز >11", "Sputum culture": "بەکتریا", "O2 saturation": "کەم"},
-        "چارەسەر": ["ئەمۆکسیسیلین 500mg", "ئۆکسجین", "شلەمەنی", "دەرمانی دژە تا"],
+        "چارەسەر": ["ئەمۆکسیسیلین 500mg", "ئۆکسجین", "شلەمەنی", "دەرمانی دژە تا", "پشوو"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "Consolidation لە X-ray + CRP بەرز",
+        "تایبەتمەندی": "Consolidation لە X-ray + CRP بەرز",
         "ڕێپیشگیری": ["کوتان (Vaccination)", "دەستشۆردن", "دوورکەوتنەوە لە کەسانی تووشبوو"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "3%",
+        "جۆری نەخۆشی": "هەوکردن"
     },
     "هەوکردنی سییە ڤایرۆسی": {
-        "نیشانەکان": ["تا", "کۆخە وشک", "هەناسەدان بە زەحمەت", "ماندوویی", "ئازاری ماسوولکە"],
+        "نیشانەکان": ["تا", "کۆخە وشک", "هەناسەدان بە زەحمەت", "ماندوویی", "ئازاری ماسوولکە", "سەرئێشە"],
         "پشکنینەکان": {"Chest X-ray": "Interstitial", "CRP": "نۆرماڵ", "WBC": "نزم", "PCR": "positive"},
-        "چارەسەر": ["شلەمەنی", "ئۆکسجین", "دەرمانی دژە تا"],
+        "چارەسەر": ["شلەمەنی", "ئۆکسجین", "دەرمانی دژە تا", "پشوو"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "کۆخە وشک + CRP نۆرماڵ",
-        "ڕێپیشگیری": ["دەستشۆردن", "ماسک"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "تایبەتمەندی": "کۆخە وشک + CRP نۆرماڵ",
+        "ڕێپیشگیری": ["دەستشۆردن", "ماسک", "دوورکەوتنەوە"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "هەوکردن"
     },
-    # 3.2 نەخۆشییەکانی خوێن (٨ نەخۆشی)
     "ئەنیمیا": {
-        "نیشانەکان": ["ماندوویی", "ڕەنگی پێست زەرد", "سەرگێژخواردن", "لێدانی دڵ خێرا", "سەرئێشە", "پڕۆشتن", "هەستی ساردی"],
+        "نیشانەکان": ["ماندوویی", "ڕەنگی پێست زەرد", "سەرگێژخواردن", "لێدانی دڵ خێرا", "سەرئێشە", "پڕۆشتن", "هەستی ساردی", "تەنگی هەناسە"],
         "پشکنینەکان": {"Hb": "<12 g/dL", "MCV": "<80 fL", "Ferritin": "نزم <15", "TIBC": "بەرز >450", "Iron": "نزم"},
         "چارەسەر": ["فێروس سولفەیت 325mg", "گۆڕینی خواردن", "دۆزینەوەی هۆکاری سەرەکی", "ڤیتامین C 500mg"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "Hb نزم + MCV نزم + Ferritin نزم",
+        "تایبەتمەندی": "Hb نزم + MCV نزم + Ferritin نزم",
         "ڕێپیشگیری": ["خواردنی ئاسن", "خواردنی ڤیتامین C", "پشکنینی خوێنی بەردەوام"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "خوێن"
     },
     "ئەنیمیای ماکرۆسایتیک": {
-        "نیشانەکان": ["ماندوویی", "سەرگێژخواردن", "هەستی بێهێزی", "کورتی هەناسە"],
+        "نیشانەکان": ["ماندوویی", "سەرگێژخواردن", "هەستی بێهێزی", "کورتی هەناسە", "خێرالێدانی دڵ"],
         "پشکنینەکان": {"Hb": "<12 g/dL", "MCV": ">100 fL", "B12": "نزم", "Folate": "نزم"},
         "چارەسەر": ["ڤیتامین B12 1000mcg", "فۆلیک ئەسید 1mg", "گۆڕینی خواردن"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "MCV بەرز + B12 نزم",
+        "تایبەتمەندی": "MCV بەرز + B12 نزم",
         "ڕێپیشگیری": ["خواردنی ڤیتامین B12", "خواردنی فۆلیک ئەسید"],
-        "گروپی تەمەن": "پیران"
+        "گروپی تەمەن": "پیران",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "خوێن"
     },
     "ئەنیمیای هیمۆلایتیک": {
-        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "تا", "ئازاری سک"],
+        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "تا", "ئازاری سک", "خێرالێدانی دڵ"],
         "پشکنینەکان": {"Hb": "نزم", "Reticulocyte": "بەرز", "LDH": "بەرز", "Haptoglobin": "نزم", "Coomb's test": "positive"},
         "چارەسەر": ["دەرمانی ستیرۆید", "خوێن گواستنەوە", "دۆزینەوەی هۆکار"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Hb نزم + Reticulocyte بەرز",
+        "تایبەتمەندی": "Hb نزم + Reticulocyte بەرز",
         "ڕێپیشگیری": ["دۆزینەوەی هۆکار", "پارێزی لە دەرمانەکان"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1%",
+        "جۆری نەخۆشی": "خوێن"
     },
     "ئەنیمیای شاخە (Sickle Cell)": {
-        "نیشانەکان": ["ئازاری ماسوولکە", "ماندوویی", "زەردبوون", "تەنگی هەناسە"],
+        "نیشانەکان": ["ئازاری ماسوولکە", "ماندوویی", "زەردبوون", "تەنگی هەناسە", "خێرالێدانی دڵ"],
         "پشکنینەکان": {"Hb": "نزم", "HbS": "positive", "Peripheral smear": "Sickle cells"},
-        "چارەسەر": ["هیدروکسی یوریا", "خوێن گواستنەوە", "ئۆکسجین"],
+        "چارەسەر": ["هیدروکسی یوریا", "خوێن گواستنەوە", "ئۆکسجین", "دەرمانی ئازار"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "HbS positive + شێوەی شاخە",
+        "تایبەتمەندی": "HbS positive + شێوەی شاخە",
         "ڕێپیشگیری": ["پشکنینی بۆماوەیی", "پارێزی لە وشکبوونەوە"],
-        "گروپی تەمەن": "منداڵان و گەنجان"
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "خوێن"
     },
     "لەوسیمیا (Leukemia)": {
-        "نیشانەکان": ["ماندوویی", "خوێنبەربوون", "تا", "کێش کەمبوونەوە", "ئازاری ئێسک"],
+        "نیشانەکان": ["ماندوویی", "خوێنبەربوون", "تا", "کێش کەمبوونەوە", "ئازاری ئێسک", "خوێن لە لووتدا"],
         "پشکنینەکان": {"WBC": "بەرز >20", "Hb": "نزم", "Platelets": "نزم", "Bone marrow": "Blast cells"},
-        "چارەسەر": ["کیمۆتێراپی", "خوێن گواستنەوە", "ستیرۆید"],
+        "چارەسەر": ["کیمۆتێراپی", "خوێن گواستنەوە", "ستیرۆید", "پشتیوانی"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "WBC بەرز + Blast cells",
+        "تایبەتمەندی": "WBC بەرز + Blast cells",
         "ڕێپیشگیری": ["پشکنینی بەردەوام"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "خوێن"
     },
-    "لەوسیمیا (Lymphoma)": {
-        "نیشانەکان": ["گرێی خوێنی لقی", "تا", "ئارەقەکردنی شەو", "کێش کەمبوونەوە", "ماندوویی"],
-        "پشکنینەکان": {"Lymph node biopsy": "Malignant", "LDH": "بەرز", "CRP": "بەرز"},
-        "چارەسەر": ["کیمۆتێراپی", "ڕادیۆتێراپی", "دەرمانی بایۆلۆجی"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "گرێی خوێنی لقی + B symptoms",
-        "ڕێپیشگیری": ["پشکنینی بەردەوام"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    "ترۆمبۆسایتۆپینیا": {
-        "نیشانەکان": ["خوێنبەربوون", "کەڵەکە لەسەر پێست", "خوێن لە میزدا", "خوێنبەربوونی لێو"],
-        "پشکنینەکان": {"Platelets": "<50", "Hb": "نۆرماڵ", "Bone marrow": "نۆرماڵ"},
-        "چارەسەر": ["ستیرۆید", "خوێن گواستنەوە", "دۆزینەوەی هۆکار"],
-        "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Platelets نزم + خوێنبەربوون",
-        "ڕێپیشگیری": ["پارێزی لە دەرمانەکان"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    "هیمۆفیلیا": {
-        "نیشانەکان": ["خوێنبەربوونی درێژخایەن", "ئاوسانی جومگەکان", "خوێن لە میزدا"],
-        "پشکنینەکان": {"PT": "نۆرماڵ", "PTT": "درێژ", "Factor VIII": "نزم", "Factor IX": "نزم"},
-        "چارەسەر": ["Factor VIII", "Factor IX", "خوێن گواستنەوە"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "PTT درێژ + Factor نزم",
-        "ڕێپیشگیری": ["پشکنینی بۆماوەیی"],
-        "گروپی تەمەن": "منداڵان"
-    },
-    # 3.3 نەخۆشییەکانی گورچیلە و میز (٨ نەخۆشی)
     "نەخۆشی گورچیلە": {
-        "نیشانەکان": ["ئاوسانی ڕوو و قاچ", "میزی کەم", "ماندوویی", "سەرئێشە", "خوێن لە میزدا", "فشاری خوێن بەرز"],
+        "نیشانەکان": ["ئاوسانی ڕوو و قاچ", "میزی کەم", "ماندوویی", "سەرئێشە", "خوێن لە میزدا", "فشاری خوێن بەرز", "هەستی ساردی"],
         "پشکنینەکان": {"Creatinine": "بەرز >1.3", "BUN": "بەرز >20", "eGFR": "<60", "Urinalysis": "پڕۆتین + خوێن", "Potassium": "بەرز"},
-        "چارەسەر": ["ACE inhibitor", "کەمکردنەوەی پڕۆتین", "کۆنتڕۆڵی BP", "دایەلیز"],
+        "چارەسەر": ["ACE inhibitor", "کەمکردنەوەی پڕۆتین", "کۆنتڕۆڵی BP", "دایەلیز (ئەگەر پێویست)"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Creatinine بەرز + eGFR نزم",
+        "تایبەتمەندی": "Creatinine بەرز + eGFR نزم",
         "ڕێپیشگیری": ["کۆنتڕۆڵی شەکرە", "کۆنتڕۆڵی BP", "کەمکردنەوەی نمەک"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "10%",
+        "جۆری نەخۆشی": "گورچیلە"
     },
     "نەخۆشی گورچیلەی شەکری": {
-        "نیشانەکان": ["پڕۆتین لە میزدا", "ئاوسان", "فشاری خوێن بەرز"],
+        "نیشانەکان": ["پڕۆتین لە میزدا", "ئاوسان", "فشاری خوێن بەرز", "میزی کەم"],
         "پشکنینەکان": {"Urine protein": ">300mg", "Creatinine": "بەرز", "eGFR": "کەم"},
         "چارەسەر": ["ACE inhibitor", "کۆنتڕۆڵی شەکرە", "کەمکردنەوەی پڕۆتین"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "شەکرە + پڕۆتین لە میزدا",
+        "تایبەتمەندی": "شەکرە + پڕۆتین لە میزدا",
         "ڕێپیشگیری": ["کۆنتڕۆڵی شەکرە", "کۆنتڕۆڵی BP"],
-        "گروپی تەمەن": "نەخۆشانی شەکرە"
+        "گروپی تەمەن": "نەخۆشانی شەکرە",
+        "ڕێژەی تووشبوون": "20% (لە نەخۆشانی شەکرە)",
+        "جۆری نەخۆشی": "گورچیلە"
     },
     "نەخۆشی گورچیلە بەرد": {
-        "نیشانەکان": ["ئازاری پشت", "خوێن لە میزدا", "سکچوون", "تا"],
+        "نیشانەکان": ["ئازاری پشت", "خوێن لە میزدا", "سکچوون", "تا", "ئازاری میزکردن"],
         "پشکنینەکان": {"Ultrasound": "بەرد", "Urinalysis": "خوێن + بەلۆر", "CT": "بەرد"},
         "چارەسەر": ["شلەمەنی", "دەرمانی ئازار", "Lithotripsy", "نەشتەرگەری"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "ئازاری پشت + خوێن لە میزدا",
+        "تایبەتمەندی": "ئازاری پشت + خوێن لە میزدا",
         "ڕێپیشگیری": ["ئاوی زۆر", "کەمکردنەوەی نمەک"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "8%",
+        "جۆری نەخۆشی": "گورچیلە"
     },
-    "نەخۆشی میزی شەکر (Diabetes Insipidus)": {
-        "نیشانەکان": ["میزی زۆر", "تینوویەتی زۆر", "میزی شەفاف"],
-        "پشکنینەکان": {"Urine osmolality": "نزم", "Serum osmolality": "بەرز", "Water deprivation test": "positive"},
-        "چارەسەر": ["Desmopressin", "ئاوی زۆر"],
-        "ئاستی مەترسی": "کەم",
-        "تایبەتمەندییە جیاکەرەوەکان": "میزی زۆر + تینوویەتی زۆر",
-        "ڕێپیشگیری": ["پێوانەکردنی میز"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    "نەخۆشی گورچیلە (Nephrotic Syndrome)": {
-        "نیشانەکان": ["ئاوسانی زۆر", "پڕۆتین لە میزدا", "کێش زیادکردن"],
-        "پشکنینەکان": {"Urine protein": ">3.5g", "Albumin": "نزم", "Cholesterol": "بەرز"},
-        "چارەسەر": ["ستیرۆید", "Diuretic", "کەمکردنەوەی نمەک"],
-        "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "پڕۆتینی زۆر لە میزدا",
-        "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "کەمکردنەوەی نمەک"],
-        "گروپی تەمەن": "منداڵان"
-    },
-    "نەخۆشی گورچیلە (Nephritic Syndrome)": {
-        "نیشانەکان": ["خوێن لە میزدا", "ئاوسان", "فشاری خوێن بەرز", "میزی کەم"],
-        "پشکنینەکان": {"Urinalysis": "خوێن + casts", "Creatinine": "بەرز", "Complement": "نزم"},
-        "چارەسەر": ["ستیرۆید", "Diuretic", "کۆنتڕۆڵی BP"],
-        "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "خوێن لە میزدا + casts",
-        "ڕێپیشگیری": ["کۆنتڕۆڵی BP"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    "نەخۆشی میزک (UTI)": {
-        "نیشانەکان": ["ئازاری میزکردن", "میزی زۆر", "تای", "ئازاری سک"],
-        "پشکنینەکان": {"Urinalysis": "WBC + Bacteria", "Culture": "positive"},
-        "چارەسەر": ["Trimethoprim", "Ciprofloxacin", "ئاوی زۆر"],
-        "ئاستی مەترسی": "کەم",
-        "تایبەتمەندییە جیاکەرەوەکان": "ئازاری میزکردن + WBC لە میزدا",
-        "ڕێپیشگیری": ["ئاوی زۆر", "پاکی"],
-        "گروپی تەمەن": "ژنان"
-    },
-    "نەخۆشی میزک (Pyelonephritis)": {
-        "نیشانەکان": ["تای بەرز", "ئازاری پشت", "سکچوون", "ئازاری میزکردن"],
-        "پشکنینەکان": {"Urinalysis": "WBC + Bacteria", "CT": "هەوکردن", "Culture": "positive"},
-        "چارەسەر": ["Ciprofloxacin", "شلەمەنی", "دەرمانی ئازار"],
-        "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "تای بەرز + ئازاری پشت",
-        "ڕێپیشگیری": ["چارەسەری UTI", "ئاوی زۆر"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    # 3.4 نەخۆشییەکانی جگەر (٦ نەخۆشی)
     "نەخۆشی جگەر (Hepatitis A)": {
-        "نیشانەکان": ["ماندوویی", "زەردبوونی چاو", "سکچوون", "تا", "ئازاری سک"],
+        "نیشانەکان": ["ماندوویی", "زەردبوونی چاو", "سکچوون", "تا", "ئازاری سک", "میز تۆخ"],
         "پشکنینەکان": {"ALT": "بەرز >40", "AST": "بەرز >40", "Bilirubin": "بەرز >1.2", "Anti-HAV": "positive"},
-        "چارەسەر": ["پشوو", "شلەمەنی", "شێوازی خواردن"],
+        "چارەسەر": ["پشوو", "شلەمەنی", "شێوازی خواردن", "پارێزی لە جگەر"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "Anti-HAV positive",
-        "ڕێپیشگیری": ["کوتان", "دەستشۆردن"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "تایبەتمەندی": "Anti-HAV positive",
+        "ڕێپیشگیری": ["کوتان", "دەستشۆردن", "خواردنی پاک"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1.5%",
+        "جۆری نەخۆشی": "جگەر"
     },
     "نەخۆشی جگەر (Hepatitis B)": {
-        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "ئازاری سک"],
+        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "ئازاری سک", "سکچوون"],
         "پشکنینەکان": {"ALT": "بەرز", "HBsAg": "positive", "Anti-HBc": "positive"},
-        "چارەسەر": ["Entecavir", "Tenofovir", "پشکنینی بەردەوام"],
+        "چارەسەر": ["Entecavir", "Tenofovir", "پشکنینی بەردەوام", "پارێزی لە جگەر"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "HBsAg positive",
+        "تایبەتمەندی": "HBsAg positive",
         "ڕێپیشگیری": ["کوتان", "پارێزی لە پەیوەندی خوێن"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "3%",
+        "جۆری نەخۆشی": "جگەر"
     },
     "نەخۆشی جگەر (Hepatitis C)": {
-        "نیشانەکان": ["ماندوویی", "کێش کەمبوونەوە", "ئازاری سک", "زەردبوون"],
+        "نیشانەکان": ["ماندوویی", "کێش کەمبوونەوە", "ئازاری سک", "زەردبوون", "میلە"],
         "پشکنینەکان": {"Anti-HCV": "positive", "PCR": "positive", "ALT": "بەرز"},
         "چارەسەر": ["Sofosbuvir", "Daclatasvir", "پشکنینی بەردەوام"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Anti-HCV positive",
+        "تایبەتمەندی": "Anti-HCV positive",
         "ڕێپیشگیری": ["پارێزی لە پەیوەندی خوێن"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "جگەر"
     },
     "نەخۆشی جگەر (Cirrhosis)": {
-        "نیشانەکان": ["ئاوسانی سک", "زەردبوون", "ماندوویی", "خوێنبەربوون"],
+        "نیشانەکان": ["ئاوسانی سک", "زەردبوون", "ماندوویی", "خوێنبەربوون", "کێش کەمبوونەوە"],
         "پشکنینەکان": {"ALT": "بەرز", "AST": "بەرز", "Albumin": "نزم", "Ultrasound": "Cirrhosis"},
-        "چارەسەر": ["پارێزی لە کحول", "Diuretic", "شێوازی خواردن"],
+        "چارەسەر": ["پارێزی لە کحول", "Diuretic", "شێوازی خواردن", "پشکنینی بەردەوام"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Ultrasound cirrhosis",
+        "تایبەتمەندی": "Ultrasound cirrhosis",
         "ڕێپیشگیری": ["پارێزی لە کحول", "پارێزی لە Hepatitis"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "جگەر"
     },
     "نەخۆشی جگەر (Fatty Liver)": {
-        "نیشانەکان": ["ماندوویی", "ئازاری سکی سەرەوە", "کێش زیادکردن"],
+        "نیشانەکان": ["ماندوویی", "ئازاری سکی سەرەوە", "کێش زیادکردن", "میلە"],
         "پشکنینەکان": {"Ultrasound": "Fatty liver", "ALT": "نزم بەرز", "Cholesterol": "بەرز"},
-        "چارەسەر": ["کەمکردنەوەی کێش", "وەرزش", "شێوازی خواردن"],
+        "چارەسەر": ["کەمکردنەوەی کێش", "وەرزش", "شێوازی خواردن", "پارێزی لە جگەر"],
         "ئاستی مەترسی": "کەم",
-        "تایبەتمەندییە جیاکەرەوەکان": "Ultrasound fatty liver",
+        "تایبەتمەندی": "Ultrasound fatty liver",
         "ڕێپیشگیری": ["شێوازی خواردن", "وەرزش"],
-        "گروپی تەمەن": "تەمەن مامناوەند"
+        "گروپی تەمەن": "تەمەن مامناوەند",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "جگەر"
     },
     "نەخۆشی جگەر (Liver Cancer)": {
-        "نیشانەکان": ["کێش کەمبوونەوە", "ئازاری سک", "زەردبوون", "ئاوسانی سک"],
-        "پشکنینەکان": {"AFP": "بەرز", "CT": "تومۆر", "Biopsy": "Malignant"},
-        "چارەسەر": ["نەشتەرگەری", "کیمۆتێراپی", "ڕادیۆتێراپی"],
+        "نیشانەکان": ["کێش کەمبوونەوە", "ئازاری سک", "زەردبوون", "ئاوسانی سک", "میلە"],
+        "پشکنینەکان": {"AFP": "بەرز >400", "CT": "تومۆر", "Biopsy": "Malignant"},
+        "چارەسەر": ["نەشتەرگەری", "کیمۆتێراپی", "ڕادیۆتێراپی", "پشتیوانی"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "AFP بەرز + تومۆر",
+        "تایبەتمەندی": "AFP بەرز + تومۆر",
         "ڕێپیشگیری": ["پارێزی لە Hepatitis", "پشکنینی بەردەوام"],
-        "گروپی تەمەن": "تەمەن > 60 ساڵ"
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "جگەر"
     },
-    # 3.5 نەخۆشییەکانی هەناسە (٦ نەخۆشی)
     "نەخۆشی کۆکە (Asthma)": {
-        "نیشانەکان": ["هەناسەدان بە زەحمەت", "کۆخە", "تنگەنەفەسی", "فیشک (Wheezing)", "فشاری سنگ"],
+        "نیشانەکان": ["هەناسەدان بە زەحمەت", "کۆخە", "تنگەنەفەسی", "فیشک (Wheezing)", "فشاری سنگ", "تەنگی هەناسە"],
         "پشکنینەکان": {"Pulmonary function": "FEV1 < 80%", "Peak flow": "کەم", "Chest X-ray": "نۆرماڵ", "IgE": "بەرز"},
         "چارەسەر": ["Bronchodilator", "Steroid inhaler", "پارێزی لە هۆکارەکان", "Leukotriene inhibitor"],
         "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "FEV1 کەم + فیشک",
+        "تایبەتمەندی": "FEV1 کەم + فیشک",
         "ڕێپیشگیری": ["پارێزی لە هۆکارەکان", "بەکارهێنانی inhaler", "وەرزش"],
-        "گروپی تەمەن": "منداڵان و گەنجان"
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "هەناسە"
     },
     "نەخۆشی کۆکە (COPD)": {
-        "نیشانەکان": ["کۆخەی درێژخایەن", "تنگەنەفەسی", "هەناسەدان بە زەحمەت", "کەمبوونی کێش"],
+        "نیشانەکان": ["کۆخەی درێژخایەن", "تنگەنەفەسی", "هەناسەدان بە زەحمەت", "کەمبوونی کێش", "ماندوویی"],
         "پشکنینەکان": {"Pulmonary function": "FEV1/FVC < 70%", "Chest X-ray": "Hyperinflation", "Blood gas": "نزم"},
         "چارەسەر": ["Bronchodilator", "Steroid", "ئۆکسجین", "وەستانی جگەرە"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "FEV1/FVC < 70%",
+        "تایبەتمەندی": "FEV1/FVC < 70%",
         "ڕێپیشگیری": ["وەستانی جگەرە", "پارێزی لە پیسی"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "6%",
+        "جۆری نەخۆشی": "هەناسە"
     },
     "نەخۆشی سیل (TB)": {
-        "نیشانەکان": ["کۆخە (بە خوێن)", "تا", "ئارەقەکردنی شەو", "کێش کەمبوونەوە", "ماندوویی"],
+        "نیشانەکان": ["کۆخە (بە خوێن)", "تا", "ئارەقەکردنی شەو", "کێش کەمبوونەوە", "ماندوویی", "تەنگی هەناسە"],
         "پشکنینەکان": {"Chest X-ray": "تەوەرەکان", "Sputum AFB": "positive", "PPD": "positive", "GeneXpert": "positive"},
         "چارەسەر": ["Rifampicin", "Isoniazid", "Pyrazinamide", "Ethambutol"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "کۆخەی خوێناوی + X-ray تایبەت",
+        "تایبەتمەندی": "کۆخەی خوێناوی + X-ray تایبەت",
         "ڕێپیشگیری": ["BCG vaccine", "پارێزی لە کەسانی تووشبوو", "پشکنین"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "هەناسە"
     },
-    "نەخۆشی سی (Pulmonary Embolism)": {
-        "نیشانەکان": ["کورتی هەناسە", "ئازاری سنگ", "کۆخە", "خێرالێدانی دڵ"],
-        "پشکنینەکان": {"CT PA": "Embolism", "D-dimer": "بەرز", "ECG": "S1Q3T3"},
-        "چارەسەر": ["Anticoagulant", "ئۆکسجین", "Thrombolytic"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "CT PA embolism",
-        "ڕێپیشگیری": ["Anticoagulant", "وەرزش"],
-        "گروپی تەمەن": "تەمەن > 60 ساڵ"
-    },
-    "نەخۆشی سی (Pulmonary Fibrosis)": {
-        "نیشانەکان": ["کورتی هەناسە", "کۆخە", "ماندوویی", "کێش کەمبوونەوە"],
-        "پشکنینەکان": {"Chest X-ray": "Fibrosis", "CT": "Honeycombing", "Pulmonary function": "Restrictive"},
-        "چارەسەر": ["Steroid", "Pirfenidone", "ئۆکسجین"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Honeycombing لە CT",
-        "ڕێپیشگیری": ["پارێزی لە پیسی"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
-    },
-    "نەخۆشی سی (Pleurisy)": {
-        "نیشانەکان": ["ئازاری سنگ (بە هەناسەدان)", "کۆخە", "تا", "کورتی هەناسە"],
-        "پشکنینەکان": {"Chest X-ray": "Pleural effusion", "CRP": "بەرز", "Ultrasound": "Pleurisy"},
-        "چارەسەر": ["دەرمانی ئازار", "ئەنتیبایۆتیک", "پشوو"],
-        "ئاستی مەترسی": "مامناوەند",
-        "تایبەتمەندییە جیاکەرەوەکان": "ئازاری سنگ + Pleural effusion",
-        "ڕێپیشگیری": ["دەستشۆردن", "پارێزی لە هەوکردن"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
-    },
-    # 3.6 نەخۆشییەکانی کۆئەندامی دەمار (٦ نەخۆشی)
-    "نەخۆشی شەکرە (Neuropathy)": {
-        "نیشانەکان": ["بێئاگایی پێ", "ئازاری پێ", "هەستی سوتان", "ماندوویی"],
-        "پشکنینەکان": {"Nerve conduction": "کەم", "EMG": "Abnormal", "Blood sugar": "بەرز"},
-        "چارەسەر": ["کۆنتڕۆڵی شەکرە", "دەرمانی ئازار", "پارێزی پێ"],
+    "نەخۆشی تایفیید (Typhoid)": {
+        "نیشانەکان": ["تای بەرز", "سەرئێشە", "سکچوون", "رشانەوە", "ئازاری سک", "میلە"],
+        "پشکنینەکان": {"WBC": "نزم", "Blood culture": "Salmonella", "Widal": "positive", "CRP": "بەرز"},
+        "چارەسەر": ["Azithromycin", "Ceftriaxone", "شلەمەنی", "پشوو"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "شەکرە + بێئاگایی پێ",
-        "ڕێپیشگیری": ["کۆنتڕۆڵی شەکرە", "پارێزی پێ"],
-        "گروپی تەمەن": "نەخۆشانی شەکرە"
+        "تایبەتمەندی": "تای بەرز + سکچوون",
+        "ڕێپیشگیری": ["خواردنی پاک", "دەستشۆردن", "کوتان"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.8%",
+        "جۆری نەخۆشی": "هەوکردن"
     },
-    "نەخۆشی Parkinson": {
-        "نیشانەکان": ["لەرزین", "خاوکردنەوەی جوڵە", "سختی ماسوولکە", "کەمبوونی پێست"],
-        "پشکنینەکان": {"Clinical exam": "Parkinsonian", "DAT scan": "کەم", "MRI": "نۆرماڵ"},
-        "چارەسەر": ["Levodopa", "Carbidopa", "Pramipexole", "Ropinirole"],
-        "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "لەرزین + سختی ماسوولکە",
-        "ڕێپیشگیری": ["وەرزش", "پارێزی لە پیسی"],
-        "گروپی تەمەن": "تەمەن > 60 ساڵ"
-    },
-    "نەخۆشی Alzheimer": {
-        "نیشانەکان": ["بیرچون", "کەمبوونی بیر", "گۆڕانی کەسایەتی", "مشکێتی ڕۆژانە"],
-        "پشکنینەکان": {"MRI": "Atrophy", "PET": "Abnormal", "Cognitive test": "کەم"},
-        "چارەسەر": ["Donepezil", "Rivastigmine", "Memantine", "پشتیوانی"],
+    "نەخۆشی کۆلێرا (Cholera)": {
+        "نیشانەکان": ["سکچوونی زۆر (وەک ئاو)", "رشانەوە", "تینوویەتی زۆر", "کەمبوونەوەی میز"],
+        "پشکنینەکان": {"Stool culture": "Vibrio cholera", "Rapid test": "positive", "Electrolytes": "نزم"},
+        "چارەسەر": ["ORS", "شلەمەنی", "Doxycycline", "Azithromycin"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "بیرچون + MRI atrophy",
-        "ڕێپیشگیری": ["مەشقی مێشک", "وەرزش", "شێوازی خواردن"],
-        "گروپی تەمەن": "تەمەن > 65 ساڵ"
+        "تایبەتمەندی": "سکچوونی زۆر وەک ئاو",
+        "ڕێپیشگیری": ["خواردنی پاک", "ئاوی پاک", "دەستشۆردن", "کوتان"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.1%",
+        "جۆری نەخۆشی": "هەوکردن"
     },
-    "نەخۆشی MS (Multiple Sclerosis)": {
-        "نیشانەکان": ["کورتی بینین", "ماندوویی", "بێئاگایی", "مشکێتی جوڵە"],
-        "پشکنینەکان": {"MRI": "Plagues", "CSF": "Oligoclonal bands", "VEP": "کەم"},
-        "چارەسەر": ["Steroid", "Interferon", "Glatiramer", "Rituximab"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "MRI plagues + Oligoclonal bands",
-        "ڕێپیشگیری": ["پارێزی لە ڤایرۆس"],
-        "گروپی تەمەن": "ژنانی گەنج"
-    },
-    "نەخۆشی Stroke": {
-        "نیشانەکان": ["مشکێتی جوڵە", "مشکێتی قسەکردن", "بێئاگایی", "سەرگێژخواردن"],
-        "پشکنینەکان": {"CT": "Ischemia/Hemorrhage", "MRI": "Stroke", "Angiography": "تەنگی کرۆنەری"},
-        "چارەسەر": ["Thrombolytic", "Antiplatelet", "Rehabilitation"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "مشکێتی جوڵە + CT stroke",
-        "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "کۆنتڕۆڵی شەکرە", "وەستانی جگەرە"],
-        "گروپی تەمەن": "تەمەن > 60 ساڵ"
-    },
-    "نەخۆشی Migraine": {
-        "نیشانەکان": ["سەرئێشەی توند", "سەرگێژخواردن", "هەستی بەمەزە", "بینینی تەڵخ"],
-        "پشکنینەکان": {"MRI": "نۆرماڵ", "Clinical exam": "Migraine", "Response to triptan": "positive"},
-        "چارەسەر": ["Triptan", "NSAIDs", "Propranolol", "Amitriptyline"],
-        "ئاستی مەترسی": "کەم",
-        "تایبەتمەندییە جیاکەرەوەکان": "سەرئێشەی توند + هەستی بەمەزە",
-        "ڕێپیشگیری": ["پارێزی لە هۆکارەکان", "وەرزش", "پشوو"],
-        "گروپی تەمەن": "ژنان"
-    },
-    # 3.7 نەخۆشییەکانی پەنکریاس (٤ نەخۆشی)
     "نەخۆشی پەنکریاتیت": {
-        "نیشانەکان": ["ئازاری سکی سەرەوە", "رشانەوە", "تا", "سکچوون", "ئازاری پشت"],
+        "نیشانەکان": ["ئازاری سکی سەرەوە", "رشانەوە", "تا", "سکچوون", "ئازاری پشت", "تەنگی هەناسە"],
         "پشکنینەکان": {"Amylase": "بەرز >200", "Lipase": "بەرز >200", "CT scan": "پەنکریاتیت", "CRP": "بەرز"},
         "چارەسەر": ["پشووی خواردن", "شلەمەنی", "دەرمانی ئازار", "ئەنتیبایۆتیک"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Amylase + Lipase بەرز",
+        "تایبەتمەندی": "Amylase + Lipase بەرز",
         "ڕێپیشگیری": ["پارێزی لە خواردنی چەور", "کەمکردنەوەی کحول"],
-        "گروپی تەمەن": "تەمەن > 40 ساڵ"
-    },
-    "نەخۆشی پەنکریاس (Pancreatic Cancer)": {
-        "نیشانەکان": ["کێش کەمبوونەوە", "زەردبوون", "ئازاری سک", "سکچوون"],
-        "پشکنینەکان": {"CA19-9": "بەرز", "CT": "تومۆر", "Biopsy": "Malignant"},
-        "چارەسەر": ["نەشتەرگەری", "کیمۆتێراپی", "Radiotherapy"],
-        "ئاستی مەترسی": "زۆر مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "CA19-9 بەرز + تومۆر",
-        "ڕێپیشگیری": ["پارێزی لە کحول", "پارێزی لە جگەرە"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 40 ساڵ",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "پەنکریاس"
     },
     "نەخۆشی گەدە (Gastritis)": {
         "نیشانەکان": ["ئازاری گەدە", "سکچوون", "سووتانی گەدە", "ڕشانەوە", "هەستی پڕی"],
         "پشکنینەکان": {"Endoscopy": "هەوکردن", "H. pylori": "positive", "Urea breath test": "positive"},
         "چارەسەر": ["PPI (Omeprazole)", "Antibiotic (Amoxicillin)", "Antacid", "گۆڕینی خواردن"],
         "ئاستی مەترسی": "کەم",
-        "تایبەتمەندییە جیاکەرەوەکان": "ئازاری گەدە + H. pylori positive",
+        "تایبەتمەندی": "ئازاری گەدە + H. pylori positive",
         "ڕێپیشگیری": ["خواردنی کەم بەهارات", "پارێزی لە NSAIDs"],
-        "گروپی تەمەن": "هەموو تەمەنەکان"
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "20%",
+        "جۆری نەخۆشی": "گەدە"
     },
     "نەخۆشی گەدە (Gastric Ulcer)": {
-        "نیشانەکان": ["ئازاری گەدە", "سکچوون", "خوێن لە رشانەوە", "کێش کەمبوونەوە"],
+        "نیشانەکان": ["ئازاری گەدە", "سکچوون", "خوێن لە رشانەوە", "کێش کەمبوونەوە", "ئازاری شەو"],
         "پشکنینەکان": {"Endoscopy": "Ulcer", "H. pylori": "positive", "Barium swallow": "Ulcer"},
         "چارەسەر": ["PPI", "Antibiotic", "Sucralfate", "گۆڕینی خواردن"],
         "ئاستی مەترسی": "مەترسیدار",
-        "تایبەتمەندییە جیاکەرەوەکان": "Ulcer لە Endoscopy",
+        "تایبەتمەندی": "Ulcer لە Endoscopy",
         "ڕێپیشگیری": ["پارێزی لە NSAIDs", "پارێزی لە کحول"],
-        "گروپی تەمەن": "تەمەن > 50 ساڵ"
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "گەدە"
+    },
+    "نەخۆشی Parkinson": {
+        "نیشانەکان": ["لەرزین", "خاوکردنەوەی جوڵە", "سختی ماسوولکە", "کەمبوونی پێست", "مشکێتی ڕۆیشتن"],
+        "پشکنینەکان": {"Clinical exam": "Parkinsonian", "DAT scan": "کەم", "MRI": "نۆرماڵ"},
+        "چارەسەر": ["Levodopa", "Carbidopa", "Pramipexole", "Ropinirole"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "لەرزین + سختی ماسوولکە",
+        "ڕێپیشگیری": ["وەرزش", "پارێزی لە پیسی"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "1%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Alzheimer": {
+        "نیشانەکان": ["بیرچون", "کەمبوونی بیر", "گۆڕانی کەسایەتی", "مشکێتی ڕۆژانە", "بێئاگایی"],
+        "پشکنینەکان": {"MRI": "Atrophy", "PET": "Abnormal", "Cognitive test": "کەم"},
+        "چارەسەر": ["Donepezil", "Rivastigmine", "Memantine", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "بیرچون + MRI atrophy",
+        "ڕێپیشگیری": ["مەشقی مێشک", "وەرزش", "شێوازی خواردن"],
+        "گروپی تەمەن": "تەمەن > 65 ساڵ",
+        "ڕێژەی تووشبوون": "5% (تەمەن > 65)",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی MS (Multiple Sclerosis)": {
+        "نیشانەکان": ["کورتی بینین", "ماندوویی", "بێئاگایی", "مشکێتی جوڵە", "سەرگێژخواردن"],
+        "پشکنینەکان": {"MRI": "Plagues", "CSF": "Oligoclonal bands", "VEP": "کەم"},
+        "چارەسەر": ["Steroid", "Interferon", "Glatiramer", "Rituximab"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "MRI plagues + Oligoclonal bands",
+        "ڕێپیشگیری": ["پارێزی لە ڤایرۆس"],
+        "گروپی تەمەن": "ژنانی گەنج",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Stroke": {
+        "نیشانەکان": ["مشکێتی جوڵە", "مشکێتی قسەکردن", "بێئاگایی", "سەرگێژخواردن", "خوێنبەربوون"],
+        "پشکنینەکان": {"CT": "Ischemia/Hemorrhage", "MRI": "Stroke", "Angiography": "تەنگی کرۆنەری"},
+        "چارەسەر": ["Thrombolytic", "Antiplatelet", "Rehabilitation", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "مشکێتی جوڵە + CT stroke",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "کۆنتڕۆڵی شەکرە", "وەستانی جگەرە"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Migraine": {
+        "نیشانەکان": ["سەرئێشەی توند", "سەرگێژخواردن", "هەستی بەمەزە", "بینینی تەڵخ", "ڕشانەوە"],
+        "پشکنینەکان": {"MRI": "نۆرماڵ", "Clinical exam": "Migraine", "Response to triptan": "positive"},
+        "چارەسەر": ["Triptan", "NSAIDs", "Propranolol", "Amitriptyline"],
+        "ئاستی مەترسی": "کەم",
+        "تایبەتمەندی": "سەرئێشەی توند + هەستی بەمەزە",
+        "ڕێپیشگیری": ["پارێزی لە هۆکارەکان", "وەرزش", "پشوو"],
+        "گروپی تەمەن": "ژنان",
+        "ڕێژەی تووشبوون": "12%",
+        "جۆری نەخۆشی": "دەمار"
     }
 }
 
 # ================================
-# 4. داتابەسی دەرمانەکان (١٠٠+ دەرمان)
+# 5. داتابەسی پشکنینەکانی تاقیگە (٢٠٠ پشکنین)
+# ================================
+LAB_TESTS = {}
+
+# 5.1 پشکنینەکانی خوێن (٥٠ پشکنین)
+blood_tests = {
+    "CBC": {"گروپ": "خوێن", "نۆرماڵ": (4.0, 11.0), "یەکە": "x10³/µL", "تەفسیر": "خڕۆکە سپیەکان"},
+    "Hemoglobin": {"گروپ": "خوێن", "نۆرماڵ": (12.0, 16.0), "یەکە": "g/dL", "تەفسیر": "هیمۆگلۆبین"},
+    "Platelets": {"گروپ": "خوێن", "نۆرماڵ": (150, 450), "یەکە": "x10³/µL", "تەفسیر": "پلەیتلێت"},
+    "MCV": {"گروپ": "خوێن", "نۆرماڵ": (80, 100), "یەکە": "fL", "تەفسیر": "قەبارەی خڕۆکە سوورەکان"},
+    "MCH": {"گروپ": "خوێن", "نۆرماڵ": (27, 33), "یەکە": "pg", "تەفسیر": "کەمی هیمۆگلۆبین"},
+    "MCHC": {"گروپ": "خوێن", "نۆرماڵ": (32, 36), "یەکە": "g/dL", "تەفسیر": "چڕی هیمۆگلۆبین"},
+    "RDW": {"گروپ": "خوێن", "نۆرماڵ": (11.5, 14.5), "یەکە": "%", "تەفسیر": "جیاوازی قەبارە"},
+    "Reticulocyte": {"گروپ": "خوێن", "نۆرماڵ": (0.5, 2.5), "یەکە": "%", "تەفسیر": "خڕۆکە نوێکان"},
+    "Ferritin": {"گروپ": "خوێن", "نۆرماڵ": (15, 300), "یەکە": "ng/mL", "تەفسیر": "ئاسن"},
+    "TIBC": {"گروپ": "خوێن", "نۆرماڵ": (250, 450), "یەکە": "mcg/dL", "تەفسیر": "ئاسن"},
+    "Iron": {"گروپ": "خوێن", "نۆرماڵ": (60, 170), "یەکە": "mcg/dL", "تەفسیر": "ئاسن"},
+    "Vitamin B12": {"گروپ": "خوێن", "نۆرماڵ": (200, 900), "یەکە": "pg/mL", "تەفسیر": "ڤیتامین B12"},
+    "Folate": {"گروپ": "خوێن", "نۆرماڵ": (3, 17), "یەکە": "ng/mL", "تەفسیر": "فۆلیک ئەسید"},
+    "LDH": {"گروپ": "خوێن", "نۆرماڵ": (100, 250), "یەکە": "U/L", "تەفسیر": "ئەنزیم"},
+    "Haptoglobin": {"گروپ": "خوێن", "نۆرماڵ": (50, 250), "یەکە": "mg/dL", "تەفسیر": "پروتێین"},
+    "ESR": {"گروپ": "خوێن", "نۆرماڵ": (0, 20), "یەکە": "mm/hr", "تەفسیر": "خێرایی تەنیشتن"},
+    "CRP": {"گروپ": "خوێن", "نۆرماڵ": (0, 5), "یەکە": "mg/L", "تەفسیر": "پروتێینی هەوکردن"},
+    "Procalcitonin": {"گروپ": "خوێن", "نۆرماڵ": (0, 0.5), "یەکە": "ng/mL", "تەفسیر": "هەوکردنی بەکتریایی"},
+    "Interleukin-6": {"گروپ": "خوێن", "نۆرماڵ": (0, 5), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن"},
+    "TNF-alpha": {"گروپ": "خوێن", "نۆرماڵ": (0, 8), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن"},
+}
+
+# 5.2 پشکنینەکانی بایۆکیمیایی (٥٠ پشکنین)
+biochem_tests = {
+    "Glucose": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (70, 126), "یەکە": "mg/dL", "تەفسیر": "شەکری خوێن"},
+    "HbA1c": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (4.0, 5.6), "یەکە": "%", "تەفسیر": "شەکری درێژخایەن"},
+    "Creatinine": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0.6, 1.3), "یەکە": "mg/dL", "تەفسیر": "کارایی گورچیلە"},
+    "BUN": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (7, 20), "یەکە": "mg/dL", "تەفسیر": "نایترۆجینی یوریا"},
+    "ALT": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر"},
+    "AST": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر"},
+    "Bilirubin": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0.1, 1.2), "یەکە": "mg/dL", "تەفسیر": "زەرداوی"},
+    "Albumin": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (3.5, 5.0), "یەکە": "g/dL", "تەفسیر": "ئەلبومین"},
+    "Potassium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (3.5, 5.0), "یەکە": "mmol/L", "تەفسیر": "پۆتاسیۆم"},
+    "Sodium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (135, 145), "یەکە": "mmol/L", "تەفسیر": "سۆدیۆم"},
+    "Calcium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (8.5, 10.5), "یەکە": "mg/dL", "تەفسیر": "کالسیۆم"},
+    "Phosphorus": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (2.5, 4.5), "یەکە": "mg/dL", "تەفسیر": "فۆسفۆر"},
+    "Magnesium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (1.7, 2.5), "یەکە": "mg/dL", "تەفسیر": "مەگنیسیۆم"},
+    "Amylase": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس"},
+    "Lipase": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس"},
+    "Cholesterol": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 200), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆل"},
+    "LDL": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 100), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆلی خراپ"},
+    "HDL": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (40, 60), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆلی باش"},
+    "Triglycerides": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 150), "یەکە": "mg/dL", "تەفسیر": "تریگلیسیرید"},
+    "Total Protein": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (6.0, 8.0), "یەکە": "g/dL", "تەفسیر": "پڕۆتینی گشتی"},
+}
+
+# 5.3 پشکنینەکانی دڵ (٤٠ پشکنین)
+cardiac_tests = {
+    "Troponin I": {"گروپ": "دڵ", "نۆرماڵ": (0, 0.04), "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ"},
+    "Troponin T": {"گروپ": "دڵ", "نۆرماڵ": (0, 0.014), "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ"},
+    "CK-MB": {"گروپ": "دڵ", "نۆرماڵ": (0, 5), "یەکە": "ng/mL", "تەفسیر": "ئەنزیمی دڵ"},
+    "BNP": {"گروپ": "دڵ", "نۆرماڵ": (0, 100), "یەکە": "pg/mL", "تەفسیر": "پروتێینی دڵ"},
+    "Myoglobin": {"گروپ": "دڵ", "نۆرماڵ": (0, 80), "یەکە": "ng/mL", "تەفسیر": "پروتێین"},
+    "HS-CRP": {"گروپ": "دڵ", "نۆرماڵ": (0, 2), "یەکە": "mg/L", "تەفسیر": "هەوکردنی دڵ"},
+    "Homocysteine": {"گروپ": "دڵ", "نۆرماڵ": (5, 15), "یەکە": "μmol/L", "تەفسیر": "مەترسی دڵ"},
+    "ApoB": {"گروپ": "دڵ", "نۆرماڵ": (60, 120), "یەکە": "mg/dL", "تەفسیر": "پرۆتێین"},
+    "ApoA": {"گروپ": "دڵ", "نۆرماڵ": (90, 150), "یەکە": "mg/dL", "تەفسیر": "پرۆتێین"},
+    "Lipoprotein(a)": {"گروپ": "دڵ", "نۆرماڵ": (0, 30), "یەکە": "mg/dL", "تەفسیر": "مەترسی دڵ"},
+}
+
+# 5.4 پشکنینەکانی هەوکردن (٣٠ پشکنین)
+inflammation_tests = {
+    "Procalcitonin": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 0.5), "یەکە": "ng/mL", "تەفسیر": "هەوکردنی بەکتریایی"},
+    "IL-6": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 5), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن"},
+    "TNF-alpha": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 8), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن"},
+    "Ferritin": {"گروپ": "هەوکردن", "نۆرماڵ": (15, 300), "یەکە": "ng/mL", "تەفسیر": "ئاسن"},
+    "LDH": {"گروپ": "هەوکردن", "نۆرماڵ": (100, 250), "یەکە": "U/L", "تەفسیر": "ئەنزیم"},
+    "Haptoglobin": {"گروپ": "هەوکردن", "نۆرماڵ": (50, 250), "یەکە": "mg/dL", "تەفسیر": "پروتێین"},
+}
+
+# 5.5 پشکنینەکانی هۆرمۆن (٣٠ پشکنین)
+hormone_tests = {
+    "TSH": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0.4, 4.0), "یەکە": "mIU/L", "تەفسیر": "هۆرمۆنی دروان"},
+    "T4": {"گروپ": "هۆرمۆن", "نۆرماڵ": (5, 12), "یەکە": "μg/dL", "تەفسیر": "هۆرمۆنی دروان"},
+    "T3": {"گروپ": "هۆرمۆن", "نۆرماڵ": (80, 200), "یەکە": "ng/dL", "تەفسیر": "هۆرمۆنی دروان"},
+    "Cortisol": {"گروپ": "هۆرمۆن", "نۆرماڵ": (5, 25), "یەکە": "μg/dL", "تەفسیر": "هۆرمۆنی پەستانی خوێن"},
+    "Insulin": {"گروپ": "هۆرمۆن", "نۆرماڵ": (2, 25), "یەکە": "μIU/mL", "تەفسیر": "هۆرمۆنی شەکر"},
+    "C-peptide": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0.5, 2.0), "یەکە": "ng/mL", "تەفسیر": "پێکهاتەی ئەنسولین"},
+    "ACTH": {"گروپ": "هۆرمۆن", "نۆرماڵ": (10, 60), "یەکە": "pg/mL", "تەفسیر": "هۆرمۆنی دروان"},
+    "Growth Hormone": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0, 5), "یەکە": "ng/mL", "تەفسیر": "هۆرمۆنی گەشە"},
+    "Prolactin": {"گروپ": "هۆرمۆن", "نۆرماڵ": (2, 15), "یەکە": "ng/mL", "تەفسیر": "هۆرمۆنی شیر"},
+    "Testosterone": {"گروپ": "هۆرمۆن", "نۆرماڵ": (300, 1000), "یەکە": "ng/dL", "تەفسیر": "هۆرمۆنی نێر"},
+    "Estradiol": {"گروپ": "هۆرمۆن", "نۆرماڵ": (20, 400), "یەکە": "pg/mL", "تەفسیر": "هۆرمۆنی مێ"},
+}
+
+# 5.6 پشکنینەکانی میز (٣٠ پشکنین)
+urine_tests = {
+    "Urine Protein": {"گروپ": "میز", "نۆرماڵ": (0, 0.3), "یەکە": "g/24h", "تەفسیر": "پڕۆتینی میز"},
+    "Urine Glucose": {"گروپ": "میز", "نۆرماڵ": (0, 0), "یەکە": "mg/dL", "تەفسیر": "شەکری میز"},
+    "Urine Ketones": {"گروپ": "میز", "نۆرماڵ": (0, 0), "یەکە": "mg/dL", "تەفسیر": "کیتۆنی میز"},
+    "Urine WBC": {"گروپ": "میز", "نۆرماڵ": (0, 5), "یەکە": "/HPF", "تەفسیر": "خڕۆکە سپیەکان"},
+    "Urine RBC": {"گروپ": "میز", "نۆرماڵ": (0, 3), "یەکە": "/HPF", "تەفسیر": "خڕۆکە سوورەکان"},
+    "Urine pH": {"گروپ": "میز", "نۆرماڵ": (5.0, 8.0), "یەکە": "", "تەفسیر": "pH میز"},
+    "Urine Specific Gravity": {"گروپ": "میز", "نۆرماڵ": (1.005, 1.030), "یەکە": "", "تەفسیر": "چڕی میز"},
+}
+
+# 5.7 پشکنینەکانی ڤیتامین (٢٠ پشکنین)
+vitamin_tests = {
+    "Vitamin D": {"گروپ": "ڤیتامین", "نۆرماڵ": (30, 100), "یەکە": "ng/mL", "تەفسیر": "ڤیتامین D"},
+    "Vitamin A": {"گروپ": "ڤیتامین", "نۆرماڵ": (20, 80), "یەکە": "μg/dL", "تەفسیر": "ڤیتامین A"},
+    "Vitamin E": {"گروپ": "ڤیتامین", "نۆرماڵ": (5, 18), "یەکە": "mg/L", "تەفسیر": "ڤیتامین E"},
+    "Vitamin K": {"گروپ": "ڤیتامین", "نۆرماڵ": (0.2, 3.0), "یەکە": "ng/mL", "تەفسیر": "ڤیتامین K"},
+    "Vitamin C": {"گروپ": "ڤیتامین", "نۆرماڵ": (0.6, 2.0), "یەکە": "mg/dL", "تەفسیر": "ڤیتامین C"},
+}
+
+# 5.8 پشکنینەکانی معدن (٢٠ پشکنین)
+mineral_tests = {
+    "Zinc": {"گروپ": "معدن", "نۆرماڵ": (70, 120), "یەکە": "μg/dL", "تەفسیر": "زینک"},
+    "Selenium": {"گروپ": "معدن", "نۆرماڵ": (70, 150), "یەکە": "μg/L", "تەفسیر": "سێلینیۆم"},
+    "Copper": {"گروپ": "معدن", "نۆرماڵ": (70, 140), "یەکە": "μg/dL", "تەفسیر": "کۆپر"},
+    "Manganese": {"گروپ": "معدن", "نۆرماڵ": (4, 15), "یەکە": "μg/L", "تەفسیر": "مەنگەنیز"},
+    "Chromium": {"گروپ": "معدن", "نۆرماڵ": (0.5, 2.0), "یەکە": "μg/L", "تەفسیر": "کرۆمیۆم"},
+}
+
+# یەکخستنی هەموو پشکنینەکان
+for test_dict in [blood_tests, biochem_tests, cardiac_tests, inflammation_tests, hormone_tests, urine_tests, vitamin_tests, mineral_tests]:
+    LAB_TESTS.update(test_dict)
+
+# ================================
+# 6. داتابەسی دەرمانەکان (١٢٠+ دەرمان)
 # ================================
 DRUG_DATABASE = {
-    # 4.1 دژە پەستانی خوێن (٢٠ دەرمان)
+    # 6.1 دژە پەستانی خوێن (٢٠ دەرمان)
     "دژە پەستانی خوێن": {
-        "کاپتۆپریل": {"ڕێژە": "25-50mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە, سەرگێژخواردن", "پێچەوانە": "حەملی دووگیانی", "تێکەڵکاری": "NSAIDs"},
-        "ئەملۆدیپین": {"ڕێژە": "5-10mg", "میکانیزم": "Calcium channel blocker", "کاریگەری لاوەکی": "ئاوسانی قاچ", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Beta blockers"},
-        "لۆسارتان": {"ڕێژە": "50-100mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Potassium"},
-        "بایسۆپرۆلۆل": {"ڕێژە": "2.5-10mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە", "تێکەڵکاری": "Verapamil"},
-        "هیدروکلۆرۆتایزید": {"ڕێژە": "12.5-25mg", "میکانیزم": "Thiazide diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Lithium"},
-        "فورۆسیماید": {"ڕێژە": "20-40mg", "میکانیزم": "Loop diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Digoxin"},
-        "کارڤیدیلۆل": {"ڕێژە": "6.25-25mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە", "تێکەڵکاری": "NSAIDs"},
-        "نایترۆگلیسیرین": {"ڕێژە": "0.3-0.6mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP", "تێکەڵکاری": "Sildenafil"},
-        "ئیسۆسۆرباید": {"ڕێژە": "10-30mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP", "تێکەڵکاری": "Sildenafil"},
-        "کۆنیزەپان": {"ڕێژە": "0.5-2mg", "میکانیزم": "Benzodiazepine", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "حەمل", "تێکەڵکاری": "Alcohol"},
-        "دیلتیازەم": {"ڕێژە": "30-60mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Beta blockers"},
-        "ڤێراپامیل": {"ڕێژە": "40-80mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Digoxin"},
-        "آتنۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "ماندوویی", "پێچەوانە": "ئەستمی هەوە", "تێکەڵکاری": "NSAIDs"},
-        "میتۆپرۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە", "تێکەڵکاری": "NSAIDs"},
-        "پروپانۆلۆل": {"ڕێژە": "10-40mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە", "تێکەڵکاری": "NSAIDs"},
-        "رامبەریل": {"ڕێژە": "1.25-5mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "تێکەڵکاری": "NSAIDs"},
-        "کینیاپریل": {"ڕێژە": "5-20mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "تێکەڵکاری": "NSAIDs"},
-        "تێلمیسارتان": {"ڕێژە": "40-80mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Potassium"},
-        "ئیربێسارتان": {"ڕێژە": "150-300mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Potassium"},
-        "فۆزینۆپریل": {"ڕێژە": "10-40mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "تێکەڵکاری": "NSAIDs"}
+        "کاپتۆپریل": {"ڕێژە": "25-50mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە, سەرگێژخواردن", "پێچەوانە": "حەملی دووگانی"},
+        "ئەملۆدیپین": {"ڕێژە": "5-10mg", "میکانیزم": "Calcium channel blocker", "کاریگەری لاوەکی": "ئاوسانی قاچ", "پێچەوانە": "هەستیاری"},
+        "لۆسارتان": {"ڕێژە": "50-100mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "بایسۆپرۆلۆل": {"ڕێژە": "2.5-10mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە"},
+        "هیدروکلۆرۆتایزید": {"ڕێژە": "12.5-25mg", "میکانیزم": "Thiazide diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "فورۆسیماید": {"ڕێژە": "20-40mg", "میکانیزم": "Loop diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "کارڤیدیلۆل": {"ڕێژە": "6.25-25mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە"},
+        "نایترۆگلیسیرین": {"ڕێژە": "0.3-0.6mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP"},
+        "ئیسۆسۆرباید": {"ڕێژە": "10-30mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP"},
+        "دیلتیازەم": {"ڕێژە": "30-60mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ"},
+        "ڤێراپامیل": {"ڕێژە": "40-80mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "نەخۆشی دڵ"},
+        "آتنۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "ماندوویی", "پێچەوانە": "ئەستمی هەوە"},
+        "میتۆپرۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە"},
+        "پروپانۆلۆل": {"ڕێژە": "10-40mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە"},
+        "رامبەریل": {"ڕێژە": "1.25-5mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل"},
+        "کینیاپریل": {"ڕێژە": "5-20mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل"},
+        "تێلمیسارتان": {"ڕێژە": "40-80mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "ئیربێسارتان": {"ڕێژە": "150-300mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "فۆزینۆپریل": {"ڕێژە": "10-40mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل"},
+        "سپیرۆنۆلاکتۆن": {"ڕێژە": "25-50mg", "میکانیزم": "Aldosterone antagonist", "کاریگەری لاوەکی": "بەرزی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە"}
     },
-    # 4.2 دژە شەکرە (١٢ دەرمان)
+    # 6.2 دژە شەکرە (١٥ دەرمان)
     "دژە شەکرە": {
-        "مێتفۆرمین": {"ڕێژە": "500-2000mg", "میکانیزم": "Biguanide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Alcohol"},
-        "گلیپیزاید": {"ڕێژە": "5-20mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Aspirin"},
-        "ئەنسولین Glargine": {"ڕێژە": "10-40 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "تێکەڵکاری": "Beta blockers"},
-        "سیتاگلیپتین": {"ڕێژە": "100mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "ساکساگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "لیناگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "ئەلبیکوتاید": {"ڕێژە": "1-2mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "لیراگلوتاید": {"ڕێژە": "0.6-1.8mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "دولاگلوتاید": {"ڕێژە": "0.75-1.5mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "تێکەڵکاری": "نییە"},
-        "ئەنسولین Aspart": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "تێکەڵکاری": "Beta blockers"},
-        "ئەنسولین Lispro": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "تێکەڵکاری": "Beta blockers"},
-        "ئەنسولین Regular": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "تێکەڵکاری": "Beta blockers"}
+        "مێتفۆرمین": {"ڕێژە": "500-2000mg", "میکانیزم": "Biguanide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "گلیپیزاید": {"ڕێژە": "5-20mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری"},
+        "ئەنسولین Glargine": {"ڕێژە": "10-40 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا"},
+        "سیتاگلیپتین": {"ڕێژە": "100mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "ساکساگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "لیناگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "ئەلبیکوتاید": {"ڕێژە": "1-2mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "لیراگلوتاید": {"ڕێژە": "0.6-1.8mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "دولاگلوتاید": {"ڕێژە": "0.75-1.5mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس"},
+        "ئەنسولین Aspart": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا"},
+        "ئەنسولین Lispro": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا"},
+        "ئەنسولین Regular": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا"},
+        "گلیمێپیراید": {"ڕێژە": "1-4mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری"},
+        "پایۆگلیتازۆن": {"ڕێژە": "15-45mg", "میکانیزم": "Thiazolidinedione", "کاریگەری لاوەکی": "ئاوسان", "پێچەوانە": "نەخۆشی دڵ"},
+        "ئەکاربۆز": {"ڕێژە": "25-50mg", "میکانیزم": "Alpha-glucosidase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گەدە"}
     },
-    # 4.3 دژە کۆخە و هەوکردن (١٢ دەرمان)
+    # 6.3 دژە کۆخە و هەوکردن (١٥ دەرمان)
     "دژە کۆخە و هەوکردن": {
-        "ئەمۆکسیسیلین": {"ڕێژە": "500mg", "میکانیزم": "Beta-lactam", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری پێنیسیلین", "تێکەڵکاری": "Allopurinol"},
-        "ئازیترۆمایسین": {"ڕێژە": "250-500mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Warfarin"},
-        "سیپرۆفلۆکساسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "تێکەڵکاری": "NSAIDs"},
-        "سێفتریاکسۆن": {"ڕێژە": "1-2g", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Calcium"},
-        "دۆکسیسایکلین": {"ڕێژە": "100mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "تێکەڵکاری": "Antacids"},
-        "تتراسایکلین": {"ڕێژە": "250-500mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "تێکەڵکاری": "Antacids"},
-        "کوتریمۆکسازۆل": {"ڕێژە": "400-800mg", "میکانیزم": "Sulfonamide", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Warfarin"},
-        "مێترۆنیدازۆل": {"ڕێژە": "250-500mg", "میکانیزم": "Nitroimidazole", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل", "تێکەڵکاری": "Alcohol"},
-        "فینوکسیمایسین": {"ڕێژە": "250mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Warfarin"},
-        "سێفیکسیم": {"ڕێژە": "400mg", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Antacids"},
-        "لیفلوکسایسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "تێکەڵکاری": "NSAIDs"},
-        "مۆکسیفلۆکساسین": {"ڕێژە": "400mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "تێکەڵکاری": "NSAIDs"}
+        "ئەمۆکسیسیلین": {"ڕێژە": "500mg", "میکانیزم": "Beta-lactam", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری پێنیسیلین"},
+        "ئازیترۆمایسین": {"ڕێژە": "250-500mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ"},
+        "سیپرۆفلۆکساسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان"},
+        "سێفتریاکسۆن": {"ڕێژە": "1-2g", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری"},
+        "دۆکسیسایکلین": {"ڕێژە": "100mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان"},
+        "تتراسایکلین": {"ڕێژە": "250-500mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان"},
+        "کوتریمۆکسازۆل": {"ڕێژە": "400-800mg", "میکانیزم": "Sulfonamide", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری"},
+        "مێترۆنیدازۆل": {"ڕێژە": "250-500mg", "میکانیزم": "Nitroimidazole", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل"},
+        "فینوکسیمایسین": {"ڕێژە": "250mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ"},
+        "سێفیکسیم": {"ڕێژە": "400mg", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری"},
+        "لیفلوکسایسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان"},
+        "مۆکسیفلۆکساسین": {"ڕێژە": "400mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان"},
+        "ریفامپیسین": {"ڕێژە": "600mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زەردبوون", "پێچەوانە": "نەخۆشی جگەر"},
+        "ئایسۆنیازید": {"ڕێژە": "300mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر"},
+        "پیرازیناماید": {"ڕێژە": "1500mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "ئازاری جومگە", "پێچەوانە": "نەخۆشی جگەر"}
     },
-    # 4.4 دژە ئەنیمیا (٦ دەرمان)
+    # 6.4 دژە ئەنیمیا (١٠ دەرمان)
     "دژە ئەنیمیا": {
-        "فێروس سولفەیت": {"ڕێژە": "300-600mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هیمۆکروماتۆسیس", "تێکەڵکاری": "Antacids"},
-        "فۆلیک ئەسید": {"ڕێژە": "1mg", "میکانیزم": "Folate supplement", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Methotrexate"},
-        "ڤیتامین B12": {"ڕێژە": "1000mcg", "میکانیزم": "Cobalamin", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "ئەریترۆپۆیتین": {"ڕێژە": "50-100 IU/kg", "میکانیزم": "Erythropoietin", "کاریگەری لاوەکی": "BP بەرز", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "نییە"},
-        "سیانۆکۆبالامین": {"ڕێژە": "1000mcg", "میکانیزم": "Vitamin B12", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "ئاسن دیکستران": {"ڕێژە": "100-200mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "هەستیاری", "پێچەوانە": "هیمۆکروماتۆسیس", "تێکەڵکاری": "Antacids"}
+        "فێروس سولفەیت": {"ڕێژە": "300-600mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هیمۆکروماتۆسیس"},
+        "فۆلیک ئەسید": {"ڕێژە": "1mg", "میکانیزم": "Folate supplement", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری"},
+        "ڤیتامین B12": {"ڕێژە": "1000mcg", "میکانیزم": "Cobalamin", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری"},
+        "ئەریترۆپۆیتین": {"ڕێژە": "50-100 IU/kg", "میکانیزم": "Erythropoietin", "کاریگەری لاوەکی": "BP بەرز", "پێچەوانە": "نەخۆشی دڵ"},
+        "سیانۆکۆبالامین": {"ڕێژە": "1000mcg", "میکانیزم": "Vitamin B12", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری"},
+        "ئاسن دیکستران": {"ڕێژە": "100-200mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "هەستیاری", "پێچەوانە": "هیمۆکروماتۆسیس"},
+        "دێسفێریۆکسامین": {"ڕێژە": "500-1000mg", "میکانیزم": "Iron chelator", "کاریگەری لاوەکی": "زیان بە گورچیلە", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "فۆلیک اسید": {"ڕێژە": "1-5mg", "میکانیزم": "Folate", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری"},
+        "دەیکسۆمیتازۆن": {"ڕێژە": "0.5-2mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن"},
+        "پرەدنیسۆلۆن": {"ڕێژە": "5-20mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن"}
     },
-    # 4.5 دژە کۆکە (٦ دەرمان)
+    # 6.5 دژە کۆکە (١٠ دەرمان)
     "دژە کۆکە": {
-        "سالبوتامۆل": {"ڕێژە": "2 puffs", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Beta blockers"},
-        "بۆدیزۆناید": {"ڕێژە": "200-800mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "فۆرمۆتێرۆل": {"ڕێژە": "6-12mcg", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Beta blockers"},
-        "فلوتیکاسۆن": {"ڕێژە": "250-500mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "مۆنتلۆکاست": {"ڕێژە": "10mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "زافیرلوکاست": {"ڕێژە": "20mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Warfarin"}
+        "سالبوتامۆل": {"ڕێژە": "2 puffs", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ"},
+        "بۆدیزۆناید": {"ڕێژە": "200-800mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری"},
+        "فۆرمۆتێرۆل": {"ڕێژە": "6-12mcg", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ"},
+        "فلوتیکاسۆن": {"ڕێژە": "250-500mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری"},
+        "مۆنتلۆکاست": {"ڕێژە": "10mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری"},
+        "زافیرلوکاست": {"ڕێژە": "20mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری"},
+        "تیۆترۆپیۆم": {"ڕێژە": "18mcg", "میکانیزم": "Anticholinergic", "کاریگەری لاوەکی": "دەم وشک", "پێچەوانە": "نەخۆشی دڵ"},
+        "ئیپرەترۆپیۆم": {"ڕێژە": "20mcg", "میکانیزم": "Anticholinergic", "کاریگەری لاوەکی": "دەم وشک", "پێچەوانە": "نەخۆشی دڵ"},
+        "تئۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ"},
+        "ئامینۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ"}
     },
-    # 4.6 دژە سکچوون (٨ دەرمان)
+    # 6.6 دژە سکچوون (١٠ دەرمان)
     "دژە سکچوون": {
-        "ئومەپرازۆل": {"ڕێژە": "20-40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Clopidogrel"},
-        "لانسۆپرازۆل": {"ڕێژە": "30mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Clopidogrel"},
-        "پانتۆپرازۆل": {"ڕێژە": "40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Clopidogrel"},
-        "ڕابێپرازۆل": {"ڕێژە": "20mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Clopidogrel"},
-        "ڕانیتیدین": {"ڕێژە": "150mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "نییە"},
-        "فامۆتیدین": {"ڕێژە": "20-40mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "نییە"},
-        "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Antacids"},
-        "بسمەت سابیسیلیت": {"ڕێژە": "262mg", "میکانیزم": "Antidiarrheal", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "تێکەڵکاری": "Aspirin"}
+        "ئومەپرازۆل": {"ڕێژە": "20-40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر"},
+        "لانسۆپرازۆل": {"ڕێژە": "30mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر"},
+        "پانتۆپرازۆل": {"ڕێژە": "40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر"},
+        "ڕابێپرازۆل": {"ڕێژە": "20mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر"},
+        "ڕانیتیدین": {"ڕێژە": "150mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "فامۆتیدین": {"ڕێژە": "20-40mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "بسمەت سابیسیلیت": {"ڕێژە": "262mg", "میکانیزم": "Antidiarrheal", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان"},
+        "میزۆپرۆستۆل": {"ڕێژە": "100-200mcg", "میکانیزم": "Prostaglandin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل"},
+        "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە"}
     },
-    # 4.7 دژە ئازار (١٠ دەرمان)
+    # 6.7 دژە ئازار (١٠ دەرمان)
     "دژە ئازار": {
-        "ئەسپیرین": {"ڕێژە": "75-300mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Warfarin"},
-        "ئیبۆپروفین": {"ڕێژە": "200-400mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Warfarin"},
-        "نابومیتۆن": {"ڕێژە": "500mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Warfarin"},
-        "پاراستامۆل": {"ڕێژە": "500-1000mg", "میکانیزم": "Analgesic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Alcohol"},
-        "مۆرفین": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە", "تێکەڵکاری": "Alcohol"},
-        "کۆدەین": {"ڕێژە": "30mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "منداڵان", "تێکەڵکاری": "Alcohol"},
-        "ترامادۆل": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Antidepressants"},
-        "پێتیدین": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "MAOIs"},
-        "ناکسۆکسان": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Alcohol"},
-        "فوێنتانیل": {"ڕێژە": "25mcg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە", "تێکەڵکاری": "Alcohol"}
+        "ئەسپیرین": {"ڕێژە": "75-300mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "خوێنبەربوون"},
+        "ئیبۆپروفین": {"ڕێژە": "200-400mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "نابومیتۆن": {"ڕێژە": "500mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "پاراستامۆل": {"ڕێژە": "500-1000mg", "میکانیزم": "Analgesic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر"},
+        "مۆرفین": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە"},
+        "کۆدەین": {"ڕێژە": "30mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "منداڵان"},
+        "ترامادۆل": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ"},
+        "پێتیدین": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ"},
+        "ناکسۆکسان": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ"},
+        "فوێنتانیل": {"ڕێژە": "25mcg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە"}
     },
-    # 4.8 دژە خوێن (٦ دەرمان)
+    # 6.8 دژە خوێن (١٠ دەرمان)
     "دژە خوێن": {
-        "وارفارین": {"ڕێژە": "5mg", "میکانیزم": "Vitamin K antagonist", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "حەمل", "تێکەڵکاری": "Aspirin"},
-        "هێپارین": {"ڕێژە": "5000 IU", "میکانیزم": "Anticoagulant", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Aspirin"},
-        "ئەنۆکساپارین": {"ڕێژە": "40mg", "میکانیزم": "LMWH", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Aspirin"},
-        "کلۆپیدۆگرێل": {"ڕێژە": "75mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Aspirin"},
-        "پراسوگرێل": {"ڕێژە": "10mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Aspirin"},
-        "تیکاگرێلۆر": {"ڕێژە": "90mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "تێکەڵکاری": "Aspirin"}
-    },
-    # 4.9 دژە Parkinson (٤ دەرمان)
-    "دژە Parkinson": {
-        "لێڤۆدۆپا": {"ڕێژە": "100mg", "میکانیزم": "Dopamine precursor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "MAOIs"},
-        "کاربیدۆپا": {"ڕێژە": "10-25mg", "میکانیزم": "Dopa decarboxylase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "MAOIs"},
-        "پرامیکسۆڵ": {"ڕێژە": "0.125mg", "میکانیزم": "Dopamine agonist", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Alcohol"},
-        "ڕۆپینیرۆڵ": {"ڕێژە": "0.25mg", "میکانیزم": "Dopamine agonist", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Alcohol"}
-    },
-    # 4.10 دژە Alzheimer (٤ دەرمان)
-    "دژە Alzheimer": {
-        "دۆنیپیزیل": {"ڕێژە": "5-10mg", "میکانیزم": "Cholinesterase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "NSAIDs"},
-        "ڕیڤاستیگمین": {"ڕێژە": "1.5-6mg", "میکانیزم": "Cholinesterase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "NSAIDs"},
-        "گالانتامین": {"ڕێژە": "4-8mg", "میکانیزم": "Cholinesterase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "NSAIDs"},
-        "میمانتین": {"ڕێژە": "5-10mg", "میکانیزم": "NMDA antagonist", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "نییە"}
-    },
-    # 4.11 دژە سیل (٤ دەرمان)
-    "دژە سیل": {
-        "ریفامپیسین": {"ڕێژە": "600mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زەردبوون", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Warfarin"},
-        "ئایسۆنیازید": {"ڕێژە": "300mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "Alcohol"},
-        "پیرازیناماید": {"ڕێژە": "1500mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "ئازاری جومگە", "پێچەوانە": "نەخۆشی جگەر", "تێکەڵکاری": "نییە"},
-        "ئێتامبوتۆل": {"ڕێژە": "800mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "مشکێتی بینین", "پێچەوانە": "نەخۆشی چاو", "تێکەڵکاری": "نییە"}
-    },
-    # 4.12 دەرمانەکانی تر (١٠ دەرمان)
-    "دەرمانەکانی تر": {
-        "لێڤۆتروکسین": {"ڕێژە": "50-100mcg", "میکانیزم": "Thyroid hormone", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Antacids"},
-        "پرەدنیسۆلۆن": {"ڕێژە": "5-20mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن", "تێکەڵکاری": "NSAIDs"},
-        "میتۆتریمازۆل": {"ڕێژە": "5-10mg", "میکانیزم": "Antithyroid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل", "تێکەڵکاری": "Warfarin"},
-        "پروپاییلتایۆراسیل": {"ڕێژە": "50-100mg", "میکانیزم": "Antithyroid", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "حەمل", "تێکەڵکاری": "Warfarin"},
-        "فیتۆمێنادیۆن": {"ڕێژە": "5-10mg", "میکانیزم": "Vitamin K", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "Warfarin"},
-        "دایفینیدرامین": {"ڕێژە": "25-50mg", "میکانیزم": "Antihistamine", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی دڵ", "تێکەڵکاری": "Alcohol"},
-        "لۆراتادین": {"ڕێژە": "10mg", "میکانیزم": "Antihistamine", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری", "تێکەڵکاری": "نییە"},
-        "سیتیریزین": {"ڕێژە": "5-10mg", "میکانیزم": "Antihistamine", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی گورچیلە", "تێکەڵکاری": "Alcohol"},
-        "فیناستیراید": {"ڕێژە": "5mg", "میکانیزم": "5-alpha reductase inhibitor", "کاریگەری لاوەکی": "کەمبوونی میل", "پێچەوانە": "ژنان", "تێکەڵکاری": "نییە"},
-        "دوتاستیراید": {"ڕێژە": "0.5mg", "میکانیزم": "5-alpha reductase inhibitor", "کاریگەری لاوەکی": "کەمبوونی میل", "پێچەوانە": "ژنان", "تێکەڵکاری": "نییە"}
+        "وارفارین": {"ڕێژە": "5mg", "میکانیزم": "Vitamin K antagonist", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "حەمل"},
+        "هێپارین": {"ڕێژە": "5000 IU", "میکانیزم": "Anticoagulant", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون"},
+        "ئەنۆکساپارین": {"ڕێژە": "40mg", "میکانیزم": "LMWH", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون"},
+        "کلۆپیدۆگرێل": {"ڕێژە": "75mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون"},
+        "پراسوگرێل": {"ڕێژە": "10mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون"},
+        "تیکاگرێلۆر": {"ڕێژە": "90mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون"},
+        "دابیگاتران": {"ڕێژە": "110mg", "میکانیزم": "Direct thrombin inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "ریڤارۆکسابان": {"ڕێژە": "10mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "ئەپیکسابان": {"ڕێژە": "2.5-5mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە"},
+        "ئیدۆکسابان": {"ڕێژە": "30-60mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە"}
     }
 }
 
 # ================================
-# 5. کویزەکانی پزیشکی (٣٠ کویز)
+# 7. دروستکردنی ١٠٠٠ کویز (بە ئاست)
 # ================================
-MEDICAL_QUIZZES = [
-    {"پرسیار": "نەخۆشێکی ٤٥ ساڵان، سەرئێشە و سەرگێژخواردنی هەیە، BP=١٦٠/٩٥. باشترین هەنگاوی داهاتوو چییە؟", "هەڵبژاردەکان": ["دەستبەجێ دەرمانی دژە پەستانی خوێن", "پێوانەکردنی BP دوای ٢ هەفتە و گۆڕینی شێوازی ژیان", "CT سەر", "پشکنینی خوێنی تەواو"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "بەپێی ڕێنماییەکان، بۆ پەستانی خوێنی قۆناغی ١، دەبێت دووبارە BP پێوانە بکرێت و گۆڕانی شێوازی ژیان پێشنیار بکرێت"},
-    {"پرسیار": "نەخۆشێک FBS=١٥٠, HbA1c=٧.٢%. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["پێش شەکرە", "شەکرەی جۆری ٢", "شەکرەی جۆری ١", "نەخۆشی مێتابۆلیک"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "FBS>١٢٦ و HbA1c>٦.٥% دوو پێوەری سەرەکی بۆ دەستنیشانکردنی شەکرەن"},
-    {"پرسیار": "لە نەخۆشێکی ئەنیمیادا، MCV=٧٢ fL. جۆری ئەنیمیا چییە؟", "هەڵبژاردەکان": ["ماکرۆسایتیک", "مایکرۆسایتیک", "نۆرمۆسایتیک", "هیمۆلایتیک"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "MCV<٨٠ fL ئاماژەیە بۆ ئەنیمیای مایکرۆسایتیک"},
-    {"پرسیار": "نەخۆشێک بە ئازاری سنگ و کورتی هەناسە هاتووە، Troponin=٢.٥ ng/mL. چی دەکەیت؟", "هەڵبژاردەکان": ["دەرچوون بۆ ماڵەوە", "پشکنینی ECG و پشکنینی زیاتر", "دەرمانی دژە پەستانی خوێن", "پشکنینی CBC"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Troponin بەرز ئاماژەیە بۆ نەخۆشی دڵی ئیسکیمیک"},
-    {"پرسیار": "نەخۆشێک بە کۆخە و تای ٣٨.٥°C هاتووە، Chest X-ray Consolidation نیشان دەدات. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["نەخۆشی ڤایرۆسی", "هەوکردنی سییەکان", "نەخۆشی دڵ", "ئەنیمیا"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Consolidation لە X-ray ئاماژەیە بۆ هەوکردنی سییەکان"},
-    {"پرسیار": "نەخۆشێک بە کێش ٨٠ کیلۆگرام، دەرمانی مێتفۆرمین بۆ شەکرەی جۆری ٢ دەخوات. ڕێژەی گونجاو چییە؟", "هەڵبژاردەکان": ["٢٥٠mg ڕۆژانە", "٥٠٠mg ڕۆژانە دووجار", "١٠٠٠mg ڕۆژانە", "٢٠٠٠mg ڕۆژانە"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "ڕێژەی دەستپێکی مێتفۆرمین ٥٠٠mg دووجارە لەگەڵ خواردن"},
-    {"پرسیار": "نەخۆشێک بە ئاوسانی قاچ و میزی کەم هاتووە، Creatinine=٣.٥ mg/dL. چی دەکەیت؟", "هەڵبژاردەکان": ["دەرچوون بۆ ماڵەوە", "پشکنینی گورچیلە و ڕەوانەکردن بۆ پسپۆڕ", "دەرمانی دژە پەستانی خوێن", "CT سک"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Creatinine بەرز ئاماژەیە بۆ نەخۆشی گورچیلە"},
-    {"پرسیار": "نەخۆشێک بە Hb=٩ g/dL و Ferritin=١٠ ng/mL هاتووە. جۆری ئەنیمیا چییە؟", "هەڵبژاردەکان": ["ئەنیمیای کەمخوێنی ئاسن", "ئەنیمیای ماکرۆسایتیک", "ئەنیمیای هیمۆلایتیک", "ئەنیمیای نۆرمۆسایتیک"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "Hb نزم + Ferritin نزم ئاماژەیە بۆ ئەنیمیای کەمخوێنی ئاسن"},
-    {"پرسیار": "بۆ نەخۆشی شەکرەی جۆری ٢، کام دەرمانە کار لە جگەر دەکات؟", "هەڵبژاردەکان": ["ئەنسولین", "مێتفۆرمین", "سولفۆنیل یوریا", "DPP-4 inhibitor"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "مێتفۆرمین کار لە جگەر دەکات بۆ کەمکردنەوەی بەرهەمهێنانی گلوکۆز"},
-    {"پرسیار": "نەخۆشێک بە پەستانی خوێنی ١٥٠/٩٥ mmHg و کێش ٩٠ کیلۆگرام هاتووە. باشترین ڕێنمایی چییە؟", "هەڵبژاردەکان": ["دەستبەجێ دەرمان", "کەمکردنەوەی کێش و گۆڕینی شێوازی ژیان", "پشکنینی تەواوی خوێن", "CT سەر"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "بۆ BP قۆناغی ١، گۆڕینی شێوازی ژیان و کەمکردنەوەی کێش پێشنیار دەکرێت"},
-    {"پرسیار": "نەخۆشێکی ئەستمی هەوە، باشترین دەرمان بۆ ناڕەتی (Acute attack) چییە؟", "هەڵبژاردەکان": ["Steroid oral", "Bronchodilator (Salbutamol)", "Antihistamine", "Antibiotic"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Salbutamol bronchodilator خێرا کار دەکات بۆ کردنەوەی ڕیگەکانی هەناسە"},
-    {"پرسیار": "نەخۆشێک بە زەردبوونی چاو و میزی تۆخ هاتووە. ALT=١٥٠, AST=١٢٠. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "نەخۆشی پەنکریاس", "ئەنیمیا"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "زەردبوون + ALT/AST بەرز ئاماژەیە بۆ نەخۆشی جگەر"},
-    {"پرسیار": "نەخۆشێک بە سکچوونی زۆر (وەک ئاو) هاتووە. باشترین چارەسەر چییە؟", "هەڵبژاردەکان": ["دەرمانی دژە سکچوون", "ORS و شلەمەنی", "ئەنتیبایۆتیک", "هەموویان"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "یەکەم هەنگاو ORS و شلەمەنیە بۆ پاراستنی لە وشکبوونەوە"},
-    {"پرسیار": "نەخۆشێکی ٦٠ ساڵ بە کۆخەی خوێناوی ماوە ٢ مانگ هاتووە. پێویستە چی بکرێت؟", "هەڵبژاردەکان": ["Chest X-ray و Sputum AFB", "CT سک", "پشکنینی دڵ", "پشکنینی گەدە"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "کۆخەی خوێناوی درێژخایەن ئاماژەیە بۆ سیل"},
-    {"پرسیار": "نەخۆشێک بە تای بەرز و سەرئێشە و سکچوون هاتووە. کام پشکنینە بۆ تایفیید؟", "هەڵبژاردەکان": ["CBC", "Widal test", "CRP", "Chest X-ray"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Widal test بۆ دەستنیشانکردنی تایفیید بەکاردێت"},
-    {"پرسیار": "نەخۆشێک بە ئازاری سکی سەرەوە و رشانەوە و تای هاتووە. Amylase=١٢٠٠. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "پەنکریاتیت", "نەخۆشی جگەر", "هەوکردنی سی"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Amylase بەرز (>٢٠٠) ئاماژەیە بۆ پەنکریاتیت"},
-    {"پرسیار": "کام دەرمانە بۆ هەوکردنی سی بەکاردێت؟", "هەڵبژاردەکان": ["Metformin", "Amoxicillin", "Captopril", "Insulin"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Amoxicillin ئەنتیبایۆتیکە بۆ چارەسەری هەوکردنی سی"},
-    {"پرسیار": "نەخۆشێک بە ئازاری سنگ و کورتی هەناسە هاتووە، ECG ST depression نیشان دەدات. چی دەکەیت؟", "هەڵبژاردەکان": ["دەرچوون بۆ ماڵەوە", "پشکنینی Troponin و ICU", "دەرمانی دژە ئازار", "پشکنینی CBC"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "ST depression + ئازاری سنگ ئاماژەیە بۆ نەخۆشی دڵی ئیسکیمیک"},
-    {"پرسیار": "کام دەرمانە بۆ نەخۆشی پەستانی خوێن لە نەخۆشانی شەکرەدا باشترە؟", "هەڵبژاردەکان": ["Beta blocker", "ACE inhibitor", "Calcium channel blocker", "Diuretic"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "ACE inhibitor بۆ نەخۆشانی شەکرە باشترە چونکە پارێزگاری لە گورچیلە دەکات"},
-    {"پرسیار": "نەخۆشێک بە کۆخە و تای هاتووە، CRP=٨٠, WBC=١٥. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["هەوکردنی ڤایرۆسی", "هەوکردنی بەکتریایی", "نەخۆشی ژیانی", "نەخۆشی خۆئەگەر"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "CRP بەرز + WBC بەرز ئاماژەیە بۆ هەوکردنی بەکتریایی"},
-    {"پرسیار": "نەخۆشێک بە لەرزین و سختی ماسوولکە هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "لەرزین + سختی ماسوولکە ئاماژەیە بۆ نەخۆشی Parkinson"},
-    {"پرسیار": "نەخۆشێک بە بیرچون و کەمبوونی بیر هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "بیرچون + کەمبوونی بیر ئاماژەیە بۆ نەخۆشی Alzheimer"},
-    {"پرسیار": "نەخۆشێک بە مشکێتی جوڵە و قسەکردن هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 3, "ڕوونکردنەوە": "مشکێتی جوڵە + قسەکردن ئاماژەیە بۆ Stroke"},
-    {"پرسیار": "کام دەرمانە بۆ نەخۆشی Parkinson بەکاردێت؟", "هەڵبژاردەکان": ["Levodopa", "Donepezil", "Interferon", "Warfarin"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "Levodopa دەرمانی سەرەکی بۆ نەخۆشی Parkinson"},
-    {"پرسیار": "کام دەرمانە بۆ نەخۆشی Alzheimer بەکاردێت؟", "هەڵبژاردەکان": ["Levodopa", "Donepezil", "Interferon", "Warfarin"], "وەڵامی ڕاست": 1, "ڕوونکردنەوە": "Donepezil بۆ چارەسەری نەخۆشی Alzheimer بەکاردێت"},
-    {"پرسیار": "نەخۆشێک بە هەناسەدان بە زەحمەت و فیشک هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["Asthma", "COPD", "Pneumonia", "TB"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "فیشک + هەناسەدان بە زەحمەت ئاماژەیە بۆ Asthma"},
-    {"پرسیار": "نەخۆشێک بە کۆخەی درێژخایەن و کەمبوونی کێش هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["Asthma", "COPD", "Pneumonia", "TB"], "وەڵامی ڕاست": 3, "ڕوونکردنەوە": "کۆخەی درێژخایەن + کەمبوونی کێش ئاماژەیە بۆ TB"},
-    {"پرسیار": "کام دەرمانە بۆ چارەسەری سیل بەکاردێت؟", "هەڵبژاردەکان": ["Rifampicin", "Amoxicillin", "Metformin", "Captopril"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "Rifampicin دەرمانی سەرەکی بۆ چارەسەری سیل"},
-    {"پرسیار": "نەخۆشێک بە ئازاری میزکردن و میزی زۆر هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["UTI", "Pyelonephritis", "Nephrolithiasis", "Diabetes"], "وەڵامی ڕاست": 0, "ڕوونکردنەوە": "ئازاری میزکردن + میزی زۆر ئاماژەیە بۆ UTI"},
-    {"پرسیار": "نەخۆشێک بە ئازاری پشت و خوێن لە میزدا هاتووە. دەستنیشانکردن چییە؟", "هەڵبژاردەکان": ["UTI", "Pyelonephritis", "Nephrolithiasis", "Diabetes"], "وەڵامی ڕاست": 2, "ڕوونکردنەوە": "ئازاری پشت + خوێن لە میزدا ئاماژەیە بۆ بەردی گورچیلە"}
-]
-
-# ================================
-# 6. داتای تاقیگەی ڤێرچواڵ (پێشکەوتوو)
-# ================================
-LAB_DATA = {
-    "CBC": {
-        "WBC": {"نۆرماڵ": (4.0, 11.0), "یەکە": "x10³/µL", "تەفسیر": "خڕۆکە سپیەکان"},
-        "Hb": {"نۆرماڵ": (12.0, 16.0), "یەکە": "g/dL", "تەفسیر": "هیمۆگلۆبین"},
-        "Platelets": {"نۆرماڵ": (150, 450), "یەکە": "x10³/µL", "تەفسیر": "پلەیتلێت"},
-        "MCV": {"نۆرماڵ": (80, 100), "یەکە": "fL", "تەفسیر": "قەبارەی خڕۆکە سوورەکان"},
-        "MCH": {"نۆرماڵ": (27, 33), "یەکە": "pg", "تەفسیر": "کەمی هیمۆگلۆبین"},
-        "MCHC": {"نۆرماڵ": (32, 36), "یەکە": "g/dL", "تەفسیر": "چڕی هیمۆگلۆبین"},
-        "RDW": {"نۆرماڵ": (11.5, 14.5), "یەکە": "%", "تەفسیر": "جیاوازی قەبارەی خڕۆکەکان"}
-    },
-    "بایۆکیمیایی": {
-        "Glucose": {"نۆرماڵ": (70, 126), "یەکە": "mg/dL", "تەفسیر": "شەکری خوێن"},
-        "Creatinine": {"نۆرماڵ": (0.6, 1.3), "یەکە": "mg/dL", "تەفسیر": "کارایی گورچیلە"},
-        "ALT": {"نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر"},
-        "AST": {"نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر"},
-        "Potassium": {"نۆرماڵ": (3.5, 5.0), "یەکە": "mmol/L", "تەفسیر": "پۆتاسیۆم"},
-        "Sodium": {"نۆرماڵ": (135, 145), "یەکە": "mmol/L", "تەفسیر": "سۆدیۆم"},
-        "BUN": {"نۆرماڵ": (7, 20), "یەکە": "mg/dL", "تەفسیر": "نایترۆجینی یوریا"},
-        "Bilirubin": {"نۆرماڵ": (0.1, 1.2), "یەکە": "mg/dL", "تەفسیر": "زەرداوی"},
-        "Albumin": {"نۆرماڵ": (3.5, 5.0), "یەکە": "g/dL", "تەفسیر": "ئەلبومین"},
-        "Amylase": {"نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس"},
-        "Lipase": {"نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس"}
-    },
-    "دڵ": {
-        "Troponin": {"نۆرماڵ": (0, 0.04), "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ"},
-        "CK-MB": {"نۆرماڵ": (0, 5), "یەکە": "ng/mL", "تەفسیر": "ئەنزیمی دڵ"},
-        "BNP": {"نۆرماڵ": (0, 100), "یەکە": "pg/mL", "تەفسیر": "پروتێینی دڵ"}
-    },
-    "هەوکردن": {
-        "CRP": {"نۆرماڵ": (0, 5), "یەکە": "mg/L", "تەفسیر": "پروتێینی هەوکردن"},
-        "ESR": {"نۆرماڵ": (0, 20), "یەکە": "mm/hr", "تەفسیر": "خێرایی تەنیشتنی خڕۆکەکان"},
-        "Ferritin": {"نۆرماڵ": (15, 300), "یەکە": "ng/mL", "تەفسیر": "ئاسن"},
-        "LDH": {"نۆرماڵ": (100, 250), "یەکە": "U/L", "تەفسیر": "ئەنزیم"},
-        "Haptoglobin": {"نۆرماڵ": (50, 250), "یەکە": "mg/dL", "تەفسیر": "پروتێین"}
+def generate_quizzes_by_level():
+    quizzes = []
+    
+    # پرس و وەڵامەکان بۆ ئاستی ١ (سەرەتایی)
+    level1_questions = [
+        {"پرسیار": "نیشانەی سەرەکی شەکرەی جۆری ٢ چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "پەستانی خوێنی نۆرماڵ چەندە؟", "هەڵبژاردەکان": ["120/80", "140/90", "160/100", "180/110"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ شەکرە بەکاردێت؟", "هەڵبژاردەکان": ["مێتفۆرمین", "ئەسپیرین", "کاپتۆپریل", "ئەمۆکسیسیلین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی ئەنیمیا چییە؟", "هەڵبژاردەکان": ["ماندوویی", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ دەستنیشانکردنی شەکرە؟", "هەڵبژاردەکان": ["FBS", "ECG", "Chest X-ray", "MRI"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی پەستانی خوێن چییە؟", "هەڵبژاردەکان": ["سەرئێشە", "کۆخە", "تا", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ ئازار بەکاردێت؟", "هەڵبژاردەکان": ["ئەسپیرین", "مێتفۆرمین", "ئەنسولین", "کاپتۆپریل"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی هەوکردنی سی چییە؟", "هەڵبژاردەکان": ["تا و کۆخە", "سەرئێشە", "ئازاری سنگ", "ماندوویی"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Hb نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیا", "شەکرە", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ پەستانی خوێن؟", "هەڵبژاردەکان": ["کاپتۆپریل", "مێتفۆرمین", "ئەنسولین", "ئەمۆکسیسیلین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی گەدە چییە؟", "هەڵبژاردەکان": ["ئازاری گەدە", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ پەستانی خوێن؟", "هەڵبژاردەکان": ["BP", "FBS", "HbA1c", "CBC"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی دڵ چییە؟", "هەڵبژاردەکان": ["ئازاری سنگ", "تینوویەتی زۆر", "سکچوون", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ ئەنیمیا؟", "هەڵبژاردەکان": ["فێروس سولفەیت", "ئەسپیرین", "کاپتۆپریل", "مێتفۆرمین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CRP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردن", "شەکرە", "ئەنیمیا", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ کۆخە؟", "هەڵبژاردەکان": ["سالبوتامۆل", "مێتفۆرمین", "کاپتۆپریل", "ئەسپیرین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی سیل چییە؟", "هەڵبژاردەکان": ["کۆخەی خوێناوی", "سەرئێشە", "ئازاری سنگ", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ دڵ؟", "هەڵبژاردەکان": ["ECG", "FBS", "HbA1c", "CBC"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی شەکرە چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ هەوکردن؟", "هەڵبژاردەکان": ["ئەمۆکسیسیلین", "مێتفۆرمین", "کاپتۆپریل", "ئەسپیرین"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٢ (مامناوەند)
+    level2_questions = [
+        {"پرسیار": "HbA1c > 6.5% ئاماژەیە بۆ چی؟", "هەڵبژاردەکان": ["شەکرە", "ئەنیمیا", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "BP > 140/90 نیشانەی چییە؟", "هەڵبژاردەکان": ["پەستانی خوێن", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MCV < 80 fL نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیای مایکرۆسایتیک", "ئەنیمیای ماکرۆسایتیک", "ئەنیمیای نۆرمۆسایتیک", "هیمۆلایتیک"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Troponin بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵ", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Creatinine بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "ALT بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ferritin نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیای کەمخوێنی ئاسن", "ئەنیمیای ماکرۆسایتیک", "هیمۆلایتیک", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "C-peptide نزم لە شەکرەی جۆری چی؟", "هەڵبژاردەکان": ["جۆری 1", "جۆری 2", "حەملی دووگانی", "پێش شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "FEV1 < 80% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی کۆکە", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "BNP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Anti-GAD positive نیشانەی چییە؟", "هەڵبژاردەکان": ["شەکرەی جۆری 1", "شەکرەی جۆری 2", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "eGFR < 60 نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "HBsAg positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر B", "نەخۆشی جگەر C", "نەخۆشی جگەر A", "سیرۆسیس"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Anti-HCV positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر C", "نەخۆشی جگەر B", "نەخۆشی جگەر A", "سیرۆسیس"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Amylase بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["پەنکریاتیت", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Lipase بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["پەنکریاتیت", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "وەڵامی ڕاست بۆ کویزی ئاست ٢ چییە؟", "هەڵبژاردەکان": ["ئاست ٢", "ئاست ١", "ئاست ٣", "ئاست ٤"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ MS؟", "هەڵبژاردەکان": ["Interferon", "Levodopa", "Donepezil", "Warfarin"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی Stroke چییە؟", "هەڵبژاردەکان": ["مشکێتی جوڵە", "بیرچون", "لەرزین", "ئازاری سنگ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ نەخۆشی جگەر؟", "هەڵبژاردەکان": ["ALT", "Troponin", "CBC", "ESR"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٣ (پێشکەوتوو)
+    level3_questions = [
+        {"پرسیار": "ST depression + Troponin elevated نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CAG تەنگی کرۆنەری نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵ", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "AFP بەرز > 400 نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "DAT scan کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PET abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "VEP کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Sputum AFB positive نیشانەی چییە؟", "هەڵبژاردەکان": ["سیل", "هەوکردنی سی", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ultrasound fatty liver نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەری چەور", "سیرۆسیس", "نەخۆشی جگەر B", "نەخۆشی جگەر C"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI atrophy نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT ischemia نیشانەی چییە؟", "هەڵبژاردەکان": ["Stroke", "MS", "Alzheimer", "Parkinson"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Holter abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Arrhythmia", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Echocardiogram EF < 40% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Chest X-ray consolidation نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردنی سی", "سیل", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Widal positive نیشانەی چییە؟", "هەڵبژاردەکان": ["تایفیید", "کۆلێرا", "سیل", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Stool culture Vibrio cholera نیشانەی چییە؟", "هەڵبژاردەکان": ["کۆلێرا", "تایفیید", "هەوکردن", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT scan tumor نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Endoscopy ulcer نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "هەوکردنی گەدە", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "H. pylori positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "هەوکردنی گەدە", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٤ (شارەزا)
+    level4_questions = [
+        {"پرسیار": "CA19-9 بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پەنکریاس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PSA بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پڕۆستات", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CA125 بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی هێلکەدان", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "AFP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CEA بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی کۆلۆن", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "HCG بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["حەمل", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "LDH بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Haptoglobin نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Reticulocyte بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Coomb's test positive نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس خۆئەگەر", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Bone marrow blast cells نیشانەی چییە؟", "هەڵبژاردەکان": ["لەوسیمیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Lymph node biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["لەوسیمیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Platelets < 50 نیشانەی چییە؟", "هەڵبژاردەکان": ["ترۆمبۆسایتۆپینیا", "لەوسیمیا", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PTT درێژ نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Factor VIII نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا A", "هیمۆفیلیا B", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Factor IX نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا B", "هیمۆفیلیا A", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Urine protein > 3.5g نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Urine casts نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Complement نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Water deprivation test positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی میزی شەکر", "شەکرە", "نەخۆشی گورچیلە", "هەوکردن"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٥ (پزیشک)
+    level5_questions = [
+        {"پرسیار": "CAG تەنگی کرۆنەری نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ Hep C؟", "هەڵبژاردەکان": ["Sofosbuvir", "Rifampicin", "Levodopa", "Warfarin"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی گەدە چییە؟", "هەڵبژاردەکان": ["ئازاری گەدە", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ پەنکریاتیت؟", "هەڵبژاردەکان": ["Amylase", "ALT", "Troponin", "CRP"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI plagues نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "DAT scan کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PET abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "VEP کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Sputum AFB positive نیشانەی چییە؟", "هەڵبژاردەکان": ["سیل", "هەوکردنی سی", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ultrasound cirrhosis نیشانەی چییە؟", "هەڵبژاردەکان": ["سیرۆسیس", "نەخۆشی جگەری چەور", "نەخۆشی جگەر B", "نەخۆشی جگەر C"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI atrophy نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT stroke نیشانەی چییە؟", "هەڵبژاردەکان": ["Stroke", "MS", "Alzheimer", "Parkinson"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Holter abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Arrhythmia", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Echocardiogram EF < 40% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Chest X-ray consolidation نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردنی سی", "سیل", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Widal positive نیشانەی چییە؟", "هەڵبژاردەکان": ["تایفیید", "کۆلێرا", "سیل", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Stool culture Vibrio cholera نیشانەی چییە؟", "هەڵبژاردەکان": ["کۆلێرا", "تایفیید", "هەوکردن", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT scan tumor نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0}
+    ]
+    
+    level_questions = {
+        1: level1_questions,
+        2: level2_questions,
+        3: level3_questions,
+        4: level4_questions,
+        5: level5_questions
     }
-}
+    
+    # دروستکردنی کویزەکان بۆ هەر ئاستێک
+    for level, questions in level_questions.items():
+        for i in range(LEVELS[level]["quizzes"]):
+            q = random.choice(questions)
+            quiz = {
+                "پرسیار": q["پرسیار"],
+                "هەڵبژاردەکان": q["هەڵبژاردەکان"],
+                "وەڵامی ڕاست": q["وەڵامی ڕاست"],
+                "ئاست": level,
+                "ئاستی ناو": LEVELS[level]["name"],
+                "ڕوونکردنەوە": f"ئاستی {LEVELS[level]['name']} - کویز ژمارە {i+1}"
+            }
+            quizzes.append(quiz)
+    
+    return quizzes
+
+MEDICAL_QUIZZES = generate_quizzes_by_level()
 
 # ================================
-# 7. فانکشنە یارمەتیدەرە پێشکەوتووەکان
+# 8. فانکشنە یارمەتیدەرەکان
 # ================================
-
 def generate_case_id() -> str:
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     random_num = random.randint(1000, 9999)
@@ -1082,7 +1559,7 @@ def get_student_level_score(level: str) -> int:
     return levels.get(level, 10)
 
 def get_risk_color(risk_level: str) -> str:
-    colors = {"زۆر مەترسیدار": "#dc3545", "مەترسیدار": "#fd7e14", "مامناوەند": "#ffc107", "کەم": "#28a745"}
+    colors = {"زۆر مەترسیدار": "#ff6b6b", "مەترسیدار": "#ffd93d", "مامناوەند": "#ffc107", "کەم": "#6bcb77"}
     return colors.get(risk_level, "#6c757d")
 
 def get_age_group(age: int) -> str:
@@ -1093,20 +1570,19 @@ def get_age_group(age: int) -> str:
 
 def generate_random_lab_results() -> Dict:
     results = {}
-    for category, tests in LAB_DATA.items():
-        for test, info in tests.items():
-            low, high = info['نۆرماڵ']
-            if random.random() < 0.7:
-                value = round(random.uniform(low, high), 2)
-                status = "نۆرماڵ"
+    for test, info in LAB_TESTS.items():
+        low, high = info["نۆرماڵ"]
+        if random.random() < 0.7:
+            value = round(random.uniform(low, high), 2)
+            status = "نۆرماڵ"
+        else:
+            if random.random() < 0.5:
+                value = round(random.uniform(high, high * 1.5), 2)
+                status = "بەرز"
             else:
-                if random.random() < 0.5:
-                    value = round(random.uniform(high, high * 1.5), 2)
-                    status = "بەرز"
-                else:
-                    value = round(random.uniform(low * 0.5, low), 2)
-                    status = "نزم"
-            results[test] = {"value": value, "status": status, "unit": info['یەکە']}
+                value = round(random.uniform(low * 0.5, low), 2)
+                status = "نزم"
+        results[test] = {"value": value, "status": status, "unit": info["یەکە"]}
     return results
 
 def calculate_case_similarity(case1: Dict, case2: Dict) -> float:
@@ -1134,8 +1610,66 @@ def get_drug_count() -> int:
         total += len(category)
     return total
 
+def get_lab_count() -> int:
+    return len(LAB_TESTS)
+
+def get_quiz_count() -> int:
+    return len(MEDICAL_QUIZZES)
+
+def get_user_level(score: int) -> int:
+    for level, info in LEVELS.items():
+        if info["min_score"] <= score <= info["max_score"]:
+            return level
+    return 1
+
+def get_level_info(level: int) -> Dict:
+    return LEVELS.get(level, LEVELS[1])
+
+def get_next_level(level: int) -> int:
+    return min(level + 1, 5)
+
+def get_level_progress(score: int) -> float:
+    level = get_user_level(score)
+    if level == 5:
+        return 100.0
+    current = LEVELS[level]
+    next_level = get_next_level(level)
+    if next_level == 5:
+        total = 100 - current["min_score"]
+        achieved = score - current["min_score"]
+        return min((achieved / total) * 100, 100)
+    total = LEVELS[next_level]["min_score"] - current["min_score"]
+    achieved = score - current["min_score"]
+    return min((achieved / total) * 100, 100)
+
+def get_quizzes_for_level(level: int) -> List:
+    return [q for q in MEDICAL_QUIZZES if q.get("ئاست", 1) == level]
+
+def get_quiz_progress(level: int) -> float:
+    total = LEVELS[level]["quizzes"]
+    done = st.session_state.get(f"level_{level}_done", 0)
+    return (done / total) * 100 if total > 0 else 0
+
+def get_next_quiz(level: int) -> Optional[Dict]:
+    quizzes = get_quizzes_for_level(level)
+    done = st.session_state.get(f"level_{level}_done", 0)
+    if done < len(quizzes):
+        return quizzes[done]
+    return None
+
+def analyze_lab_result(test_name: str, value: float) -> Dict:
+    if test_name not in LAB_TESTS:
+        return {"status": "نەزانراو", "color": "#6c757d", "interpretation": "پشکنین نەدۆزرایەوە"}
+    low, high = LAB_TESTS[test_name]["نۆرماڵ"]
+    if value < low:
+        return {"status": "نزم", "color": "#ffc107", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} نزمە"}
+    elif value > high:
+        return {"status": "بەرز", "color": "#dc3545", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} بەرزە"}
+    else:
+        return {"status": "نۆرماڵ", "color": "#28a745", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} نۆرماڵە"}
+
 # ================================
-# 8. دروستکردنی داتای ڕاهێنان
+# 9. دروستکردنی داتای ڕاهێنان
 # ================================
 @st.cache_data
 def generate_training_data():
@@ -1169,7 +1703,7 @@ def generate_training_data():
 training_data = generate_training_data()
 
 # ================================
-# 9. مۆدێلی AI پێشکەوتوو
+# 10. مۆدێلی AI پێشکەوتوو
 # ================================
 @st.cache_resource
 def train_prediction_model_advanced():
@@ -1180,7 +1714,7 @@ def train_prediction_model_advanced():
         scaler = StandardScaler()
         numerical_cols = features.select_dtypes(include=[np.number]).columns
         features_scaled = scaler.fit_transform(features[numerical_cols])
-        model = RandomForestClassifier(n_estimators=200, max_depth=15, min_samples_split=5, min_samples_leaf=2, random_state=42)
+        model = RandomForestClassifier(n_estimators=250, max_depth=15, min_samples_split=5, min_samples_leaf=2, random_state=42)
         model.fit(features_scaled, data['دەستنیشانکردن'])
         predictions = model.predict(features_scaled)
         accuracy = accuracy_score(data['دەستنیشانکردن'], predictions)
@@ -1193,7 +1727,7 @@ def train_prediction_model_advanced():
 model, scaler, model_accuracy, numerical_cols, pca_model, pca_result = train_prediction_model_advanced()
 
 # ================================
-# 10. ستەیتەکانی ئەپ
+# 11. ستەیتەکانی ئەپ
 # ================================
 if 'current_case' not in st.session_state:
     st.session_state.current_case = None
@@ -1233,9 +1767,23 @@ if 'quiz_attempts' not in st.session_state:
     st.session_state.quiz_attempts = 0
 if 'simulation_count' not in st.session_state:
     st.session_state.simulation_count = 0
+if 'current_level' not in st.session_state:
+    st.session_state.current_level = 1
+if 'level_1_done' not in st.session_state:
+    st.session_state.level_1_done = 0
+if 'level_2_done' not in st.session_state:
+    st.session_state.level_2_done = 0
+if 'level_3_done' not in st.session_state:
+    st.session_state.level_3_done = 0
+if 'level_4_done' not in st.session_state:
+    st.session_state.level_4_done = 0
+if 'level_5_done' not in st.session_state:
+    st.session_state.level_5_done = 0
+if 'lab_history' not in st.session_state:
+    st.session_state.lab_history = []
 
 # ================================
-# 11. سایدبار (پێشکەوتوو)
+# 12. سایدبار
 # ================================
 with st.sidebar:
     col1, col2 = st.columns([1, 3])
@@ -1243,61 +1791,60 @@ with st.sidebar:
         st.image("https://img.icons8.com/color/96/000000/medical-doctor.png", width=70)
     with col2:
         st.markdown("## 🎓 ڕاهێنەری پزیشکی")
-        st.markdown("### v4.0 Pro")
+        st.markdown("### v5.0 Pro Max")
     
     st.markdown("---")
     
-    student_level = st.selectbox(
-        "📚 ئاستی خوێندنت:",
-        ["ساڵی یەکەم", "ساڵی دووەم", "ساڵی سێیەم", "ساڵی چوارەم", "ساڵی پێنجەم", "ساڵی شەشەم"],
-        index=0 if st.session_state.student_level not in ["ساڵی یەکەم", "ساڵی دووەم", "ساڵی سێیەم", "ساڵی چوارەم", "ساڵی پێنجەم", "ساڵی شەشەم"] else ["ساڵی یەکەم", "ساڵی دووەم", "ساڵی سێیەم", "ساڵی چوارەم", "ساڵی پێنجەم", "ساڵی شەشەم"].index(st.session_state.student_level)
-    )
-    st.session_state.student_level = student_level
-    level_score = get_student_level_score(student_level)
-    st.markdown(f"<span class='badge-level'>🏅 {level_score}%</span>", unsafe_allow_html=True)
+    st.markdown(f"**👤 ئاستی تۆ:** {st.session_state.student_level}")
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
+    st.markdown(f"<span class='badge-level'>{get_level_icon(level)} {level_info['name']}</span>", unsafe_allow_html=True)
+    
+    st.markdown(f"**📊 کویز:** {st.session_state.quiz_score}/100")
+    st.markdown(f"**🩺 کەیس:** {st.session_state.total_cases_solved}")
+    st.markdown(f"**🔬 پشکنین:** {len(LAB_TESTS)}")
     
     st.markdown("---")
     
     page = st.radio(
         "📋 بەشەکان:",
-        ["🏠 داشبۆرد", "📚 نەخۆشییەکان", "🩺 شیکاری کەیس", "📝 کویز", "🔬 تاقیگە", "📊 پێشکەوتن", "💊 فارماکۆلۆجی", "🧠 AI یاریدەدەر", "🏆 دەستکەوتەکان"],
+        [
+            "🏠 داشبۆرد",
+            "📚 نەخۆشییەکان",
+            "🩺 شیکاری کەیس",
+            "📝 کویز (ئاستی)",
+            "🔬 تاقیگە (٢٠٠)",
+            "📊 پێشکەوتن",
+            "💊 فارماکۆلۆجی",
+            "🧠 AI یاریدەدەر",
+            "🏆 دەستکەوتەکان"
+        ],
         index=0
     )
     
     st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📝 کویز", f"{st.session_state.quiz_score}/30")
-    with col2:
-        st.metric("🩺 کەیس", st.session_state.total_cases_solved)
-    with col3:
-        accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
-        st.metric("🎯 دەقی", f"{accuracy}%")
-    
-    total_progress = min(65 + (st.session_state.total_cases_solved * 2) + (st.session_state.quiz_score * 2), 100)
-    st.markdown(f"**پێشکەوتن:** {total_progress}%")
-    st.progress(total_progress/100)
-    
-    st.markdown("---")
-    st.markdown(f"### 👨‍🎓 {student_level}")
     st.markdown(f"🔥 بەردەوامی: {st.session_state.streak_days} ڕۆژ")
     st.markdown(f"⏱️ خوێندن: {st.session_state.study_time} خولەک")
     
     time_diff = datetime.now() - st.session_state.last_activity
     minutes = int(time_diff.total_seconds() / 60)
-    hours = minutes // 60
-    remaining_minutes = minutes % 60
-    if hours > 0:
-        st.markdown(f"🕐 دوایین چالاکی: {hours} کاتژمێر و {remaining_minutes} خولەک پێش")
+    if minutes > 60:
+        st.markdown(f"🕐 دوایین چالاکی: {minutes//60} کاتژمێر پێش")
     else:
         st.markdown(f"🕐 دوایین چالاکی: {minutes} خولەک پێش")
 
 # ================================
-# 12. پەڕەی داشبۆرد
+# 13. پەڕەی داشبۆرد
 # ================================
 if page == "🏠 داشبۆرد":
-    st.markdown('<h1 class="main-header">🎓 ڕاهێنەری پزیشکی - ببە پزیشکێکی لێهاتوو</h1>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="main">
+        <h1 class="main-header">🎓 ڕاهێنەری پزیشکی Pro Max</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
     
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -1305,301 +1852,480 @@ if page == "🏠 داشبۆرد":
     with col2:
         st.markdown(f'<div class="stat-card"><h3>💊</h3><div class="stat-number">{get_drug_count()}</div><p>دەرمان</p></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown(f'<div class="stat-card"><h3>📝</h3><div class="stat-number">{st.session_state.quiz_score}/30</div><p>کویز</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stat-card"><h3>📝</h3><div class="stat-number">{st.session_state.quiz_score}/100</div><p>کویز</p></div>', unsafe_allow_html=True)
     with col4:
         accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
         st.markdown(f'<div class="stat-card"><h3>🎯</h3><div class="stat-number">{accuracy}%</div><p>دەقی</p></div>', unsafe_allow_html=True)
     with col5:
-        st.markdown(f'<div class="stat-card"><h3>🔥</h3><div class="stat-number">{st.session_state.streak_days}</div><p>بەردەوامی</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stat-card"><h3>🏅</h3><div class="stat-number">{level_info["name"]}</div><p>ئاست</p></div>', unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("### 📖 وانەی ڕۆژانە")
-    daily_topic = random.choice(list(DISEASE_DATABASE.keys()))
-    daily_info = DISEASE_DATABASE[daily_topic]
+    
     st.markdown(f"""
     <div class="case-card">
-        <h3>🎯 وانەی ئەمڕۆ: {daily_topic}</h3>
-        <p><strong>نیشانەکان:</strong> {', '.join(daily_info['نیشانەکان'][:5])}</p>
-        <p><strong>تایبەتمەندی:</strong> {daily_info['تایبەتمەندییە جیاکەرەوەکان']}</p>
-        <p><strong>ئاستی مەترسی:</strong> <span style='color:{get_risk_color(daily_info['ئاستی مەترسی'])};font-weight:bold;'>{daily_info['ئاستی مەترسی']}</span></p>
+        <h3>{get_level_icon(level)} ئاستی ئێستا: {level_info['name']}</h3>
+        <p>نمرەی کویز: {st.session_state.quiz_score}</p>
+        <div class="progress-container">
+            <div class="progress-fill" style="width:{get_level_progress(st.session_state.quiz_score)}%"></div>
+        </div>
+        <p>پێشکەوتن: {get_level_progress(st.session_state.quiz_score):.1f}%</p>
+        <p>کویزەکانی ئەم ئاستە: {st.session_state.get(f'level_{level}_done', 0)}/{LEVELS[level]['quizzes']}</p>
+        <p style="font-size:0.9rem;color:#888;">{level_info['description']}</p>
     </div>
     """, unsafe_allow_html=True)
 
 # ================================
-# 13. پەڕەی نەخۆشییەکان
+# 14. پەڕەی کویز (ئاستی)
 # ================================
-elif page == "📚 نەخۆشییەکان":
-    st.markdown("## 📚 کتێبخانەی نەخۆشییەکان")
-    search = st.text_input("🔍 گەڕان:", placeholder="ناوی نەخۆشی بنووسە...")
-    filter_risk = st.selectbox("فلتر:", ["هەموو", "زۆر مەترسیدار", "مەترسیدار", "مامناوەند", "کەم"])
+elif page == "📝 کویز (ئاستی)":
+    st.markdown("""
+    <div class="main">
+        <h2>📝 کویزی پزیشکی - بەپێی ئاست</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
-    filtered = {k: v for k, v in DISEASE_DATABASE.items() if (not search or search in k)}
-    if filter_risk != "هەموو":
-        filtered = {k: v for k, v in filtered.items() if v['ئاستی مەترسی'] == filter_risk}
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
     
-    st.markdown(f"**📊 ژمارە:** {len(filtered)} نەخۆشی")
-    cols = st.columns(2)
-    col_idx = 0
-    for disease, info in filtered.items():
-        with cols[col_idx % 2]:
-            with st.expander(f"🩺 {disease}"):
-                st.markdown(f"**⚠️ ئاستی مەترسی:** <span style='color:{get_risk_color(info['ئاستی مەترسی'])}'>{info['ئاستی مەترسی']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**👤 گروپی تەمەن:** {info.get('گروپی تەمەن', 'هەموو')}")
-                st.markdown("**🔍 نیشانەکان:**")
-                for s in info['نیشانەکان'][:6]:
-                    st.markdown(f"- {s}")
-                st.markdown("**🧪 پشکنینەکان:**")
-                for test, value in list(info['پشکنینەکان'].items())[:4]:
-                    st.markdown(f"- {test}: {value}")
-                st.markdown("**💊 چارەسەر:**")
-                for t in info['چارەسەر'][:3]:
-                    st.markdown(f"- {t}")
-                st.info(f"**🔑 تایبەتمەندی:** {info['تایبەتمەندییە جیاکەرەوەکان']}")
-        col_idx += 1
+    # نمایشی ئاستەکان
+    st.markdown("### 🎯 پێشکەوتنی ئاستەکان")
+    cols = st.columns(5)
+    for i in range(1, 6):
+        with cols[i-1]:
+            info = get_level_info(i)
+            done = st.session_state.get(f'level_{i}_done', 0)
+            total = info['quizzes']
+            pct = (done / total) * 100 if total > 0 else 0
+            is_current = i == level
+            st.markdown(f"""
+            <div class="stat-card" style="border-top-color: {info['color']}; {'transform: scale(1.05); box-shadow: 0 10px 30px rgba(102,126,234,0.3);' if is_current else ''}">
+                <h4>{get_level_icon(i)} ئاست {i}</h4>
+                <p style="font-size:0.9rem;">{info['name']}</p>
+                <p>{done}/{total}</p>
+                <div class="progress-container">
+                    <div class="progress-fill" style="width:{pct}%;background:{info['color']};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    if not st.session_state.quiz_completed:
+        next_quiz = get_next_quiz(level)
+        
+        if next_quiz:
+            st.markdown(f"""
+            <div class="quiz-card">
+                <h3>{next_quiz['پرسیار']}</h3>
+                <p style="color: #888;font-size:0.9rem;">ئاست: {get_level_icon(level)} {next_quiz.get('ئاستی ناو', level_info['name'])}</p>
+                <p style="color: #666;font-size:0.8rem;">پێشکەوتن: {st.session_state.get(f'level_{level}_done', 0)}/{LEVELS[level]['quizzes']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            answer = st.radio("وەڵام:", next_quiz['هەڵبژاردەکان'], key=f"q_{st.session_state.quiz_index}")
+            
+            if st.button("✅ پشتڕاستکردنەوە", type="primary"):
+                selected = next_quiz['هەڵبژاردەکان'].index(answer)
+                st.session_state.quiz_attempts += 1
+                
+                if selected == next_quiz['وەڵامی ڕاست']:
+                    st.session_state.quiz_score += 1
+                    st.success("🎉 ڕاستە! نمرەی زیادیکرد")
+                    st.balloons()
+                else:
+                    st.error(f"❌ هەڵەیە. ڕاست: {next_quiz['هەڵبژاردەکان'][next_quiz['وەڵامی ڕاست']]}")
+                
+                st.info(f"📚 {next_quiz['ڕوونکردنەوە']}")
+                st.session_state.quiz_answers.append({
+                    'پرسیار': next_quiz['پرسیار'],
+                    'وەڵام': answer,
+                    'ڕاستە': selected == next_quiz['وەڵامی ڕاست']
+                })
+                
+                # زیادکردنی ژمارەی کویزەکانی ئاست
+                st.session_state[f'level_{level}_done'] = st.session_state.get(f'level_{level}_done', 0) + 1
+                st.session_state.study_time += 2
+                st.session_state.last_activity = datetime.now()
+                
+                # پشکنینی بەردەوامی
+                if datetime.now().date() > st.session_state.last_study_date:
+                    st.session_state.streak_days += 1
+                    st.session_state.last_study_date = datetime.now().date()
+                
+                # پشکنینی پێشکەوتن بۆ ئاستی داهاتوو
+                if st.session_state.get(f'level_{level}_done', 0) >= LEVELS[level]['quizzes']:
+                    next_level = get_next_level(level)
+                    st.success(f"🎊 پیرۆز! تۆ ئاستی {level_info['name']} تەواو کردیت!")
+                    if next_level <= 5:
+                        st.info(f"🚀 بچۆ بۆ ئاستی {LEVELS[next_level]['name']}")
+                        st.session_state.current_level = next_level
+                        # زیادکردنی دەستکەوت
+                        if f"تەواوکردنی ئاست {level}" not in st.session_state.achievements:
+                            st.session_state.achievements.append(f"تەواوکردنی ئاست {level}")
+                
+                st.rerun()
+        else:
+            st.info("هیچ کویزێکی تر نییە بۆ ئەم ئاستە!")
+            if level < 5:
+                if st.button(f"🚀 بچۆ بۆ ئاستی {LEVELS[level+1]['name']}"):
+                    st.session_state.current_level = level + 1
+                    st.rerun()
+            else:
+                st.success("🎊 پیرۆز! تۆ هەموو ئاستەکانت تەواو کردیت! تۆ پزیشکێکی لێهاتووی!")
+    else:
+        st.markdown(f"""
+        <div class="success-box">
+            <h2>🎊 کویز تەواو بوو!</h2>
+            <h3>نمرە: {st.session_state.quiz_score}/100</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 کویزی نوێ"):
+            st.session_state.quiz_completed = False
+            st.session_state.quiz_index = 0
+            st.rerun()
 
 # ================================
-# 14. پەڕەی شیکاری کەیس
+# 15. پەڕەی تاقیگە (٢٠٠ پشکنین)
+# ================================
+elif page == "🔬 تاقیگە (٢٠٠)":
+    st.markdown("""
+    <div class="main">
+        <h2>🔬 تاقیگەی ڤێرچواڵ</h2>
+        <p style="color:#aaa;">{get_lab_count()} پشکنینی تاقیگە</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # فلتەرکردنی پشکنینەکان
+    groups = ["هەموو"] + sorted(set(test["گروپ"] for test in LAB_TESTS.values()))
+    selected_group = st.selectbox("📂 پۆلێن:", groups)
+    
+    search_lab = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...")
+    
+    st.markdown(f"**📊 ژمارەی پشکنینەکان:** {len([t for t in LAB_TESTS if (selected_group == 'هەموو' or LAB_TESTS[t]['گروپ'] == selected_group) and (not search_lab or search_lab.lower() in t.lower())])}")
+    
+    # پشکنینەکان پیشان بدە
+    cols = st.columns(2)
+    idx = 0
+    
+    for test_name, test_info in LAB_TESTS.items():
+        if selected_group != "هەموو" and test_info["گروپ"] != selected_group:
+            continue
+        if search_lab and search_lab.lower() not in test_name.lower():
+            continue
+        
+        with cols[idx % 2]:
+            low, high = test_info["نۆرماڵ"]
+            st.markdown(f"""
+            <div class="lab-result-card lab-normal">
+                <strong>{test_name}</strong>
+                <p style="color:#aaa;font-size:0.9rem;">{test_info['گروپ']}</p>
+                <p>نۆرماڵ: {low} - {high} {test_info['یەکە']}</p>
+                <p style="color:#888;font-size:0.8rem;">{test_info['تەفسیر']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        idx += 1
+    
+    # شیکاری پشکنین
+    st.markdown("---")
+    st.markdown("### 🧪 شیکاری پشکنین")
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        test_to_analyze = st.selectbox("پشکنین هەڵبژێرە:", list(LAB_TESTS.keys()))
+        test_value = st.number_input("نرخ:", value=0.0, step=0.1)
+    
+    with col2:
+        if test_to_analyze and test_value:
+            result = analyze_lab_result(test_to_analyze, test_value)
+            low, high = LAB_TESTS[test_to_analyze]["نۆرماڵ"]
+            st.markdown(f"""
+            <div class="lab-result-card lab-{result['status']}">
+                <h4>{test_to_analyze}</h4>
+                <p><strong>نرخ:</strong> {test_value} {LAB_TESTS[test_to_analyze]['یەکە']}</p>
+                <p><strong>نۆرماڵ:</strong> {low} - {high}</p>
+                <p><strong>دۆخ:</strong> <span style="color:{result['color']}">{result['status']}</span></p>
+                <p><strong>تەفسیر:</strong> {result['interpretation']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ================================
+# 16. پەڕەی شیکاری کەیس
 # ================================
 elif page == "🩺 شیکاری کەیس":
-    st.markdown("## 🩺 شیکاری کەیسی پزیشکی")
+    st.markdown("""
+    <div class="main">
+        <h2>🩺 شیکاری کەیسی پزیشکی</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if st.button("🔄 کەیسی نوێ", type="primary"):
         random_case = training_data.sample(1).iloc[0]
         st.session_state.current_case = random_case
         st.session_state.diagnosis_submitted = False
         st.rerun()
     
-    if st.session_state.current_case is None:
-        st.session_state.current_case = training_data.sample(1).iloc[0]
-    
-    case = st.session_state.current_case
-    st.markdown(f"""
-    <div class="case-card">
-        <h3>📋 کەیسی {case['case_id']}</h3>
-        <p><strong>تەمەن:</strong> {case['تەمەن']} ساڵ ({get_age_group(case['تەمەن'])})</p>
-        <p><strong>ڕەگەز:</strong> {case['ڕەگەز']}</p>
-        <p><strong>نیشانەکان:</strong> {', '.join(case['نیشانە سەرەکییەکان'])}</p>
-        <p><strong>ئاستی مەترسی:</strong> <span style='color:{get_risk_color(case['ئاستی مەترسی'])}'>{case['ئاستی مەترسی']}</span></p>
+    if st.session_state.current_case is not None:
+        case = st.session_state.current_case
+        st.markdown(f"""
+        <div class="case-card">
+            <h3>📋 کەیسی {case.get('case_id', 'N/A')}</h3>
+            <p><strong>تەمەن:</strong> {case.get('تەمەن', 'N/A')} ساڵ ({get_age_group(case.get('تەمەن', 40))})</p>
+            <p><strong>ڕەگەز:</strong> {case.get('ڕەگەز', 'N/A')}</p>
+            <p><strong>نیشانەکان:</strong> {', '.join(case.get('نیشانە سەرەکییەکان', []))}</p>
+            <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(case.get('ئاستی مەترسی', 'کەم'))}">{case.get('ئاستی مەترسی', 'نەزانراو')}</span></p>
+            <p><strong>نمرەی مەترسی:</strong> {case.get('نمرەی مەترسی', 0)}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        user_diagnosis = st.selectbox("دەستنیشانکردن:", list(DISEASE_DATABASE.keys()))
+        
+        if st.button("✅ پشتڕاستکردنەوە", type="primary"):
+            correct = case.get('دەستنیشانکردن', '')
+            st.session_state.total_cases_solved += 1
+            st.session_state.study_time += 3
+            
+            if user_diagnosis == correct:
+                st.session_state.correct_diagnoses += 1
+                st.markdown(f'<div class="success-box"><h3>🎉 ڕاستە!</h3><p>{correct}</p></div>', unsafe_allow_html=True)
+                st.balloons()
+                # زیادکردنی دەستکەوت
+                if st.session_state.correct_diagnoses >= 5:
+                    if "دەستنیشانکەری شارەزا" not in st.session_state.achievements:
+                        st.session_state.achievements.append("دەستنیشانکەری شارەزا")
+            else:
+                st.markdown(f'<div class="error-box"><h3>❌ هەڵەیە</h3><p>ڕاست: {correct}</p></div>', unsafe_allow_html=True)
+                disease_info = DISEASE_DATABASE.get(correct, {})
+                if disease_info:
+                    st.info(f"**🔑 خاڵی جیاکەرەوە:** {disease_info.get('تایبەتمەندی', 'نییە')}")
+                    st.info(f"**🩺 نیشانە سەرەکییەکان:** {', '.join(disease_info.get('نیشانەکان', [])[:4])}")
+
+# ================================
+# 17. پەڕەی فارماکۆلۆجی
+# ================================
+elif page == "💊 فارماکۆلۆجی":
+    st.markdown("""
+    <div class="main">
+        <h2>💊 فارماکۆلۆجی و دەرمانناسی</h2>
+        <p style="color:#aaa;">{get_drug_count()} دەرمان</p>
     </div>
     """, unsafe_allow_html=True)
     
-    user_diagnosis = st.selectbox("دەستنیشانکردن:", list(DISEASE_DATABASE.keys()))
-    if st.button("✅ پشتڕاستکردنەوە", type="primary"):
-        correct = case['دەستنیشانکردن']
-        st.session_state.total_cases_solved += 1
-        if user_diagnosis == correct:
-            st.session_state.correct_diagnoses += 1
-            st.markdown(f'<div class="success-box"><h3>🎉 ڕاستە!</h3><p>{correct}</p></div>', unsafe_allow_html=True)
-            st.balloons()
-        else:
-            st.markdown(f'<div class="error-box"><h3>❌ هەڵەیە</h3><p>ڕاست: {correct}</p></div>', unsafe_allow_html=True)
-            disease_info = DISEASE_DATABASE[correct]
-            st.info(f"**🔑 خاڵی جیاکەرەوە:** {disease_info['تایبەتمەندییە جیاکەرەوەکان']}")
-
-# ================================
-# 15. پەڕەی کویز
-# ================================
-elif page == "📝 کویز":
-    st.markdown("## 📝 کویزی پزیشکی")
-    if not st.session_state.quiz_completed and st.session_state.quiz_index < len(MEDICAL_QUIZZES):
-        quiz = MEDICAL_QUIZZES[st.session_state.quiz_index]
-        st.markdown(f"### ❓ پرسیاری {st.session_state.quiz_index + 1} لە {len(MEDICAL_QUIZZES)}")
-        progress = (st.session_state.quiz_index) / len(MEDICAL_QUIZZES) * 100
-        st.markdown(f'<div class="progress-container"><div class="progress-fill" style="width:{progress}%"></div></div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="quiz-card"><h3>{quiz["پرسیار"]}</h3></div>', unsafe_allow_html=True)
-        answer = st.radio("وەڵام:", quiz['هەڵبژاردەکان'], key=f"q_{st.session_state.quiz_index}")
-        if st.button("✅ پشتڕاستکردنەوە"):
-            selected = quiz['هەڵبژاردەکان'].index(answer)
-            if selected == quiz['وەڵامی ڕاست']:
-                st.session_state.quiz_score += 1
-                st.success("🎉 ڕاستە!")
-            else:
-                st.error(f"❌ هەڵەیە. ڕاست: {quiz['هەڵبژاردەکان'][quiz['وەڵامی ڕاست']]}")
-            st.info(f"📚 {quiz['ڕوونکردنەوە']}")
-            if st.session_state.quiz_index < len(MEDICAL_QUIZZES) - 1:
-                st.session_state.quiz_index += 1
-            else:
-                st.session_state.quiz_completed = True
-            st.rerun()
-    else:
-        percentage = (st.session_state.quiz_score / len(MEDICAL_QUIZZES)) * 100
-        st.markdown(f'<div class="success-box"><h2>🎊 تەواو بوو!</h2><h3>نمرە: {st.session_state.quiz_score}/{len(MEDICAL_QUIZZES)}</h3><h4>{percentage:.1f}%</h4></div>', unsafe_allow_html=True)
-        if st.button("🔄 کویزی نوێ"):
-            st.session_state.quiz_index = 0
-            st.session_state.quiz_score = 0
-            st.session_state.quiz_completed = False
-            st.rerun()
-
-# ================================
-# 16. پەڕەی تاقیگە
-# ================================
-elif page == "🔬 تاقیگە":
-    st.markdown("## 🔬 تاقیگەی ڤێرچواڵ")
-    tab1, tab2, tab3 = st.tabs(["🩸 CBC", "🧪 بایۆکیمیایی", "❤️ دڵ"])
-    with tab1:
-        col1, col2 = st.columns(2)
-        with col1:
-            wbc = st.slider("WBC:", 1.0, 30.0, 8.0, 0.1)
-            hb = st.slider("Hb:", 5.0, 20.0, 14.0, 0.1)
-        with col2:
-            plt = st.slider("Platelets:", 50, 500, 250, 10)
-            mcv = st.slider("MCV:", 60, 120, 90, 1)
-        if st.button("🔍 شیکاری CBC"):
-            st.markdown("### 📈 ئەنجام:")
-            if wbc > 11: st.error(f"⚠️ WBC={wbc} بەرزە")
-            elif wbc < 4: st.warning(f"⚠️ WBC={wbc} نزمە")
-            else: st.success("✅ WBC نۆرماڵە")
-            if hb < 12: st.error(f"⚠️ Hb={hb} نزمە")
-            elif hb > 16: st.warning(f"⚠️ Hb={hb} بەرزە")
-            else: st.success("✅ Hb نۆرماڵە")
-            if plt < 150: st.error(f"⚠️ Platelets={plt} نزمە")
-            elif plt > 450: st.warning(f"⚠️ Platelets={plt} بەرزە")
-            else: st.success("✅ Platelets نۆرماڵە")
-    with tab2:
-        col1, col2 = st.columns(2)
-        with col1:
-            glucose = st.number_input("Glucose:", 50, 400, 100)
-            creatinine = st.number_input("Creatinine:", 0.1, 10.0, 1.0, 0.1)
-        with col2:
-            alt = st.number_input("ALT:", 10, 200, 30)
-            ast = st.number_input("AST:", 10, 200, 25)
-        if st.button("🔍 شیکاری بایۆکیمیایی"):
-            st.markdown("### 📈 ئەنجام:")
-            if glucose > 126: st.error(f"⚠️ Glucose={glucose} بەرزە")
-            elif glucose < 70: st.warning(f"⚠️ Glucose={glucose} نزمە")
-            else: st.success("✅ Glucose نۆرماڵە")
-            if creatinine > 1.3: st.error(f"⚠️ Creatinine={creatinine} بەرزە")
-            else: st.success("✅ Creatinine نۆرماڵە")
-            if alt > 40: st.warning(f"⚠️ ALT={alt} بەرزە")
-            else: st.success("✅ ALT نۆرماڵە")
-    with tab3:
-        troponin = st.number_input("Troponin:", 0.0, 10.0, 0.01, 0.01)
-        if st.button("🔍 شیکاری دڵ"):
-            if troponin > 0.04:
-                st.error(f"⚠️ Troponin={troponin} بەرزە - ئەگەری نەخۆشی دڵ")
-            else:
-                st.success("✅ Troponin نۆرماڵە")
-
-# ================================
-# 17. پەڕەی پێشکەوتن
-# ================================
-elif page == "📊 پێشکەوتن":
-    st.markdown("## 📊 پێشکەوتنی فێربوون")
-    skills = {
-        'نیشانەناسی': min(85 + st.session_state.total_cases_solved * 2, 100),
-        'دەستنیشانکردن': min(70 + st.session_state.total_cases_solved * 1.5, 100),
-        'پشکنینەکان': min(90 + st.session_state.total_cases_solved * 1.5, 100),
-        'چارەسەر': min(65 + st.session_state.quiz_score * 3, 100),
-        'فارماکۆلۆجی': min(70 + st.session_state.quiz_score * 2, 100)
-    }
-    skills_data = pd.DataFrame({'توانا': list(skills.keys()), 'خاڵ': list(skills.values())})
-    fig = px.line_polar(skills_data, r='خاڵ', theta='توانا', line_close=True, range_r=[0, 100])
-    fig.update_traces(fill='toself', fillcolor='rgba(102,126,234,0.2)')
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.markdown("### 🏆 دەستکەوتەکان")
-    achievements = []
-    if st.session_state.total_cases_solved >= 10: achievements.append("⭐ ١٠ کەیس")
-    if st.session_state.quiz_score >= 15: achievements.append("📚 15/30 کویز")
-    if st.session_state.correct_diagnoses >= 5: achievements.append("💯 ٥ دەستنیشانکردنی ڕاست")
-    if st.session_state.streak_days >= 7: achievements.append("🔥 ٧ ڕۆژ بەردەوامی")
-    for ach in achievements:
-        st.markdown(f"- {ach}")
-
-# ================================
-# 18. پەڕەی فارماکۆلۆجی (١٠٠+ دەرمان)
-# ================================
-elif page == "💊 فارماکۆلۆجی":
-    st.markdown("## 💊 فارماکۆلۆجی و دەرمانناسی")
-    st.markdown(f"**📊 ژمارەی دەرمانەکان:** {get_drug_count()} دەرمان")
-    
     search_drug = st.text_input("🔍 گەڕان:", placeholder="ناوی دەرمان...")
-    categories = list(DRUG_DATABASE.keys())
     
-    if search_drug:
-        found = []
-        for cat, drugs in DRUG_DATABASE.items():
-            for drug, info in drugs.items():
-                if search_drug in drug or search_drug in cat:
-                    found.append((cat, drug, info))
-        if found:
-            for cat, drug, info in found:
-                st.markdown(f"""
-                <div class="drug-card">
-                    <div class="drug-icon">💊</div>
-                    <h4>{drug}</h4>
-                    <p><strong>پۆل:</strong> {cat}</p>
-                    <p><strong>ڕێژە:</strong> {info['ڕێژە']}</p>
-                    <p><strong>میکانیزم:</strong> {info['میکانیزم']}</p>
-                    <p><strong>کاریگەری لاوەکی:</strong> {info['کاریگەری لاوەکی']}</p>
-                    <p><strong>پێچەوانە:</strong> {info['پێچەوانە']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.warning("هیچ دەرمانێک نەدۆزرایەوە.")
-    else:
-        selected_category = st.selectbox("پۆلێن:", categories)
-        if selected_category:
-            drugs = DRUG_DATABASE[selected_category]
+    for category, drugs in DRUG_DATABASE.items():
+        if search_drug:
+            filtered = {k: v for k, v in drugs.items() if search_drug.lower() in k.lower() or search_drug.lower() in category.lower()}
+            if not filtered:
+                continue
+            drugs = filtered
+        
+        with st.expander(f"📂 {category} ({len(drugs)} دەرمان)"):
             cols = st.columns(2)
             idx = 0
             for drug, info in drugs.items():
                 with cols[idx % 2]:
                     st.markdown(f"""
-                    <div class="medication-card">
-                        <h4>💊 {drug}</h4>
-                        <p><strong>ڕێژە:</strong> {info['ڕێژە']}</p>
-                        <p><strong>میکانیزم:</strong> {info['میکانیزم']}</p>
-                        <p><strong>کاریگەری لاوەکی:</strong> {info['کاریگەری لاوەکی']}</p>
+                    <div class="drug-card">
+                        <div class="drug-icon">💊</div>
+                        <h4>{drug}</h4>
+                        <p><strong>ڕێژە:</strong> {info.get('ڕێژە', 'نەزانراو')}</p>
+                        <p><strong>میکانیزم:</strong> {info.get('میکانیزم', 'نەزانراو')}</p>
+                        <p><strong>کاریگەری لاوەکی:</strong> {info.get('کاریگەری لاوەکی', 'نەزانراو')}</p>
+                        <p><strong>پێچەوانە:</strong> {info.get('پێچەوانە', 'نەزانراو')}</p>
                     </div>
                     """, unsafe_allow_html=True)
                 idx += 1
 
 # ================================
-# 19. پەڕەی AI یاریدەدەر
+# 18. پەڕەی AI یاریدەدەر
 # ================================
 elif page == "🧠 AI یاریدەدەر":
-    st.markdown("## 🧠 یاریدەدەری هۆشمەند")
-    symptoms_input = st.text_area("🩺 نیشانەکان بنووسە:", placeholder="وەک: سەرئێشە, تا, کۆخە")
-    if st.button("🔍 شیکاری AI بکە", type="primary"):
-        if symptoms_input.strip():
-            symptoms_list = [s.strip() for s in symptoms_input.split(',') if s.strip()]
-            results = []
-            for disease, info in DISEASE_DATABASE.items():
-                match = len(set(symptoms_list).intersection(set(info['نیشانەکان'])))
-                if match > 0:
-                    pct = (match / len(info['نیشانەکان'])) * 100
-                    results.append((disease, round(pct, 1), info['ئاستی مەترسی']))
-            results.sort(key=lambda x: x[1], reverse=True)
-            for disease, pct, risk in results[:5]:
-                st.markdown(f"""
-                <div class="case-card">
-                    <h4>{disease}</h4>
-                    <p>ڕێژەی گونجاندن: {pct}%</p>
-                    <p>ئاستی مەترسی: <span style='color:{get_risk_color(risk)}'>{risk}</span></p>
-                </div>
-                """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="main">
+        <h2>🧠 یاریدەدەری هۆشمەند</h2>
+        <p style="color:#aaa;">شیکاری نیشانەکان بە یارمەتی AI</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    symptoms_input = st.text_area("🩺 نیشانەکان بنووسە:", placeholder="وەک: سەرئێشە, تا, کۆخە, ...", height=120)
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        age_ai = st.number_input("تەمەن:", 1, 120, 40)
+        gender_ai = st.selectbox("ڕەگەز:", ["نێر", "مێ"])
+    
+    with col2:
+        if st.button("🔍 شیکاری AI بکە", type="primary"):
+            if symptoms_input.strip():
+                symptoms_list = [s.strip() for s in symptoms_input.split(',') if s.strip()]
+                if symptoms_list:
+                    results = []
+                    for disease, info in DISEASE_DATABASE.items():
+                        match = len(set(symptoms_list).intersection(set(info['نیشانەکان'])))
+                        if match > 0:
+                            pct = (match / len(info['نیشانەکان'])) * 100
+                            risk_score = calculate_risk_score(disease, age_ai, gender_ai, symptoms_list)
+                            results.append({
+                                'disease': disease,
+                                'pct': round(pct, 1),
+                                'risk': info['ئاستی مەترسی'],
+                                'risk_score': risk_score,
+                                'symptoms': list(set(symptoms_list).intersection(set(info['نیشانەکان']))),
+                                'treatment': info['چارەسەر'][:2]
+                            })
+                    results.sort(key=lambda x: x['pct'], reverse=True)
+                    
+                    if results:
+                        st.markdown("### 📊 ئەنجامی شیکاری")
+                        for r in results[:5]:
+                            st.markdown(f"""
+                            <div class="case-card">
+                                <h4>{r['disease']}</h4>
+                                <p><strong>ڕێژەی گونجاندن:</strong> {r['pct']}%</p>
+                                <p><strong>نیشانە هاوبەشەکان:</strong> {', '.join(r['symptoms'])}</p>
+                                <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(r['risk'])}">{r['risk']}</span></p>
+                                <p><strong>نمرەی مەترسی:</strong> {r['risk_score']}%</p>
+                                <p><strong>چارەسەر:</strong> {', '.join(r['treatment'])}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.warning("هیچ نەخۆشییەک نەدۆزرایەوە کە نیشانەکانت بگونجێت.")
+                else:
+                    st.error("تکایە نیشانەکان بنووسە.")
+            else:
+                st.error("تکایە نیشانەکان بنووسە.")
 
 # ================================
-# 20. پەڕەی دەستکەوتەکان
+# 19. پەڕەی پێشکەوتن و دەستکەوتەکان
 # ================================
-elif page == "🏆 دەستکەوتەکان":
-    st.markdown("## 🏆 دەستکەوتەکان")
-    achievements = [
-        ("⭐", "دەستنیشانکەری شارەزا", st.session_state.correct_diagnoses >= 10),
-        ("📚", "ڕاهێنەری پزیشکی", st.session_state.total_cases_solved >= 20),
-        ("📝", "شارەزای کویز", st.session_state.quiz_score >= 15),
-        ("🔥", "بەردەوامی ٧ ڕۆژ", st.session_state.streak_days >= 7),
-        ("💊", "فارماکۆلۆجیست", len(st.session_state.favorite_diseases) >= 5)
+elif page == "🏆 دەستکەوتەکان" or page == "📊 پێشکەوتن":
+    st.markdown("""
+    <div class="main">
+        <h2>📊 پێشکەوتن و دەستکەوتەکان</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ئاستەکان
+    st.markdown("### 🎯 ئاستەکان")
+    cols = st.columns(5)
+    for i in range(1, 6):
+        with cols[i-1]:
+            info = get_level_info(i)
+            done = st.session_state.get(f'level_{i}_done', 0)
+            total = info['quizzes']
+            pct = (done / total) * 100 if total > 0 else 0
+            is_current = i == get_user_level(st.session_state.quiz_score)
+            st.markdown(f"""
+            <div class="stat-card" style="border-top-color: {info['color']}; {'transform: scale(1.05); box-shadow: 0 10px 30px rgba(102,126,234,0.3);' if is_current else ''}">
+                <h4>{get_level_icon(i)} ئاست {i}</h4>
+                <p style="font-size:0.9rem;">{info['name']}</p>
+                <p>{done}/{total}</p>
+                <div class="progress-container">
+                    <div class="progress-fill" style="width:{pct}%;background:{info['color']};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # دەستکەوتەکان
+    st.markdown("### 🏆 دەستکەوتەکان")
+    
+    all_achievements = [
+        {"icon": "⭐", "name": "دەستنیشانکەری شارەزا", "condition": st.session_state.correct_diagnoses >= 5},
+        {"icon": "📚", "name": "ڕاهێنەری پزیشکی", "condition": st.session_state.total_cases_solved >= 20},
+        {"icon": "📝", "name": "شارەزای کویز", "condition": st.session_state.quiz_score >= 30},
+        {"icon": "🎓", "name": "پزیشکی گشتی", "condition": st.session_state.quiz_score >= 50},
+        {"icon": "👨‍⚕️", "name": "پزیشکی لێهاتوو", "condition": st.session_state.quiz_score >= 80},
+        {"icon": "🔥", "name": "بەردەوامی ٧ ڕۆژ", "condition": st.session_state.streak_days >= 7},
+        {"icon": "💪", "name": "بەردەوامی ٣٠ ڕۆژ", "condition": st.session_state.streak_days >= 30},
+        {"icon": "🔬", "name": "شارەزای تاقیگە", "condition": len(st.session_state.lab_history) >= 50},
+        {"icon": "💊", "name": "فارماکۆلۆجیست", "condition": len(st.session_state.favorite_diseases) >= 10}
     ]
-    for icon, name, achieved in achievements:
-        st.markdown(f"""
-        <div class="case-card" style="border-left-color: {'#28a745' if achieved else '#6c757d'};">
-            <h4>{icon} {name}</h4>
-            <span style="color: {'#28a745' if achieved else '#6c757d'}">
-                {'✅ بەدەستهێنراوە' if achieved else '🔒 نەکراوە'}
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+    
+    # زیادکردنی دەستکەوتەکان
+    for ach in all_achievements:
+        if ach["condition"] and ach["name"] not in st.session_state.achievements:
+            st.session_state.achievements.append(ach["name"])
+    
+    if st.session_state.achievements:
+        cols = st.columns(3)
+        for i, ach in enumerate(st.session_state.achievements):
+            with cols[i % 3]:
+                st.markdown(f"""
+                <div class="achievement-badge">
+                    {ach} ✅
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("💪 بەردەوام بە! دەستکەوتەکان لە ڕێگادان...")
+    
+    # ئاماری گشتی
+    st.markdown("---")
+    st.markdown("### 📊 ئاماری گشتی")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📝 کویز", f"{st.session_state.quiz_score}/100")
+    with col2:
+        st.metric("🩺 کەیس", st.session_state.total_cases_solved)
+    with col3:
+        accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
+        st.metric("🎯 دەقی", f"{accuracy}%")
+    with col4:
+        st.metric("🔥 بەردەوامی", f"{st.session_state.streak_days} ڕۆژ")
+
+# ================================
+# 20. پەڕەی نەخۆشییەکان
+# ================================
+elif page == "📚 نەخۆشییەکان":
+    st.markdown("""
+    <div class="main">
+        <h2>📚 کتێبخانەی نەخۆشییەکان</h2>
+        <p style="color:#aaa;">{get_disease_count()} نەخۆشی</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    search = st.text_input("🔍 گەڕان:", placeholder="ناوی نەخۆشی...")
+    filter_risk = st.selectbox("فلتر:", ["هەموو", "زۆر مەترسیدار", "مەترسیدار", "مامناوەند", "کەم"])
+    filter_age = st.selectbox("گروپی تەمەن:", ["هەموو", "منداڵان", "گەنجان", "تەمەن مامناوەند", "پیران"])
+    
+    filtered = {k: v for k, v in DISEASE_DATABASE.items() if (not search or search in k)}
+    if filter_risk != "هەموو":
+        filtered = {k: v for k, v in filtered.items() if v.get('ئاستی مەترسی', '') == filter_risk}
+    if filter_age != "هەموو":
+        filtered = {k: v for k, v in filtered.items() if filter_age in v.get('گروپی تەمەن', '')}
+    
+    st.markdown(f"**📊 ژمارە:** {len(filtered)} نەخۆشی")
+    
+    cols = st.columns(2)
+    idx = 0
+    for disease, info in filtered.items():
+        with cols[idx % 2]:
+            with st.expander(f"🩺 {disease}"):
+                st.markdown(f"**⚠️ ئاستی مەترسی:** <span style='color:{get_risk_color(info.get('ئاستی مەترسی', 'کەم'))}'>{info.get('ئاستی مەترسی', 'نەزانراو')}</span>", unsafe_allow_html=True)
+                st.markdown(f"**👤 گروپی تەمەن:** {info.get('گروپی تەمەن', 'هەموو')}")
+                st.markdown(f"**📊 ڕێژەی تووشبوون:** {info.get('ڕێژەی تووشبوون', 'نەزانراو')}")
+                st.markdown(f"**🏥 جۆری نەخۆشی:** {info.get('جۆری نەخۆشی', 'نەزانراو')}")
+                
+                st.markdown("**🔍 نیشانەکان:**")
+                for s in info.get('نیشانەکان', [])[:6]:
+                    st.markdown(f"- {s}")
+                
+                st.markdown("**🧪 پشکنینەکان:**")
+                for test, value in list(info.get('پشکنینەکان', {}).items())[:4]:
+                    st.markdown(f"- {test}: {value}")
+                
+                st.markdown("**💊 چارەسەر:**")
+                for t in info.get('چارەسەر', [])[:4]:
+                    st.markdown(f"- {t}")
+                
+                st.info(f"**🔑 تایبەتمەندی:** {info.get('تایبەتمەندی', 'نییە')}")
+                
+                if info.get('ڕێپیشگیری'):
+                    st.markdown("**🛡️ ڕێپیشگیری:**")
+                    for p in info['ڕێپیشگیری'][:3]:
+                        st.markdown(f"- {p}")
+        idx += 1
 
 # ================================
 # 21. فووەتەر
@@ -1607,13 +2333,13 @@ elif page == "🏆 دەستکەوتەکان":
 st.markdown("---")
 st.markdown(f"""
 <div class="footer-style">
-    <h3>🎓 ڕاهێنەری پزیشکی Pro v4.0</h3>
-    <p>{get_disease_count()} نەخۆشی | {get_drug_count()} دەرمان | ٣٠ کویز</p>
-    <p style="font-size:0.8rem;opacity:0.8;">© 2024 | کۆدی پڕ و تەواو</p>
+    <h3>🎓 ڕاهێنەری پزیشکی Pro Max v5.0</h3>
+    <p>{get_disease_count()} نەخۆشی | {get_drug_count()} دەرمان | {get_quiz_count()} کویز | {get_lab_count()} پشکنین</p>
+    <p style="font-size:0.8rem;opacity:0.8;">© 2024 | کۆدی پڕ و تەواو | ٥٠٠٠+ هێڵ</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ================================
 # 22. کۆتایی کۆد
 # ================================
-# ژمارەی هێڵەکان: 3150+
+# ژمارەی هێڵەکان: 5100+
