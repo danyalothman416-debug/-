@@ -41,6 +41,81 @@ st.set_page_config(
 )
 
 # ================================
+# 1.5 سیستەمی لۆگین و خەزنکردنی داتا
+# ================================
+import hashlib
+import json
+import os
+
+# فۆڵدەری خەزنکردنی داتاکان
+DATA_DIR = "user_data"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
+
+def hash_password(password: str) -> str:
+    """هێشکردنی وشەی نهێنی بە شێوازی SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def load_users() -> Dict:
+    """بارکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_users(users: Dict):
+    """خەزنکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=4)
+
+def create_user(username: str, password: str) -> bool:
+    """دروستکردنی بەکارهێنەری نوێ"""
+    users = load_users()
+    if username in users:
+        return False
+    users[username] = {
+        "password": hash_password(password),
+        "created_at": datetime.now().isoformat(),
+        "custom_lab_tests": {},
+        "custom_drugs": {}
+    }
+    save_users(users)
+    return True
+
+def authenticate_user(username: str, password: str) -> bool:
+    """پشتڕاستکردنەوەی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        return users[username]["password"] == hash_password(password)
+    return False
+
+def load_user_data(username: str) -> Dict:
+    """بارکردنی داتای تایبەتی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        return users[username]
+    return {}
+
+def save_user_data(username: str, data: Dict):
+    """خەزنکردنی داتای تایبەتی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        users[username].update(data)
+        save_users(users)
+
+# دەستپێکردنی ستەیتی لۆگین
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+if 'custom_lab_tests' not in st.session_state:
+    st.session_state.custom_lab_tests = {}
+if 'custom_drugs' not in st.session_state:
+    st.session_state.custom_drugs = {}
+
+# ================================
 # 2. CSS و ستایلە پێشکەوتووەکان (لەگەڵ ئەنیمەیشنی زیاتر)
 # ================================
 st.markdown("""
@@ -664,6 +739,38 @@ st.markdown("""
         animation: pulse 2s infinite, float 4s ease-in-out infinite;
         display: inline-block;
         filter: drop-shadow(0 0 30px rgba(102,126,234,0.4));
+    }
+    
+    /* ستایلی پەڕەی لۆگین */
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+    }
+    
+    .login-box {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(30px);
+        padding: 3rem;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        text-align: center;
+        max-width: 450px;
+        width: 100%;
+        animation: fadeIn 1s ease-out;
+    }
+    
+    .login-input {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 15px !important;
+        color: white !important;
+        padding: 12px 20px !important;
+        margin: 10px 0 !important;
+        width: 100% !important;
+        font-size: 1rem !important;
     }
     
     @media (max-width: 768px) {
@@ -1877,7 +1984,64 @@ if 'custom_drugs' not in st.session_state:
     st.session_state.custom_drugs = {}
 
 # ================================
-# 12. سایدبار - لەگەڵ لۆگۆی Dr.Danyal
+# *** پەڕەی لۆگین ***
+# ================================
+if not st.session_state.logged_in:
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+    
+    st.markdown("""
+        <span class="dr-icon">🩺</span>
+        <h2 style="color:white;margin-bottom:20px;">Dr.Danyal</h2>
+        <p style="color:rgba(255,255,255,0.6);">تکایە بچۆ ژوورەوە یان هەژمارێکی نوێ دروست بکە</p>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["چوونە ژوورەوە", "دروستکردنی هەژمار"])
+    
+    with tab1:
+        with st.form("login_form"):
+            login_username = st.text_input("👤 ناوی بەکارهێنەری", key="login_username")
+            login_password = st.text_input("🔒 وشەی نهێنی", type="password", key="login_password")
+            login_submit = st.form_submit_button("🚪 چوونە ژوورەوە", type="primary")
+            
+            if login_submit:
+                if authenticate_user(login_username, login_password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = login_username
+                    # بارکردنی داتای بەکارهێنەر
+                    user_data = load_user_data(login_username)
+                    st.session_state.custom_lab_tests = user_data.get("custom_lab_tests", {})
+                    st.session_state.custom_drugs = user_data.get("custom_drugs", {})
+                    st.success(f"بەخێربێیت {login_username}!")
+                    st.rerun()
+                else:
+                    st.error("❌ ناوی بەکارهێنەری یان وشەی نهێنی هەڵەیە")
+    
+    with tab2:
+        with st.form("register_form"):
+            new_username = st.text_input("👤 ناوی بەکارهێنەری نوێ", key="new_username")
+            new_password = st.text_input("🔒 وشەی نهێنی", type="password", key="new_password")
+            new_password_confirm = st.text_input("🔒 دووبارە وشەی نهێنی", type="password", key="new_password_confirm")
+            register_submit = st.form_submit_button("📝 دروستکردنی هەژمار", type="primary")
+            
+            if register_submit:
+                if not new_username or not new_password:
+                    st.error("تکایە هەموو خانەکان پڕ بکەرەوە")
+                elif new_password != new_password_confirm:
+                    st.error("وشەی نهێنی یەک ناگرنەوە")
+                elif len(new_password) < 4:
+                    st.error("وشەی نهێنی پێویستە لانیکەم ٤ پیت بێت")
+                else:
+                    if create_user(new_username, new_password):
+                        st.success("✅ هەژمارەکەت بە سەرکەوتوویی دروست کرا! ئێستا دەتوانیت بچیتە ژوورەوە")
+                    else:
+                        st.error("❌ ئەم ناوی بەکارهێنەرییە پێشتر بەکارهێنراوە")
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.stop()  # ڕێگری لە پیشاندانی بەشەکانی تر تا لۆگین نەکرێت
+
+# ================================
+# 12. سایدبار - لەگەڵ لۆگۆی Dr.Danyal و دوگمەی چوونە دەرەوە
 # ================================
 with st.sidebar:
     # لۆگۆی Dr.Danyal
@@ -1893,15 +2057,16 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.markdown(f"**👤 ئاستی تۆ:** {st.session_state.student_level}")
+    st.markdown(f"**👤 بەخێربێیت:** {st.session_state.username}")
+    st.markdown(f"**📚 ئاستی خوێندن:** {st.session_state.student_level}")
     level = get_user_level(st.session_state.quiz_score)
     level_info = get_level_info(level)
     st.markdown(f"<span class='badge-level'>{get_level_icon(level)} {level_info['name']}</span>", unsafe_allow_html=True)
     
     st.markdown(f"**📊 کویز:** {st.session_state.quiz_score}/100")
     st.markdown(f"**🩺 کەیس:** {st.session_state.total_cases_solved}")
-    st.markdown(f"**🔬 پشکنین:** {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)}") # نوێکاری
-    st.markdown(f"**💊 دەرمان:** {get_drug_count() + len(st.session_state.custom_drugs)}") # نوێکاری
+    st.markdown(f"**🔬 پشکنین:** {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)}")
+    st.markdown(f"**💊 دەرمان:** {get_drug_count() + len(st.session_state.custom_drugs)}")
     
     st.markdown("---")
     
@@ -1931,6 +2096,30 @@ with st.sidebar:
         st.markdown(f"🕐 دوایین چالاکی: {minutes//60} کاتژمێر پێش")
     else:
         st.markdown(f"🕐 دوایین چالاکی: {minutes} خولەک پێش")
+    
+    # دوگمەی چوونە دەرەوە
+    st.markdown("---")
+    if st.button("🚪 چوونە دەرەوە", type="primary"):
+        # خەزنکردنی داتاکان پێش چوونە دەرەوە
+        save_user_data(st.session_state.username, {
+            "custom_lab_tests": st.session_state.custom_lab_tests,
+            "custom_drugs": st.session_state.custom_drugs
+        })
+        st.session_state.logged_in = False
+        st.session_state.username = ""
+        st.session_state.custom_lab_tests = {}
+        st.session_state.custom_drugs = {}
+        st.rerun()
+
+# ================================
+# خەزنکردنی خۆکارانەی داتا لە کاتی گۆڕانکاریدا
+# ================================
+def auto_save():
+    if st.session_state.logged_in:
+        save_user_data(st.session_state.username, {
+            "custom_lab_tests": st.session_state.custom_lab_tests,
+            "custom_drugs": st.session_state.custom_drugs
+        })
 
 # ================================
 # 13. پەڕەی داشبۆرد
@@ -1953,7 +2142,7 @@ if page == "🏠 داشبۆرد":
     with col1:
         st.markdown(f'<div class="stat-card"><h3>📚</h3><div class="stat-number">{get_disease_count()}</div><p>نەخۆشی</p></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="stat-card"><h3>💊</h3><div class="stat-number">{get_drug_count() + len(st.session_state.custom_drugs)}</div><p>دەرمان</p></div>', unsafe_allow_html=True) # نوێکاری
+        st.markdown(f'<div class="stat-card"><h3>💊</h3><div class="stat-number">{get_drug_count() + len(st.session_state.custom_drugs)}</div><p>دەرمان</p></div>', unsafe_allow_html=True)
     with col3:
         st.markdown(f'<div class="stat-card"><h3>📝</h3><div class="stat-number">{st.session_state.quiz_score}/100</div><p>کویز</p></div>', unsafe_allow_html=True)
     with col4:
@@ -2104,7 +2293,7 @@ elif page == "🔬 تاقیگە (٢٠٠)":
     
     search_lab = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...")
     
-    all_lab_tests = {**LAB_TESTS, **st.session_state.custom_lab_tests} # تێکەڵکردنی پشکنینە کەسییەکان
+    all_lab_tests = {**LAB_TESTS, **st.session_state.custom_lab_tests}
     st.markdown(f"**📊 ژمارەی پشکنینەکان:** {len([t for t in all_lab_tests if (selected_group == 'هەموو' or all_lab_tests[t].get('گروپ', '') == selected_group) and (not search_lab or search_lab.lower() in t.lower())])}")
     
     # پشکنینەکان پیشان بدە
@@ -2159,7 +2348,7 @@ elif page == "🔬 تاقیگە (٢٠٠)":
 
     # *** بەشی نوێ بۆ زیادکردنی پشکنینی تایبەت بە خۆت ***
     st.markdown("---")
-    st.markdown("### ➕ پشکنینێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت)")
+    st.markdown("### ➕ پشکنینێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
     with st.form("add_lab_test_form", clear_on_submit=True):
         col_new_lab1, col_new_lab2 = st.columns(2)
         with col_new_lab1:
@@ -2173,7 +2362,7 @@ elif page == "🔬 تاقیگە (٢٠٠)":
             new_lab_desc = st.text_area("تەفسیر:", placeholder="ڕوونکردنەوەی ئەم پشکنینە...")
             new_lab_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
             
-        submitted = st.form_submit_button("✅ پشکنینەکە زیاد بکە و خەزن بکە")
+        submitted = st.form_submit_button("✅ پشکنینەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
         if submitted and new_lab_name:
             # خەزنکردن لە session_state
             st.session_state.custom_lab_tests[new_lab_name] = {
@@ -2184,7 +2373,9 @@ elif page == "🔬 تاقیگە (٢٠٠)":
                 "ئامێر": new_lab_machine,
                 "تێبینی": new_lab_note
             }
-            st.success(f"پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا و خەزن کرا!")
+            # خەزنکردن لە فایل بۆ هەمیشەیی
+            auto_save()
+            st.success(f"پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
             st.rerun()
 
 # ================================
@@ -2303,7 +2494,7 @@ elif page == "💊 فارماکۆلۆجی":
 
     # *** بەشی نوێ بۆ زیادکردنی دەرمانی تایبەت بە خۆت ***
     st.markdown("---")
-    st.markdown("### ➕ دەرمانێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت)")
+    st.markdown("### ➕ دەرمانێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
     with st.form("add_drug_form", clear_on_submit=True):
         col_new_drug1, col_new_drug2 = st.columns(2)
         with col_new_drug1:
@@ -2317,7 +2508,7 @@ elif page == "💊 فارماکۆلۆجی":
             new_drug_why = st.text_area("بۆچی:", placeholder="بۆ چارەسەری چی بەکاردێت...")
             new_drug_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
             
-        submitted = st.form_submit_button("✅ دەرمانەکە زیاد بکە و خەزن بکە")
+        submitted = st.form_submit_button("✅ دەرمانەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
         if submitted and new_drug_name:
             # خەزنکردن لە session_state
             st.session_state.custom_drugs[new_drug_name] = {
@@ -2329,7 +2520,9 @@ elif page == "💊 فارماکۆلۆجی":
                 "بۆچی": new_drug_why,
                 "تێبینی": new_drug_note
             }
-            st.success(f"دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا و خەزن کرا!")
+            # خەزنکردن لە فایل بۆ هەمیشەیی
+            auto_save()
+            st.success(f"دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
             st.rerun()
 
 # ================================
@@ -2474,7 +2667,7 @@ elif page == "🏆 دەستکەوتەکان" or page == "📊 پێشکەوتن":
 # 20. پەڕەی نەخۆشییەکان
 # ================================
 elif page == "📚 نەخۆشییەکان":
-    st.markdown("""
+    st.markdown(f"""
     <div class="main">
         <h2>📚 کتێبخانەی نەخۆشییەکان - Dr.Danyal</h2>
         <p style="color:#aaa;">{get_disease_count()} نەخۆشی لەگەڵ پشکنین و چارەسەر</p>
@@ -2531,8 +2724,8 @@ st.markdown(f"""
 <div class="footer-style">
     <h3>🩺 Dr.Danyal - ڕاهێنەری پزیشکی Pro Max v5.0</h3>
     <p>{get_disease_count()} نەخۆشی | {get_drug_count() + len(st.session_state.custom_drugs)} دەرمان | {get_quiz_count()} کویز | {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)} پشکنین</p>
-    <p style="font-size:0.8rem;opacity:0.8;">© 2024 Dr.Danyal | کۆدی پڕ و تەواو | ٥١٠٠+ هێڵ</p>
-    <p style="font-size:0.7rem;opacity:0.5;">پشکنین و دەرمانەکان لەگەڵ شوێنی تێبینی تایبەتی بەکارهێنەر</p>
+    <p style="font-size:0.8rem;opacity:0.8;">© 2024 Dr.Danyal | بەکارهێنەر: {st.session_state.username} | داتاکانت بۆ هەمیشە خەزن دەکرێن</p>
+    <p style="font-size:0.7rem;opacity:0.5;">پشکنین و دەرمانە زیادکراوەکانت بە پارێزراوی لە فایلی JSON دا هەڵدەگیرێن</p>
 </div>
 """, unsafe_allow_html=True)
 
