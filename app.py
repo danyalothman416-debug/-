@@ -6,6 +6,7 @@ from fpdf import FPDF
 import tempfile
 import subprocess
 import platform
+import webbrowser
 
 # ================================
 # ڕێکخستنی ڕووکاری پەڕە
@@ -122,13 +123,22 @@ st.markdown("""
         margin-top: 2rem;
     }
     
-    .printer-status {
+    .info-box {
         background: #16213e;
-        border: 1px solid #48bb78;
+        border: 1px solid #e94560;
         border-radius: 12px;
         padding: 1rem;
         margin: 1rem 0;
-        color: #48bb78;
+        color: #e2e8f0;
+    }
+    
+    .info-box ul {
+        margin: 0.5rem 0;
+        padding-right: 1.5rem;
+    }
+    
+    .info-box li {
+        margin: 0.3rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -152,28 +162,10 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ================================
-# فەنکشنی پشتگیری عەرەبی بۆ PDF
+# PDF بە عەرەبی
 # ================================
-class ArabicPDF(FPDF):
-    def __init__(self):
-        super().__init__()
-        # زیادکردنی فۆنتی عەرەبی
-        self.add_font('Arabic', '', 'arial.ttf', uni=True)
-        self.add_font('Arabic', 'B', 'arial.ttf', uni=True)
-    
-    def arabic_text(self, text, x=None, y=None, w=0, h=0, align='R'):
-        """نووسینی دەقی عەرەبی بە ڕاست بۆ چەپ"""
-        if x is not None:
-            self.set_xy(x, y)
-        self.cell(w, h, text, align=align)
-
 def create_customer_pdf_arabic(customer):
-    """دروستکردنی PDF بە عەرەبی"""
-    try:
-        pdf = ArabicPDF()
-    except:
-        pdf = FPDF()
-    
+    pdf = FPDF()
     pdf.add_page()
     
     # هێدەر
@@ -202,6 +194,8 @@ def create_customer_pdf_arabic(customer):
         ('تاريخ الاضافة', customer['date_added']),
     ]
     
+    pdf.set_font('Arial', '', 12)
+    pdf.set_text_color(60, 60, 60)
     for label, value in info_items:
         pdf.set_font('Arial', 'B', 12)
         pdf.cell(60, 8, f'{label}:', ln=False, align='R')
@@ -250,7 +244,6 @@ def create_customer_pdf_arabic(customer):
         pdf.cell(0, 10, 'سجل المدفوعات', ln=True, align='R')
         pdf.ln(5)
         
-        # هێدەری خشتە
         pdf.set_font('Arial', 'B', 11)
         pdf.set_fill_color(233, 69, 96)
         pdf.set_text_color(255, 255, 255)
@@ -284,9 +277,8 @@ def create_customer_pdf_arabic(customer):
         return tmp.name
 
 def create_all_customers_pdf_arabic(data):
-    """PDF بۆ هەموو کڕیاران بە عەرەبی"""
     pdf = FPDF()
-    pdf.add_page('L')  # Landscape بۆ خشتە
+    pdf.add_page('L')
     
     pdf.set_font('Arial', 'B', 24)
     pdf.set_text_color(233, 69, 96)
@@ -316,7 +308,6 @@ def create_all_customers_pdf_arabic(data):
     pdf.cell(0, 10, 'قائمة العملاء', ln=True, align='R')
     pdf.ln(5)
     
-    # خشتە
     pdf.set_font('Arial', 'B', 10)
     pdf.set_fill_color(233, 69, 96)
     pdf.set_text_color(255, 255, 255)
@@ -363,49 +354,20 @@ def create_all_customers_pdf_arabic(data):
         return tmp.name
 
 # ================================
-# فەنکشنی پرینتەری بلوتوز
+# فەنکشنی پرینت
 # ================================
-def get_bluetooth_printers():
-    """گەڕان بەدوای پرینتەرە بلوتوزییەکان"""
-    printers = []
+def open_pdf_for_printing(pdf_path):
+    """کردنەوەی PDF بۆ پرینت"""
     try:
         if platform.system() == 'Windows':
-            result = subprocess.run(['wmic', 'printer', 'get', 'name'], capture_output=True, text=True)
-            for line in result.stdout.split('\n'):
-                line = line.strip()
-                if line and line != 'Name':
-                    printers.append(line)
-        elif platform.system() == 'Linux':
-            result = subprocess.run(['lpstat', '-a'], capture_output=True, text=True)
-            for line in result.stdout.split('\n'):
-                if line:
-                    printers.append(line.split()[0])
+            os.startfile(pdf_path, 'print')
         elif platform.system() == 'Darwin':  # Mac
-            result = subprocess.run(['lpstat', '-a'], capture_output=True, text=True)
-            for line in result.stdout.split('\n'):
-                if line:
-                    printers.append(line.split()[0])
-    except:
-        pass
-    return printers
-
-def print_pdf_bluetooth(pdf_path, printer_name=None):
-    """ناردنی PDF بۆ پرینتەری بلوتوز"""
-    try:
-        if platform.system() == 'Windows':
-            if printer_name:
-                subprocess.run(['print', '/d:' + printer_name, pdf_path], shell=True)
-            else:
-                subprocess.run(['print', pdf_path], shell=True)
-            return True, "تم الارسال الى الطابعة بنجاح"
-        else:
-            if printer_name:
-                subprocess.run(['lp', '-d', printer_name, pdf_path])
-            else:
-                subprocess.run(['lp', pdf_path])
-            return True, "تم الارسال الى الطابعة بنجاح"
+            subprocess.run(['open', pdf_path])
+        else:  # Linux
+            subprocess.run(['xdg-open', pdf_path])
+        return True
     except Exception as e:
-        return False, str(e)
+        return False
 
 # ================================
 # دەستپێکردن
@@ -414,6 +376,8 @@ if 'data' not in st.session_state:
     st.session_state.data = load_data()
 if 'editing_customer' not in st.session_state:
     st.session_state.editing_customer = None
+if 'saved_pdf_path' not in st.session_state:
+    st.session_state.saved_pdf_path = None
 
 data = st.session_state.data
 
@@ -471,12 +435,11 @@ with col4:
 # ================================
 # تابەکان
 # ================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "➕ زیادکردنی کڕیار", 
     "📋 لیستی کڕیاران", 
     "💵 تۆمارکردنی پارە", 
-    "📤 هەناردەکردن",
-    "🖨️ پرینتەر"
+    "📤 هەناردەکردن و پرینت"
 ])
 
 # ================================
@@ -596,36 +559,32 @@ with tab2:
                         st.success(f"کڕیار {customer['name']} سڕایەوە")
                         st.rerun()
                 
-                # PDF و پرینت
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📄 PDF", key=f"pdf_{customer['id']}", use_container_width=True):
-                        try:
-                            pdf_path = create_customer_pdf_arabic(customer)
-                            with open(pdf_path, 'rb') as f:
-                                pdf_bytes = f.read()
+                # دوگمەی PDF
+                if st.button("📄 دروستکردنی PDF", key=f"pdf_{customer['id']}", use_container_width=True):
+                    try:
+                        pdf_path = create_customer_pdf_arabic(customer)
+                        st.session_state.saved_pdf_path = pdf_path
+                        with open(pdf_path, 'rb') as f:
+                            pdf_bytes = f.read()
+                        
+                        col_down, col_print = st.columns(2)
+                        with col_down:
                             st.download_button(
                                 label="📥 دابەزاندن",
                                 data=pdf_bytes,
                                 file_name=f"{customer['name']}_تقرير.pdf",
                                 mime="application/pdf",
-                                key=f"download_{customer['id']}"
+                                key=f"download_{customer['id']}",
+                                use_container_width=True
                             )
-                            os.unlink(pdf_path)
-                        except Exception as e:
-                            st.error(f"هەڵە: {e}")
-                with col2:
-                    if st.button("🖨️ پرینت", key=f"print_{customer['id']}", use_container_width=True):
-                        try:
-                            pdf_path = create_customer_pdf_arabic(customer)
-                            success, msg = print_pdf_bluetooth(pdf_path)
-                            if success:
-                                st.success(f"✅ {msg}")
-                            else:
-                                st.error(f"❌ {msg}")
-                            os.unlink(pdf_path)
-                        except Exception as e:
-                            st.error(f"هەڵە: {e}")
+                        with col_print:
+                            if st.button("🖨️ پرینت", key=f"print_btn_{customer['id']}", use_container_width=True):
+                                if open_pdf_for_printing(pdf_path):
+                                    st.success("✅ PDF بۆ پرینت نێردرا! لە دیالۆگی پرینت OK بکە")
+                                else:
+                                    st.error("❌ نەتوانرا PDF بکەیتەوە. تکایە فایلەکە دابەزێنە و پرینتی بکە")
+                    except Exception as e:
+                        st.error(f"هەڵە: {e}")
                 
                 # دەستکاری
                 if st.session_state.editing_customer == customer['id']:
@@ -722,108 +681,86 @@ with tab3:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ================================
-# تاب ٤: هەناردەکردن
+# تاب ٤: هەناردەکردن و پرینت
 # ================================
 with tab4:
     st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.markdown("<h3>📤 هەناردەکردنی ڕاپۆرت</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>📤 هەناردەکردن و پرینت</h3>", unsafe_allow_html=True)
     
     if not data['customers']:
         st.info("هیچ کڕیارێک نییە.")
     else:
-        col1, col2 = st.columns(2)
+        # PDF بۆ هەمووان
+        st.markdown("#### 📄 ڕاپۆرتی هەموو کڕیاران")
         
-        with col1:
-            st.markdown("#### 📄 PDF بۆ هەمووان")
-            if st.button("🖨️ دروستکردنی PDF", use_container_width=True):
-                try:
-                    pdf_path = create_all_customers_pdf_arabic(data)
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
+        if st.button("🖨️ دروستکردنی PDF بۆ هەمووان", use_container_width=True):
+            try:
+                pdf_path = create_all_customers_pdf_arabic(data)
+                st.session_state.saved_pdf_path = pdf_path
+                with open(pdf_path, 'rb') as f:
+                    pdf_bytes = f.read()
+                
+                col1, col2 = st.columns(2)
+                with col1:
                     st.download_button(
-                        label="📥 دابەزاندن",
+                        label="📥 دابەزاندنی PDF",
                         data=pdf_bytes,
                         file_name=f"تقرير_جميع_العملاء_{datetime.now().strftime('%Y%m%d')}.pdf",
                         mime="application/pdf",
                         use_container_width=True
                     )
-                    os.unlink(pdf_path)
-                except Exception as e:
-                    st.error(f"هەڵە: {e}")
-        
-        with col2:
-            st.markdown("#### 📊 ئامار")
-            paid_count = len([c for c in data['customers'] if c['status'] == 'paid'])
-            unpaid_count = len(data['customers']) - paid_count
-            
-            st.markdown(f"""
-            <div style='background: #16213e; padding: 1rem; border-radius: 12px;'>
-                <p>👥 <b>کڕیار:</b> {len(data['customers'])}</p>
-                <p>✅ <b>پڕکراوە:</b> {paid_count}</p>
-                <p>⏳ <b>ماوە:</b> {unpaid_count}</p>
-                <p>💰 <b>کۆی قەرز:</b> {total_loan:,} د.ع</p>
-                <p>💵 <b>وەرگیراو:</b> {total_paid:,} د.ع</p>
-                <p>📊 <b>ماوە:</b> {remaining:,} د.ع</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ================================
-# تاب ٥: پرینتەر
-# ================================
-with tab5:
-    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-    st.markdown("<h3>🖨️ ڕێکخستنی پرینتەر</h3>", unsafe_allow_html=True)
-    
-    # گەڕان بەدوای پرینتەرەکان
-    printers = get_bluetooth_printers()
-    
-    if printers:
-        st.markdown("<div class='printer-status'>✅ پرینتەرەکان دۆزرانەوە</div>", unsafe_allow_html=True)
-        
-        selected_printer = st.selectbox("🖨️ پرینتەر هەڵبژێرە:", printers)
-        
-        st.markdown("#### 📄 پرینتی ڕاپۆرتی گشتی")
-        if st.button("🖨️ پرینتی هەموو کڕیاران", use_container_width=True):
-            try:
-                pdf_path = create_all_customers_pdf_arabic(data)
-                success, msg = print_pdf_bluetooth(pdf_path, selected_printer)
-                if success:
-                    st.success(f"✅ {msg}")
-                else:
-                    st.error(f"❌ {msg}")
-                os.unlink(pdf_path)
+                with col2:
+                    if st.button("🖨️ پرینت", key="print_all", use_container_width=True):
+                        if open_pdf_for_printing(pdf_path):
+                            st.success("✅ PDF بۆ پرینت نێردرا!")
+                        else:
+                            st.error("❌ نەتوانرا بکرێتەوە. تکایە دابەزێنە و پرینتی بکە")
             except Exception as e:
                 st.error(f"هەڵە: {e}")
         
+        # ئامار
         st.markdown("---")
-        st.markdown("### 💡 ڕێنمایی:")
+        st.markdown("#### 📊 ئاماری گشتی")
+        
+        paid_count = len([c for c in data['customers'] if c['status'] == 'paid'])
+        unpaid_count = len(data['customers']) - paid_count
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"""
+            <div class='stat-card'>
+                <p>👥 کڕیار</p>
+                <h2>{len(data['customers'])}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div class='stat-card'>
+                <p>✅ پڕکراوە</p>
+                <h2>{paid_count}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+            <div class='stat-card'>
+                <p>⏳ ماوە</p>
+                <h2>{unpaid_count}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # ڕێنمایی پرینت
+        st.markdown("---")
         st.markdown("""
-        1. دڵنیا بە کە پرینتەرەکەت بە بلوتوز یان USB بەستراوە
-        2. پرینتەرەکەت لە لیستی سەرەوە هەڵبژێرە
-        3. دوگمەی پرینت بکە
-        """)
-    else:
-        st.warning("⚠️ هیچ پرینتەرێک نەدۆزرایەوە")
-        st.markdown("""
-        ### ڕێنمایی بەستنەوەی پرینتەر:
-        
-        **Windows:**
-        1. Bluetooth > Add Bluetooth device
-        2. پرینتەرەکەت هەڵبژێرە
-        
-        **لینوکس:**
-        ```bash
-        sudo apt install cups
-        sudo systemctl enable cups
-        ```
-        
-        دواتر پرینتەرەکەت زیاد بکە لە ڕێگەی:
-        ```bash
-        sudo lpadmin -p printer_name -v bluetooth://address
-        ```
-        """)
+        <div class='info-box'>
+            <h4>💡 ڕێنمایی پرینت:</h4>
+            <ul>
+                <li>PDF دروست بکە</li>
+                <li>دابەزێنە یان ڕاستەوخۆ پرینتی بکە</li>
+                <li>ئەگەر پرینتەرەکەت بلوتوزە، دڵنیا بە کە بەستراوە</li>
+                <li>لە دیالۆگی پرینت، پرینتەری بلوتوز هەڵبژێرە</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
