@@ -2,7 +2,6 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-from fpdf import FPDF
 import tempfile
 import subprocess
 import platform
@@ -10,6 +9,10 @@ import webbrowser
 import base64
 from io import BytesIO
 import sys
+import pdfkit
+import markdown
+from weasyprint import HTML
+import re
 
 # ================================
 # ڕێکخستنی ڕووکاری پەڕە
@@ -165,202 +168,227 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ================================
-# PDF بە عەرەبی - بەبێ فۆنتی دەرەکی
+# دروستکردنی PDF بە HTML و WeasyPrint
 # ================================
-def create_customer_pdf_arabic(customer):
-    pdf = FPDF()
-    pdf.add_page()
+def create_html_report(customer, is_all=False, data=None):
+    """دروستکردنی HTML بۆ PDF"""
     
-    # هێدەر
-    pdf.set_font('Arial', 'B', 24)
-    pdf.set_text_color(233, 69, 96)
-    pdf.cell(0, 15, 'Mohammed Phone', ln=True, align='C')
-    pdf.set_font('Arial', '', 14)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 10, 'تقرير قرض العميل', ln=True, align='C')
-    pdf.ln(10)
-    
-    pdf.set_draw_color(233, 69, 96)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(10)
-    
-    # زانیاری کڕیار
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_text_color(33, 37, 41)
-    pdf.cell(0, 10, 'معلومات العميل', ln=True, align='R')
-    pdf.ln(5)
-    
-    info_items = [
-        ('الاسم', customer['name']),
-        ('نوع الموبايل', customer['phone_model']),
-        ('رقم الهاتف', customer['phone_number']),
-        ('تاريخ الاضافة', customer['date_added']),
-    ]
-    
-    pdf.set_font('Arial', '', 12)
-    pdf.set_text_color(60, 60, 60)
-    for label, value in info_items:
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(60, 8, f'{label}:', ln=False, align='R')
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, str(value), ln=True, align='R')
-    
-    pdf.ln(5)
-    
-    # زانیاری قەرز
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_text_color(33, 37, 41)
-    pdf.cell(0, 10, 'معلومات القرض', ln=True, align='R')
-    pdf.ln(5)
-    
-    status_text = 'تم التسديد' if customer['status'] == 'paid' else 'لم يكتمل'
-    
-    loan_items = [
-        ('السعر الكلي', f"{customer['total_amount']:,} د.ع"),
-        ('الدفعة المقدمة', f"{customer['down_payment']:,} د.ع"),
-        ('القسط الشهري', f"{customer['monthly_payment']:,} د.ع"),
-        ('المبلغ المدفوع', f"{customer['paid_amount']:,} د.ع"),
-        ('المبلغ المتبقي', f"{customer['remaining']:,} د.ع"),
-        ('الحالة', status_text),
-    ]
-    
-    for label, value in loan_items:
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(60, 8, f'{label}:', ln=False, align='R')
-        pdf.set_font('Arial', '', 12)
-        
-        if label == 'الحالة':
-            if 'تم' in value:
-                pdf.set_text_color(72, 187, 120)
-            else:
-                pdf.set_text_color(233, 69, 96)
-        
-        pdf.cell(0, 8, str(value), ln=True, align='R')
-        pdf.set_text_color(60, 60, 60)
-    
-    pdf.ln(5)
-    
-    # مێژووی پارەدان
-    if customer['payments']:
-        pdf.set_font('Arial', 'B', 16)
-        pdf.set_text_color(33, 37, 41)
-        pdf.cell(0, 10, 'سجل المدفوعات', ln=True, align='R')
-        pdf.ln(5)
-        
-        pdf.set_font('Arial', 'B', 11)
-        pdf.set_fill_color(233, 69, 96)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(15, 8, 'م', border=1, fill=True, align='C')
-        pdf.cell(50, 8, 'التاريخ', border=1, fill=True, align='C')
-        pdf.cell(50, 8, 'المبلغ', border=1, fill=True, align='C')
-        pdf.cell(0, 8, 'ملاحظات', border=1, fill=True, align='C')
-        pdf.ln()
-        
-        pdf.set_text_color(60, 60, 60)
-        for i, payment in enumerate(customer['payments'], 1):
-            pdf.set_font('Arial', '', 11)
-            if i % 2 == 0:
-                pdf.set_fill_color(240, 240, 240)
-            else:
-                pdf.set_fill_color(255, 255, 255)
+    if is_all and data:
+        # HTML بۆ هەموو کڕیاران
+        html_content = f"""
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, 'Times New Roman', sans-serif; padding: 40px; direction: rtl; }}
+                .header {{ text-align: center; color: #e94560; margin-bottom: 30px; }}
+                .header h1 {{ font-size: 28px; margin: 0; }}
+                .header p {{ color: #666; font-size: 14px; }}
+                .summary {{ background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                th {{ background: #e94560; color: white; padding: 10px; border: 1px solid #ddd; }}
+                td {{ padding: 8px; border: 1px solid #ddd; text-align: center; }}
+                tr:nth-child(even) {{ background: #f9f9f9; }}
+                .status-paid {{ color: #48bb78; font-weight: bold; }}
+                .status-unpaid {{ color: #e94560; font-weight: bold; }}
+                .footer {{ text-align: center; color: #999; font-size: 12px; margin-top: 30px; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📱 محمد فۆن</h1>
+                <p>تقرير جميع العملاء</p>
+            </div>
             
-            pdf.cell(15, 7, str(i), border=1, fill=True, align='C')
-            pdf.cell(50, 7, payment['date'], border=1, fill=True, align='C')
-            pdf.cell(50, 7, f"{payment['amount']:,} د.ع", border=1, fill=True, align='C')
-            pdf.cell(0, 7, payment.get('notes', ''), border=1, fill=True, align='C')
-            pdf.ln()
+            <div class="summary">
+                <p><strong>عدد العملاء:</strong> {len(data['customers'])}</p>
+                <p><strong>مجموع القروض:</strong> {sum(c['total_amount'] for c in data['customers']):,} د.ع</p>
+                <p><strong>المبلغ المدفوع:</strong> {sum(c['paid_amount'] for c in data['customers']):,} د.ع</p>
+                <p><strong>المبلغ المتبقي:</strong> {sum(c['total_amount'] for c in data['customers']) - sum(c['paid_amount'] for c in data['customers']):,} د.ع</p>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>م</th>
+                        <th>الاسم</th>
+                        <th>نوع الموبايل</th>
+                        <th>السعر</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        for i, customer in enumerate(data['customers'], 1):
+            status_class = 'status-paid' if customer['status'] == 'paid' else 'status-unpaid'
+            status_text = 'تم التسديد' if customer['status'] == 'paid' else 'لم يكتمل'
+            html_content += f"""
+                <tr>
+                    <td>{i}</td>
+                    <td>{customer['name']}</td>
+                    <td>{customer['phone_model']}</td>
+                    <td>{customer['total_amount']:,}</td>
+                    <td>{customer['paid_amount']:,}</td>
+                    <td>{customer['remaining']:,}</td>
+                    <td class="{status_class}">{status_text}</td>
+                </tr>
+            """
+        
+        html_content += """
+                </tbody>
+            </table>
+            <div class="footer">
+                <p>تم الاصدار: """ + datetime.now().strftime("%Y-%m-%d %H:%M") + """ | محمد فون</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+    else:
+        # HTML بۆ کڕیارێک
+        status_text = 'تم التسديد ✅' if customer['status'] == 'paid' else 'لم يكتمل ⏳'
+        status_color = '#48bb78' if customer['status'] == 'paid' else '#e94560'
+        
+        payments_html = ""
+        if customer['payments']:
+            payments_html = """
+            <h3 style="color: #333; margin-top: 25px;">📋 سجل المدفوعات</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr>
+                        <th style="background: #e94560; color: white; padding: 8px; border: 1px solid #ddd; text-align: center;">م</th>
+                        <th style="background: #e94560; color: white; padding: 8px; border: 1px solid #ddd; text-align: center;">التاريخ</th>
+                        <th style="background: #e94560; color: white; padding: 8px; border: 1px solid #ddd; text-align: center;">المبلغ</th>
+                        <th style="background: #e94560; color: white; padding: 8px; border: 1px solid #ddd; text-align: center;">ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            for i, payment in enumerate(customer['payments'], 1):
+                row_color = '#f9f9f9' if i % 2 == 0 else 'white'
+                payments_html += f"""
+                    <tr style="background: {row_color};">
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">{i}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">{payment['date']}</td>
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">{payment['amount']:,} د.ع</td>
+                        <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">{payment.get('notes', '')}</td>
+                    </tr>
+                """
+            payments_html += "</tbody></table>"
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ font-family: Arial, 'Times New Roman', sans-serif; padding: 40px; direction: rtl; }}
+                .header {{ text-align: center; color: #e94560; margin-bottom: 20px; }}
+                .header h1 {{ font-size: 28px; margin: 0; }}
+                .header p {{ color: #666; font-size: 14px; }}
+                .section {{ margin-bottom: 20px; }}
+                .section h2 {{ color: #333; border-bottom: 2px solid #e94560; padding-bottom: 5px; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }}
+                .info-item {{ padding: 5px 0; }}
+                .info-label {{ font-weight: bold; color: #555; }}
+                .info-value {{ color: #222; }}
+                .status {{ color: {status_color}; font-weight: bold; font-size: 16px; }}
+                .footer {{ text-align: center; color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; }}
+                .progress-bar {{ background: #f0f0f0; border-radius: 10px; height: 20px; margin: 10px 0; overflow: hidden; }}
+                .progress-fill {{ background: linear-gradient(90deg, #e94560, #48bb78); height: 100%; border-radius: 10px; width: {min((customer['paid_amount'] / customer['total_amount']) * 100, 100):.1f}%; }}
+                .progress-text {{ text-align: center; font-size: 12px; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📱 محمد فۆن</h1>
+                <p>تقرير قرض العميل</p>
+            </div>
+            
+            <div class="section">
+                <h2>👤 معلومات العميل</h2>
+                <div class="info-grid">
+                    <div class="info-item"><span class="info-label">الاسم:</span> <span class="info-value">{customer['name']}</span></div>
+                    <div class="info-item"><span class="info-label">نوع الموبايل:</span> <span class="info-value">{customer['phone_model']}</span></div>
+                    <div class="info-item"><span class="info-label">رقم الهاتف:</span> <span class="info-value">{customer['phone_number']}</span></div>
+                    <div class="info-item"><span class="info-label">تاريخ الاضافة:</span> <span class="info-value">{customer['date_added']}</span></div>
+                    <div class="info-item"><span class="info-label">ملاحظات:</span> <span class="info-value">{customer['notes']}</span></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💰 معلومات القرض</h2>
+                <div class="info-grid">
+                    <div class="info-item"><span class="info-label">السعر الكلي:</span> <span class="info-value">{customer['total_amount']:,} د.ع</span></div>
+                    <div class="info-item"><span class="info-label">الدفعة المقدمة:</span> <span class="info-value">{customer['down_payment']:,} د.ع</span></div>
+                    <div class="info-item"><span class="info-label">القسط الشهري:</span> <span class="info-value">{customer['monthly_payment']:,} د.ع</span></div>
+                    <div class="info-item"><span class="info-label">المبلغ المدفوع:</span> <span class="info-value">{customer['paid_amount']:,} د.ع</span></div>
+                    <div class="info-item"><span class="info-label">المبلغ المتبقي:</span> <span class="info-value">{customer['remaining']:,} د.ع</span></div>
+                    <div class="info-item"><span class="info-label">الحالة:</span> <span class="status">{status_text}</span></div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="progress-text">{min((customer['paid_amount'] / customer['total_amount']) * 100, 100):.1f}% من المبلغ تم دفعه</div>
+            </div>
+            
+            {payments_html}
+            
+            <div class="footer">
+                <p>تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون</p>
+            </div>
+        </body>
+        </html>
+        """
     
-    pdf.ln(10)
-    pdf.set_font('Arial', 'I', 10)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, f'تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون', ln=True, align='C')
-    
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        pdf.output(tmp.name)
-        return tmp.name
+    return html_content
+
+def create_pdf_from_html(html_content):
+    """دروستکردنی PDF لە HTML"""
+    try:
+        # هەوڵبدە بە WeasyPrint
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html_content).write_pdf()
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            tmp.write(pdf_bytes)
+            return tmp.name
+    except:
+        # ئەگەر WeasyPrint نەبوو، بە HTML سادە
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_html:
+            tmp_html.write(html_content.encode('utf-8'))
+            html_path = tmp_html.name
+        
+        # HTML بکەرەوە لە browser
+        try:
+            webbrowser.open(html_path)
+            return None
+        except:
+            return None
+
+def create_customer_pdf_arabic(customer):
+    """دروستکردنی PDF بۆ کڕیارێک"""
+    html_content = create_html_report(customer, is_all=False)
+    return create_pdf_from_html(html_content)
 
 def create_all_customers_pdf_arabic(data):
-    pdf = FPDF()
-    pdf.add_page('L')
-    
-    pdf.set_font('Arial', 'B', 24)
-    pdf.set_text_color(233, 69, 96)
-    pdf.cell(0, 15, 'Mohammed Phone', ln=True, align='C')
-    pdf.set_font('Arial', '', 14)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 10, 'تقرير جميع العملاء', ln=True, align='C')
-    pdf.ln(5)
-    
-    total_loan = sum(c['total_amount'] for c in data['customers'])
-    total_paid = sum(c['paid_amount'] for c in data['customers'])
-    remaining = total_loan - total_paid
-    
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_text_color(33, 37, 41)
-    pdf.cell(0, 10, 'الملخص', ln=True, align='R')
-    pdf.set_font('Arial', '', 12)
-    pdf.set_text_color(60, 60, 60)
-    pdf.cell(0, 8, f'عدد العملاء: {len(data["customers"])}', ln=True, align='R')
-    pdf.cell(0, 8, f'مجموع القروض: {total_loan:,} د.ع', ln=True, align='R')
-    pdf.cell(0, 8, f'المبلغ المدفوع: {total_paid:,} د.ع', ln=True, align='R')
-    pdf.cell(0, 8, f'المبلغ المتبقي: {remaining:,} د.ع', ln=True, align='R')
-    pdf.ln(10)
-    
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_text_color(33, 37, 41)
-    pdf.cell(0, 10, 'قائمة العملاء', ln=True, align='R')
-    pdf.ln(5)
-    
-    pdf.set_font('Arial', 'B', 10)
-    pdf.set_fill_color(233, 69, 96)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(10, 8, 'م', border=1, fill=True, align='C')
-    pdf.cell(60, 8, 'الاسم', border=1, fill=True, align='C')
-    pdf.cell(50, 8, 'نوع الموبايل', border=1, fill=True, align='C')
-    pdf.cell(35, 8, 'السعر', border=1, fill=True, align='C')
-    pdf.cell(35, 8, 'المدفوع', border=1, fill=True, align='C')
-    pdf.cell(35, 8, 'المتبقي', border=1, fill=True, align='C')
-    pdf.cell(0, 8, 'الحالة', border=1, fill=True, align='C')
-    pdf.ln()
-    
-    pdf.set_font('Arial', '', 10)
-    pdf.set_text_color(60, 60, 60)
-    for i, customer in enumerate(data['customers'], 1):
-        if i % 2 == 0:
-            pdf.set_fill_color(240, 240, 240)
-        else:
-            pdf.set_fill_color(255, 255, 255)
-        
-        pdf.cell(10, 7, str(i), border=1, fill=True, align='C')
-        pdf.cell(60, 7, customer['name'][:25], border=1, fill=True)
-        pdf.cell(50, 7, customer['phone_model'][:22], border=1, fill=True)
-        pdf.cell(35, 7, f"{customer['total_amount']:,}", border=1, fill=True, align='R')
-        pdf.cell(35, 7, f"{customer['paid_amount']:,}", border=1, fill=True, align='R')
-        pdf.cell(35, 7, f"{customer['remaining']:,}", border=1, fill=True, align='R')
-        
-        status = 'تم' if customer['status'] == 'paid' else 'متبقي'
-        if status == 'تم':
-            pdf.set_text_color(72, 187, 120)
-        else:
-            pdf.set_text_color(233, 69, 96)
-        pdf.cell(0, 7, status, border=1, fill=True, align='C')
-        pdf.set_text_color(60, 60, 60)
-        pdf.ln()
-    
-    pdf.ln(10)
-    pdf.set_font('Arial', 'I', 10)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, f'تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون', ln=True, align='C')
-    
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        pdf.output(tmp.name)
-        return tmp.name
+    """دروستکردنی PDF بۆ هەموو کڕیاران"""
+    html_content = create_html_report(None, is_all=True, data=data)
+    return create_pdf_from_html(html_content)
 
 # ================================
 # فەنکشنی پرینت
 # ================================
 def open_pdf_for_printing(pdf_path):
     """کردنەوەی PDF بۆ پرینت"""
+    if pdf_path is None:
+        return False
+    
     try:
         if platform.system() == 'Windows':
             os.startfile(pdf_path, 'print')
@@ -562,32 +590,44 @@ with tab2:
                         st.success(f"کڕیار {customer['name']} سڕایەوە")
                         st.rerun()
                 with col4:
-                    # پرینتی ڕاستەوخۆ بۆ هەر کڕیارێک
                     if st.button("🖨️ پرینت", key=f"print_{customer['id']}", use_container_width=True):
                         try:
                             pdf_path = create_customer_pdf_arabic(customer)
-                            if open_pdf_for_printing(pdf_path):
+                            if pdf_path and open_pdf_for_printing(pdf_path):
                                 st.success("✅ PDF بۆ پرینت نێردرا!")
+                            elif pdf_path is None:
+                                st.warning("⚠️ WeasyPrint دەست نەکەوت، HTML کرایەوە لە browser، لەوێ پرینتی بکە")
                             else:
-                                st.error("❌ نەتوانرا بکرێتەوە. تکایە دابەزێنە و پرینتی بکە")
+                                st.error("❌ نەتوانرا بکرێتەوە")
                         except Exception as e:
                             st.error(f"هەڵە: {e}")
                 
-                # دوگمەی PDF بۆ دابەزاندن
+                # دابەزاندنی PDF
                 if st.button("📄 دابەزاندنی PDF", key=f"pdf_{customer['id']}", use_container_width=True):
                     try:
-                        pdf_path = create_customer_pdf_arabic(customer)
-                        with open(pdf_path, 'rb') as f:
-                            pdf_bytes = f.read()
-                        
-                        st.download_button(
-                            label="📥 دابەزاندن",
-                            data=pdf_bytes,
-                            file_name=f"{customer['name']}_تقرير.pdf",
-                            mime="application/pdf",
-                            key=f"download_{customer['id']}",
-                            use_container_width=True
-                        )
+                        html_content = create_html_report(customer, is_all=False)
+                        pdf_path = create_pdf_from_html(html_content)
+                        if pdf_path:
+                            with open(pdf_path, 'rb') as f:
+                                pdf_bytes = f.read()
+                            st.download_button(
+                                label="📥 دابەزاندن",
+                                data=pdf_bytes,
+                                file_name=f"{customer['name']}_تقرير.pdf",
+                                mime="application/pdf",
+                                key=f"download_{customer['id']}",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("⚠️ PDF دروست نەکرا، HTML دابەزێنە")
+                            st.download_button(
+                                label="📥 دابەزاندنی HTML",
+                                data=html_content.encode('utf-8'),
+                                file_name=f"{customer['name']}_تقرير.html",
+                                mime="text/html",
+                                key=f"download_html_{customer['id']}",
+                                use_container_width=True
+                            )
                     except Exception as e:
                         st.error(f"هەڵە: {e}")
                 
@@ -695,7 +735,9 @@ with tab4:
     if not data['customers']:
         st.info("هیچ کڕیارێک نییە.")
     else:
-        # PDF بۆ هەمووان
+        # نصب کردن
+        st.info("💡 بۆ باشتر کارکردنی PDF، تکایە WeasyPrint دابنێ: pip install weasyprint")
+        
         st.markdown("#### 📄 ڕاپۆرتی هەموو کڕیاران")
         
         col1, col2 = st.columns(2)
@@ -703,31 +745,48 @@ with tab4:
         with col1:
             if st.button("📄 دروستکردنی PDF بۆ هەمووان", use_container_width=True):
                 try:
-                    pdf_path = create_all_customers_pdf_arabic(data)
-                    st.session_state.saved_pdf_path = pdf_path
-                    with open(pdf_path, 'rb') as f:
-                        pdf_bytes = f.read()
-                    
-                    st.download_button(
-                        label="📥 دابەزاندنی PDF",
-                        data=pdf_bytes,
-                        file_name=f"تقرير_جميع_العملاء_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        key="download_all",
-                        use_container_width=True
-                    )
-                    st.success("✅ PDF دروست کرا! دابەزێنە یان پرینتی بکە")
+                    html_content = create_html_report(None, is_all=True, data=data)
+                    pdf_path = create_pdf_from_html(html_content)
+                    if pdf_path:
+                        with open(pdf_path, 'rb') as f:
+                            pdf_bytes = f.read()
+                        st.download_button(
+                            label="📥 دابەزاندنی PDF",
+                            data=pdf_bytes,
+                            file_name=f"تقرير_جميع_العملاء_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            key="download_all",
+                            use_container_width=True
+                        )
+                        st.success("✅ PDF دروست کرا!")
+                    else:
+                        st.warning("⚠️ PDF دروست نەکرا، HTML دابەزێنە")
+                        st.download_button(
+                            label="📥 دابەزاندنی HTML",
+                            data=html_content.encode('utf-8'),
+                            file_name=f"تقرير_جميع_العملاء_{datetime.now().strftime('%Y%m%d')}.html",
+                            mime="text/html",
+                            key="download_all_html",
+                            use_container_width=True
+                        )
                 except Exception as e:
                     st.error(f"هەڵە: {e}")
         
         with col2:
             if st.button("🖨️ پرینتی هەموو کڕیاران", use_container_width=True):
                 try:
-                    pdf_path = create_all_customers_pdf_arabic(data)
-                    if open_pdf_for_printing(pdf_path):
-                        st.success("✅ PDF بۆ پرینت نێردرا! لە دیالۆگی پرینت OK بکە")
+                    html_content = create_html_report(None, is_all=True, data=data)
+                    pdf_path = create_pdf_from_html(html_content)
+                    if pdf_path and open_pdf_for_printing(pdf_path):
+                        st.success("✅ PDF بۆ پرینت نێردرا!")
+                    elif pdf_path is None:
+                        # HTML بکەرەوە لە browser
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp:
+                            tmp.write(html_content.encode('utf-8'))
+                            webbrowser.open(tmp.name)
+                        st.info("HTML کرایەوە لە browser، لەوێ پرینتی بکە")
                     else:
-                        st.error("❌ نەتوانرا بکرێتەوە. تکایە PDF دابەزێنە و پرینتی بکە")
+                        st.error("❌ نەتوانرا بکرێتەوە")
                 except Exception as e:
                     st.error(f"هەڵە: {e}")
         
@@ -761,26 +820,22 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
         
-        # ڕێنمایی پرینت
+        # ڕێنمایی
         st.markdown("---")
         st.markdown("""
         <div class='info-box'>
             <h4>💡 ڕێنمایی پرینت:</h4>
             <ul>
-                <li>PDF دروست بکە</li>
-                <li>دابەزێنە یان ڕاستەوخۆ پرینتی بکە</li>
-                <li>ئەگەر پرینتەرەکەت بلوتوزە، دڵنیا بە کە بەستراوە</li>
-                <li>لە دیالۆگی پرینت، پرینتەری بلوتوز هەڵبژێرە</li>
-                <li>بۆ پرینت، دوگمەی پرینت لە سەرەوە یان لە ناو کڕیارەکەدا کلیک بکە</li>
+                <li><b>ڕێگای ١:</b> دوگمەی پرینت کلیک بکە - PDF بە WeasyPrint دروست دەکرێت</li>
+                <li><b>ڕێگای ٢:</b> ئەگەر WeasyPrint دەست نەکەوت، HTML دابەزێنە و لە browser بیکەرەوە و پرینتی بکە</li>
+                <li><b>ڕێگای ٣:</b> لە مرۆڤرێتدا (Chrome, Edge) لەسەر پەڕە کلیکی ڕاست بکە و Print هەڵبژێرە</li>
+                <li>بۆ نصبکردنی WeasyPrint: <code>pip install weasyprint</code></li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
         
-        # ڕێگایەکی تر بۆ پرینت
-        st.markdown("---")
-        st.markdown("#### 🖨️ پرینتی ڕاستەوخۆ بە بەکارهێنانی JavaScript")
-        
-        if st.button("🖨️ پرینتی پەڕە", use_container_width=True):
+        # دوگمەی پرینتی پەڕە
+        if st.button("🖨️ پرینتی ئەم پەڕەیە", use_container_width=True):
             st.markdown("""
             <script>
                 window.print();
