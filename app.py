@@ -165,6 +165,15 @@ st.markdown("""
         padding: 0.5rem 1rem;
         font-weight: 600;
     }
+    
+    /* دەستکاری فۆرم */
+    .edit-form {
+        background: #f7fafc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 2px solid #667eea;
+        margin: 1rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -248,6 +257,10 @@ if 'custom_lab_tests' not in st.session_state:
     st.session_state.custom_lab_tests = {}
 if 'custom_drugs' not in st.session_state:
     st.session_state.custom_drugs = {}
+if 'editing_lab' not in st.session_state:
+    st.session_state.editing_lab = None
+if 'editing_drug' not in st.session_state:
+    st.session_state.editing_drug = None
 
 # ================================
 # 4. پەڕەی لۆگین
@@ -267,9 +280,7 @@ if not st.session_state.logged_in:
             with st.form("login_form"):
                 login_username = st.text_input("👤 ناوی بەکارهێنەری", placeholder="ناوی بەکارهێنەری خۆت بنووسە")
                 login_password = st.text_input("🔒 وشەی نهێنی", type="password", placeholder="وشەی نهێنی خۆت بنووسە")
-                col_l1, col_l2 = st.columns([2, 1])
-                with col_l1:
-                    login_submit = st.form_submit_button("🚪 چوونە ژوورەوە", use_container_width=True)
+                login_submit = st.form_submit_button("🚪 چوونە ژوورەوە", use_container_width=True)
                 
                 if login_submit:
                     if authenticate_user(login_username, login_password):
@@ -419,26 +430,92 @@ elif page == "🔬 زیادکردنی پشکنین":
     if st.session_state.custom_lab_tests:
         st.markdown("<h3 style='color: white;'>📋 پشکنینە کەسییەکان</h3>", unsafe_allow_html=True)
         for name, info in st.session_state.custom_lab_tests.items():
-            with st.expander(f"🔬 {name}"):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        st.markdown(f"**📂 گروپ:** {info.get('گروپ', 'نادیار')}")
-                        st.markdown(f"**📏 یەکە:** {info.get('یەکە', 'نادیار')}")
-                        st.markdown(f"**⬇️ نزمترین:** {info.get('نۆرماڵ', (0,0))[0]}")
-                        st.markdown(f"**⬆️ بەرزترین:** {info.get('نۆرماڵ', (0,0))[1]}")
-                    with col_b:
-                        st.markdown(f"**🔬 ئامێر:** {info.get('ئامێر', 'نادیار')}")
-                        st.markdown(f"**📖 تەفسیر:** {info.get('تەفسیر', 'نییە')}")
-                        st.markdown(f"**📝 تێبینی:** {info.get('تێبینی', 'نییە')}")
+            # ئەگەر ئەم پشکنینە لە دۆخی دەستکاریدا بێت
+            if st.session_state.editing_lab == name:
+                with st.expander(f"✏️ دەستکاری: {name}", expanded=True):
+                    st.markdown("<div class='edit-form'>", unsafe_allow_html=True)
+                    st.markdown(f"### ✏️ دەستکاری پشکنینی: {name}")
+                    
+                    with st.form(key=f"edit_lab_form_{name}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            edit_lab_group = st.selectbox(
+                                "📂 گروپ:",
+                                ["گشتی", "خوێن", "بایۆکیمیایی", "دڵ", "هەوکردن", "هۆرمۆن", "میز", "ڤیتامین", "معدن"],
+                                index=["گشتی", "خوێن", "بایۆکیمیایی", "دڵ", "هەوکردن", "هۆرمۆن", "میز", "ڤیتامین", "معدن"].index(info.get('گروپ', 'گشتی'))
+                            )
+                            edit_lab_low = st.number_input(
+                                "⬇️ نزمترین ڕێژەی نۆرماڵ:",
+                                value=float(info.get('نۆرماڵ', (0,0))[0]),
+                                step=0.1
+                            )
+                            edit_lab_high = st.number_input(
+                                "⬆️ بەرزترین ڕێژەی نۆرماڵ:",
+                                value=float(info.get('نۆرماڵ', (0,0))[1]),
+                                step=0.1
+                            )
+                        
+                        with col2:
+                            edit_lab_unit = st.text_input("📏 یەکە:", value=info.get('یەکە', ''))
+                            edit_lab_machine = st.text_input("🔬 ئامێر:", value=info.get('ئامێر', ''))
+                            edit_lab_desc = st.text_area("📖 تەفسیر:", value=info.get('تەفسیر', ''), height=100)
+                            edit_lab_note = st.text_area("📝 تێبینی:", value=info.get('تێبینی', ''), height=100)
+                        
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            save_edit = st.form_submit_button("💾 خەزنکردنی گۆڕانکارییەکان", use_container_width=True)
+                        with col_cancel:
+                            cancel_edit = st.form_submit_button("❌ ڕەتکردنەوە", use_container_width=True)
+                        
+                        if save_edit:
+                            st.session_state.custom_lab_tests[name] = {
+                                "گروپ": edit_lab_group,
+                                "نۆرماڵ": (edit_lab_low, edit_lab_high),
+                                "یەکە": edit_lab_unit,
+                                "تەفسیر": edit_lab_desc,
+                                "ئامێر": edit_lab_machine,
+                                "تێبینی": edit_lab_note
+                            }
+                            auto_save()
+                            st.session_state.editing_lab = None
+                            st.success(f"✅ پشکنینی '{name}' بە سەرکەوتوویی نوێ کرایەوە!")
+                            st.rerun()
+                        
+                        if cancel_edit:
+                            st.session_state.editing_lab = None
+                            st.rerun()
+                    
                     st.markdown("</div>", unsafe_allow_html=True)
-                with col2:
-                    if st.button(f"🗑️ سڕینەوەی {name}", key=f"del_lab_{name}"):
-                        del st.session_state.custom_lab_tests[name]
-                        auto_save()
-                        st.rerun()
+            else:
+                # دۆخی ئاسایی - نمایشی زانیارییەکان
+                with st.expander(f"🔬 {name}"):
+                    col1, col2, col3 = st.columns([2.5, 0.5, 1])
+                    with col1:
+                        st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            st.markdown(f"**📂 گروپ:** {info.get('گروپ', 'نادیار')}")
+                            st.markdown(f"**📏 یەکە:** {info.get('یەکە', 'نادیار')}")
+                            st.markdown(f"**⬇️ نزمترین:** {info.get('نۆرماڵ', (0,0))[0]}")
+                            st.markdown(f"**⬆️ بەرزترین:** {info.get('نۆرماڵ', (0,0))[1]}")
+                        with col_b:
+                            st.markdown(f"**🔬 ئامێر:** {info.get('ئامێر', 'نادیار')}")
+                            st.markdown(f"**📖 تەفسیر:** {info.get('تەفسیر', 'نییە')}")
+                            st.markdown(f"**📝 تێبینی:** {info.get('تێبینی', 'نییە')}")
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    with col2:
+                        st.write("")  # بۆ فاصلە
+                        if st.button("✏️", key=f"edit_lab_{name}", help="دەستکاری"):
+                            st.session_state.editing_lab = name
+                            st.rerun()
+                    with col3:
+                        st.write("")  # بۆ فاصلە
+                        if st.button("🗑️", key=f"del_lab_{name}", help="سڕینەوە"):
+                            del st.session_state.custom_lab_tests[name]
+                            auto_save()
+                            st.success(f"پشکنینی '{name}' سڕایەوە")
+                            st.rerun()
     
     st.markdown("---")
     
@@ -495,25 +572,80 @@ elif page == "💊 زیادکردنی دەرمان":
     if st.session_state.custom_drugs:
         st.markdown("<h3 style='color: white;'>📋 دەرمانە کەسییەکان</h3>", unsafe_allow_html=True)
         for name, info in st.session_state.custom_drugs.items():
-            with st.expander(f"💊 {name}"):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        st.markdown(f"**💊 ڕێژە:** {info.get('ڕێژە', 'نادیار')}")
-                        st.markdown(f"**⚙️ میکانیزم:** {info.get('میکانیزم', 'نادیار')}")
-                        st.markdown(f"**⚠️ کاریگەری لاوەکی:** {info.get('کاریگەری لاوەکی', 'نییە')}")
-                    with col_b:
-                        st.markdown(f"**🚫 پێچەوانە:** {info.get('پێچەوانە', 'نییە')}")
-                        st.markdown(f"**🎯 بۆچی:** {info.get('بۆچی', 'نادیار')}")
-                        st.markdown(f"**📝 تێبینی:** {info.get('تێبینی', 'نییە')}")
+            # ئەگەر ئەم دەرمانە لە دۆخی دەستکاریدا بێت
+            if st.session_state.editing_drug == name:
+                with st.expander(f"✏️ دەستکاری: {name}", expanded=True):
+                    st.markdown("<div class='edit-form'>", unsafe_allow_html=True)
+                    st.markdown(f"### ✏️ دەستکاری دەرمانی: {name}")
+                    
+                    with st.form(key=f"edit_drug_form_{name}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            edit_drug_dose = st.text_input("💊 ڕێژە:", value=info.get('ڕێژە', ''))
+                            edit_drug_mech = st.text_input("⚙️ میکانیزم:", value=info.get('میکانیزم', ''))
+                            edit_drug_effect = st.text_input("⚠️ کاریگەری لاوەکی:", value=info.get('کاریگەری لاوەکی', ''))
+                        
+                        with col2:
+                            edit_drug_contra = st.text_input("🚫 پێچەوانە:", value=info.get('پێچەوانە', ''))
+                            edit_drug_desc = st.text_area("📖 وەسف:", value=info.get('وەسف', ''), height=100)
+                            edit_drug_why = st.text_area("🎯 بۆچی:", value=info.get('بۆچی', ''), height=100)
+                            edit_drug_note = st.text_area("📝 تێبینی:", value=info.get('تێبینی', ''), height=100)
+                        
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            save_edit = st.form_submit_button("💾 خەزنکردنی گۆڕانکارییەکان", use_container_width=True)
+                        with col_cancel:
+                            cancel_edit = st.form_submit_button("❌ ڕەتکردنەوە", use_container_width=True)
+                        
+                        if save_edit:
+                            st.session_state.custom_drugs[name] = {
+                                "ڕێژە": edit_drug_dose,
+                                "میکانیزم": edit_drug_mech,
+                                "کاریگەری لاوەکی": edit_drug_effect,
+                                "پێچەوانە": edit_drug_contra,
+                                "وەسف": edit_drug_desc,
+                                "بۆچی": edit_drug_why,
+                                "تێبینی": edit_drug_note
+                            }
+                            auto_save()
+                            st.session_state.editing_drug = None
+                            st.success(f"✅ دەرمانی '{name}' بە سەرکەوتوویی نوێ کرایەوە!")
+                            st.rerun()
+                        
+                        if cancel_edit:
+                            st.session_state.editing_drug = None
+                            st.rerun()
+                    
                     st.markdown("</div>", unsafe_allow_html=True)
-                with col2:
-                    if st.button(f"🗑️ سڕینەوەی {name}", key=f"del_drug_{name}"):
-                        del st.session_state.custom_drugs[name]
-                        auto_save()
-                        st.rerun()
+            else:
+                # دۆخی ئاسایی - نمایشی زانیارییەکان
+                with st.expander(f"💊 {name}"):
+                    col1, col2, col3 = st.columns([2.5, 0.5, 1])
+                    with col1:
+                        st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            st.markdown(f"**💊 ڕێژە:** {info.get('ڕێژە', 'نادیار')}")
+                            st.markdown(f"**⚙️ میکانیزم:** {info.get('میکانیزم', 'نادیار')}")
+                            st.markdown(f"**⚠️ کاریگەری لاوەکی:** {info.get('کاریگەری لاوەکی', 'نییە')}")
+                        with col_b:
+                            st.markdown(f"**🚫 پێچەوانە:** {info.get('پێچەوانە', 'نییە')}")
+                            st.markdown(f"**🎯 بۆچی:** {info.get('بۆچی', 'نادیار')}")
+                            st.markdown(f"**📝 تێبینی:** {info.get('تێبینی', 'نییە')}")
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    with col2:
+                        st.write("")  # بۆ فاصلە
+                        if st.button("✏️", key=f"edit_drug_{name}", help="دەستکاری"):
+                            st.session_state.editing_drug = name
+                            st.rerun()
+                    with col3:
+                        st.write("")  # بۆ فاصلە
+                        if st.button("🗑️", key=f"del_drug_{name}", help="سڕینەوە"):
+                            del st.session_state.custom_drugs[name]
+                            auto_save()
+                            st.success(f"دەرمانی '{name}' سڕایەوە")
+                            st.rerun()
     
     st.markdown("---")
     
