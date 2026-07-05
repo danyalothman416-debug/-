@@ -2,9 +2,10 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
+import hashlib  # <-- ئەمە زیاد بکە
 
 # ================================
-# 1. ڕێکخستنی ڕووکاری پەڕە (بەشێکی کورتی CSS بۆ باشترکردنی دیمەن)
+# 1. ڕێکخستنی ڕووکاری پەڕە
 # ================================
 st.set_page_config(
     page_title="Dr.Danyal - زیادکردنی پشکنین و دەرمان",
@@ -22,22 +23,40 @@ if not os.path.exists(DATA_DIR):
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
 
 def hash_password(password: str) -> str:
+    """هێشکردنی وشەی نهێنی بە شێوازی SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def load_users() -> dict:
+    """بارکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
     if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
 
 def save_users(users: dict):
+    """خەزنکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
     with open(USERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=4)
 
-def create_user(username: str, password: str) -> bool:
+def create_user(username: str, password: str) -> tuple:
+    """
+    دروستکردنی بەکارهێنەری نوێ
+    دەگەڕێتەوە: (success, message)
+    """
     users = load_users()
+    
+    # پشکنینی بوونی ناوی بەکارهێنەر
     if username in users:
-        return False
+        return False, "ئەم ناوی بەکارهێنەرییە پێشتر بەکارهێنراوە"
+    
+    # پشکنینی درێژی وشەی نهێنی
+    if len(password) < 4:
+        return False, "وشەی نهێنی پێویستە لانیکەم ٤ پیت بێت"
+    
+    # دروستکردنی بەکارهێنەری نوێ
     users[username] = {
         "password": hash_password(password),
         "created_at": datetime.now().isoformat(),
@@ -45,19 +64,22 @@ def create_user(username: str, password: str) -> bool:
         "custom_drugs": {}
     }
     save_users(users)
-    return True
+    return True, "هەژمارەکەت بە سەرکەوتوویی دروست کرا!"
 
 def authenticate_user(username: str, password: str) -> bool:
+    """پشتڕاستکردنەوەی بەکارهێنەر"""
     users = load_users()
     if username in users:
         return users[username]["password"] == hash_password(password)
     return False
 
 def load_user_data(username: str) -> dict:
+    """بارکردنی داتای تایبەتی بەکارهێنەر"""
     users = load_users()
     return users.get(username, {})
 
 def save_user_data(username: str, data: dict):
+    """خەزنکردنی داتای تایبەتی بەکارهێنەر"""
     users = load_users()
     if username in users:
         users[username].update(data)
@@ -118,16 +140,17 @@ if not st.session_state.logged_in:
             
             if register_submit:
                 if not new_username or not new_password:
-                    st.error("تکایە هەموو خانەکان پڕ بکەرەوە")
+                    st.error("❌ تکایە هەموو خانەکان پڕ بکەرەوە")
                 elif new_password != new_password_confirm:
-                    st.error("وشەی نهێنی یەک ناگرنەوە")
-                elif len(new_password) < 4:
-                    st.error("وشەی نهێنی پێویستە لانیکەم ٤ پیت بێت")
+                    st.error("❌ وشەی نهێنی یەک ناگرنەوە")
                 else:
-                    if create_user(new_username, new_password):
-                        st.success("✅ هەژمارەکەت بە سەرکەوتوویی دروست کرا!")
+                    success, message = create_user(new_username, new_password)
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.info("ئێستا دەتوانیت بچیتە ژوورەوە")
                     else:
-                        st.error("❌ ئەم ناوی بەکارهێنەرییە پێشتر بەکارهێنراوە")
+                        st.error(f"❌ {message}")
+    
     st.stop()
 
 # ================================
@@ -168,7 +191,10 @@ if page == "🏠 داشبۆرد":
     with col2:
         st.metric("💊 دەرمانە کەسییەکان", len(st.session_state.custom_drugs))
     
-    st.info("بچۆ بۆ بەشی 'زیادکردنی پشکنین' یان 'زیادکردنی دەرمان' بۆ زیادکردنی تۆمارە تایبەتییەکانی خۆت.")
+    if len(st.session_state.custom_lab_tests) == 0 and len(st.session_state.custom_drugs) == 0:
+        st.info("💡 بچۆ بۆ بەشی 'زیادکردنی پشکنین' یان 'زیادکردنی دەرمان' بۆ زیادکردنی تۆمارە تایبەتییەکانی خۆت.")
+    else:
+        st.success(f"📊 کۆی گشتی تۆمارە تایبەتییەکان: {len(st.session_state.custom_lab_tests) + len(st.session_state.custom_drugs)}")
 
 # ================================
 # 7. بەشی زیادکردنی پشکنین
@@ -182,11 +208,14 @@ elif page == "🔬 زیادکردنی پشکنین":
         st.markdown("### 📋 پشکنینە کەسییەکان")
         for name, info in st.session_state.custom_lab_tests.items():
             with st.expander(f"🔬 {name}"):
-                st.json(info)
-                if st.button(f"🗑️ سڕینەوەی {name}", key=f"del_lab_{name}"):
-                    del st.session_state.custom_lab_tests[name]
-                    auto_save()
-                    st.rerun()
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.json(info)
+                with col2:
+                    if st.button(f"🗑️ سڕینەوە", key=f"del_lab_{name}"):
+                        del st.session_state.custom_lab_tests[name]
+                        auto_save()
+                        st.rerun()
     
     st.markdown("---")
     st.markdown("### ➕ پشکنینێکی نوێ زیاد بکە")
@@ -197,8 +226,8 @@ elif page == "🔬 زیادکردنی پشکنین":
         with col1:
             new_lab_name = st.text_input("📝 ناوی پشکنین:", placeholder="وەک: Vitamin D")
             new_lab_group = st.selectbox("📂 گروپ:", ["گشتی", "خوێن", "بایۆکیمیایی", "دڵ", "هەوکردن", "هۆرمۆن", "میز", "ڤیتامین", "معدن"])
-            new_lab_low = st.number_input("⬇️ نزمترین ڕێژەی نۆرماڵ:", value=0.0)
-            new_lab_high = st.number_input("⬆️ بەرزترین ڕێژەی نۆرماڵ:", value=10.0)
+            new_lab_low = st.number_input("⬇️ نزمترین ڕێژەی نۆرماڵ:", value=0.0, step=0.1)
+            new_lab_high = st.number_input("⬆️ بەرزترین ڕێژەی نۆرماڵ:", value=10.0, step=0.1)
         
         with col2:
             new_lab_unit = st.text_input("📏 یەکە:", placeholder="mg/dL")
@@ -208,18 +237,23 @@ elif page == "🔬 زیادکردنی پشکنین":
         
         submitted = st.form_submit_button("✅ پشکنینەکە زیاد بکە")
         
-        if submitted and new_lab_name:
-            st.session_state.custom_lab_tests[new_lab_name] = {
-                "گروپ": new_lab_group,
-                "نۆرماڵ": (new_lab_low, new_lab_high),
-                "یەکە": new_lab_unit,
-                "تەفسیر": new_lab_desc,
-                "ئامێر": new_lab_machine,
-                "تێبینی": new_lab_note
-            }
-            auto_save()
-            st.success(f"✅ پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا!")
-            st.rerun()
+        if submitted:
+            if not new_lab_name:
+                st.error("❌ تکایە ناوی پشکنین بنووسە")
+            elif new_lab_name in st.session_state.custom_lab_tests:
+                st.error(f"❌ پشکنینی '{new_lab_name}' پێشتر زیاد کراوە")
+            else:
+                st.session_state.custom_lab_tests[new_lab_name] = {
+                    "گروپ": new_lab_group,
+                    "نۆرماڵ": (new_lab_low, new_lab_high),
+                    "یەکە": new_lab_unit,
+                    "تەفسیر": new_lab_desc,
+                    "ئامێر": new_lab_machine,
+                    "تێبینی": new_lab_note
+                }
+                auto_save()
+                st.success(f"✅ پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا!")
+                st.rerun()
 
 # ================================
 # 8. بەشی زیادکردنی دەرمان
@@ -233,11 +267,14 @@ elif page == "💊 زیادکردنی دەرمان":
         st.markdown("### 📋 دەرمانە کەسییەکان")
         for name, info in st.session_state.custom_drugs.items():
             with st.expander(f"💊 {name}"):
-                st.json(info)
-                if st.button(f"🗑️ سڕینەوەی {name}", key=f"del_drug_{name}"):
-                    del st.session_state.custom_drugs[name]
-                    auto_save()
-                    st.rerun()
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.json(info)
+                with col2:
+                    if st.button(f"🗑️ سڕینەوە", key=f"del_drug_{name}"):
+                        del st.session_state.custom_drugs[name]
+                        auto_save()
+                        st.rerun()
     
     st.markdown("---")
     st.markdown("### ➕ دەرمانێکی نوێ زیاد بکە")
@@ -259,19 +296,24 @@ elif page == "💊 زیادکردنی دەرمان":
         
         submitted = st.form_submit_button("✅ دەرمانەکە زیاد بکە")
         
-        if submitted and new_drug_name:
-            st.session_state.custom_drugs[new_drug_name] = {
-                "ڕێژە": new_drug_dose,
-                "میکانیزم": new_drug_mech,
-                "کاریگەری لاوەکی": new_drug_effect,
-                "پێچەوانە": new_drug_contra,
-                "وەسف": new_drug_desc,
-                "بۆچی": new_drug_why,
-                "تێبینی": new_drug_note
-            }
-            auto_save()
-            st.success(f"✅ دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا!")
-            st.rerun()
+        if submitted:
+            if not new_drug_name:
+                st.error("❌ تکایە ناوی دەرمان بنووسە")
+            elif new_drug_name in st.session_state.custom_drugs:
+                st.error(f"❌ دەرمانی '{new_drug_name}' پێشتر زیاد کراوە")
+            else:
+                st.session_state.custom_drugs[new_drug_name] = {
+                    "ڕێژە": new_drug_dose,
+                    "میکانیزم": new_drug_mech,
+                    "کاریگەری لاوەکی": new_drug_effect,
+                    "پێچەوانە": new_drug_contra,
+                    "وەسف": new_drug_desc,
+                    "بۆچی": new_drug_why,
+                    "تێبینی": new_drug_note
+                }
+                auto_save()
+                st.success(f"✅ دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا!")
+                st.rerun()
 
 # ================================
 # 9. فووەتەر
