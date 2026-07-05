@@ -9,6 +9,7 @@ import platform
 import webbrowser
 import base64
 from io import BytesIO
+import sys
 
 # ================================
 # ڕێکخستنی ڕووکاری پەڕە
@@ -164,39 +165,27 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ================================
-# PDF بە عەرەبی
+# PDF بە عەرەبی - بەبێ فۆنتی دەرەکی
 # ================================
-class ArabicPDF(FPDF):
-    def __init__(self):
-        super().__init__()
-        self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
-        self.set_font('DejaVu', '', 12)
-    
-    def header(self):
-        self.set_font('DejaVu', 'B', 24)
-        self.set_text_color(233, 69, 96)
-        self.cell(0, 15, 'Mohammed Phone', ln=True, align='C')
-        self.set_font('DejaVu', '', 14)
-        self.set_text_color(100, 100, 100)
-        self.cell(0, 10, 'تقرير قرض العميل', ln=True, align='C')
-        self.ln(10)
-        self.set_draw_color(233, 69, 96)
-        self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(10)
-    
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('DejaVu', 'I', 8)
-        self.set_text_color(150, 150, 150)
-        self.cell(0, 10, f'تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون', ln=True, align='C')
-
 def create_customer_pdf_arabic(customer):
-    pdf = ArabicPDF()
+    pdf = FPDF()
     pdf.add_page()
     
+    # هێدەر
+    pdf.set_font('Arial', 'B', 24)
+    pdf.set_text_color(233, 69, 96)
+    pdf.cell(0, 15, 'Mohammed Phone', ln=True, align='C')
+    pdf.set_font('Arial', '', 14)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, 'تقرير قرض العميل', ln=True, align='C')
+    pdf.ln(10)
+    
+    pdf.set_draw_color(233, 69, 96)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+    
     # زانیاری کڕیار
-    pdf.set_font('DejaVu', 'B', 16)
+    pdf.set_font('Arial', 'B', 16)
     pdf.set_text_color(33, 37, 41)
     pdf.cell(0, 10, 'معلومات العميل', ln=True, align='R')
     pdf.ln(5)
@@ -208,18 +197,18 @@ def create_customer_pdf_arabic(customer):
         ('تاريخ الاضافة', customer['date_added']),
     ]
     
-    pdf.set_font('DejaVu', '', 12)
+    pdf.set_font('Arial', '', 12)
     pdf.set_text_color(60, 60, 60)
     for label, value in info_items:
-        pdf.set_font('DejaVu', 'B', 12)
+        pdf.set_font('Arial', 'B', 12)
         pdf.cell(60, 8, f'{label}:', ln=False, align='R')
-        pdf.set_font('DejaVu', '', 12)
+        pdf.set_font('Arial', '', 12)
         pdf.cell(0, 8, str(value), ln=True, align='R')
     
     pdf.ln(5)
     
     # زانیاری قەرز
-    pdf.set_font('DejaVu', 'B', 16)
+    pdf.set_font('Arial', 'B', 16)
     pdf.set_text_color(33, 37, 41)
     pdf.cell(0, 10, 'معلومات القرض', ln=True, align='R')
     pdf.ln(5)
@@ -236,9 +225,9 @@ def create_customer_pdf_arabic(customer):
     ]
     
     for label, value in loan_items:
-        pdf.set_font('DejaVu', 'B', 12)
+        pdf.set_font('Arial', 'B', 12)
         pdf.cell(60, 8, f'{label}:', ln=False, align='R')
-        pdf.set_font('DejaVu', '', 12)
+        pdf.set_font('Arial', '', 12)
         
         if label == 'الحالة':
             if 'تم' in value:
@@ -253,12 +242,12 @@ def create_customer_pdf_arabic(customer):
     
     # مێژووی پارەدان
     if customer['payments']:
-        pdf.set_font('DejaVu', 'B', 16)
+        pdf.set_font('Arial', 'B', 16)
         pdf.set_text_color(33, 37, 41)
         pdf.cell(0, 10, 'سجل المدفوعات', ln=True, align='R')
         pdf.ln(5)
         
-        pdf.set_font('DejaVu', 'B', 11)
+        pdf.set_font('Arial', 'B', 11)
         pdf.set_fill_color(233, 69, 96)
         pdf.set_text_color(255, 255, 255)
         pdf.cell(15, 8, 'م', border=1, fill=True, align='C')
@@ -269,7 +258,7 @@ def create_customer_pdf_arabic(customer):
         
         pdf.set_text_color(60, 60, 60)
         for i, payment in enumerate(customer['payments'], 1):
-            pdf.set_font('DejaVu', '', 11)
+            pdf.set_font('Arial', '', 11)
             if i % 2 == 0:
                 pdf.set_fill_color(240, 240, 240)
             else:
@@ -281,32 +270,35 @@ def create_customer_pdf_arabic(customer):
             pdf.cell(0, 7, payment.get('notes', ''), border=1, fill=True, align='C')
             pdf.ln()
     
+    pdf.ln(10)
+    pdf.set_font('Arial', 'I', 10)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 10, f'تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون', ln=True, align='C')
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
         pdf.output(tmp.name)
         return tmp.name
 
 def create_all_customers_pdf_arabic(data):
-    pdf = ArabicPDF()
+    pdf = FPDF()
     pdf.add_page('L')
     
-    # سەرپەڕە
-    pdf.set_font('DejaVu', 'B', 20)
+    pdf.set_font('Arial', 'B', 24)
     pdf.set_text_color(233, 69, 96)
     pdf.cell(0, 15, 'Mohammed Phone', ln=True, align='C')
-    pdf.set_font('DejaVu', '', 14)
+    pdf.set_font('Arial', '', 14)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 10, 'تقرير جميع العملاء', ln=True, align='C')
     pdf.ln(5)
     
-    # کورتە
     total_loan = sum(c['total_amount'] for c in data['customers'])
     total_paid = sum(c['paid_amount'] for c in data['customers'])
     remaining = total_loan - total_paid
     
-    pdf.set_font('DejaVu', 'B', 14)
+    pdf.set_font('Arial', 'B', 14)
     pdf.set_text_color(33, 37, 41)
     pdf.cell(0, 10, 'الملخص', ln=True, align='R')
-    pdf.set_font('DejaVu', '', 12)
+    pdf.set_font('Arial', '', 12)
     pdf.set_text_color(60, 60, 60)
     pdf.cell(0, 8, f'عدد العملاء: {len(data["customers"])}', ln=True, align='R')
     pdf.cell(0, 8, f'مجموع القروض: {total_loan:,} د.ع', ln=True, align='R')
@@ -314,25 +306,24 @@ def create_all_customers_pdf_arabic(data):
     pdf.cell(0, 8, f'المبلغ المتبقي: {remaining:,} د.ع', ln=True, align='R')
     pdf.ln(10)
     
-    # لیست
-    pdf.set_font('DejaVu', 'B', 16)
+    pdf.set_font('Arial', 'B', 16)
     pdf.set_text_color(33, 37, 41)
     pdf.cell(0, 10, 'قائمة العملاء', ln=True, align='R')
     pdf.ln(5)
     
-    pdf.set_font('DejaVu', 'B', 10)
+    pdf.set_font('Arial', 'B', 10)
     pdf.set_fill_color(233, 69, 96)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(10, 8, 'م', border=1, fill=True, align='C')
-    pdf.cell(55, 8, 'الاسم', border=1, fill=True, align='C')
+    pdf.cell(60, 8, 'الاسم', border=1, fill=True, align='C')
     pdf.cell(50, 8, 'نوع الموبايل', border=1, fill=True, align='C')
-    pdf.cell(30, 8, 'السعر', border=1, fill=True, align='C')
-    pdf.cell(30, 8, 'المدفوع', border=1, fill=True, align='C')
-    pdf.cell(30, 8, 'المتبقي', border=1, fill=True, align='C')
+    pdf.cell(35, 8, 'السعر', border=1, fill=True, align='C')
+    pdf.cell(35, 8, 'المدفوع', border=1, fill=True, align='C')
+    pdf.cell(35, 8, 'المتبقي', border=1, fill=True, align='C')
     pdf.cell(0, 8, 'الحالة', border=1, fill=True, align='C')
     pdf.ln()
     
-    pdf.set_font('DejaVu', '', 9)
+    pdf.set_font('Arial', '', 10)
     pdf.set_text_color(60, 60, 60)
     for i, customer in enumerate(data['customers'], 1):
         if i % 2 == 0:
@@ -341,11 +332,11 @@ def create_all_customers_pdf_arabic(data):
             pdf.set_fill_color(255, 255, 255)
         
         pdf.cell(10, 7, str(i), border=1, fill=True, align='C')
-        pdf.cell(55, 7, customer['name'][:25], border=1, fill=True, align='C')
-        pdf.cell(50, 7, customer['phone_model'][:22], border=1, fill=True, align='C')
-        pdf.cell(30, 7, f"{customer['total_amount']:,}", border=1, fill=True, align='R')
-        pdf.cell(30, 7, f"{customer['paid_amount']:,}", border=1, fill=True, align='R')
-        pdf.cell(30, 7, f"{customer['remaining']:,}", border=1, fill=True, align='R')
+        pdf.cell(60, 7, customer['name'][:25], border=1, fill=True)
+        pdf.cell(50, 7, customer['phone_model'][:22], border=1, fill=True)
+        pdf.cell(35, 7, f"{customer['total_amount']:,}", border=1, fill=True, align='R')
+        pdf.cell(35, 7, f"{customer['paid_amount']:,}", border=1, fill=True, align='R')
+        pdf.cell(35, 7, f"{customer['remaining']:,}", border=1, fill=True, align='R')
         
         status = 'تم' if customer['status'] == 'paid' else 'متبقي'
         if status == 'تم':
@@ -355,6 +346,11 @@ def create_all_customers_pdf_arabic(data):
         pdf.cell(0, 7, status, border=1, fill=True, align='C')
         pdf.set_text_color(60, 60, 60)
         pdf.ln()
+    
+    pdf.ln(10)
+    pdf.set_font('Arial', 'I', 10)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 10, f'تم الاصدار: {datetime.now().strftime("%Y-%m-%d %H:%M")} | محمد فون', ln=True, align='C')
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
         pdf.output(tmp.name)
@@ -550,7 +546,7 @@ with tab2:
                     for payment in customer['payments'][-5:]:
                         st.markdown(f"- {payment['date']}: {payment['amount']:,} د.ع | {payment.get('notes', '')}")
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
                     if st.button("💵 تۆمارکردنی پارە", key=f"pay_{customer['id']}"):
                         st.session_state.selected_customer = customer['id']
@@ -565,30 +561,8 @@ with tab2:
                         save_data(data)
                         st.success(f"کڕیار {customer['name']} سڕایەوە")
                         st.rerun()
-                
-                # دوگمەی PDF بۆ هەر کڕیارێک
-                st.markdown("---")
-                col_pdf1, col_pdf2 = st.columns(2)
-                with col_pdf1:
-                    if st.button("📄 PDF", key=f"pdf_{customer['id']}", use_container_width=True):
-                        try:
-                            pdf_path = create_customer_pdf_arabic(customer)
-                            st.session_state.saved_pdf_path = pdf_path
-                            with open(pdf_path, 'rb') as f:
-                                pdf_bytes = f.read()
-                            
-                            st.download_button(
-                                label="📥 دابەزاندن",
-                                data=pdf_bytes,
-                                file_name=f"{customer['name']}_تقرير.pdf",
-                                mime="application/pdf",
-                                key=f"download_{customer['id']}",
-                                use_container_width=True
-                            )
-                        except Exception as e:
-                            st.error(f"هەڵە: {e}")
-                
-                with col_pdf2:
+                with col4:
+                    # پرینتی ڕاستەوخۆ بۆ هەر کڕیارێک
                     if st.button("🖨️ پرینت", key=f"print_{customer['id']}", use_container_width=True):
                         try:
                             pdf_path = create_customer_pdf_arabic(customer)
@@ -598,6 +572,24 @@ with tab2:
                                 st.error("❌ نەتوانرا بکرێتەوە. تکایە دابەزێنە و پرینتی بکە")
                         except Exception as e:
                             st.error(f"هەڵە: {e}")
+                
+                # دوگمەی PDF بۆ دابەزاندن
+                if st.button("📄 دابەزاندنی PDF", key=f"pdf_{customer['id']}", use_container_width=True):
+                    try:
+                        pdf_path = create_customer_pdf_arabic(customer)
+                        with open(pdf_path, 'rb') as f:
+                            pdf_bytes = f.read()
+                        
+                        st.download_button(
+                            label="📥 دابەزاندن",
+                            data=pdf_bytes,
+                            file_name=f"{customer['name']}_تقرير.pdf",
+                            mime="application/pdf",
+                            key=f"download_{customer['id']}",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"هەڵە: {e}")
                 
                 # دەستکاری
                 if st.session_state.editing_customer == customer['id']:
@@ -779,9 +771,22 @@ with tab4:
                 <li>دابەزێنە یان ڕاستەوخۆ پرینتی بکە</li>
                 <li>ئەگەر پرینتەرەکەت بلوتوزە، دڵنیا بە کە بەستراوە</li>
                 <li>لە دیالۆگی پرینت، پرینتەری بلوتوز هەڵبژێرە</li>
+                <li>بۆ پرینت، دوگمەی پرینت لە سەرەوە یان لە ناو کڕیارەکەدا کلیک بکە</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
+        # ڕێگایەکی تر بۆ پرینت
+        st.markdown("---")
+        st.markdown("#### 🖨️ پرینتی ڕاستەوخۆ بە بەکارهێنانی JavaScript")
+        
+        if st.button("🖨️ پرینتی پەڕە", use_container_width=True):
+            st.markdown("""
+            <script>
+                window.print();
+            </script>
+            """, unsafe_allow_html=True)
+            st.info("لە دیالۆگی پرینت، 'Save as PDF' یان پرینتەرەکەت هەڵبژێرە")
     
     st.markdown("</div>", unsafe_allow_html=True)
 
