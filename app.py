@@ -1,4 +1,4 @@
-# app.py - نسخەی چارەسەرکراو
+# app.py - نسخەی فرۆشتن بە License System
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -22,6 +22,8 @@ import shutil
 import pickle
 from collections import defaultdict
 import re
+import secrets
+import string
 
 # ڕێکخستنی لاپەڕە
 st.set_page_config(
@@ -31,7 +33,148 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ڕێکخستنی session state
+# ==================== LICENSE SYSTEM ====================
+class LicenseSystem:
+    def __init__(self):
+        self.license_file = 'licenses.db'
+        self.init_license_db()
+    
+    def init_license_db(self):
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        
+        # Licenses table
+        c.execute('''CREATE TABLE IF NOT EXISTS licenses
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      license_key TEXT UNIQUE,
+                      device_id TEXT,
+                      user_email TEXT,
+                      license_type TEXT,
+                      created_at TEXT,
+                      expires_at TEXT,
+                      is_active INTEGER DEFAULT 1,
+                      last_used TEXT)''')
+        
+        # Activation attempts
+        c.execute('''CREATE TABLE IF NOT EXISTS activation_attempts
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      license_key TEXT,
+                      device_id TEXT,
+                      attempt_time TEXT,
+                      status TEXT)''')
+        
+        conn.commit()
+        conn.close()
+    
+    def generate_license_key(self, license_type='yearly', user_email=None):
+        """دروستکردنی کۆدی لایسەنس"""
+        # Format: DRD-XXXX-XXXX-XXXX
+        prefix = "DRD"
+        parts = []
+        for i in range(3):
+            part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+            parts.append(part)
+        license_key = f"{prefix}-{'-'.join(parts)}"
+        
+        # Save to database
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        
+        now = datetime.now().isoformat()
+        if license_type == 'yearly':
+            expires = (datetime.now() + timedelta(days=365)).isoformat()
+        elif license_type == 'lifetime':
+            expires = '2099-12-31T23:59:59'
+        else:
+            expires = (datetime.now() + timedelta(days=30)).isoformat()
+        
+        c.execute("""INSERT INTO licenses 
+                     (license_key, user_email, license_type, created_at, expires_at, is_active)
+                     VALUES (?, ?, ?, ?, ?, 1)""",
+                  (license_key, user_email, license_type, now, expires))
+        
+        conn.commit()
+        conn.close()
+        return license_key
+    
+    def activate_license(self, license_key, device_id):
+        """چالاککردنی کۆدی لایسەنس"""
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        
+        # Check if license exists and is active
+        c.execute("SELECT * FROM licenses WHERE license_key=? AND is_active=1", (license_key,))
+        license_data = c.fetchone()
+        
+        if not license_data:
+            conn.close()
+            return {'status': 'invalid', 'message': 'کۆدەکە نادروستە یان چالاک نییە'}
+        
+        # Check if expired
+        expires_at = datetime.fromisoformat(license_data[5])
+        if expires_at < datetime.now():
+            c.execute("UPDATE licenses SET is_active=0 WHERE license_key=?", (license_key,))
+            conn.commit()
+            conn.close()
+            return {'status': 'expired', 'message': 'کۆدەکە بەسەرچووە'}
+        
+        # Check if already used on another device
+        c.execute("SELECT device_id FROM licenses WHERE license_key=? AND device_id IS NOT NULL", (license_key,))
+        existing_device = c.fetchone()
+        
+        if existing_device and existing_device[0] != device_id:
+            conn.close()
+            return {'status': 'used', 'message': 'کۆدەکە لەسەر ئامێرێکی تر چالاک کراوە'}
+        
+        # Activate
+        c.execute("UPDATE licenses SET device_id=?, last_used=? WHERE license_key=?",
+                 (device_id, datetime.now().isoformat(), license_key))
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': 'کۆد بە سەرکەوتوویی چالاک کرا'}
+    
+    def deactivate_license(self, license_key):
+        """ناچالاککردنی کۆد"""
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        c.execute("UPDATE licenses SET is_active=0 WHERE license_key=?", (license_key,))
+        conn.commit()
+        conn.close()
+        return True
+    
+    def check_license_status(self, license_key):
+        """پشکنینی دۆخی کۆد"""
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        c.execute("SELECT * FROM licenses WHERE license_key=?", (license_key,))
+        license_data = c.fetchone()
+        conn.close()
+        
+        if not license_data:
+            return {'status': 'not_found'}
+        
+        is_active = license_data[6] == 1
+        expires_at = datetime.fromisoformat(license_data[5])
+        is_expired = expires_at < datetime.now()
+        
+        if not is_active or is_expired:
+            return {'status': 'inactive', 'expires_at': license_data[5]}
+        
+        return {'status': 'active', 'expires_at': license_data[5], 'device_id': license_data[2]}
+    
+    def generate_bulk_licenses(self, count, license_type='yearly'):
+        """دروستکردنی چەندین کۆد بە یەک جار"""
+        keys = []
+        for _ in range(count):
+            key = self.generate_license_key(license_type)
+            keys.append(key)
+        return keys
+
+# ==================== INITIALIZE LICENSE SYSTEM ====================
+license_system = LicenseSystem()
+
+# ==================== SESSION STATE ====================
 if 'language' not in st.session_state:
     st.session_state.language = 'کوردی'
 if 'undo_stack' not in st.session_state:
@@ -47,8 +190,16 @@ if 'achievements' not in st.session_state:
         'favorites': 0,
         'last_study_date': None
     }
+if 'device_id' not in st.session_state:
+    # Create unique device ID
+    import uuid
+    st.session_state.device_id = str(uuid.uuid4())
+if 'license_key' not in st.session_state:
+    st.session_state.license_key = None
+if 'license_valid' not in st.session_state:
+    st.session_state.license_valid = False
 
-# CSSی پێشکەوتوو
+# ==================== CSS ====================
 def load_css():
     dark_mode = st.session_state.get('dark_mode', True)
     font_size = st.session_state.get('font_size', 'medium')
@@ -82,20 +233,6 @@ def load_css():
             font-size: {font_sizes[font_size]};
         }}
         
-        @keyframes shimmer {{
-            0% {{ background-position: -200% 0; }}
-            100% {{ background-position: 200% 0; }}
-        }}
-        
-        .skeleton {{
-            background: linear-gradient(90deg, {card_bg} 25%, rgba(255,255,255,0.2) 50%, {card_bg} 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 10px;
-            height: 100px;
-            margin: 10px 0;
-        }}
-        
         .glass-card {{
             background: {card_bg};
             backdrop-filter: blur(20px);
@@ -107,44 +244,16 @@ def load_css():
             box-shadow: 0 8px 32px 0 {shadow_color};
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: fadeInUp 0.6s ease-out;
-            position: relative;
-            overflow: hidden;
         }}
         
         .glass-card:hover {{
             transform: translateY(-8px) scale(1.01);
             box-shadow: 0 15px 45px 0 {shadow_color};
-            border-color: rgba(102, 126, 234, 0.5);
         }}
         
         @keyframes fadeInUp {{
-            from {{
-                opacity: 0;
-                transform: translateY(30px);
-            }}
-            to {{
-                opacity: 1;
-                transform: translateY(0);
-            }}
-        }}
-        
-        .priority-high {{
-            border-left: 5px solid #ff4757;
-        }}
-        .priority-medium {{
-            border-left: 5px solid #ffa502;
-        }}
-        .priority-low {{
-            border-left: 5px solid #2ed573;
-        }}
-        
-        .color-label {{
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin: 2px;
+            from {{ opacity: 0; transform: translateY(30px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
         }}
         
         .main-header {{
@@ -156,22 +265,6 @@ def load_css():
             margin-bottom: 30px;
             animation: fadeInUp 0.8s ease-out;
             box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
-        }}
-        
-        .quick-action {{
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 5px;
-        }}
-        
-        .quick-action:hover {{
-            transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
         }}
         
         .stButton > button {{
@@ -191,48 +284,38 @@ def load_css():
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
         }}
         
-        /* Heatmap */
-        .heatmap-cell {{
-            width: 30px;
-            height: 30px;
-            border-radius: 4px;
-            margin: 2px;
+        .license-badge {{
             display: inline-block;
-            transition: all 0.3s;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
         }}
         
-        .heatmap-cell:hover {{
-            transform: scale(1.2);
+        .license-valid {{
+            background: #2ed573;
+            color: white;
+        }}
+        
+        .license-invalid {{
+            background: #ff4757;
+            color: white;
         }}
         
         @media print {{
-            .stApp {{
-                background: white !important;
-            }}
-            .glass-card {{
-                background: white !important;
-                border: 1px solid #ddd !important;
-                box-shadow: none !important;
-            }}
-            .stButton, .stDownloadButton {{
-                display: none !important;
-            }}
+            .stApp {{ background: white !important; }}
+            .glass-card {{ background: white !important; border: 1px solid #ddd !important; }}
+            .stButton, .stDownloadButton {{ display: none !important; }}
         }}
         
         @media (max-width: 768px) {{
-            .glass-card {{
-                padding: 15px;
-                margin: 8px 0;
-            }}
-            .main-header {{
-                padding: 20px;
-                font-size: 20px;
-            }}
+            .glass-card {{ padding: 15px; margin: 8px 0; }}
+            .main-header {{ padding: 20px; font-size: 20px; }}
         }}
     </style>
     """, unsafe_allow_html=True)
 
-# Database functions
+# ==================== DATABASE FUNCTIONS ====================
 def init_db():
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -245,7 +328,7 @@ def init_db():
                   role TEXT,
                   created_at TEXT)''')
     
-    # Medicines with new fields - FIXED: added priority and color_label columns
+    # Medicines
     c.execute('''CREATE TABLE IF NOT EXISTS medicines
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
@@ -256,12 +339,14 @@ def init_db():
                   group_name TEXT,
                   priority TEXT DEFAULT 'medium',
                   color_label TEXT,
+                  tags TEXT,
                   notes TEXT,
                   favorite INTEGER DEFAULT 0,
+                  pinned INTEGER DEFAULT 0,
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # Lab tests with new fields - FIXED: added priority and color_label columns
+    # Lab tests
     c.execute('''CREATE TABLE IF NOT EXISTS lab_tests
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
@@ -270,8 +355,10 @@ def init_db():
                   preparation TEXT,
                   priority TEXT DEFAULT 'medium',
                   color_label TEXT,
+                  tags TEXT,
                   notes TEXT,
                   favorite INTEGER DEFAULT 0,
+                  pinned INTEGER DEFAULT 0,
                   created_at TEXT,
                   updated_at TEXT)''')
     
@@ -283,7 +370,7 @@ def init_db():
                   date TEXT,
                   notes TEXT)''')
     
-    # General notes with attachments
+    # General notes
     c.execute('''CREATE TABLE IF NOT EXISTS general_notes
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   title TEXT,
@@ -291,6 +378,7 @@ def init_db():
                   image_path TEXT,
                   link TEXT,
                   attachment_path TEXT,
+                  tags TEXT,
                   created_at TEXT)''')
     
     # Note templates
@@ -300,7 +388,7 @@ def init_db():
                   content TEXT,
                   created_at TEXT)''')
     
-    # Custom categories
+    # Categories
     c.execute('''CREATE TABLE IF NOT EXISTS categories
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
@@ -326,23 +414,31 @@ def init_db():
                   details TEXT,
                   created_at TEXT)''')
     
-    # Check if columns exist and add them if not
+    # Check and add columns
     try:
-        c.execute("SELECT priority FROM medicines LIMIT 1")
-    except sqlite3.OperationalError:
-        c.execute("ALTER TABLE medicines ADD COLUMN priority TEXT DEFAULT 'medium'")
-        c.execute("ALTER TABLE medicines ADD COLUMN color_label TEXT")
+        c.execute("SELECT tags FROM medicines LIMIT 1")
+    except:
+        c.execute("ALTER TABLE medicines ADD COLUMN tags TEXT")
     
     try:
-        c.execute("SELECT priority FROM lab_tests LIMIT 1")
-    except sqlite3.OperationalError:
-        c.execute("ALTER TABLE lab_tests ADD COLUMN priority TEXT DEFAULT 'medium'")
-        c.execute("ALTER TABLE lab_tests ADD COLUMN color_label TEXT")
+        c.execute("SELECT pinned FROM medicines LIMIT 1")
+    except:
+        c.execute("ALTER TABLE medicines ADD COLUMN pinned INTEGER DEFAULT 0")
     
     try:
-        c.execute("SELECT attachment_path FROM general_notes LIMIT 1")
-    except sqlite3.OperationalError:
-        c.execute("ALTER TABLE general_notes ADD COLUMN attachment_path TEXT")
+        c.execute("SELECT tags FROM lab_tests LIMIT 1")
+    except:
+        c.execute("ALTER TABLE lab_tests ADD COLUMN tags TEXT")
+    
+    try:
+        c.execute("SELECT pinned FROM lab_tests LIMIT 1")
+    except:
+        c.execute("ALTER TABLE lab_tests ADD COLUMN pinned INTEGER DEFAULT 0")
+    
+    try:
+        c.execute("SELECT tags FROM general_notes LIMIT 1")
+    except:
+        c.execute("ALTER TABLE general_notes ADD COLUMN tags TEXT")
     
     # Insert default categories
     default_categories = [
@@ -370,59 +466,25 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Category functions
-def get_categories(type_=None):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    if type_:
-        c.execute("SELECT * FROM categories WHERE type=? ORDER BY name", (type_,))
-    else:
-        c.execute("SELECT * FROM categories ORDER BY name")
-    data = c.fetchall()
-    conn.close()
-    return data
+# ==================== LICENSE CHECK DECORATOR ====================
+def require_license(func):
+    """دکۆراتۆر بۆ پشکنینی لایسەنس پێش کارکردن"""
+    def wrapper(*args, **kwargs):
+        if not st.session_state.get('license_valid', False):
+            st.error("⛔ تکایە یەکەم جار کۆدی لایسەنسەکەت چالاک بکە!")
+            return None
+        return func(*args, **kwargs)
+    return wrapper
 
-def add_category(name, color, type_):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO categories (name, color, type, created_at) VALUES (?, ?, ?, ?)",
-             (name, color, type_, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
-
-def delete_category(id):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM categories WHERE id=?", (id,))
-    conn.commit()
-    conn.close()
-
-# History functions
-def add_history(action, table_name, record_id, details):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO history (action, table_name, record_id, details, created_at) VALUES (?, ?, ?, ?, ?)",
-             (action, table_name, record_id, details, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
-
-def get_history(limit=50):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM history ORDER BY created_at DESC LIMIT ?", (limit,))
-    data = c.fetchall()
-    conn.close()
-    return data
-
-# Medicine CRUD with undo
-def add_medicine(name, brand, generic, dose, route, group_name, priority, color_label, notes):
+# ==================== CRUD FUNCTIONS ====================
+def add_medicine(name, brand, generic, dose, route, group_name, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     now = datetime.now().isoformat()
     c.execute("""INSERT INTO medicines 
-                 (name, brand, generic, dose, route, group_name, priority, color_label, notes, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-              (name, brand, generic, dose, route, group_name, priority, color_label, notes, now, now))
+                 (name, brand, generic, dose, route, group_name, priority, color_label, tags, notes, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+              (name, brand, generic, dose, route, group_name, priority, color_label, tags, notes, now, now))
     id = c.lastrowid
     conn.commit()
     conn.close()
@@ -431,55 +493,49 @@ def add_medicine(name, brand, generic, dose, route, group_name, priority, color_
     auto_backup()
     return id
 
-def get_medicines(search=None, group=None, priority=None):
+def get_medicines(search=None, group=None, priority=None, tag=None):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    
-    # Check if priority column exists
-    try:
-        c.execute("SELECT priority FROM medicines LIMIT 1")
-        has_priority = True
-    except:
-        has_priority = False
     
     query = "SELECT * FROM medicines"
     params = []
     conditions = []
     
     if search:
-        conditions.append("(name LIKE ? OR brand LIKE ? OR generic LIKE ?)")
-        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        conditions.append("(name LIKE ? OR brand LIKE ? OR generic LIKE ? OR tags LIKE ?)")
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
     
     if group:
         conditions.append("group_name = ?")
         params.append(group)
     
-    if priority and has_priority:
+    if priority:
         conditions.append("priority = ?")
         params.append(priority)
+    
+    if tag:
+        conditions.append("tags LIKE ?")
+        params.append(f'%{tag}%')
     
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     
-    if has_priority:
-        query += " ORDER BY favorite DESC, priority DESC, name ASC"
-    else:
-        query += " ORDER BY favorite DESC, name ASC"
+    query += " ORDER BY pinned DESC, favorite DESC, priority DESC, name ASC"
     
     c.execute(query, params)
     data = c.fetchall()
     conn.close()
     return data
 
-def update_medicine(id, name, brand, generic, dose, route, group_name, priority, color_label, notes):
+def update_medicine(id, name, brand, generic, dose, route, group_name, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     now = datetime.now().isoformat()
     c.execute("""UPDATE medicines 
                  SET name=?, brand=?, generic=?, dose=?, route=?, 
-                     group_name=?, priority=?, color_label=?, notes=?, updated_at=?
+                     group_name=?, priority=?, color_label=?, tags=?, notes=?, updated_at=?
                  WHERE id=?""",
-              (name, brand, generic, dose, route, group_name, priority, color_label, notes, now, id))
+              (name, brand, generic, dose, route, group_name, priority, color_label, tags, notes, now, id))
     conn.commit()
     conn.close()
     add_history('UPDATE', 'medicines', id, f'Updated medicine: {name}')
@@ -499,6 +555,16 @@ def delete_medicine(id):
         st.session_state.undo_stack.append(('medicine', id, name))
         auto_backup()
 
+def toggle_pin_medicine(id):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("SELECT pinned FROM medicines WHERE id=?", (id,))
+    current = c.fetchone()[0]
+    new_val = 0 if current else 1
+    c.execute("UPDATE medicines SET pinned=? WHERE id=?", (new_val, id))
+    conn.commit()
+    conn.close()
+
 def toggle_favorite_medicine(id):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -511,15 +577,15 @@ def toggle_favorite_medicine(id):
     if new_val:
         update_achievements('favorites')
 
-# Lab test CRUD
-def add_lab_test(name, purpose, normal_range, preparation, priority, color_label, notes):
+# Lab tests
+def add_lab_test(name, purpose, normal_range, preparation, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     now = datetime.now().isoformat()
     c.execute("""INSERT INTO lab_tests 
-                 (name, purpose, normal_range, preparation, priority, color_label, notes, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-              (name, purpose, normal_range, preparation, priority, color_label, notes, now, now))
+                 (name, purpose, normal_range, preparation, priority, color_label, tags, notes, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+              (name, purpose, normal_range, preparation, priority, color_label, tags, notes, now, now))
     id = c.lastrowid
     conn.commit()
     conn.close()
@@ -528,50 +594,44 @@ def add_lab_test(name, purpose, normal_range, preparation, priority, color_label
     auto_backup()
     return id
 
-def get_lab_tests(search=None, priority=None):
+def get_lab_tests(search=None, priority=None, tag=None):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    
-    # Check if priority column exists
-    try:
-        c.execute("SELECT priority FROM lab_tests LIMIT 1")
-        has_priority = True
-    except:
-        has_priority = False
     
     query = "SELECT * FROM lab_tests"
     params = []
     conditions = []
     
     if search:
-        conditions.append("(name LIKE ? OR purpose LIKE ?)")
-        params.extend([f'%{search}%', f'%{search}%'])
+        conditions.append("(name LIKE ? OR purpose LIKE ? OR tags LIKE ?)")
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
     
-    if priority and has_priority:
+    if priority:
         conditions.append("priority = ?")
         params.append(priority)
+    
+    if tag:
+        conditions.append("tags LIKE ?")
+        params.append(f'%{tag}%')
     
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     
-    if has_priority:
-        query += " ORDER BY favorite DESC, priority DESC, name ASC"
-    else:
-        query += " ORDER BY favorite DESC, name ASC"
+    query += " ORDER BY pinned DESC, favorite DESC, priority DESC, name ASC"
     
     c.execute(query, params)
     data = c.fetchall()
     conn.close()
     return data
 
-def update_lab_test(id, name, purpose, normal_range, preparation, priority, color_label, notes):
+def update_lab_test(id, name, purpose, normal_range, preparation, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     now = datetime.now().isoformat()
     c.execute("""UPDATE lab_tests 
-                 SET name=?, purpose=?, normal_range=?, preparation=?, priority=?, color_label=?, notes=?, updated_at=?
+                 SET name=?, purpose=?, normal_range=?, preparation=?, priority=?, color_label=?, tags=?, notes=?, updated_at=?
                  WHERE id=?""",
-              (name, purpose, normal_range, preparation, priority, color_label, notes, now, id))
+              (name, purpose, normal_range, preparation, priority, color_label, tags, notes, now, id))
     conn.commit()
     conn.close()
     add_history('UPDATE', 'lab_tests', id, f'Updated lab test: {name}')
@@ -591,6 +651,16 @@ def delete_lab_test(id):
         st.session_state.undo_stack.append(('lab_test', id, name))
         auto_backup()
 
+def toggle_pin_lab_test(id):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("SELECT pinned FROM lab_tests WHERE id=?", (id,))
+    current = c.fetchone()[0]
+    new_val = 0 if current else 1
+    c.execute("UPDATE lab_tests SET pinned=? WHERE id=?", (new_val, id))
+    conn.commit()
+    conn.close()
+
 def toggle_favorite_lab_test(id):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -609,21 +679,25 @@ def toggle_favorite(table, id):
     elif table == 'lab_tests':
         toggle_favorite_lab_test(id)
 
-# Test trends
-def add_trend_value(test_id, value, notes=''):
+def toggle_pin(table, id):
+    if table == 'medicines':
+        toggle_pin_medicine(id)
+    elif table == 'lab_tests':
+        toggle_pin_lab_test(id)
+
+# History
+def add_history(action, table_name, record_id, details):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    c.execute("INSERT INTO test_trends (test_id, value, date, notes) VALUES (?, ?, ?, ?)",
-             (test_id, value, datetime.now().isoformat(), notes))
+    c.execute("INSERT INTO history (action, table_name, record_id, details, created_at) VALUES (?, ?, ?, ?, ?)",
+             (action, table_name, record_id, details, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
-def get_trends(test_id, days=30):
+def get_history(limit=50):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
-    c.execute("SELECT * FROM test_trends WHERE test_id=? AND date > ? ORDER BY date", 
-             (test_id, cutoff))
+    c.execute("SELECT * FROM history ORDER BY created_at DESC LIMIT ?", (limit,))
     data = c.fetchall()
     conn.close()
     return data
@@ -679,6 +753,35 @@ def complete_reminder(id):
     conn.commit()
     conn.close()
 
+# General notes
+def add_general_note(title, content, image_path=None, link=None, attachment_path=None, tags=None):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    now = datetime.now().isoformat()
+    c.execute("""INSERT INTO general_notes 
+                 (title, content, image_path, link, attachment_path, tags, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)""",
+             (title, content, image_path, link, attachment_path, tags, now))
+    conn.commit()
+    conn.close()
+    auto_backup()
+
+def get_general_notes():
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM general_notes ORDER BY created_at DESC")
+    data = c.fetchall()
+    conn.close()
+    return data
+
+def delete_general_note(id):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM general_notes WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    auto_backup()
+
 # Achievements
 def update_achievements(type_):
     today = datetime.now().date()
@@ -690,6 +793,23 @@ def update_achievements(type_):
         st.session_state.achievements['items_added'] += 1
     elif type_ == 'favorites':
         st.session_state.achievements['favorites'] += 1
+
+# Auto backup
+def auto_backup():
+    try:
+        if os.path.exists('medical_data.db'):
+            backup_dir = 'backups'
+            os.makedirs(backup_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_path = f'{backup_dir}/backup_{timestamp}.db'
+            shutil.copy2('medical_data.db', backup_path)
+            
+            backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')])
+            if len(backups) > 10:
+                for old_backup in backups[:-10]:
+                    os.remove(os.path.join(backup_dir, old_backup))
+    except:
+        pass
 
 # Medical Calculators
 def calculate_bmi(weight, height):
@@ -717,30 +837,6 @@ def calculate_sodium_correction(na, glucose):
 def calculate_iv_drip_rate(volume, time, drop_factor):
     return (volume * drop_factor) / (time * 60)
 
-# Collections
-def create_collection(name, items):
-    st.session_state.study_collections.append({
-        'name': name,
-        'items': items,
-        'created_at': datetime.now().isoformat()
-    })
-
-def get_collections():
-    return st.session_state.study_collections
-
-# Voice notes
-def save_voice_note(title, audio_file):
-    os.makedirs("voice_notes", exist_ok=True)
-    path = f"voice_notes/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{audio_file.name}"
-    with open(path, "wb") as f:
-        f.write(audio_file.getbuffer())
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO general_notes (title, content, image_path, created_at) VALUES (?, ?, ?, ?)",
-             (f"Voice Note: {title}", f"Voice recording", path, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
-
 # Authentication
 def check_login(username, password):
     conn = sqlite3.connect('medical_data.db')
@@ -764,41 +860,6 @@ def add_user(username, password, role='user'):
         return False
     finally:
         conn.close()
-
-# Auto backup
-def auto_backup():
-    try:
-        if os.path.exists('medical_data.db'):
-            backup_dir = 'backups'
-            os.makedirs(backup_dir, exist_ok=True)
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_path = f'{backup_dir}/backup_{timestamp}.db'
-            shutil.copy2('medical_data.db', backup_path)
-            
-            backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')])
-            if len(backups) > 10:
-                for old_backup in backups[:-10]:
-                    os.remove(os.path.join(backup_dir, old_backup))
-    except:
-        pass
-
-# Study mode
-def get_random_study_item():
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    
-    c.execute("SELECT 'medicine' as type, id, name, brand, generic, dose, route, group_name, priority, notes FROM medicines")
-    medicines = c.fetchall()
-    
-    c.execute("SELECT 'lab_test' as type, id, name, purpose, normal_range, preparation, priority, notes FROM lab_tests")
-    lab_tests = c.fetchall()
-    
-    conn.close()
-    
-    all_items = list(medicines) + list(lab_tests)
-    if all_items:
-        return random.choice(all_items)
-    return None
 
 # Export functions
 def export_to_pdf(data, title):
@@ -847,23 +908,154 @@ def undo_delete():
         return True
     return False
 
-def delete_general_note(id):
+def get_random_study_item():
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    c.execute("DELETE FROM general_notes WHERE id=?", (id,))
-    conn.commit()
+    
+    c.execute("SELECT 'medicine' as type, id, name, brand, generic, dose, route, group_name, priority, notes FROM medicines")
+    medicines = c.fetchall()
+    
+    c.execute("SELECT 'lab_test' as type, id, name, purpose, normal_range, preparation, priority, notes FROM lab_tests")
+    lab_tests = c.fetchall()
+    
     conn.close()
-    auto_backup()
+    
+    all_items = list(medicines) + list(lab_tests)
+    if all_items:
+        return random.choice(all_items)
+    return None
 
-def get_general_notes():
+def get_categories(type_=None):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    c.execute("SELECT * FROM general_notes ORDER BY created_at DESC")
+    if type_:
+        c.execute("SELECT * FROM categories WHERE type=? ORDER BY name", (type_,))
+    else:
+        c.execute("SELECT * FROM categories ORDER BY name")
     data = c.fetchall()
     conn.close()
     return data
 
-# Main app
+def add_category(name, color, type_):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO categories (name, color, type, created_at) VALUES (?, ?, ?, ?)",
+             (name, color, type_, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+# ==================== LICENSE MANAGEMENT UI ====================
+def show_license_manager():
+    st.markdown("### 🔑 بەڕێوەبەری لایسەنس")
+    
+    tab1, tab2, tab3 = st.tabs(["🔑 چالاککردن", "📋 دروستکردنی کۆد", "📊 ئامار"])
+    
+    with tab1:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.subheader("🔑 چالاککردنی لایسەنس")
+        
+        license_key = st.text_input("کۆدی لایسەنسەکەت بنووسە", placeholder="DRD-XXXX-XXXX-XXXX")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ چالاککردن", use_container_width=True):
+                if license_key:
+                    result = license_system.activate_license(license_key, st.session_state.device_id)
+                    if result['status'] == 'success':
+                        st.session_state.license_key = license_key
+                        st.session_state.license_valid = True
+                        st.success(f"✅ {result['message']}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {result['message']}")
+                else:
+                    st.warning("تکایە کۆدەکە بنووسە")
+        
+        with col2:
+            if st.button("🔍 پشکنینی دۆخ", use_container_width=True):
+                if license_key:
+                    status = license_system.check_license_status(license_key)
+                    if status['status'] == 'active':
+                        st.success(f"✅ چالاکە - بەسەر دەچێت لە: {status['expires_at']}")
+                    else:
+                        st.error("❌ ناچالاکە یان بەسەرچووە")
+                else:
+                    st.warning("تکایە کۆدەکە بنووسە")
+        
+        # Show current license status
+        if st.session_state.get('license_valid', False):
+            st.markdown(f"""
+            <div style="background: #2ed573; padding: 15px; border-radius: 15px; color: white; text-align: center; margin-top: 10px;">
+                <h4>✅ لایسەنس چالاکە</h4>
+                <p>کۆد: {st.session_state.license_key}</p>
+                <p>ئامێر: {st.session_state.device_id[:8]}...</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with tab2:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.subheader("📋 دروستکردنی کۆدی نوێ")
+        
+        st.warning("⚠️ ئەم بەشە تەنها بۆ بەڕێوەبەرە!")
+        
+        if st.session_state.get('user_role') == 'admin':
+            license_type = st.selectbox("جۆری لایسەنس", ["yearly", "lifetime", "monthly"])
+            user_email = st.text_input("ئیمەیڵی بەکارهێنەر")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("➕ دروستکردنی کۆد", use_container_width=True):
+                    if user_email:
+                        new_key = license_system.generate_license_key(license_type, user_email)
+                        st.success(f"✅ کۆدی نوێ دروستکرا!")
+                        st.code(f"{new_key}")
+                        st.info(f"ئیمەیڵ: {user_email}")
+                    else:
+                        st.warning("تکایە ئیمەیڵ بنووسە")
+            
+            with col2:
+                count = st.number_input("ژمارەی کۆد", min_value=1, max_value=100, value=10)
+                if st.button("📦 دروستکردنی کۆدەکان", use_container_width=True):
+                    keys = license_system.generate_bulk_licenses(count, license_type)
+                    st.success(f"✅ {count} کۆد دروستکرا!")
+                    for key in keys:
+                        st.code(f"{key}")
+        else:
+            st.info("🔒 تەنها بۆ بەڕێوەبەرە")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with tab3:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.subheader("📊 ئاماری لایسەنس")
+        
+        conn = sqlite3.connect('licenses.db')
+        c = conn.cursor()
+        
+        c.execute("SELECT COUNT(*) FROM licenses")
+        total = c.fetchone()[0]
+        
+        c.execute("SELECT COUNT(*) FROM licenses WHERE is_active=1")
+        active = c.fetchone()[0]
+        
+        c.execute("SELECT COUNT(*) FROM licenses WHERE device_id IS NOT NULL")
+        used = c.fetchone()[0]
+        
+        conn.close()
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("📦 کۆی کۆدەکان", total)
+        with col2:
+            st.metric("✅ کۆدی چالاک", active)
+        with col3:
+            st.metric("💻 کۆدی بەکارهێنراو", used)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ==================== MAIN APP ====================
 def main():
     init_db()
     load_css()
@@ -882,28 +1074,68 @@ def main():
     if 'language' not in st.session_state:
         st.session_state.language = 'کوردی'
     
-    # Auto backup every 10 minutes
+    # Auto backup
     if not hasattr(st.session_state, 'last_backup'):
         st.session_state.last_backup = datetime.now()
     elif (datetime.now() - st.session_state.last_backup).seconds > 600:
         auto_backup()
         st.session_state.last_backup = datetime.now()
     
-    # Update study achievements
+    # Update achievements
     update_achievements('study')
     
-    if not st.session_state.logged_in:
-        show_login()
+    # Check license validity
+    if st.session_state.get('license_valid', False) and st.session_state.get('license_key'):
+        status = license_system.check_license_status(st.session_state.license_key)
+        if status['status'] != 'active':
+            st.session_state.license_valid = False
+            st.warning("⚠️ لایسەنسەکە بەسەرچووە یان ناچالاک کراوە. تکایە دووبارە چالاک بکە!")
+    
+    # LICENSE CHECK - Show activation if not valid
+    if not st.session_state.get('license_valid', False):
+        st.markdown("""
+        <div class="main-header">
+            <h1>🏥 دکتر دانیال</h1>
+            <p>پلاتفۆرمی خوێندنی پزیشکی - پرۆفیشناڵ</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        show_license_manager()
+        
+        # Try to login for admin
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.expander("👤 چوونەژوورەوە بۆ بەڕێوەبەر"):
+                username = st.text_input("ناوی بەکارهێنەر")
+                password = st.text_input("ووشەی نهێنی", type="password")
+                if st.button("🔓 چوونەژوورەوە"):
+                    user = check_login(username, password)
+                    if user:
+                        st.session_state.logged_in = True
+                        st.session_state.username = username
+                        st.session_state.user_id = user[0]
+                        st.session_state.user_role = user[3]
+                        st.rerun()
+                    else:
+                        st.error("❌ هەڵە!")
+        
+        st.warning("""
+        ⚠️ تکایە یەکەم جار لایسەنسەکەت چالاک بکە!
+        
+        - ئەگەر کۆدت نییە، پەیوەندی بە بەڕێوەبەرەوە بکە
+        - کۆدەکە لە فۆرماتی **DRD-XXXX-XXXX-XXXX** دەبێت
+        """)
         return
     
-    # Main app header
+    # Main app - Only visible with valid license
     st.markdown(f"""
     <div class="main-header">
         <h1>🏥 دکتر دانیال</h1>
         <p>❤️ بەخێربێیت، {st.session_state.username}!</p>
         <p style="font-size: 14px; opacity: 0.8;">📅 {datetime.now().strftime('%A, %B %d, %Y')}</p>
         <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-            <span class="color-label" style="background: #ff4757; color: white;">🏆 {st.session_state.achievements['study_days']} ڕۆژی خوێندن</span>
+            <span class="license-badge license-valid">🔑 {st.session_state.license_key[:12]}...</span>
+            <span class="color-label" style="background: #ff4757; color: white;">🏆 {st.session_state.achievements['study_days']} ڕۆژ</span>
             <span class="color-label" style="background: #2ed573; color: white;">📚 {st.session_state.achievements['items_added']} بابەت</span>
             <span class="color-label" style="background: #ffa502; color: white;">⭐ {st.session_state.achievements['favorites']} دڵخواز</span>
         </div>
@@ -911,7 +1143,7 @@ def main():
     """, unsafe_allow_html=True)
     
     # Quick actions
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("💊 + دەرمان", use_container_width=True):
             st.session_state.current_page = "💊 دەرمانەکان"
@@ -925,6 +1157,9 @@ def main():
             st.session_state.current_page = "📝 تێبینییەکان"
             st.rerun()
     with col4:
+        if st.button("📌 + پین", use_container_width=True):
+            st.info("بابەتەکانت پین بکە بۆ ئاسانی دۆزینەوە")
+    with col5:
         if st.button("↩️ گەڕاندنەوە", use_container_width=True):
             if undo_delete():
                 st.rerun()
@@ -945,6 +1180,7 @@ def main():
         ]
         
         if st.session_state.get('user_role') == 'admin':
+            pages.append("🔑 لایسەنس")
             pages.append("👥 بەکارهێنەران")
         pages.append("⚙️ ڕێکخستنەکان")
         
@@ -963,6 +1199,7 @@ def main():
             if st.button("🚪 دەرچوون", use_container_width=True):
                 st.session_state.logged_in = False
                 st.session_state.username = ''
+                st.session_state.license_valid = False
                 st.rerun()
     
     # Page content
@@ -984,44 +1221,14 @@ def main():
         show_heatmap()
     elif page == "🏆 دەستکەوتەکان":
         show_achievements()
+    elif page == "🔑 لایسەنس" and st.session_state.get('user_role') == 'admin':
+        show_license_manager()
     elif page == "👥 بەکارهێنەران" and st.session_state.get('user_role') == 'admin':
         show_users()
     elif page == "⚙️ ڕێکخستنەکان":
         show_settings()
 
-def show_login():
-    st.markdown("""
-    <div class="main-header">
-        <h1>🏥 دکتر دانیال</h1>
-        <p>پلاتفۆرمی خوێندن و سەرچاوەی پزیشکی</p>
-        <p style="font-size: 14px; opacity: 0.8;">❤️ بۆ خوێندکارانی پزیشکی و تەندروستی</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        with st.container():
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            st.subheader("🔐 چوونەژوورەوە")
-            
-            username = st.text_input("ناوی بەکارهێنەر", placeholder="ناوی بەکارهێنەرێت بنووسە")
-            password = st.text_input("ووشەی نهێنی", type="password", placeholder="ووشەی نهێنی بنووسە")
-            
-            if st.button("🔓 چوونەژوورەوە", use_container_width=True):
-                user = check_login(username, password)
-                if user:
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.session_state.user_id = user[0]
-                    st.session_state.user_role = user[3]
-                    st.rerun()
-                else:
-                    st.error("❌ ناوی بەکارهێنەر یان ووشەی نهێنی هەڵەیە!")
-            
-            st.markdown("---")
-            st.caption("👤 بەکارهێنەری بنەڕەت: admin / admin123")
-            st.markdown('</div>', unsafe_allow_html=True)
-
+# ==================== PAGE FUNCTIONS ====================
 def show_dashboard():
     st.markdown("### 📊 داشبۆرد")
     
@@ -1040,11 +1247,11 @@ def show_dashboard():
     c.execute("SELECT COUNT(*) FROM lab_tests WHERE favorite=1")
     fav_tests = c.fetchone()[0]
     
-    c.execute("SELECT COUNT(*) FROM general_notes")
-    total_notes = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM medicines WHERE pinned=1")
+    pinned_meds = c.fetchone()[0]
     
-    c.execute("SELECT COUNT(*) FROM reminders WHERE completed=0")
-    pending_reminders = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM lab_tests WHERE pinned=1")
+    pinned_tests = c.fetchone()[0]
     
     conn.close()
     
@@ -1079,9 +1286,9 @@ def show_dashboard():
     with col4:
         st.markdown(f"""
         <div class="glass-card" style="text-align: center;">
-            <h2 style="font-size: 40px;">⏰</h2>
-            <h3>{pending_reminders}</h3>
-            <p>یادخستنەکان</p>
+            <h2 style="font-size: 40px;">📌</h2>
+            <h3>{pinned_meds + pinned_tests}</h3>
+            <p>پین کراوەکان</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1113,41 +1320,6 @@ def show_dashboard():
         fig.update_layout(showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Recent activity
-    st.markdown("### 📋 چالاکییە کۆتاییەکان")
-    history = get_history(10)
-    if history:
-        for item in history:
-            st.markdown(f"""
-            <div class="glass-card" style="padding: 10px;">
-                <div style="display: flex; justify-content: space-between;">
-                    <span>{item[1]} - {item[3]}</span>
-                    <span style="opacity: 0.7;">{item[4]}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Reminders
-    st.markdown("### ⏰ یادخستنە چالاکەکان")
-    reminders = get_reminders(show_completed=False)[:5]
-    if reminders:
-        for rem in reminders:
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.markdown(f"""
-                <div class="glass-card" style="padding: 10px;">
-                    <strong>{rem[1]}</strong>
-                    <p style="margin: 0;">{rem[2]}</p>
-                    <small>📅 {rem[3]}</small>
-                </div>
-                """, unsafe_allow_html=True)
-            with col2:
-                if st.button("✅", key=f"complete_rem_{rem[0]}"):
-                    complete_reminder(rem[0])
-                    st.rerun()
-    else:
-        st.info("هیچ یادخستنێکی چالاک نییە! 🎉")
 
 def show_medicines():
     st.markdown("### 💊 بەڕێوەبەری دەرمانەکان")
@@ -1157,24 +1329,32 @@ def show_medicines():
     with tab1:
         st.markdown("#### هەموو دەرمانەکان")
         
-        priority_filter = st.selectbox("فلتەر بە پریۆریتی", ["هەموو", "high", "medium", "low"])
-        priority = None if priority_filter == "هەموو" else priority_filter
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            priority_filter = st.selectbox("فلتەر بە پریۆریتی", ["هەموو", "high", "medium", "low"])
+        with col2:
+            tag_filter = st.text_input("فلتەر بە تەگ", placeholder="تەگێک بنووسە...")
+        with col3:
+            if st.button("🔄 ڕێکخستنەوە", use_container_width=True):
+                st.rerun()
         
-        meds = get_medicines(priority=priority)
+        priority = None if priority_filter == "هەموو" else priority_filter
+        meds = get_medicines(priority=priority, tag=tag_filter if tag_filter else None)
+        
         if meds:
             for med in meds:
-                # Get indices based on actual column count
-                # id=0, name=1, brand=2, generic=3, dose=4, route=5, group=6, priority=7, color_label=8, notes=9, favorite=10, created=11, updated=12
                 priority_val = med[7] if len(med) > 7 else 'medium'
                 color_label = med[8] if len(med) > 8 else '#667eea'
                 favorite = med[10] if len(med) > 10 else 0
-                notes = med[9] if len(med) > 9 else ''
+                pinned = med[11] if len(med) > 11 else 0
+                tags = med[9] if len(med) > 9 else ''
+                notes = med[12] if len(med) > 12 else ''
                 
                 priority_class = f"priority-{priority_val}" if priority_val else ""
                 st.markdown(f"""
                 <div class="glass-card {priority_class}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>{"⭐ " if favorite else ""}{med[1]}</h3>
+                        <h3>{"📌 " if pinned else ""}{"⭐ " if favorite else ""}{med[1]}</h3>
                         <div>
                             <span class="color-label" style="background: {color_label or '#667eea'}; color: white;">{color_label or 'گشتی'}</span>
                             <span class="color-label" style="background: {'#ff4757' if priority_val=='high' else '#ffa502' if priority_val=='medium' else '#2ed573'}; color: white;">{priority_val or 'medium'}</span>
@@ -1183,27 +1363,31 @@ def show_medicines():
                     <p><strong>🏷️ براند:</strong> {med[2]} | <strong>🔬 گەنەریک:</strong> {med[3]}</p>
                     <p><strong>💊 دۆز:</strong> {med[4]} | <strong>🔄 ڕێگا:</strong> {med[5]}</p>
                     <p><strong>📂 گرووپ:</strong> {med[6]}</p>
+                    {f'<p><strong>🏷️ تەگەکان:</strong> {tags}</p>' if tags else ''}
                     <p><strong>📝 تێبینی:</strong> {notes}</p>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                 """, unsafe_allow_html=True)
                 
-                col1, col2, col3, col4 = st.columns(4)
+                col1, col2, col3, col4, col5 = st.columns(5)
                 with col1:
                     if st.button(f"⭐", key=f"fav_med_{med[0]}"):
                         toggle_favorite('medicines', med[0])
                         st.rerun()
                 with col2:
-                    if st.button(f"✏️ دەستکاری", key=f"edit_med_{med[0]}"):
-                        st.session_state.edit_med = med
-                        st.info("دەستکاری کردن - ئەم تایبەتمەندییە لە پەرەپێداندایە")
+                    if st.button(f"📌", key=f"pin_med_{med[0]}"):
+                        toggle_pin('medicines', med[0])
+                        st.rerun()
                 with col3:
-                    if st.button(f"📊 ترێند", key=f"trend_med_{med[0]}"):
-                        st.session_state.trend_med = med[0]
-                        st.info("ترێند - ئەم تایبەتمەندییە لە پەرەپێداندایە")
+                    if st.button(f"✏️", key=f"edit_med_{med[0]}"):
+                        st.session_state.edit_med = med
+                        show_edit_medicine(med)
                 with col4:
-                    if st.button(f"🗑️ سڕینەوە", key=f"del_med_{med[0]}"):
+                    if st.button(f"🗑️", key=f"del_med_{med[0]}"):
                         delete_medicine(med[0])
                         st.rerun()
+                with col5:
+                    if st.button(f"📋", key=f"copy_med_{med[0]}"):
+                        st.info("کۆپی کرا!")
                 
                 st.markdown("</div></div>", unsafe_allow_html=True)
         else:
@@ -1223,18 +1407,19 @@ def show_medicines():
                 group = st.selectbox("گرووپ", ["دەردشکێن", "ئانتیبایۆتیک", "دەرمانی خەمۆکی", "دەرمانی فشاری خوێن", 
                                               "دەرمانی شەکەری خوێن", "دەرمانی هەستەوەری", "دەرمانی ترشەمێر", "ڤیتامینەکان", "تر"])
                 priority = st.selectbox("پریۆریتی", ["high", "medium", "low"])
-                color_label = st.text_input("ڕەنگی لیبڵ (مثال: #667eea)", "#667eea")
+                color_label = st.selectbox("ڕەنگی لیبڵ", ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"])
+                tags = st.text_input("تەگەکان (بە کۆما جیابکەوە)", placeholder="مثال: دڵ, فشاری خوێن, شەکرە")
                 notes = st.text_area("تێبینی")
             
             submitted = st.form_submit_button("💊 زیادکردنی دەرمان")
             if submitted and name:
-                add_medicine(name, brand, generic, dose, route, group, priority, color_label, notes)
+                add_medicine(name, brand, generic, dose, route, group, priority, color_label, tags, notes)
                 st.success("✅ دەرمان بە سەرکەوتوویی زیادکرا!")
                 st.rerun()
     
     with tab3:
-        st.markdown("#### گەڕانی دەرمانەکان")
-        search_term = st.text_input("گەڕان بە ناو، براند، یان گەنەریک")
+        st.markdown("#### گەڕانی پێشکەوتوو")
+        search_term = st.text_input("گەڕان بە ناو، براند، گەنەریک، یان تەگ")
         if search_term:
             results = get_medicines(search=search_term)
             if results:
@@ -1243,11 +1428,48 @@ def show_medicines():
                     <div class="glass-card">
                         <h4>{med[1]}</h4>
                         <p><strong>براند:</strong> {med[2]} | <strong>گەنەریک:</strong> {med[3]}</p>
-                        <p><strong>دۆز:</strong> {med[4]} | <strong>ڕێگا:</strong> {med[5]}</p>
+                        <p><strong>تەگەکان:</strong> {med[9] if len(med) > 9 else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 st.warning("هیچ ئەنجامێک نەدۆزرایەوە!")
+
+def show_edit_medicine(med):
+    """Display edit form for medicine"""
+    with st.expander(f"✏️ دەستکاری: {med[1]}"):
+        with st.form(f"edit_med_form_{med[0]}"):
+            col1, col2 = st.columns(2)
+            with col1:
+                name = st.text_input("ناوی دەرمان", value=med[1])
+                brand = st.text_input("براند", value=med[2] if med[2] else '')
+                generic = st.text_input("گەنەریک", value=med[3] if med[3] else '')
+                dose = st.text_input("دۆز", value=med[4] if med[4] else '')
+            with col2:
+                route = st.selectbox("ڕێگا", ["خواردنەوە", "IV", "IM", "ژێر پێست", "سەرپێست", "هەڵمکردن", "تر"], 
+                                   index=["خواردنەوە", "IV", "IM", "ژێر پێست", "سەرپێست", "هەڵمکردن", "تر"].index(med[5]) if med[5] in ["خواردنەوە", "IV", "IM", "ژێر پێست", "سەرپێست", "هەڵمکردن", "تر"] else 0)
+                group = st.selectbox("گرووپ", ["دەردشکێن", "ئانتیبایۆتیک", "دەرمانی خەمۆکی", "دەرمانی فشاری خوێن", 
+                                              "دەرمانی شەکەری خوێن", "دەرمانی هەستەوەری", "دەرمانی ترشەمێر", "ڤیتامینەکان", "تر"],
+                                   index=["دەردشکێن", "ئانتیبایۆتیک", "دەرمانی خەمۆکی", "دەرمانی فشاری خوێن", 
+                                         "دەرمانی شەکەری خوێن", "دەرمانی هەستەوەری", "دەرمانی ترشەمێر", "ڤیتامینەکان", "تر"].index(med[6]) if med[6] in ["دەردشکێن", "ئانتیبایۆتیک", "دەرمانی خەمۆکی", "دەرمانی فشاری خوێن", 
+                                         "دەرمانی شەکەری خوێن", "دەرمانی هەستەوەری", "دەرمانی ترشەمێر", "ڤیتامینەکان", "تر"] else 0)
+                priority = st.selectbox("پریۆریتی", ["high", "medium", "low"], 
+                                      index=["high", "medium", "low"].index(med[7]) if med[7] in ["high", "medium", "low"] else 1)
+                color_label = st.selectbox("ڕەنگی لیبڵ", ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"],
+                                         index=["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"].index(med[8]) if med[8] in ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"] else 0)
+                tags = st.text_input("تەگەکان", value=med[9] if len(med) > 9 and med[9] else '')
+                notes = st.text_area("تێبینی", value=med[12] if len(med) > 12 else '')
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("💾 پاشەکەوتکردن"):
+                    update_medicine(med[0], name, brand, generic, dose, route, group, priority, color_label, tags, notes)
+                    st.success("✅ دەرمان نوێکرایەوە!")
+                    st.session_state.pop('edit_med', None)
+                    st.rerun()
+            with col2:
+                if st.form_submit_button("❌ پەشیمانبوونەوە"):
+                    st.session_state.pop('edit_med', None)
+                    st.rerun()
 
 def show_lab_tests():
     st.markdown("### 🧪 بەڕێوەبەری پشکنینەکان")
@@ -1257,22 +1479,29 @@ def show_lab_tests():
     with tab1:
         st.markdown("#### هەموو پشکنینەکان")
         
-        priority_filter = st.selectbox("فلتەر بە پریۆریتی", ["هەموو", "high", "medium", "low"])
-        priority = None if priority_filter == "هەموو" else priority_filter
+        col1, col2 = st.columns(2)
+        with col1:
+            priority_filter = st.selectbox("فلتەر بە پریۆریتی", ["هەموو", "high", "medium", "low"])
+        with col2:
+            tag_filter = st.text_input("فلتەر بە تەگ", placeholder="تەگێک بنووسە...")
         
-        tests = get_lab_tests(priority=priority)
+        priority = None if priority_filter == "هەموو" else priority_filter
+        tests = get_lab_tests(priority=priority, tag=tag_filter if tag_filter else None)
+        
         if tests:
             for test in tests:
                 priority_val = test[5] if len(test) > 5 else 'medium'
                 color_label = test[6] if len(test) > 6 else '#667eea'
                 favorite = test[8] if len(test) > 8 else 0
-                notes = test[7] if len(test) > 7 else ''
+                pinned = test[9] if len(test) > 9 else 0
+                tags = test[7] if len(test) > 7 else ''
+                notes = test[10] if len(test) > 10 else ''
                 
                 priority_class = f"priority-{priority_val}" if priority_val else ""
                 st.markdown(f"""
                 <div class="glass-card {priority_class}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>{"⭐ " if favorite else ""}{test[1]}</h3>
+                        <h3>{"📌 " if pinned else ""}{"⭐ " if favorite else ""}{test[1]}</h3>
                         <div>
                             <span class="color-label" style="background: {color_label or '#667eea'}; color: white;">{color_label or 'گشتی'}</span>
                             <span class="color-label" style="background: {'#ff4757' if priority_val=='high' else '#ffa502' if priority_val=='medium' else '#2ed573'}; color: white;">{priority_val or 'medium'}</span>
@@ -1281,27 +1510,31 @@ def show_lab_tests():
                     <p><strong>🎯 ئامانج:</strong> {test[2]}</p>
                     <p><strong>📊 نرخی ئاسایی:</strong> {test[3]}</p>
                     <p><strong>🧑‍⚕️ ئامادەبوونی نەخۆش:</strong> {test[4]}</p>
+                    {f'<p><strong>🏷️ تەگەکان:</strong> {tags}</p>' if tags else ''}
                     <p><strong>📝 تێبینی:</strong> {notes}</p>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
                 """, unsafe_allow_html=True)
                 
-                col1, col2, col3, col4 = st.columns(4)
+                col1, col2, col3, col4, col5 = st.columns(5)
                 with col1:
                     if st.button(f"⭐", key=f"fav_test_{test[0]}"):
                         toggle_favorite('lab_tests', test[0])
                         st.rerun()
                 with col2:
-                    if st.button(f"✏️ دەستکاری", key=f"edit_test_{test[0]}"):
-                        st.session_state.edit_test = test
-                        st.info("دەستکاری کردن - ئەم تایبەتمەندییە لە پەرەپێداندایە")
+                    if st.button(f"📌", key=f"pin_test_{test[0]}"):
+                        toggle_pin('lab_tests', test[0])
+                        st.rerun()
                 with col3:
-                    if st.button(f"📊 ترێند", key=f"trend_test_{test[0]}"):
-                        st.session_state.trend_test = test[0]
-                        st.info("ترێند - ئەم تایبەتمەندییە لە پەرەپێداندایە")
+                    if st.button(f"✏️", key=f"edit_test_{test[0]}"):
+                        st.session_state.edit_test = test
+                        show_edit_lab_test(test)
                 with col4:
-                    if st.button(f"🗑️ سڕینەوە", key=f"del_test_{test[0]}"):
+                    if st.button(f"🗑️", key=f"del_test_{test[0]}"):
                         delete_lab_test(test[0])
                         st.rerun()
+                with col5:
+                    if st.button(f"📋", key=f"copy_test_{test[0]}"):
+                        st.info("کۆپی کرا!")
                 
                 st.markdown("</div></div>", unsafe_allow_html=True)
         else:
@@ -1318,18 +1551,19 @@ def show_lab_tests():
             with col2:
                 preparation = st.text_area("ئامادەبوونی نەخۆش")
                 priority = st.selectbox("پریۆریتی", ["high", "medium", "low"])
-                color_label = st.text_input("ڕەنگی لیبڵ", "#667eea")
+                color_label = st.selectbox("ڕەنگی لیبڵ", ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"])
+                tags = st.text_input("تەگەکان (بە کۆما جیابکەوە)", placeholder="مثال: خوێن, میز, گوردە")
                 notes = st.text_area("تێبینی زیادە")
             
             submitted = st.form_submit_button("🧪 زیادکردنی پشکنین")
             if submitted and name:
-                add_lab_test(name, purpose, normal_range, preparation, priority, color_label, notes)
+                add_lab_test(name, purpose, normal_range, preparation, priority, color_label, tags, notes)
                 st.success("✅ پشکنین بە سەرکەوتوویی زیادکرا!")
                 st.rerun()
     
     with tab3:
-        st.markdown("#### گەڕانی پشکنینەکان")
-        search_term = st.text_input("گەڕان بە ناو یان ئامانج")
+        st.markdown("#### گەڕانی پێشکەوتوو")
+        search_term = st.text_input("گەڕان بە ناو، ئامانج، یان تەگ")
         if search_term:
             results = get_lab_tests(search=search_term)
             if results:
@@ -1338,23 +1572,54 @@ def show_lab_tests():
                     <div class="glass-card">
                         <h4>{test[1]}</h4>
                         <p><strong>ئامانج:</strong> {test[2]}</p>
-                        <p><strong>نرخی ئاسایی:</strong> {test[3]}</p>
+                        <p><strong>تەگەکان:</strong> {test[7] if len(test) > 7 else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 st.warning("هیچ ئەنجامێک نەدۆزرایەوە!")
 
+def show_edit_lab_test(test):
+    """Display edit form for lab test"""
+    with st.expander(f"✏️ دەستکاری: {test[1]}"):
+        with st.form(f"edit_test_form_{test[0]}"):
+            col1, col2 = st.columns(2)
+            with col1:
+                name = st.text_input("ناوی پشکنین", value=test[1])
+                purpose = st.text_area("ئامانج", value=test[2] if test[2] else '')
+                normal_range = st.text_input("نرخی ئاسایی", value=test[3] if test[3] else '')
+            with col2:
+                preparation = st.text_area("ئامادەبوونی نەخۆش", value=test[4] if test[4] else '')
+                priority = st.selectbox("پریۆریتی", ["high", "medium", "low"], 
+                                      index=["high", "medium", "low"].index(test[5]) if test[5] in ["high", "medium", "low"] else 1)
+                color_label = st.selectbox("ڕەنگی لیبڵ", ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"],
+                                         index=["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"].index(test[6]) if test[6] in ["#667eea", "#ff6b6b", "#feca57", "#48dbfb", "#1dd1a1", "#5f27cd", "#ff9ff3"] else 0)
+                tags = st.text_input("تەگەکان", value=test[7] if len(test) > 7 and test[7] else '')
+                notes = st.text_area("تێبینی", value=test[10] if len(test) > 10 else '')
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("💾 پاشەکەوتکردن"):
+                    update_lab_test(test[0], name, purpose, normal_range, preparation, priority, color_label, tags, notes)
+                    st.success("✅ پشکنین نوێکرایەوە!")
+                    st.session_state.pop('edit_test', None)
+                    st.rerun()
+            with col2:
+                if st.form_submit_button("❌ پەشیمانبوونەوە"):
+                    st.session_state.pop('edit_test', None)
+                    st.rerun()
+
 def show_notes():
     st.markdown("### 📝 تێبینییەکان")
     
-    tab1, tab2, tab3 = st.tabs(["📝 تێبینییەکان", "📋 تێمپڵەیتەکان", "🎤 تێبینی دەنگی"])
+    tab1, tab2 = st.tabs(["📝 تێبینییەکان", "📋 تێمپڵەیتەکان"])
     
     with tab1:
         with st.expander("➕ زیادکردنی تێبینی نوێ"):
             with st.form("add_note_form"):
                 title = st.text_input("ناونیشان *")
                 content = st.text_area("ناوەرۆک")
-                link = st.text_input("لینک (ئارەزوومەندانە)")
+                link = st.text_input("لینک")
+                tags = st.text_input("تەگەکان (بە کۆما جیابکەوە)")
                 uploaded_file = st.file_uploader("بارکردنی پێوەکراو", type=['png', 'jpg', 'jpeg', 'pdf', 'txt'])
                 
                 templates = get_templates()
@@ -1377,28 +1642,21 @@ def show_notes():
                         with open(attachment_path, "wb") as f:
                             f.write(uploaded_file.getbuffer())
                     
-                    conn = sqlite3.connect('medical_data.db')
-                    c = conn.cursor()
-                    now = datetime.now().isoformat()
-                    c.execute("""INSERT INTO general_notes 
-                                 (title, content, image_path, link, attachment_path, created_at)
-                                 VALUES (?, ?, ?, ?, ?, ?)""",
-                             (title, content, image_path, link, attachment_path, now))
-                    conn.commit()
-                    conn.close()
+                    add_general_note(title, content, image_path, link, attachment_path, tags)
                     st.success("✅ تێبینی بە سەرکەوتوویی زیادکرا!")
                     st.rerun()
         
         notes = get_general_notes()
         if notes:
             for note in notes:
+                tags = note[6] if len(note) > 6 else ''
                 st.markdown(f"""
                 <div class="glass-card">
                     <h4>{note[1]}</h4>
                     <p>{note[2]}</p>
                     {f'<p><strong>🔗 لینک:</strong> <a href="{note[4]}" target="_blank">{note[4]}</a></p>' if note[4] else ''}
-                    {f'<p><strong>📎 پێوەکراو:</strong> {note[5]}</p>' if len(note) > 5 and note[5] else ''}
-                    <p><small>📅 {note[6] if len(note) > 6 else ''}</small></p>
+                    {f'<p><strong>🏷️ تەگەکان:</strong> {tags}</p>' if tags else ''}
+                    <p><small>📅 {note[5]}</small></p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1445,18 +1703,6 @@ def show_notes():
                     if st.button(f"🗑️", key=f"del_temp_{t[0]}"):
                         delete_template(t[0])
                         st.rerun()
-    
-    with tab3:
-        st.markdown("#### تێبینی دەنگی")
-        st.info("🎤 تۆمارکردنی دەنگ بۆ تێبینییەکان")
-        audio_file = st.file_uploader("بارکردنی فایلی دەنگ", type=['mp3', 'wav', 'm4a'])
-        if audio_file:
-            title = st.text_input("ناونیشانی تێبینی دەنگی")
-            if st.button("💾 پاشەکەوتکردنی تێبینی دەنگی"):
-                if title:
-                    save_voice_note(title, audio_file)
-                    st.success("✅ تێبینی دەنگی پاشەکەوتکرا!")
-                    st.rerun()
 
 def show_study_mode():
     st.markdown("### 🎯 شێوازی خوێندن - فلاشکارت")
@@ -1473,7 +1719,7 @@ def show_study_mode():
         """, unsafe_allow_html=True)
         
         with st.container():
-            st.markdown('<div class="flashcard">', unsafe_allow_html=True)
+            st.markdown('<div class="glass-card" style="text-align: center; background: linear-gradient(145deg, #667eea, #764ba2); color: white;">', unsafe_allow_html=True)
             
             if item_type == 'medicine':
                 st.markdown(f"""
@@ -1486,10 +1732,6 @@ def show_study_mode():
                 <p><strong>📂 گرووپ:</strong> {item[7]}</p>
                 <p><strong>📝 تێبینی:</strong> {item[9] if len(item) > 9 else ''}</p>
                 """, unsafe_allow_html=True)
-                
-                if st.button("⭐ زیادکردن بۆ دڵخوازەکان", key="flashcard_fav"):
-                    toggle_favorite('medicines', item[1])
-                    st.rerun()
             
             elif item_type == 'lab_test':
                 st.markdown(f"""
@@ -1500,10 +1742,6 @@ def show_study_mode():
                 <p><strong>🧑‍⚕️ ئامادەبوونی نەخۆش:</strong> {item[5]}</p>
                 <p><strong>📝 تێبینی:</strong> {item[7] if len(item) > 7 else ''}</p>
                 """, unsafe_allow_html=True)
-                
-                if st.button("⭐ زیادکردن بۆ دڵخوازەکان", key="flashcard_fav"):
-                    toggle_favorite('lab_tests', item[1])
-                    st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
         
@@ -1518,19 +1756,8 @@ def show_study_mode():
         with col2:
             if st.button("🔄 کارتی داهاتوو", use_container_width=True):
                 st.rerun()
-        
-        collections = get_collections()
-        if collections:
-            st.markdown("### 📚 کۆمەڵەکان")
-            for coll in collections:
-                st.markdown(f"""
-                <div class="glass-card" style="padding: 10px;">
-                    <strong>📚 {coll['name']}</strong>
-                    <p style="font-size: 12px; opacity: 0.7;">{len(coll['items'])} بابەت</p>
-                </div>
-                """, unsafe_allow_html=True)
     else:
-        st.info("📚 هیچ بابەتێک نییە بۆ خوێندن! دەرمان یان پشکنین زیاد بکە.")
+        st.info("📚 هیچ بابەتێک نییە بۆ خوێندن!")
 
 def show_medical_calculators():
     st.markdown("### 📐 پزیشکی پزیشکی")
@@ -1597,7 +1824,6 @@ def show_medical_calculators():
             st.markdown(f"""
             <div style="text-align: center; padding: 20px;">
                 <h2>CrCl: {crcl:.1f} mL/min</h2>
-                <p>{"نرخی ئاسایی" if crcl > 90 else "کەم تۆز" if crcl > 60 else "نزم"}</p>
             </div>
             """, unsafe_allow_html=True)
     
@@ -1615,7 +1841,6 @@ def show_medical_calculators():
             st.markdown(f"""
             <div style="text-align: center; padding: 20px;">
                 <h2>Anion Gap: {gap:.1f} mEq/L</h2>
-                <p>{"ئاسایی" if 8 <= gap <= 12 else "زیاد" if gap > 12 else "کەم"}</p>
             </div>
             """, unsafe_allow_html=True)
     
@@ -1755,7 +1980,6 @@ def show_achievements():
             <h2 style="font-size: 40px;">📅</h2>
             <h3>{st.session_state.achievements['study_days']}</h3>
             <p>ڕۆژانی خوێندن</p>
-            <small>{'✅ ئەمڕۆ خوێندوت' if st.session_state.achievements['last_study_date'] == str(datetime.now().date()) else '❌ ئەمڕۆ نەخوێندوت'}</small>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1765,7 +1989,6 @@ def show_achievements():
             <h2 style="font-size: 40px;">📚</h2>
             <h3>{st.session_state.achievements['items_added']}</h3>
             <p>بابەتی زیادکراو</p>
-            <small>{'🌟 خوێندکارێکی چالاک!' if st.session_state.achievements['items_added'] > 10 else '💪 بەردەوام بە!'}</small>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1775,7 +1998,6 @@ def show_achievements():
             <h2 style="font-size: 40px;">⭐</h2>
             <h3>{st.session_state.achievements['favorites']}</h3>
             <p>دڵخوازەکان</p>
-            <small>{'🏅 دۆزینەوەی باشترین بابەتەکان!' if st.session_state.achievements['favorites'] > 5 else '🔍 زیاتر بدۆزە!'}</small>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1836,7 +2058,7 @@ def show_users():
                     <h4>👤 {user[1]}</h4>
                     <p><strong>ڕۆڵ:</strong> {user[2]} | <strong>بەستوو:</strong> {user[3]}</p>
                 </div>
-                {f'<span style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 5px 15px; border-radius: 20px; color: white;">چالاک</span>' if user[0] != 1 else '<span style="background: #FFD700; padding: 5px 15px; border-radius: 20px; color: #1a1a2e;">بەڕێوەبەر</span>'}
+                {f'<span class="license-badge license-valid">چالاک</span>' if user[0] != 1 else '<span class="license-badge license-invalid">بەڕێوەبەر</span>'}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1895,7 +2117,8 @@ def show_settings():
                         "دۆز": m[4], 
                         "ڕێگا": m[5],
                         "پریۆریتی": m[7] if len(m) > 7 else 'medium',
-                        "تێبینی": m[9] if len(m) > 9 else ''
+                        "تەگەکان": m[9] if len(m) > 9 else '',
+                        "تێبینی": m[12] if len(m) > 12 else ''
                     })
                 pdf_buffer = export_to_pdf(med_data, "دکتر دانیال - داتاکان")
                 st.download_button(
@@ -1911,7 +2134,6 @@ def show_settings():
                 df_data = []
                 for m in medicines:
                     df_data.append({
-                        'ID': m[0],
                         'ناو': m[1],
                         'براند': m[2],
                         'گەنەریک': m[3],
@@ -1919,12 +2141,12 @@ def show_settings():
                         'ڕێگا': m[5],
                         'گرووپ': m[6],
                         'پریۆریتی': m[7] if len(m) > 7 else 'medium',
-                        'دڵخواز': m[10] if len(m) > 10 else 0,
-                        'دروستکراو': m[11] if len(m) > 11 else '',
-                        'نوێکراوە': m[12] if len(m) > 12 else ''
+                        'تەگەکان': m[9] if len(m) > 9 else '',
+                        'دڵخواز': 'بەڵێ' if (m[10] if len(m) > 10 else 0) else 'نەخێر',
+                        'پین': 'بەڵێ' if (m[11] if len(m) > 11 else 0) else 'نەخێر'
                     })
                 df = pd.DataFrame(df_data)
-                csv = df.to_csv(index=False)
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
                     label="📊 CSV",
                     data=csv,
@@ -1938,7 +2160,6 @@ def show_settings():
                 df_data = []
                 for m in medicines:
                     df_data.append({
-                        'ID': m[0],
                         'ناو': m[1],
                         'براند': m[2],
                         'گەنەریک': m[3],
@@ -1946,17 +2167,17 @@ def show_settings():
                         'ڕێگا': m[5],
                         'گرووپ': m[6],
                         'پریۆریتی': m[7] if len(m) > 7 else 'medium',
-                        'دڵخواز': m[10] if len(m) > 10 else 0,
-                        'دروستکراو': m[11] if len(m) > 11 else '',
-                        'نوێکراوە': m[12] if len(m) > 12 else ''
+                        'تەگەکان': m[9] if len(m) > 9 else '',
+                        'دڵخواز': 'بەڵێ' if (m[10] if len(m) > 10 else 0) else 'نەخێر',
+                        'پین': 'بەڵێ' if (m[11] if len(m) > 11 else 0) else 'نەخێر'
                     })
                 df = pd.DataFrame(df_data)
                 buffer = BytesIO()
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     df.to_excel(writer, sheet_name='دەرمانەکان', index=False)
                 st.download_button(
                     label="📊 Excel",
-                    data=buffer,
+                    data=buffer.getvalue(),
                     file_name=f"medical_data_{datetime.now().strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
@@ -1968,21 +2189,28 @@ def show_settings():
         
         پلاتفۆرمی خوێندنی پزیشکی بۆ خوێندکاران و پسپۆڕان.
         
-        **وەشانی 3.0** - کۆمپلیت
+        **وەشانی 4.0** - پرۆفیشناڵ
         
         **تایبەتمەندییەکان:**
-        * 💊 دەرمانەکان (بە Priority و Color Labels)
-        * 🧪 پشکنینەکان (بە Trend Tracking)
-        * 📝 تێبینییەکان (بە تێمپڵەیت و Voice Notes)
+        * 💊 دەرمانەکان (بە Priority, Color Labels, Tags, Pin)
+        * 🧪 پشکنینەکان (بە Priority, Color Labels, Tags, Pin)
+        * 📝 تێبینییەکان (بە تێمپڵەیت)
         * 🎯 شێوازی خوێندن (فلاشکارت)
         * 📐 پزیشکی پزیشکی (٧ حسابکەر)
         * 📊 هیتماپی خوێندن
         * 🏆 دەستکەوتەکان
-        * ⏰ یادخستنەکان
-        * 📎 پێوەکراوەکان
+        * 🔑 سیستەمی لایسەنس (Device Binding)
+        * 💾 پشتگیری خۆکار
+        * 📤 Export/Import
+        
+        **💰 فرۆشتن و لایسەنس:**
+        * هەر کۆد تەنها لە یەک ئامێر کار دەکات
+        * لایسەنس: Monthly / Yearly / Lifetime
+        * دەتوانیت کۆد بۆ کڕیاران دروست بکەیت
         
         **❤️ بە هەموو دڵێک بۆ خوێندکارانی پزیشکی**
         """)
 
+# ==================== RUN APP ====================
 if __name__ == "__main__":
     main()
