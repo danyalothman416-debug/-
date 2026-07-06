@@ -66,7 +66,7 @@ class LicenseSystem:
         conn.commit()
         conn.close()
     
-    def generate_license_key(self, license_type='yearly', user_email=None):
+    def generate_license_key(self, license_type='lifetime', user_email=None):
         """دروستکردنی کۆدی لایسەنس"""
         # Format: DRD-XXXX-XXXX-XXXX
         prefix = "DRD"
@@ -82,11 +82,11 @@ class LicenseSystem:
         
         now = datetime.now().isoformat()
         if license_type == 'yearly':
-            expires = (datetime.now() + timedelta(days=365)).isoformat()
+            expires = (datetime.now() + timedelta(days=3650)).isoformat()  # 10 years
         elif license_type == 'lifetime':
-            expires = '2099-12-31T23:59:59'
+            expires = '2100-12-31T23:59:59'
         else:
-            expires = (datetime.now() + timedelta(days=30)).isoformat()
+            expires = (datetime.now() + timedelta(days=3650)).isoformat()  # 10 years
         
         c.execute("""INSERT INTO licenses 
                      (license_key, user_email, license_type, created_at, expires_at, is_active)
@@ -163,7 +163,7 @@ class LicenseSystem:
         
         return {'status': 'active', 'expires_at': license_data[5], 'device_id': license_data[2]}
     
-    def generate_bulk_licenses(self, count, license_type='yearly'):
+    def generate_bulk_licenses(self, count, license_type='lifetime'):
         """دروستکردنی چەندین کۆد بە یەک جار"""
         keys = []
         for _ in range(count):
@@ -176,7 +176,7 @@ license_system = LicenseSystem()
 
 # ==================== GENERATE 500 LICENSES ====================
 def generate_initial_licenses():
-    """دروستکردنی ٥٠٠ کۆدی لایسەنس بۆ فرۆشتن"""
+    """دروستکردنی ٥٠٠ کۆدی لایسەنس بۆ فرۆشتن (Lifetime)"""
     conn = sqlite3.connect('licenses.db')
     c = conn.cursor()
     
@@ -185,7 +185,7 @@ def generate_initial_licenses():
     count = c.fetchone()[0]
     
     if count == 0:
-        print("🔑 دروستکردنی ٥٠٠ کۆدی لایسەنس...")
+        print("🔑 دروستکردنی ٥٠٠ کۆدی لایسەنس (Lifetime)...")
         license_keys = []
         for i in range(500):
             prefix = "DRD"
@@ -197,12 +197,13 @@ def generate_initial_licenses():
             license_keys.append(license_key)
             
             now = datetime.now().isoformat()
-            expires = (datetime.now() + timedelta(days=365)).isoformat()
+            # Lifetime license - expires in 2100
+            expires = '2100-12-31T23:59:59'
             
             c.execute("""INSERT INTO licenses 
                          (license_key, user_email, license_type, created_at, expires_at, is_active)
                          VALUES (?, ?, ?, ?, ?, 1)""",
-                      (license_key, f"license_{i+1}@example.com", 'yearly', now, expires))
+                      (license_key, f"license_{i+1}@example.com", 'lifetime', now, expires))
         
         conn.commit()
         print(f"✅ {len(license_keys)} کۆد بە سەرکەوتوویی دروستکرا!")
@@ -210,7 +211,9 @@ def generate_initial_licenses():
         # Save to file for easy access
         with open('licenses_list.txt', 'w', encoding='utf-8') as f:
             f.write("=" * 60 + "\n")
-            f.write("کۆدی لایسەنسەکانی دکتر دانیال - ٥٠٠ کۆد\n")
+            f.write("کۆدی لایسەنسەکانی دکتر دانیال - ٥٠٠ کۆد (Lifetime)\n")
+            f.write("=" * 60 + "\n")
+            f.write("بەرواری بەسەرچوون: 2100-12-31\n")
             f.write("=" * 60 + "\n\n")
             for i, key in enumerate(license_keys, 1):
                 f.write(f"{i:3d}. {key}\n")
@@ -1055,7 +1058,7 @@ def show_license_manager():
         st.warning("⚠️ ئەم بەشە تەنها بۆ بەڕێوەبەرە!")
         
         if st.session_state.get('user_role') == 'admin':
-            license_type = st.selectbox("جۆری لایسەنس", ["yearly", "lifetime", "monthly"])
+            license_type = st.selectbox("جۆری لایسەنس", ["lifetime", "yearly", "monthly"])
             user_email = st.text_input("ئیمەیڵی بەکارهێنەر")
             
             col1, col2 = st.columns(2)
@@ -1200,7 +1203,7 @@ def main():
         - ئەگەر کۆدت نییە، پەیوەندی بە بەڕێوەبەرەوە بکە
         - کۆدەکە لە فۆرماتی **DRD-XXXX-XXXX-XXXX** دەبێت
         - **٥٠٠ کۆد** لە داتابەیسدا پاشەکەوت کراوە
-        - هەموو کۆدەکان **١ ساڵ** بەسەر دەچن
+        - هەموو کۆدەکان **Lifetime** (بەسەرناچن تا ٢١٠٠)
         """)
         return
     
@@ -2288,7 +2291,7 @@ def show_settings():
         * هەر کۆد تەنها لە یەک ئامێر کار دەکات
         * لایسەنس: Monthly / Yearly / Lifetime
         * دەتوانیت کۆد بۆ کڕیاران دروست بکەیت
-        * هەموو کۆدەکان بە جۆری **Yearly** دروست دەکرێن (١ ساڵ)
+        * هەموو کۆدەکان بە جۆری **Lifetime** دروست دەکرێن (بەسەرناچن تا ٢١٠٠)
         
         **❤️ بە هەموو دڵێک بۆ خوێندکارانی پزیشکی**
         """)
