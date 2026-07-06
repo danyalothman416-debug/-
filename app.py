@@ -1168,7 +1168,7 @@ def main():
         
         show_license_manager()
         
-        # Try to login for admin - Username: Danyal, Password: Admin@2024
+        # Try to login for admin - Username and password are hidden (only in database)
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.expander("👤 چوونەژوورەوە بۆ بەڕێوەبەر"):
@@ -1190,15 +1190,17 @@ def main():
                         st.warning("⚠️ تکایە ناوی بەکارهێنەر و پاسۆرد بنووسە!")
         
         st.info("""
-        ℹ️ **زانیاری چوونەژوورەوە:**
-        - 👤 **ناوی بەکارهێنەر:** `Danyal`
-        - 🔑 **پاسۆرد:** `Admin@2024`
+        🔒 **چوونەژوورەوە بۆ بەڕێوەبەر**
+        
+        تکایە ناوی بەکارهێنەر و پاسۆردەکەت بنووسە.
+        ئەگەر نەتزانی، پەیوەندی بە بەڕێوەبەرەوە بکە.
         
         ⚠️ تکایە یەکەم جار لایسەنسەکەت چالاک بکە!
         
         - ئەگەر کۆدت نییە، پەیوەندی بە بەڕێوەبەرەوە بکە
         - کۆدەکە لە فۆرماتی **DRD-XXXX-XXXX-XXXX** دەبێت
         - **٥٠٠ کۆد** لە داتابەیسدا پاشەکەوت کراوە
+        - هەموو کۆدەکان **١ ساڵ** بەسەر دەچن
         """)
         return
     
@@ -1825,7 +1827,6 @@ def show_study_mode():
             collection_name = st.text_input("ناوی کۆمەڵە", placeholder="ناوی کۆمەڵەکە")
             if st.button("➕ زیادکردن بۆ کۆمەڵە", use_container_width=True):
                 if collection_name:
-                    # Create collection (simplified)
                     st.session_state.study_collections.append({
                         'name': collection_name,
                         'items': [item],
@@ -2287,6 +2288,7 @@ def show_settings():
         * هەر کۆد تەنها لە یەک ئامێر کار دەکات
         * لایسەنس: Monthly / Yearly / Lifetime
         * دەتوانیت کۆد بۆ کڕیاران دروست بکەیت
+        * هەموو کۆدەکان بە جۆری **Yearly** دروست دەکرێن (١ ساڵ)
         
         **❤️ بە هەموو دڵێک بۆ خوێندکارانی پزیشکی**
         """)
