@@ -765,14 +765,15 @@ def main():
     init_db()
     load_css()
     
-    # Check license
+    # Check license - چاکسازی کراوە بۆ ئەوەی بە هەڵە ڕێگە نەدات
     if st.session_state.get('license_valid') and st.session_state.get('license_key'):
         status = license_system.check_license_status(st.session_state.license_key, st.session_state.device_id)
         if status['status'] != 'active':
             st.session_state.license_valid = False
-            if st.session_state.user_role != 'admin':
-                st.warning("⚠️ لایسەنسەکە بەسەرچووە")
+            if st.session_state.get('user_role') != 'admin':
+                st.warning("⚠️ لایسەنسەکە بەسەرچووە یان ناچالاکە")
     
+    # ڕێگەدان بە admin بەبێ لایسەنس - چاکسازی کراوە
     if not st.session_state.get('license_valid') and st.session_state.get('user_role') != 'admin':
         show_license_activation()
         return
@@ -781,7 +782,7 @@ def main():
     st.markdown(f"""
     <div class="main-header">
         <h1>🏥 دکتۆر دانیال</h1>
-        <p>❤️ بەخێربێیت، {st.session_state.username or 'بەکارهێنەر'}!</p>
+        <p>❤️ بەخێربێیت، {st.session_state.get('username', 'بەکارهێنەر')}!</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -814,7 +815,7 @@ def main():
             "📝 تێبینییەکان",
         ]
         
-        # Only admin can see license and users pages
+        # Only admin can see license and users pages - چاکسازی کراوە
         if st.session_state.get('user_role') == 'admin':
             pages.append("🔑 لایسەنس")
             pages.append("👥 بەکارهێنەران")
@@ -840,8 +841,8 @@ def main():
             if st.button("🔄 فرێش", use_container_width=True):
                 st.rerun()
     
-    # Page routing
-    page = st.session_state.current_page
+    # Page routing - چاکسازی کراوە
+    page = st.session_state.get('current_page', '📊 داشبۆرد')
     
     if page == "📊 داشبۆرد":
         show_dashboard()
@@ -996,7 +997,7 @@ def show_medicines_page():
                     st.warning("ناوی دەرمان پێویستە!")
     
     with tab3:
-        if st.session_state.edit_med_id:
+        if st.session_state.get('edit_med_id'):
             med_id = st.session_state.edit_med_id
             conn = sqlite3.connect('medical_data.db')
             c = conn.cursor()
@@ -1120,7 +1121,7 @@ def show_lab_tests_page():
                     st.warning("ناوی پشکنین پێویستە!")
     
     with tab3:
-        if st.session_state.edit_test_id:
+        if st.session_state.get('edit_test_id'):
             test_id = st.session_state.edit_test_id
             conn = sqlite3.connect('medical_data.db')
             c = conn.cursor()
@@ -1214,7 +1215,7 @@ def show_notes_page():
                     st.warning("ناونیشان پێویستە!")
     
     with tab3:
-        if st.session_state.edit_note_id:
+        if st.session_state.get('edit_note_id'):
             note_id = st.session_state.edit_note_id
             conn = sqlite3.connect('medical_data.db')
             c = conn.cursor()
@@ -1358,14 +1359,14 @@ def show_settings_page():
     
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     
-    dark_mode = st.toggle("🌙 ڕەوانەی تاریک", value=st.session_state.dark_mode)
-    if dark_mode != st.session_state.dark_mode:
+    dark_mode = st.toggle("🌙 ڕەوانەی تاریک", value=st.session_state.get('dark_mode', True))
+    if dark_mode != st.session_state.get('dark_mode', True):
         st.session_state.dark_mode = dark_mode
         st.rerun()
     
     st.markdown("---")
     st.markdown("### 📱 زانیاری")
-    st.code(f"Device ID: {st.session_state.device_id[:20]}...")
+    st.code(f"Device ID: {st.session_state.get('device_id', '')[:20]}...")
     if st.session_state.get('license_key'):
         st.code(f"License: {st.session_state.license_key}")
     st.code(f"Role: {st.session_state.get('user_role', 'none')}")
