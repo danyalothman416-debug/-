@@ -174,6 +174,58 @@ class LicenseSystem:
 # ==================== INITIALIZE LICENSE SYSTEM ====================
 license_system = LicenseSystem()
 
+# ==================== GENERATE 500 LICENSES ====================
+def generate_initial_licenses():
+    """دروستکردنی ٥٠٠ کۆدی لایسەنس بۆ فرۆشتن"""
+    conn = sqlite3.connect('licenses.db')
+    c = conn.cursor()
+    
+    # Check if licenses already exist
+    c.execute("SELECT COUNT(*) FROM licenses")
+    count = c.fetchone()[0]
+    
+    if count == 0:
+        print("🔑 دروستکردنی ٥٠٠ کۆدی لایسەنس...")
+        license_keys = []
+        for i in range(500):
+            prefix = "DRD"
+            parts = []
+            for j in range(3):
+                part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+                parts.append(part)
+            license_key = f"{prefix}-{'-'.join(parts)}"
+            license_keys.append(license_key)
+            
+            now = datetime.now().isoformat()
+            expires = (datetime.now() + timedelta(days=365)).isoformat()
+            
+            c.execute("""INSERT INTO licenses 
+                         (license_key, user_email, license_type, created_at, expires_at, is_active)
+                         VALUES (?, ?, ?, ?, ?, 1)""",
+                      (license_key, f"license_{i+1}@example.com", 'yearly', now, expires))
+        
+        conn.commit()
+        print(f"✅ {len(license_keys)} کۆد بە سەرکەوتوویی دروستکرا!")
+        
+        # Save to file for easy access
+        with open('licenses_list.txt', 'w', encoding='utf-8') as f:
+            f.write("=" * 60 + "\n")
+            f.write("کۆدی لایسەنسەکانی دکتر دانیال - ٥٠٠ کۆد\n")
+            f.write("=" * 60 + "\n\n")
+            for i, key in enumerate(license_keys, 1):
+                f.write(f"{i:3d}. {key}\n")
+            f.write("\n" + "=" * 60 + "\n")
+            f.write(f"کۆی گشتی: {len(license_keys)} کۆد\n")
+            f.write("=" * 60 + "\n")
+        
+        return license_keys
+    else:
+        print(f"✅ {count} کۆد لە داتابەیسدا هەن")
+        return None
+
+# Generate 500 licenses on startup
+generated_keys = generate_initial_licenses()
+
 # ==================== SESSION STATE ====================
 if 'language' not in st.session_state:
     st.session_state.language = 'کوردی'
@@ -456,10 +508,10 @@ def init_db():
             c.execute("INSERT INTO categories (name, color, type, created_at) VALUES (?, ?, ?, ?)",
                      (name, color, type_, datetime.now().isoformat()))
     
-    # Insert default admin
+    # Insert default admin with password: Danyal.1997
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
-        hashed = hashlib.sha256('admin123'.encode()).hexdigest()
+        hashed = hashlib.sha256('Danyal.1997'.encode()).hexdigest()
         c.execute("INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)",
                  ('admin', hashed, 'admin', datetime.now().isoformat()))
     
@@ -1053,6 +1105,18 @@ def show_license_manager():
         with col3:
             st.metric("💻 کۆدی بەکارهێنراو", used)
         
+        # Show download button for licenses list
+        if st.button("📥 داگرتنی لیستی کۆدەکان", use_container_width=True):
+            if os.path.exists('licenses_list.txt'):
+                with open('licenses_list.txt', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                st.download_button(
+                    label="📄 داگرتنی فایلی کۆدەکان",
+                    data=content,
+                    file_name=f"licenses_{datetime.now().strftime('%Y%m%d')}.txt",
+                    mime="text/plain"
+                )
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==================== MAIN APP ====================
@@ -1102,7 +1166,7 @@ def main():
         
         show_license_manager()
         
-        # Try to login for admin
+        # Try to login for admin - Password: Danyal.1997
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.expander("👤 چوونەژوورەوە بۆ بەڕێوەبەر"):
@@ -1119,11 +1183,14 @@ def main():
                     else:
                         st.error("❌ هەڵە!")
         
-        st.warning("""
+        st.info("""
+        ℹ️ **پاسۆردی بەڕێوەبەر:** `Danyal.1997`
+        
         ⚠️ تکایە یەکەم جار لایسەنسەکەت چالاک بکە!
         
         - ئەگەر کۆدت نییە، پەیوەندی بە بەڕێوەبەرەوە بکە
         - کۆدەکە لە فۆرماتی **DRD-XXXX-XXXX-XXXX** دەبێت
+        - **٥٠٠ کۆد** لە داتابەیسدا پاشەکەوت کراوە
         """)
         return
     
