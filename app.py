@@ -1,4 +1,4 @@
-# app.py
+# app.py - نسخەی کوردی و دیزاینی پێشکەوتوو
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -18,104 +18,327 @@ import os
 import random
 from PIL import Image
 import time
+import shutil
 
-# Page config
+# ڕێکخستنی لاپەڕە
 st.set_page_config(
-    page_title="Dr Danyal - Medical Study",
+    page_title="دکتر دانیال - خوێندنی پزیشکی",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for dark mode and glassmorphism
+# CSSی پێشکەوتوو بۆ دیزاینی شووشەیی و ئەنیمەیشن
 def load_css():
     dark_mode = st.session_state.get('dark_mode', True)
     
     if dark_mode:
-        bg_color = "#0f0f1a"
-        card_bg = "rgba(255,255,255,0.05)"
+        bg_gradient = "linear-gradient(135deg, #0f0c29, #302b63, #24243e)"
+        card_bg = "rgba(255,255,255,0.08)"
         text_color = "#ffffff"
-        border_color = "rgba(255,255,255,0.1)"
+        border_color = "rgba(255,255,255,0.15)"
+        shadow_color = "rgba(31, 38, 135, 0.5)"
     else:
-        bg_color = "#f5f5f5"
-        card_bg = "rgba(255,255,255,0.8)"
-        text_color = "#000000"
+        bg_gradient = "linear-gradient(135deg, #f5f7fa, #c3cfe2)"
+        card_bg = "rgba(255,255,255,0.75)"
+        text_color = "#1a1a2e"
         border_color = "rgba(0,0,0,0.1)"
+        shadow_color = "rgba(31, 38, 135, 0.2)"
     
     st.markdown(f"""
     <style>
-        /* Main container */
+        /* ڕاستەوخۆی بنەڕەت */
         .stApp {{
-            background: {bg_color};
+            background: {bg_gradient};
             color: {text_color};
+            min-height: 100vh;
         }}
         
-        /* Glassmorphism cards */
+        /* ئەنیمەیشنی بارکردن */
+        @keyframes shimmer {{
+            0% {{ background-position: -200% 0; }}
+            100% {{ background-position: 200% 0; }}
+        }}
+        
+        .skeleton {{
+            background: linear-gradient(90deg, {card_bg} 25%, rgba(255,255,255,0.2) 50%, {card_bg} 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 10px;
+            height: 100px;
+            margin: 10px 0;
+        }}
+        
+        /* کارتەکانی شووشەیی */
         .glass-card {{
             background: {card_bg};
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 25px;
             border: 1px solid {border_color};
-            padding: 20px;
-            margin: 10px 0;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            transition: all 0.3s ease;
+            padding: 25px;
+            margin: 12px 0;
+            box-shadow: 0 8px 32px 0 {shadow_color};
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: fadeInUp 0.6s ease-out;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .glass-card::before {{
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }}
+        
+        .glass-card:hover::before {{
+            opacity: 1;
         }}
         
         .glass-card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 15px 45px 0 {shadow_color};
+            border-color: rgba(102, 126, 234, 0.5);
         }}
         
-        /* Headers */
+        @keyframes fadeInUp {{
+            from {{
+                opacity: 0;
+                transform: translateY(30px);
+            }}
+            to {{
+                opacity: 1;
+                transform: translateY(0);
+            }}
+        }}
+        
+        @keyframes float {{
+            0%, 100% {{ transform: translateY(0px); }}
+            50% {{ transform: translateY(-10px); }}
+        }}
+        
+        /* سایدباری ئەنیمەیشن */
+        .css-1d391kg {{
+            background: {card_bg};
+            backdrop-filter: blur(20px);
+            border-right: 1px solid {border_color};
+            animation: slideInLeft 0.5s ease-out;
+        }}
+        
+        @keyframes slideInLeft {{
+            from {{
+                opacity: 0;
+                transform: translateX(-50px);
+            }}
+            to {{
+                opacity: 1;
+                transform: translateX(0);
+            }}
+        }}
+        
+        /* سەرنووسە سەرەکی */
         .main-header {{
             text-align: center;
-            padding: 20px;
+            padding: 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
+            border-radius: 25px;
             color: white;
             margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
         }}
         
-        /* Flashcard animation */
+        .main-header::after {{
+            content: '❤️‍🩹';
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 40px;
+            opacity: 0.3;
+            animation: float 3s ease-in-out infinite;
+        }}
+        
+        /* فلاشکارت */
         .flashcard {{
             background: linear-gradient(145deg, #667eea, #764ba2);
             border-radius: 30px;
-            padding: 40px;
+            padding: 50px;
             margin: 20px 0;
             color: white;
             text-align: center;
-            animation: pulse 2s infinite;
+            animation: float 3s ease-in-out infinite;
             cursor: pointer;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.5);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }}
         
-        @keyframes pulse {{
-            0% {{ transform: scale(1); }}
-            50% {{ transform: scale(1.02); }}
-            100% {{ transform: scale(1); }}
+        .flashcard::before {{
+            content: '📚';
+            position: absolute;
+            right: 30px;
+            top: 30px;
+            font-size: 60px;
+            opacity: 0.2;
         }}
         
-        /* Favorite star */
+        .flashcard:hover {{
+            transform: scale(1.02);
+            box-shadow: 0 25px 70px rgba(102, 126, 234, 0.7);
+        }}
+        
+        /* دکمەکان */
+        .stButton > button {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 12px 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            width: 100%;
+        }}
+        
+        .stButton > button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }}
+        
+        /* ئایکۆنی دڵخواز */
         .favorite {{
             color: #FFD700;
-            font-size: 24px;
+            font-size: 28px;
             cursor: pointer;
+            transition: all 0.3s;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
         }}
         
-        /* Sidebar */
-        .css-1d391kg {{
+        .favorite:hover {{
+            transform: scale(1.2) rotate(10deg);
+        }}
+        
+        /* ئینپوتەکان */
+        .stTextInput > div > div > input, 
+        .stTextArea > div > div > textarea,
+        .stSelectbox > div > div {{
             background: {card_bg};
+            border: 2px solid {border_color};
+            border-radius: 15px;
+            padding: 12px;
+            color: {text_color};
             backdrop-filter: blur(10px);
+        }}
+        
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {{
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }}
+        
+        /* تابیستەکان */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 8px;
+            background: {card_bg};
+            border-radius: 20px;
+            padding: 8px;
+            backdrop-filter: blur(10px);
+        }}
+        
+        .stTabs [data-baseweb="tab"] {{
+            border-radius: 15px;
+            padding: 10px 20px;
+            transition: all 0.3s;
+        }}
+        
+        .stTabs [data-baseweb="tab"]:hover {{
+            background: rgba(102, 126, 234, 0.2);
+        }}
+        
+        .stTabs [aria-selected="true"] {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+        }}
+        
+        /* Loading animation */
+        .loading-container {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }}
+        
+        .loader {{
+            width: 60px;
+            height: 60px;
+            border: 5px solid {card_bg};
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+        
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        
+        /* چاپ */
+        @media print {{
+            .stApp {{
+                background: white !important;
+            }}
+            .glass-card {{
+                background: white !important;
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+            }}
+            .stButton, .stDownloadButton {{
+                display: none !important;
+            }}
+        }}
+        
+        /* Responsive */
+        @media (max-width: 768px) {{
+            .glass-card {{
+                padding: 15px;
+                margin: 8px 0;
+            }}
+            .main-header {{
+                padding: 20px;
+                font-size: 20px;
+            }}
+            .flashcard {{
+                padding: 30px;
+            }}
+        }}
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {{
+            width: 8px;
+            background: {card_bg};
+        }}
+        ::-webkit-scrollbar-thumb {{
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
         }}
     </style>
     """, unsafe_allow_html=True)
 
-# Database functions
+# فەنکشنەکانی داتابەیس
 def init_db():
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     
-    # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   username TEXT UNIQUE,
@@ -123,7 +346,6 @@ def init_db():
                   role TEXT,
                   created_at TEXT)''')
     
-    # Medicines table
     c.execute('''CREATE TABLE IF NOT EXISTS medicines
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
@@ -137,7 +359,6 @@ def init_db():
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # Lab tests table
     c.execute('''CREATE TABLE IF NOT EXISTS lab_tests
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT,
@@ -149,7 +370,6 @@ def init_db():
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # General notes table
     c.execute('''CREATE TABLE IF NOT EXISTS general_notes
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   title TEXT,
@@ -158,7 +378,7 @@ def init_db():
                   link TEXT,
                   created_at TEXT)''')
     
-    # Insert default admin if not exists
+    # زیادکردنی بەکارهێنەری بنەڕەت
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
         hashed = hashlib.sha256('admin123'.encode()).hexdigest()
@@ -168,7 +388,26 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Authentication functions
+# فەنکشنەکانی پشتگیریکردن
+def auto_backup():
+    """پشتگیری خۆکاری داتابەیس"""
+    try:
+        if os.path.exists('medical_data.db'):
+            backup_dir = 'backups'
+            os.makedirs(backup_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_path = f'{backup_dir}/backup_{timestamp}.db'
+            shutil.copy2('medical_data.db', backup_path)
+            
+            # تەنها ٥ پشتگیری دوایی بهێڵە
+            backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')])
+            if len(backups) > 5:
+                for old_backup in backups[:-5]:
+                    os.remove(os.path.join(backup_dir, old_backup))
+    except:
+        pass
+
+# چاودێریکردن
 def check_login(username, password):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -192,7 +431,7 @@ def add_user(username, password, role='user'):
     finally:
         conn.close()
 
-# CRUD for medicines
+# فەنکشنەکانی دەرمان
 def add_medicine(name, brand, generic, dose, route, group_name, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -203,6 +442,7 @@ def add_medicine(name, brand, generic, dose, route, group_name, notes):
               (name, brand, generic, dose, route, group_name, notes, now, now))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def get_medicines(search=None, group=None):
     conn = sqlite3.connect('medical_data.db')
@@ -240,6 +480,7 @@ def update_medicine(id, name, brand, generic, dose, route, group_name, notes):
               (name, brand, generic, dose, route, group_name, notes, now, id))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def delete_medicine(id):
     conn = sqlite3.connect('medical_data.db')
@@ -247,6 +488,7 @@ def delete_medicine(id):
     c.execute("DELETE FROM medicines WHERE id=?", (id,))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def toggle_favorite_medicine(id):
     conn = sqlite3.connect('medical_data.db')
@@ -258,7 +500,7 @@ def toggle_favorite_medicine(id):
     conn.commit()
     conn.close()
 
-# CRUD for lab tests
+# فەنکشنەکانی پشکنین
 def add_lab_test(name, purpose, normal_range, preparation, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -269,6 +511,7 @@ def add_lab_test(name, purpose, normal_range, preparation, notes):
               (name, purpose, normal_range, preparation, notes, now, now))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def get_lab_tests(search=None):
     conn = sqlite3.connect('medical_data.db')
@@ -297,6 +540,7 @@ def update_lab_test(id, name, purpose, normal_range, preparation, notes):
               (name, purpose, normal_range, preparation, notes, now, id))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def delete_lab_test(id):
     conn = sqlite3.connect('medical_data.db')
@@ -304,6 +548,7 @@ def delete_lab_test(id):
     c.execute("DELETE FROM lab_tests WHERE id=?", (id,))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def toggle_favorite_lab_test(id):
     conn = sqlite3.connect('medical_data.db')
@@ -315,7 +560,7 @@ def toggle_favorite_lab_test(id):
     conn.commit()
     conn.close()
 
-# General notes
+# تێبینییە گشتییەکان
 def add_general_note(title, content, image_path=None, link=None):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
@@ -325,6 +570,7 @@ def add_general_note(title, content, image_path=None, link=None):
               (title, content, image_path, link, now))
     conn.commit()
     conn.close()
+    auto_backup()
 
 def get_general_notes():
     conn = sqlite3.connect('medical_data.db')
@@ -340,17 +586,16 @@ def delete_general_note(id):
     c.execute("DELETE FROM general_notes WHERE id=?", (id,))
     conn.commit()
     conn.close()
+    auto_backup()
 
-# Study mode - get random item for flashcard
+# خوێندن - فلاشکارت
 def get_random_study_item():
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     
-    # Get random medicine
     c.execute("SELECT 'medicine' as type, id, name, brand, generic, dose, route, group_name, notes FROM medicines")
     medicines = c.fetchall()
     
-    # Get random lab test
     c.execute("SELECT 'lab_test' as type, id, name, purpose, normal_range, preparation, notes FROM lab_tests")
     lab_tests = c.fetchall()
     
@@ -361,14 +606,13 @@ def get_random_study_item():
         return random.choice(all_items)
     return None
 
-# Export functions
+# هەناردەکردن
 def export_to_pdf(data, title):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
     story = []
     
-    # Title
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
@@ -379,7 +623,6 @@ def export_to_pdf(data, title):
     story.append(Paragraph(title, title_style))
     story.append(Spacer(1, 20))
     
-    # Table
     if data:
         headers = list(data[0].keys())
         table_data = [headers]
@@ -388,7 +631,7 @@ def export_to_pdf(data, title):
         
         table = Table(table_data)
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -403,15 +646,12 @@ def export_to_pdf(data, title):
     buffer.seek(0)
     return buffer
 
-# Main app
+# لاپەڕەی سەرەکی
 def main():
-    # Initialize database
     init_db()
-    
-    # Load CSS
     load_css()
     
-    # Initialize session state
+    # ڕێکخستنی session state
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
     if 'username' not in st.session_state:
@@ -419,14 +659,20 @@ def main():
     if 'dark_mode' not in st.session_state:
         st.session_state.dark_mode = True
     if 'current_page' not in st.session_state:
-        st.session_state.current_page = 'Dashboard'
+        st.session_state.current_page = '📊 داشبۆرد'
+    if 'loading' not in st.session_state:
+        st.session_state.loading = False
     
-    # Login page
+    # پشتگیری خۆکار
+    auto_backup()
+    
+    # لاپەڕەی چوونەژوورەوە
     if not st.session_state.logged_in:
         st.markdown("""
         <div class="main-header">
-            <h1>🏥 Dr Danyal</h1>
-            <p>Medical Study & Reference Platform</p>
+            <h1>🏥 دکتر دانیال</h1>
+            <p>پلاتفۆرمی خوێندن و سەرچاوەی پزیشکی</p>
+            <p style="font-size: 14px; opacity: 0.8;">❤️ بۆ خوێندکارانی پزیشکی و تەندروستی</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -434,43 +680,53 @@ def main():
         with col2:
             with st.container():
                 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-                st.subheader("🔐 Login")
+                st.subheader("🔐 چوونەژوورەوە")
                 
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
+                username = st.text_input("ناوی بەکارهێنەر", placeholder="ناوی بەکارهێنەرێت بنووسە")
+                password = st.text_input("ووشەی نهێنی", type="password", placeholder="ووشەی نهێنی بنووسە")
                 
-                if st.button("Login", use_container_width=True):
-                    user = check_login(username, password)
-                    if user:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.session_state.user_id = user[0]
-                        st.session_state.user_role = user[3]
-                        st.rerun()
-                    else:
-                        st.error("Invalid username or password!")
+                if st.button("🔓 چوونەژوورەوە", use_container_width=True):
+                    with st.spinner('تکایە چاوەڕوان بە...'):
+                        time.sleep(0.5)
+                        user = check_login(username, password)
+                        if user:
+                            st.session_state.logged_in = True
+                            st.session_state.username = username
+                            st.session_state.user_id = user[0]
+                            st.session_state.user_role = user[3]
+                            st.rerun()
+                        else:
+                            st.error("❌ ناوی بەکارهێنەر یان ووشەی نهێنی هەڵەیە!")
                 
                 st.markdown("---")
-                st.caption("Default admin: admin / admin123")
+                st.caption("👤 بەکارهێنەری بنەڕەت: admin / admin123")
                 st.markdown('</div>', unsafe_allow_html=True)
         return
     
-    # Main app
+    # ئەپە سەرەکی
     st.markdown(f"""
     <div class="main-header">
-        <h1>🏥 Dr Danyal</h1>
-        <p>Welcome, {st.session_state.username}! 👋</p>
+        <h1>🏥 دکتر دانیال</h1>
+        <p>❤️ بەخێربێیت، {st.session_state.username}!</p>
+        <p style="font-size: 14px; opacity: 0.8;">📅 {datetime.now().strftime('%A, %B %d, %Y')}</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar navigation
+    # سایدبار
     with st.sidebar:
-        st.markdown("### 📚 Navigation")
+        st.markdown("### 📚 ڕێبەرایەتی")
         
-        pages = ["📊 Dashboard", "💊 Medicines", "🧪 Lab Tests", "📝 Notes", "🎯 Study Mode"]
+        pages = [
+            "📊 داشبۆرد",
+            "💊 دەرمانەکان",
+            "🧪 پشکنینەکان",
+            "📝 تێبینییەکان",
+            "🎯 شێوازی خوێندن"
+        ]
+        
         if st.session_state.get('user_role') == 'admin':
-            pages.append("👥 Users")
-        pages.append("⚙️ Settings")
+            pages.append("👥 بەکارهێنەران")
+        pages.append("⚙️ ڕێکخستنەکان")
         
         for page in pages:
             if st.button(page, use_container_width=True):
@@ -478,33 +734,43 @@ def main():
                 st.rerun()
         
         st.markdown("---")
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.username = ''
-            st.rerun()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🖨️ چاپ", use_container_width=True):
+                st.write("""
+                <script>
+                window.print();
+                </script>
+                """, unsafe_allow_html=True)
+        with col2:
+            if st.button("🚪 دەرچوون", use_container_width=True):
+                st.session_state.logged_in = False
+                st.session_state.username = ''
+                st.rerun()
     
-    # Page content
+    # ناوەرۆکی لاپەڕە
     page = st.session_state.current_page
     
-    if page == "📊 Dashboard":
+    if page == "📊 داشبۆرد":
         show_dashboard()
-    elif page == "💊 Medicines":
+    elif page == "💊 دەرمانەکان":
         show_medicines()
-    elif page == "🧪 Lab Tests":
+    elif page == "🧪 پشکنینەکان":
         show_lab_tests()
-    elif page == "📝 Notes":
+    elif page == "📝 تێبینییەکان":
         show_notes()
-    elif page == "🎯 Study Mode":
+    elif page == "🎯 شێوازی خوێندن":
         show_study_mode()
-    elif page == "👥 Users" and st.session_state.get('user_role') == 'admin':
+    elif page == "👥 بەکارهێنەران" and st.session_state.get('user_role') == 'admin':
         show_users()
-    elif page == "⚙️ Settings":
+    elif page == "⚙️ ڕێکخستنەکان":
         show_settings()
 
 def show_dashboard():
-    st.markdown("### 📊 Dashboard")
+    st.markdown("### 📊 داشبۆرد")
     
-    # Statistics
+    # ئامارەکان
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     
@@ -520,75 +786,85 @@ def show_dashboard():
     c.execute("SELECT COUNT(*) FROM lab_tests WHERE favorite=1")
     fav_tests = c.fetchone()[0]
     
+    c.execute("SELECT COUNT(*) FROM general_notes")
+    total_notes = c.fetchone()[0]
+    
     conn.close()
     
-    # Cards
+    # کارتەکانی ئامار
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""
         <div class="glass-card" style="text-align: center;">
-            <h2>💊</h2>
+            <h2 style="font-size: 40px;">💊</h2>
             <h3>{total_meds}</h3>
-            <p>Medicines</p>
+            <p>دەرمانەکان</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div class="glass-card" style="text-align: center;">
-            <h2>🧪</h2>
+            <h2 style="font-size: 40px;">🧪</h2>
             <h3>{total_tests}</h3>
-            <p>Lab Tests</p>
+            <p>پشکنینەکان</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="glass-card" style="text-align: center;">
-            <h2>⭐</h2>
+            <h2 style="font-size: 40px;">⭐</h2>
             <h3>{fav_meds + fav_tests}</h3>
-            <p>Favorites</p>
+            <p>دڵخوازەکان</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         st.markdown(f"""
         <div class="glass-card" style="text-align: center;">
-            <h2>📚</h2>
-            <h3>{total_meds + total_tests}</h3>
-            <p>Total Items</p>
+            <h2 style="font-size: 40px;">📝</h2>
+            <h3>{total_notes}</h3>
+            <p>تێبینییەکان</p>
         </div>
         """, unsafe_allow_html=True)
     
-    # Charts
+    # چارتەکان
     col1, col2 = st.columns(2)
     with col1:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("📈 Distribution")
-        fig = go.Figure(data=[go.Pie(labels=['Medicines', 'Lab Tests'], 
-                                     values=[total_meds, total_tests],
-                                     marker=dict(colors=['#667eea', '#764ba2']))])
-        fig.update_layout(showlegend=True, height=300)
+        st.subheader("📈 دابەشکردن")
+        fig = go.Figure(data=[go.Pie(
+            labels=['دەرمانەکان', 'پشکنینەکان'],
+            values=[total_meds, total_tests],
+            marker=dict(colors=['#667eea', '#764ba2']),
+            hole=0.3
+        )])
+        fig.update_layout(showlegend=True, height=300, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("⭐ Favorites")
-        fig = go.Figure(data=[go.Bar(x=['Medicines', 'Lab Tests'], 
-                                     y=[fav_meds, fav_tests],
-                                     marker_color=['#667eea', '#764ba2'])])
-        fig.update_layout(showlegend=False, height=300)
+        st.subheader("⭐ دڵخوازەکان")
+        fig = go.Figure(data=[go.Bar(
+            x=['دەرمانەکان', 'پشکنینەکان'],
+            y=[fav_meds, fav_tests],
+            marker_color=['#667eea', '#764ba2'],
+            text=[fav_meds, fav_tests],
+            textposition='auto'
+        )])
+        fig.update_layout(showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Recent items
-    st.markdown("### 📋 Recent Activity")
+    # بەشەکانی کۆتایی
+    st.markdown("### 📋 چالاکییە کۆتاییەکان")
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("💊 Recent Medicines")
+        st.subheader("💊 دەرمانە کۆتاییەکان")
         meds = get_medicines()[:5]
         for med in meds:
             st.write(f"• {med[1]} ({med[2]})")
@@ -596,20 +872,19 @@ def show_dashboard():
     
     with col2:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.subheader("🧪 Recent Lab Tests")
+        st.subheader("🧪 پشکنینە کۆتاییەکان")
         tests = get_lab_tests()[:5]
         for test in tests:
             st.write(f"• {test[1]}")
         st.markdown('</div>', unsafe_allow_html=True)
 
 def show_medicines():
-    st.markdown("### 💊 Medicines Management")
+    st.markdown("### 💊 بەڕێوەبەری دەرمانەکان")
     
-    # Tabs
-    tab1, tab2, tab3 = st.tabs(["📋 View", "➕ Add", "🔍 Search"])
+    tab1, tab2, tab3 = st.tabs(["📋 بینین", "➕ زیادکردن", "🔍 گەڕان"])
     
     with tab1:
-        st.markdown("#### All Medicines")
+        st.markdown("#### هەموو دەرمانەکان")
         
         meds = get_medicines()
         if meds:
@@ -620,12 +895,12 @@ def show_medicines():
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3>{"⭐ " if med[8] else ""}{med[1]}</h3>
                             <div>
-                                <span style="background: #667eea; padding: 5px 10px; border-radius: 10px; color: white;">{med[6]}</span>
+                                <span style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 5px 15px; border-radius: 20px; color: white; font-size: 12px;">{med[6]}</span>
                             </div>
                         </div>
-                        <p><strong>Brand:</strong> {med[2]} | <strong>Generic:</strong> {med[3]}</p>
-                        <p><strong>Dose:</strong> {med[4]} | <strong>Route:</strong> {med[5]}</p>
-                        <p><strong>Notes:</strong> {med[7]}</p>
+                        <p><strong>🏷️ براند:</strong> {med[2]} | <strong>🔬 گەنەریک:</strong> {med[3]}</p>
+                        <p><strong>💊 دۆز:</strong> {med[4]} | <strong>🔄 ڕێگا:</strong> {med[5]}</p>
+                        <p><strong>📝 تێبینی:</strong> {med[7]}</p>
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
                     """, unsafe_allow_html=True)
                     
@@ -635,41 +910,41 @@ def show_medicines():
                             toggle_favorite_medicine(med[0])
                             st.rerun()
                     with col2:
-                        if st.button(f"✏️ Edit", key=f"edit_med_{med[0]}"):
+                        if st.button(f"✏️ دەستکاری", key=f"edit_med_{med[0]}"):
                             st.session_state.edit_med = med
                     with col3:
-                        if st.button(f"🗑️ Delete", key=f"del_med_{med[0]}"):
+                        if st.button(f"🗑️ سڕینەوە", key=f"del_med_{med[0]}"):
                             delete_medicine(med[0])
                             st.rerun()
                     
                     st.markdown("</div></div>", unsafe_allow_html=True)
         else:
-            st.info("No medicines found. Add some! 📝")
+            st.info("📝 هیچ دەرمانێک نەدۆزرایەوە. دەرمانێک زیاد بکە!")
     
     with tab2:
-        st.markdown("#### Add New Medicine")
+        st.markdown("#### زیادکردنی دەرمانی نوێ")
         with st.form("add_medicine_form"):
             col1, col2 = st.columns(2)
             with col1:
-                name = st.text_input("Medicine Name *")
-                brand = st.text_input("Brand Name")
-                generic = st.text_input("Generic Name")
-                dose = st.text_input("Dose")
+                name = st.text_input("ناوی دەرمان *")
+                brand = st.text_input("براند")
+                generic = st.text_input("گەنەریک")
+                dose = st.text_input("دۆز")
             with col2:
-                route = st.selectbox("Route", ["Oral", "IV", "IM", "SC", "Topical", "Inhalation", "Other"])
-                group = st.selectbox("Group", ["Analgesics", "Antibiotics", "Antidepressants", "Antihypertensives", 
-                                              "Antidiabetics", "Antihistamines", "Antacids", "Vitamins", "Other"])
-                notes = st.text_area("Notes")
+                route = st.selectbox("ڕێگا", ["خواردنەوە", "IV", "IM", "ژێر پێست", "سەرپێست", "هەڵمکردن", "تر"])
+                group = st.selectbox("گرووپ", ["دەردشکێن", "ئانتیبایۆتیک", "دەرمانی خەمۆکی", "دەرمانی فشاری خوێن", 
+                                              "دەرمانی شەکەری خوێن", "دەرمانی هەستەوەری", "دەرمانی ترشەمێر", "ڤیتامینەکان", "تر"])
+                notes = st.text_area("تێبینی")
             
-            submitted = st.form_submit_button("💊 Add Medicine")
+            submitted = st.form_submit_button("💊 زیادکردنی دەرمان")
             if submitted and name:
                 add_medicine(name, brand, generic, dose, route, group, notes)
-                st.success("✅ Medicine added successfully!")
+                st.success("✅ دەرمان بە سەرکەوتوویی زیادکرا!")
                 st.rerun()
     
     with tab3:
-        st.markdown("#### Search Medicines")
-        search_term = st.text_input("Search by name, brand, or generic")
+        st.markdown("#### گەڕانی دەرمانەکان")
+        search_term = st.text_input("گەڕان بە ناو، براند، یان گەنەریک")
         if search_term:
             results = get_medicines(search=search_term)
             if results:
@@ -677,21 +952,20 @@ def show_medicines():
                     st.markdown(f"""
                     <div class="glass-card">
                         <h4>{med[1]}</h4>
-                        <p><strong>Brand:</strong> {med[2]} | <strong>Generic:</strong> {med[3]}</p>
-                        <p><strong>Dose:</strong> {med[4]} | <strong>Route:</strong> {med[5]}</p>
+                        <p><strong>براند:</strong> {med[2]} | <strong>گەنەریک:</strong> {med[3]}</p>
+                        <p><strong>دۆز:</strong> {med[4]} | <strong>ڕێگا:</strong> {med[5]}</p>
                     </div>
                     """, unsafe_allow_html=True)
             else:
-                st.warning("No results found!")
+                st.warning("هیچ ئەنجامێک نەدۆزرایەوە!")
 
 def show_lab_tests():
-    st.markdown("### 🧪 Lab Tests Management")
+    st.markdown("### 🧪 بەڕێوەبەری پشکنینەکان")
     
-    # Tabs
-    tab1, tab2, tab3 = st.tabs(["📋 View", "➕ Add", "🔍 Search"])
+    tab1, tab2, tab3 = st.tabs(["📋 بینین", "➕ زیادکردن", "🔍 گەڕان"])
     
     with tab1:
-        st.markdown("#### All Lab Tests")
+        st.markdown("#### هەموو پشکنینەکان")
         
         tests = get_lab_tests()
         if tests:
@@ -702,10 +976,10 @@ def show_lab_tests():
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3>{"⭐ " if test[6] else ""}{test[1]}</h3>
                         </div>
-                        <p><strong>Purpose:</strong> {test[2]}</p>
-                        <p><strong>Normal Range:</strong> {test[3]}</p>
-                        <p><strong>Preparation:</strong> {test[4]}</p>
-                        <p><strong>Notes:</strong> {test[5]}</p>
+                        <p><strong>🎯 ئامانج:</strong> {test[2]}</p>
+                        <p><strong>📊 نرخی ئاسایی:</strong> {test[3]}</p>
+                        <p><strong>🧑‍⚕️ ئامادەبوونی نەخۆش:</strong> {test[4]}</p>
+                        <p><strong>📝 تێبینی:</strong> {test[5]}</p>
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
                     """, unsafe_allow_html=True)
                     
@@ -715,38 +989,38 @@ def show_lab_tests():
                             toggle_favorite_lab_test(test[0])
                             st.rerun()
                     with col2:
-                        if st.button(f"✏️ Edit", key=f"edit_test_{test[0]}"):
+                        if st.button(f"✏️ دەستکاری", key=f"edit_test_{test[0]}"):
                             st.session_state.edit_test = test
                     with col3:
-                        if st.button(f"🗑️ Delete", key=f"del_test_{test[0]}"):
+                        if st.button(f"🗑️ سڕینەوە", key=f"del_test_{test[0]}"):
                             delete_lab_test(test[0])
                             st.rerun()
                     
                     st.markdown("</div></div>", unsafe_allow_html=True)
         else:
-            st.info("No lab tests found. Add some! 📝")
+            st.info("📝 هیچ پشکنینێک نەدۆزرایەوە. پشکنینێک زیاد بکە!")
     
     with tab2:
-        st.markdown("#### Add New Lab Test")
+        st.markdown("#### زیادکردنی پشکنینی نوێ")
         with st.form("add_test_form"):
             col1, col2 = st.columns(2)
             with col1:
-                name = st.text_input("Test Name *")
-                purpose = st.text_area("Purpose")
-                normal_range = st.text_input("Normal Range")
+                name = st.text_input("ناوی پشکنین *")
+                purpose = st.text_area("ئامانج")
+                normal_range = st.text_input("نرخی ئاسایی")
             with col2:
-                preparation = st.text_area("Patient Preparation")
-                notes = st.text_area("Additional Notes")
+                preparation = st.text_area("ئامادەبوونی نەخۆش")
+                notes = st.text_area("تێبینی زیادە")
             
-            submitted = st.form_submit_button("🧪 Add Lab Test")
+            submitted = st.form_submit_button("🧪 زیادکردنی پشکنین")
             if submitted and name:
                 add_lab_test(name, purpose, normal_range, preparation, notes)
-                st.success("✅ Lab test added successfully!")
+                st.success("✅ پشکنین بە سەرکەوتوویی زیادکرا!")
                 st.rerun()
     
     with tab3:
-        st.markdown("#### Search Lab Tests")
-        search_term = st.text_input("Search by name or purpose")
+        st.markdown("#### گەڕانی پشکنینەکان")
+        search_term = st.text_input("گەڕان بە ناو یان ئامانج")
         if search_term:
             results = get_lab_tests(search=search_term)
             if results:
@@ -754,40 +1028,36 @@ def show_lab_tests():
                     st.markdown(f"""
                     <div class="glass-card">
                         <h4>{test[1]}</h4>
-                        <p><strong>Purpose:</strong> {test[2]}</p>
-                        <p><strong>Normal Range:</strong> {test[3]}</p>
+                        <p><strong>ئامانج:</strong> {test[2]}</p>
+                        <p><strong>نرخی ئاسایی:</strong> {test[3]}</p>
                     </div>
                     """, unsafe_allow_html=True)
             else:
-                st.warning("No results found!")
+                st.warning("هیچ ئەنجامێک نەدۆزرایەوە!")
 
 def show_notes():
-    st.markdown("### 📝 General Notes")
+    st.markdown("### 📝 تێبینییە گشتییەکان")
     
-    # Add note
-    with st.expander("➕ Add New Note"):
+    with st.expander("➕ زیادکردنی تێبینی نوێ"):
         with st.form("add_note_form"):
-            title = st.text_input("Title *")
-            content = st.text_area("Content")
-            link = st.text_input("Link (optional)")
-            uploaded_file = st.file_uploader("Upload Image (optional)", type=['png', 'jpg', 'jpeg'])
+            title = st.text_input("ناونیشان *")
+            content = st.text_area("ناوەرۆک")
+            link = st.text_input("لینک (ئارەزوومەندانە)")
+            uploaded_file = st.file_uploader("بارکردنی وێنە (ئارەزوومەندانە)", type=['png', 'jpg', 'jpeg'])
             
-            submitted = st.form_submit_button("📝 Save Note")
+            submitted = st.form_submit_button("📝 پاشەکەوتکردنی تێبینی")
             if submitted and title:
-                # Save image if uploaded
                 image_path = None
                 if uploaded_file:
-                    # Save to images folder
                     os.makedirs("images", exist_ok=True)
                     image_path = f"images/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
                     with open(image_path, "wb") as f:
                         f.write(uploaded_file.getbuffer())
                 
                 add_general_note(title, content, image_path, link)
-                st.success("✅ Note added successfully!")
+                st.success("✅ تێبینی بە سەرکەوتوویی زیادکرا!")
                 st.rerun()
     
-    # Display notes
     notes = get_general_notes()
     if notes:
         for note in notes:
@@ -795,16 +1065,15 @@ def show_notes():
             <div class="glass-card">
                 <h4>{note[1]}</h4>
                 <p>{note[2]}</p>
-                {f'<p><strong>🔗 Link:</strong> <a href="{note[4]}" target="_blank">{note[4]}</a></p>' if note[4] else ''}
+                {f'<p><strong>🔗 لینک:</strong> <a href="{note[4]}" target="_blank">{note[4]}</a></p>' if note[4] else ''}
                 <p><small>📅 {note[5]}</small></p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Show image if exists
             if note[3] and os.path.exists(note[3]):
                 st.image(note[3], use_container_width=True)
             
-            if st.button(f"🗑️ Delete", key=f"del_note_{note[0]}"):
+            if st.button(f"🗑️ سڕینەوە", key=f"del_note_{note[0]}"):
                 if note[3] and os.path.exists(note[3]):
                     os.remove(note[3])
                 delete_general_note(note[0])
@@ -812,12 +1081,11 @@ def show_notes():
             
             st.markdown("---")
     else:
-        st.info("No notes yet. Start writing! 📝")
+        st.info("📝 هیچ تێبینییەک نییە. تێبینییەک بنووسە!")
 
 def show_study_mode():
-    st.markdown("### 🎯 Study Mode - Flashcard Review")
+    st.markdown("### 🎯 شێوازی خوێندن - پێداچوونەوەی فلاشکارت")
     
-    # Get random item for flashcard
     item = get_random_study_item()
     
     if item:
@@ -825,11 +1093,10 @@ def show_study_mode():
         
         st.markdown("""
         <div style="text-align: center; margin: 20px 0;">
-            <p style="font-size: 18px; opacity: 0.7;">Tap the card to flip</p>
+            <p style="font-size: 18px; opacity: 0.7;">👆 کرتە لەسەر کارت بکە بۆ گۆڕینی</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Flashcard
         with st.container():
             st.markdown('<div class="flashcard">', unsafe_allow_html=True)
             
@@ -837,16 +1104,15 @@ def show_study_mode():
                 st.markdown(f"""
                 <h2>💊 {item[2]}</h2>
                 <hr>
-                <p><strong>Brand:</strong> {item[3]}</p>
-                <p><strong>Generic:</strong> {item[4]}</p>
-                <p><strong>Dose:</strong> {item[5]}</p>
-                <p><strong>Route:</strong> {item[6]}</p>
-                <p><strong>Group:</strong> {item[7]}</p>
-                <p><strong>Notes:</strong> {item[8]}</p>
+                <p><strong>🏷️ براند:</strong> {item[3]}</p>
+                <p><strong>🔬 گەنەریک:</strong> {item[4]}</p>
+                <p><strong>💊 دۆز:</strong> {item[5]}</p>
+                <p><strong>🔄 ڕێگا:</strong> {item[6]}</p>
+                <p><strong>📂 گرووپ:</strong> {item[7]}</p>
+                <p><strong>📝 تێبینی:</strong> {item[8]}</p>
                 """, unsafe_allow_html=True)
                 
-                # Favorite button
-                if st.button("⭐ Add to Favorites", key="flashcard_fav"):
+                if st.button("⭐ زیادکردن بۆ دڵخوازەکان", key="flashcard_fav"):
                     toggle_favorite_medicine(item[1])
                     st.rerun()
             
@@ -854,62 +1120,57 @@ def show_study_mode():
                 st.markdown(f"""
                 <h2>🧪 {item[2]}</h2>
                 <hr>
-                <p><strong>Purpose:</strong> {item[3]}</p>
-                <p><strong>Normal Range:</strong> {item[4]}</p>
-                <p><strong>Preparation:</strong> {item[5]}</p>
-                <p><strong>Notes:</strong> {item[6]}</p>
+                <p><strong>🎯 ئامانج:</strong> {item[3]}</p>
+                <p><strong>📊 نرخی ئاسایی:</strong> {item[4]}</p>
+                <p><strong>🧑‍⚕️ ئامادەبوونی نەخۆش:</strong> {item[5]}</p>
+                <p><strong>📝 تێبینی:</strong> {item[6]}</p>
                 """, unsafe_allow_html=True)
                 
-                # Favorite button
-                if st.button("⭐ Add to Favorites", key="flashcard_fav"):
+                if st.button("⭐ زیادکردن بۆ دڵخوازەکان", key="flashcard_fav"):
                     toggle_favorite_lab_test(item[1])
                     st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Next button
-        if st.button("🔄 Next Card", use_container_width=True):
+        if st.button("🔄 کارتی داهاتوو", use_container_width=True):
             st.rerun()
         
-        # Progress
         st.markdown("""
         <div style="text-align: center; margin-top: 20px;">
-            <p style="opacity: 0.7;">💡 Study one card at a time for better retention</p>
+            <p style="opacity: 0.7;">💡 هەر کارتێک بە جیا بخوێنە بۆ باشتری بیرهێنانەوە</p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("📚 No items to study! Add some medicines or lab tests first.")
+        st.info("📚 هیچ بابەتێک نییە بۆ خوێندن! یەکەم جار دەرمان یان پشکنین زیاد بکە.")
 
 def show_users():
     if st.session_state.get('user_role') != 'admin':
-        st.error("⛔ Access denied. Admin only.")
+        st.error("⛔ ڕێگەپێدراو نییە. تەنها بۆ بەڕێوەبەر.")
         return
     
-    st.markdown("### 👥 User Management")
+    st.markdown("### 👥 بەڕێوەبەری بەکارهێنەران")
     
-    # Add user
-    with st.expander("➕ Add New User"):
+    with st.expander("➕ زیادکردنی بەکارهێنەری نوێ"):
         with st.form("add_user_form"):
-            new_username = st.text_input("Username *")
-            new_password = st.text_input("Password *", type="password")
-            role = st.selectbox("Role", ["user", "admin"])
+            new_username = st.text_input("ناوی بەکارهێنەر *")
+            new_password = st.text_input("ووشەی نهێنی *", type="password")
+            role = st.selectbox("ڕۆڵ", ["user", "admin"])
             
-            submitted = st.form_submit_button("👤 Add User")
+            submitted = st.form_submit_button("👤 زیادکردنی بەکارهێنەر")
             if submitted and new_username and new_password:
                 if add_user(new_username, new_password, role):
-                    st.success("✅ User added successfully!")
+                    st.success("✅ بەکارهێنەر بە سەرکەوتوویی زیادکرا!")
                     st.rerun()
                 else:
-                    st.error("❌ Username already exists!")
+                    st.error("❌ ناوی بەکارهێنەر هەیە!")
     
-    # Display users
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     c.execute("SELECT id, username, role, created_at FROM users")
     users = c.fetchall()
     conn.close()
     
-    st.markdown("#### Existing Users")
+    st.markdown("#### بەکارهێنەرەکان")
     if users:
         for user in users:
             st.markdown(f"""
@@ -917,93 +1178,97 @@ def show_users():
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h4>👤 {user[1]}</h4>
-                        <p><strong>Role:</strong> {user[2]} | <strong>Joined:</strong> {user[3]}</p>
+                        <p><strong>ڕۆڵ:</strong> {user[2]} | <strong>بەستوو:</strong> {user[3]}</p>
                     </div>
-                    {f'<span style="background: #667eea; padding: 5px 10px; border-radius: 10px; color: white;">Active</span>' if user[0] != 1 else '<span style="background: #FFD700; padding: 5px 10px; border-radius: 10px;">Admin</span>'}
+                    {f'<span style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 5px 15px; border-radius: 20px; color: white;">چالاک</span>' if user[0] != 1 else '<span style="background: #FFD700; padding: 5px 15px; border-radius: 20px; color: #1a1a2e;">بەڕێوەبەر</span>'}
                 </div>
             </div>
             """, unsafe_allow_html=True)
     else:
-        st.info("No users found.")
+        st.info("هیچ بەکارهێنەرێک نەدۆزرایەوە.")
 
 def show_settings():
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### ⚙️ ڕێکخستنەکان")
     
-    # Dark mode toggle
-    st.markdown("#### Appearance")
-    dark_mode = st.toggle("🌙 Dark Mode", value=st.session_state.get('dark_mode', True))
+    # ڕووکار
+    st.markdown("#### ڕووکار")
+    dark_mode = st.toggle("🌙 ڕەوانەی تاریک", value=st.session_state.get('dark_mode', True))
     if dark_mode != st.session_state.get('dark_mode'):
         st.session_state.dark_mode = dark_mode
         st.rerun()
     
-    # Export
-    st.markdown("#### Export Data")
+    # پشتگیری
+    st.markdown("#### پشتگیری")
+    if st.button("💾 پشتگیری دەستکرد"):
+        auto_backup()
+        st.success("✅ پشتگیری بە سەرکەوتوویی دروستکرا!")
+    
+    # هەناردەکردن
+    st.markdown("#### هەناردەکردن")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📄 Export PDF", use_container_width=True):
-            # Get data
+        if st.button("📄 PDF", use_container_width=True):
             medicines = get_medicines()
-            med_data = [{"Name": m[1], "Brand": m[2], "Generic": m[3], "Dose": m[4], "Route": m[5], "Notes": m[7]} for m in medicines]
-            pdf_buffer = export_to_pdf(med_data, "Dr Danyal - Medical Data")
+            med_data = [{"ناو": m[1], "براند": m[2], "گەنەریک": m[3], "دۆز": m[4], "ڕێگا": m[5], "تێبینی": m[7]} for m in medicines]
+            pdf_buffer = export_to_pdf(med_data, "دکتر دانیال - داتاکان")
             st.download_button(
-                label="📥 Download PDF",
+                label="📥 داگرتنی PDF",
                 data=pdf_buffer,
                 file_name=f"medical_data_{datetime.now().strftime('%Y%m%d')}.pdf",
                 mime="application/pdf"
             )
     
     with col2:
-        # CSV export
         medicines = get_medicines()
         if medicines:
-            df = pd.DataFrame(medicines, columns=['ID', 'Name', 'Brand', 'Generic', 'Dose', 'Route', 'Group', 'Notes', 'Favorite', 'Created', 'Updated'])
+            df = pd.DataFrame(medicines, columns=['ID', 'ناو', 'براند', 'گەنەریک', 'دۆز', 'ڕێگا', 'گرووپ', 'تێبینی', 'دڵخواز', 'دروستکراو', 'نوێکراوە'])
             csv = df.to_csv(index=False)
             st.download_button(
-                label="📊 Export CSV",
+                label="📊 CSV",
                 data=csv,
                 file_name=f"medical_data_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
     
     with col3:
-        # Excel export
         medicines = get_medicines()
         if medicines:
-            df = pd.DataFrame(medicines, columns=['ID', 'Name', 'Brand', 'Generic', 'Dose', 'Route', 'Group', 'Notes', 'Favorite', 'Created', 'Updated'])
+            df = pd.DataFrame(medicines, columns=['ID', 'ناو', 'براند', 'گەنەریک', 'دۆز', 'ڕێگا', 'گرووپ', 'تێبینی', 'دڵخواز', 'دروستکراو', 'نوێکراوە'])
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df.to_excel(writer, sheet_name='Medicines', index=False)
+                df.to_excel(writer, sheet_name='دەرمانەکان', index=False)
             st.download_button(
-                label="📊 Export Excel",
+                label="📊 Excel",
                 data=buffer,
                 file_name=f"medical_data_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
     
-    # Backup and Restore
-    st.markdown("#### Backup & Restore")
-    col1, col2 = st.columns(2)
+    # گەڕاندنەوەی پشتگیری
+    st.markdown("#### گەڕاندنەوەی پشتگیری")
+    uploaded_file = st.file_uploader("📤 گەڕاندنەوەی پشتگیری", type=['db'])
+    if uploaded_file:
+        with open('medical_data.db', 'wb') as f:
+            f.write(uploaded_file.getbuffer())
+        st.success("✅ پشتگیری گەڕێنرایەوە! تکایە ئەپەکە دووبارە بکەرەوە.")
+        st.rerun()
     
-    with col1:
-        if st.button("💾 Create Backup", use_container_width=True):
-            if os.path.exists('medical_data.db'):
-                with open('medical_data.db', 'rb') as f:
-                    backup_data = f.read()
-                st.download_button(
-                    label="📥 Download Backup",
-                    data=backup_data,
-                    file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
-                    mime="application/octet-stream"
-                )
+    # دەربارە
+    st.markdown("#### دەربارە")
+    st.info("""
+    **دکتر دانیال** 🏥
     
-    with col2:
-        uploaded_file = st.file_uploader("📤 Restore Backup", type=['db'])
-        if uploaded_file:
-            with open('medical_data.db', 'wb') as f:
-                f.write(uploaded_file.getbuffer())
-            st.success("✅ Backup restored! Please restart the app.")
-            st.rerun()
+    پلاتفۆرمی خوێندنی پزیشکی بۆ خوێندکاران و پسپۆڕان.
+    
+    * 💊 دەرمانەکان
+    * 🧪 پشکنینەکان
+    * 📝 تێبینییەکان
+    * 🎯 فلاشکارت
+    
+    **وەشانی 2.0** 
+    **❤️ بە هەموو دڵێک بۆ خوێندکارانی پزیشکی**
+    """)
 
 if __name__ == "__main__":
     main()
