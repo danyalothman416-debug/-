@@ -7,3 +7,9 @@ matplotlib
 seaborn
 Pillow
 fpdf
+streamlit
+pandas
+plotly
+reportlab
+Pillow
+openpyxl
