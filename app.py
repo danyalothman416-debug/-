@@ -508,12 +508,12 @@ def init_db():
             c.execute("INSERT INTO categories (name, color, type, created_at) VALUES (?, ?, ?, ?)",
                      (name, color, type_, datetime.now().isoformat()))
     
-    # Insert default admin with password: Danyal.1997
-    c.execute("SELECT * FROM users WHERE username='admin'")
+    # Insert default admin with username: Danyal, password: Admin@2024
+    c.execute("SELECT * FROM users WHERE username='Danyal'")
     if not c.fetchone():
-        hashed = hashlib.sha256('Danyal.1997'.encode()).hexdigest()
+        hashed = hashlib.sha256('Admin@2024'.encode()).hexdigest()
         c.execute("INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)",
-                 ('admin', hashed, 'admin', datetime.now().isoformat()))
+                 ('Danyal', hashed, 'admin', datetime.now().isoformat()))
     
     conn.commit()
     conn.close()
@@ -891,6 +891,7 @@ def calculate_iv_drip_rate(volume, time, drop_factor):
 
 # Authentication
 def check_login(username, password):
+    """پشکنینی چوونەژوورەوە بە بەکارهێنانی ناو و پاسۆرد"""
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     hashed = hashlib.sha256(password.encode()).hexdigest()
@@ -900,6 +901,7 @@ def check_login(username, password):
     return user
 
 def add_user(username, password, role='user'):
+    """زیادکردنی بەکارهێنەری نوێ"""
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     hashed = hashlib.sha256(password.encode()).hexdigest()
@@ -1166,25 +1168,31 @@ def main():
         
         show_license_manager()
         
-        # Try to login for admin - Password: Danyal.1997
+        # Try to login for admin - Username: Danyal, Password: Admin@2024
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with st.expander("👤 چوونەژوورەوە بۆ بەڕێوەبەر"):
                 username = st.text_input("ناوی بەکارهێنەر")
                 password = st.text_input("ووشەی نهێنی", type="password")
                 if st.button("🔓 چوونەژوورەوە"):
-                    user = check_login(username, password)
-                    if user:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.session_state.user_id = user[0]
-                        st.session_state.user_role = user[3]
-                        st.rerun()
+                    if username and password:
+                        user = check_login(username, password)
+                        if user:
+                            st.session_state.logged_in = True
+                            st.session_state.username = username
+                            st.session_state.user_id = user[0]
+                            st.session_state.user_role = user[3]
+                            st.success(f"✅ بەخێربێیت {username}!")
+                            st.rerun()
+                        else:
+                            st.error("❌ ناوی بەکارهێنەر یان پاسۆرد هەڵەیە!")
                     else:
-                        st.error("❌ هەڵە!")
+                        st.warning("⚠️ تکایە ناوی بەکارهێنەر و پاسۆرد بنووسە!")
         
         st.info("""
-        ℹ️ **پاسۆردی بەڕێوەبەر:** `Danyal.1997`
+        ℹ️ **زانیاری چوونەژوورەوە:**
+        - 👤 **ناوی بەکارهێنەر:** `Danyal`
+        - 🔑 **پاسۆرد:** `Admin@2024`
         
         ⚠️ تکایە یەکەم جار لایسەنسەکەت چالاک بکە!
         
@@ -1817,7 +1825,12 @@ def show_study_mode():
             collection_name = st.text_input("ناوی کۆمەڵە", placeholder="ناوی کۆمەڵەکە")
             if st.button("➕ زیادکردن بۆ کۆمەڵە", use_container_width=True):
                 if collection_name:
-                    create_collection(collection_name, [item])
+                    # Create collection (simplified)
+                    st.session_state.study_collections.append({
+                        'name': collection_name,
+                        'items': [item],
+                        'created_at': datetime.now().isoformat()
+                    })
                     st.success("✅ زیادکرا بۆ کۆمەڵە!")
         
         with col2:
