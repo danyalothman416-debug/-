@@ -1,118 +1,74 @@
 import streamlit as st
-import base64
 
 # ========== ڕێکخستنی پەڕە ==========
 st.set_page_config(
-    page_title="ئەپەکەم | My App",
+    page_title="ئەپەکەم",
     page_icon="🏠",
     layout="wide"
 )
 
-# ========== PWA - بۆ گۆگڵ و داخڵ بوون ==========
-def make_pwa():
-    """ئەم فەنکشەنە وا دەکات ئەپەکەت وەک ماڵپەڕ لە گۆگڵ دابنرێت"""
-    
-    pwa_code = """
-    <head>
-        <!-- ئایکۆنی ئەپ بۆ مۆبایل -->
-        <link rel="apple-touch-icon" href="🏠">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-title" content="ئەپەکەم">
-        
-        <!-- ڕەنگی theme -->
-        <meta name="theme-color" content="#4CAF50">
-        
-        <!-- manifest بۆ PWA -->
-        <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiMjAyNjAxMDgifQ==">
-        
-        <script>
-            // تۆمارکردنی Service Worker
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js')
-                        .then(() => console.log('✅ Service Worker تۆمارکرا'))
-                        .catch(() => console.log('❌ هەڵە'));
-                });
-            }
-        </script>
-    </head>
-    """
-    
-    st.markdown(pwa_code, unsafe_allow_html=True)
+# ========== HTML Tag ی گۆگڵ ==========
+st.markdown('<meta name="google-site-verification" content="K6kVkF7ESS0d8787HSnrSVWrBjcUD5VdDycTdMa_3HE" />', unsafe_allow_html=True)
+
+# ========== PWA Manifest ==========
+st.markdown("""
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogItin24zYp9mG2YbZhSIsCiAgInNob3J0X25hbWUiOiAi2KfYudio2YrZhdmHIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiM2NjdlZWEiLAogICJ0aGVtZV9jb2xvciI6ICIjNzY0YmEyIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAi8J+agCIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
+<meta name="theme-color" content="#667eea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ئەپەکەم">
+""", unsafe_allow_html=True)
 
 # ========== CSS بۆ بەکگراوند ==========
-def set_style():
-    st.markdown("""
-    <style>
-    /* بەکگراوندی سەرەکی */
+st.markdown("""
+<style>
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    /* ناونیشانەکان */
     h1 {
         color: white !important;
-        text-align: center;
+        text-align: center !important;
         font-size: 3rem !important;
     }
     
-    /* دوگمەکان */
+    p, label {
+        color: white !important;
+    }
+    
     .stButton > button {
         background: #4CAF50 !important;
         color: white !important;
-        font-size: 1.2rem !important;
         border-radius: 10px !important;
         padding: 10px 30px !important;
+        font-size: 1.2rem !important;
     }
-    </style>
-    """, unsafe_allow_html=True)
+    
+    [data-testid="stSidebar"] {
+        background: #1a1a2e !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# ========== ئەپی سەرەکی ==========
-def main():
-    # داگرتنی PWA
-    make_pwa()
-    
-    # ستایلی بەکگراوند
-    set_style()
-    
-    # ===== ناوەڕۆک =====
-    st.title("🏠 بەخێربێیت بۆ ئەپەکەم!")
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("👥 بەکارهێنەران", "1,234", "+15%")
-    with col2:
-        st.metric("💰 فرۆشتن", "$5,678", "+8%")
-    with col3:
-        st.metric("⭐ ڕێژەی ڕەزامەندی", "98%", "+2%")
-    
-    st.markdown("---")
-    
-    # فۆرمی سادە
-    with st.form("my_form"):
-        name = st.text_input("👤 ناوت بنووسە:")
-        email = st.text_input("📧 ئیمەیڵت بنووسە:")
-        submitted = st.form_submit_button("📩 ناردن")
-        
-        if submitted:
-            st.success(f"✅ سڵاو {name}! بە سەرکەوتوویی نێردرا")
+# ========== ناوەڕۆکی ئەپەکە ==========
+st.title("🏠 بەخێربێیت بۆ ئەپەکەم!")
+st.markdown("---")
 
-# ========== Service Worker فایل ==========
-def create_sw_file():
-    """دروستکردنی فایلی service worker بە شێوازی سادە"""
-    sw_code = """
-self.addEventListener('install', (e) => {
-    console.log('PWA App: installed');
-});
+col1, col2, col3 = st.columns(3)
 
-self.addEventListener('fetch', (e) => {
-    e.respondWith(fetch(e.request));
-});
-"""
-    # ئەمە تەنها ئاماژەیە - بۆ Streamlit Cloud پێویست بە sw.js نییە
+with col1:
+    st.metric("👥 بەکارهێنەران", "1,234", "+12%")
+with col2:
+    st.metric("💰 فرۆشتن", "$5,678", "+8%")
+with col3:
+    st.metric("⭐ ڕەزامەندی", "98%", "+2%")
 
-# ========== ڕاکردن ==========
-if __name__ == "__main__":
-    main()
+st.markdown("---")
+
+with st.form("form"):
+    name = st.text_input("👤 ناوت:")
+    email = st.text_input("📧 ئیمەیڵت:")
+    send = st.form_submit_button("📩 ناردن")
+    
+    if send:
+        st.success(f"✅ سڵاو {name}! بە سەرکەوتوویی نێردرا!")
+        st.balloons()
