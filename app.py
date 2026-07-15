@@ -1,4 +1,4 @@
-# app.py - وەشانی چاککراو بۆ ساڵی 2026
+# app.py - وەشانی تەواو بە سیستەمی پارەدان
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -10,6 +10,9 @@ import string
 import uuid
 import plotly.express as px
 import plotly.graph_objects as go
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ڕێکخستنی لاپەڕە
 st.set_page_config(
@@ -19,11 +22,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ==================== CONFIGURATION ====================
+# ئەم بەشانە دەبێت پڕ بکەیتەوە
+STRIPE_PAYMENT_LINKS = {
+    'monthly': 'https://buy.stripe.com/XXXXXXXXXXXX',  # لینکی Stripe بۆ پلانی مانگانە
+    'yearly': 'https://buy.stripe.com/XXXXXXXXXXXX',   # لینکی Stripe بۆ پلانی ساڵانە
+    'lifetime': 'https://buy.stripe.com/XXXXXXXXXXXX',  # لینکی Stripe بۆ پلانی هەمیشەیی
+}
+
+# نرخی پلانەکان
+PLAN_PRICES = {
+    'monthly': {'price': '$9.99', 'duration': '٣٠ ڕۆژ', 'features': ['دەستگەیشتنی تەواو', 'نوێکردنەوەی ڕۆژانە', 'پشتگیری ئیمەیڵ']},
+    'yearly': {'price': '$49.99', 'duration': '٣٦٥ ڕۆژ', 'features': ['دەستگەیشتنی تەواو', 'نوێکردنەوەی ڕۆژانە', 'پشتگیری پێشکەوتوو', '٢ مانگ خۆرایی']},
+    'lifetime': {'price': '$199', 'duration': 'هەمیشەیی', 'features': ['دەستگەیشتنی هەمیشەیی', 'هەموو نوێکارییەکان', 'پشتگیری VIP', 'بێ سنوور']},
+}
+
+ADMIN_EMAIL = "your-email@gmail.com"  # ئیمەیڵی بەڕێوەبەر
+ADMIN_PASSWORD_APP = "your-app-password"  # App Password ی Gmail
+
 # ==================== LICENSE SYSTEM ====================
 class LicenseSystem:
     def __init__(self):
         self.license_file = 'licenses.db'
-        self.DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
         self.init_license_db()
     
     def init_license_db(self):
@@ -39,7 +59,8 @@ class LicenseSystem:
                       created_at TEXT,
                       expires_at TEXT,
                       is_active INTEGER DEFAULT 1,
-                      last_used TEXT)''')
+                      last_used TEXT,
+                      payment_status TEXT DEFAULT 'pending')''')
         
         c.execute('''CREATE TABLE IF NOT EXISTS activation_attempts
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +68,16 @@ class LicenseSystem:
                       device_id TEXT,
                       attempt_time TEXT,
                       status TEXT)''')
+        
+        c.execute('''CREATE TABLE IF NOT EXISTS payments
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      license_key TEXT,
+                      user_email TEXT,
+                      amount REAL,
+                      plan_type TEXT,
+                      payment_date TEXT,
+                      status TEXT DEFAULT 'pending',
+                      notes TEXT)''')
         
         conn.commit()
         conn.close()
@@ -62,46 +93,22 @@ class LicenseSystem:
         conn = sqlite3.connect(self.license_file)
         c = conn.cursor()
         
-        now = datetime.now().strftime(self.DATE_FORMAT)
-        
-        # حساب تاريخ الانتهاء
+        now = datetime.now().isoformat()
         if license_type == 'monthly':
-            expires = (datetime.now() + timedelta(days=30)).strftime(self.DATE_FORMAT)
+            expires = (datetime.now() + timedelta(days=30)).isoformat()
         elif license_type == 'yearly':
-            expires = (datetime.now() + timedelta(days=365)).strftime(self.DATE_FORMAT)
-        else:  # lifetime
-            expires = '2100-12-31 23:59:59'
+            expires = (datetime.now() + timedelta(days=365)).isoformat()
+        else:
+            expires = '2100-12-31T23:59:59'
         
         c.execute("""INSERT INTO licenses 
-                     (license_key, user_email, license_type, created_at, expires_at, is_active)
-                     VALUES (?, ?, ?, ?, ?, 1)""",
+                     (license_key, user_email, license_type, created_at, expires_at, is_active, payment_status)
+                     VALUES (?, ?, ?, ?, ?, 1, 'pending')""",
                   (license_key, user_email, license_type, now, expires))
         
         conn.commit()
         conn.close()
         return license_key
-    
-    def parse_date(self, date_str):
-        """تحويل التاريخ من النص إلى كائن datetime بأمان"""
-        if not date_str:
-            return datetime(2100, 12, 31)
-        
-        # محاولة قراءة التاريخ بأكثر من صيغة
-        formats = [
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%dT%H:%M:%S.%f',
-            '%Y-%m-%d'
-        ]
-        
-        for fmt in formats:
-            try:
-                return datetime.strptime(date_str, fmt)
-            except ValueError:
-                continue
-        
-        # إذا فشلت كل المحاولات، نعيد تاريخ بعيد جداً
-        return datetime(2100, 12, 31)
     
     def activate_license(self, license_key, device_id):
         conn = sqlite3.connect(self.license_file)
@@ -115,21 +122,21 @@ class LicenseSystem:
             conn.close()
             return {'status': 'invalid', 'message': '⛔ کۆدەکە نادروستە یان چالاک نییە'}
         
-        # التحقق من تاريخ الانتهاء
-        expires_at = self.parse_date(license_data[5])
-        current_time = datetime.now()
-        
-        # للتأكد من عدم وجود مشكلة - نعرض التواريخ للتشخيص
-        print(f"Current time: {current_time}")
-        print(f"Expires at: {expires_at}")
-        print(f"Is expired: {expires_at < current_time}")
-        
-        if expires_at < current_time:
-            c.execute("UPDATE licenses SET is_active=0 WHERE license_key=?", (license_key,))
-            conn.commit()
-            self.log_attempt(license_key, device_id, 'expired')
+        # پشکنینی باری پارەدان
+        if license_data[9] == 'pending':
             conn.close()
-            return {'status': 'expired', 'message': '⏰ کۆدەکە بەسەرچووە'}
+            return {'status': 'pending_payment', 'message': '💰 پێویستە یەکەم پارە بدەیت'}
+        
+        try:
+            expires_at = datetime.fromisoformat(license_data[5])
+            if expires_at < datetime.now():
+                c.execute("UPDATE licenses SET is_active=0 WHERE license_key=?", (license_key,))
+                conn.commit()
+                self.log_attempt(license_key, device_id, 'expired')
+                conn.close()
+                return {'status': 'expired', 'message': '⏰ کۆدەکە بەسەرچووە. تکایە نوێی بکەرەوە'}
+        except:
+            pass
         
         c.execute("SELECT device_id FROM licenses WHERE license_key=? AND device_id IS NOT NULL AND device_id != ''", (license_key,))
         existing_device = c.fetchone()
@@ -140,19 +147,46 @@ class LicenseSystem:
             return {'status': 'used', 'message': '🔒 کۆدەکە لەسەر ئامێرێکی تر چالاک کراوە'}
         
         c.execute("UPDATE licenses SET device_id=?, last_used=? WHERE license_key=?",
-                 (device_id, datetime.now().strftime(self.DATE_FORMAT), license_key))
+                 (device_id, datetime.now().isoformat(), license_key))
         conn.commit()
         
         self.log_attempt(license_key, device_id, 'success')
         conn.close()
         
+        # ناردنی ئیمەیڵی پشتڕاستکردنەوە
+        if license_data[3]:
+            self.send_activation_email(license_data[3], license_key)
+        
         return {'status': 'success', 'message': '✅ کۆد بە سەرکەوتوویی چالاک کرا'}
+    
+    def verify_payment_and_activate(self, license_key, plan_type, amount, user_email):
+        """پشتڕاستکردنەوەی پارەدان و چالاکردنی لایسەنس"""
+        conn = sqlite3.connect(self.license_file)
+        c = conn.cursor()
+        
+        # تۆمارکردنی پارەدان
+        c.execute("""INSERT INTO payments 
+                     (license_key, user_email, amount, plan_type, payment_date, status)
+                     VALUES (?, ?, ?, ?, ?, 'completed')""",
+                  (license_key, user_email, amount, plan_type, datetime.now().isoformat()))
+        
+        # چالاکردنی لایسەنس
+        c.execute("UPDATE licenses SET payment_status='paid', is_active=1 WHERE license_key=?",
+                  (license_key,))
+        
+        conn.commit()
+        conn.close()
+        
+        # ناردنی ئیمەیڵ
+        self.send_payment_confirmation(user_email, license_key, plan_type)
+        
+        return True
     
     def log_attempt(self, license_key, device_id, status):
         conn = sqlite3.connect(self.license_file)
         c = conn.cursor()
         c.execute("INSERT INTO activation_attempts (license_key, device_id, attempt_time, status) VALUES (?, ?, ?, ?)",
-                 (license_key, device_id, datetime.now().strftime(self.DATE_FORMAT), status))
+                 (license_key, device_id, datetime.now().isoformat(), status))
         conn.commit()
         conn.close()
     
@@ -167,10 +201,15 @@ class LicenseSystem:
             return {'status': 'not_found'}
         
         is_active = license_data[6] == 1
-        expires_at = self.parse_date(license_data[5])
-        is_expired = expires_at < datetime.now()
+        payment_status = license_data[9] if len(license_data) > 9 else 'paid'
         
-        if not is_active or is_expired:
+        try:
+            expires_at = datetime.fromisoformat(license_data[5])
+            is_expired = expires_at < datetime.now()
+        except:
+            is_expired = False
+        
+        if not is_active or is_expired or payment_status == 'pending':
             return {'status': 'inactive', 'expires_at': license_data[5]}
         
         stored_device = license_data[2] if license_data[2] else None
@@ -184,12 +223,72 @@ class LicenseSystem:
             'license_type': license_data[4]
         }
     
-    def generate_bulk_licenses(self, count, license_type='lifetime'):
-        keys = []
-        for _ in range(count):
-            key = self.generate_license_key(license_type)
-            keys.append(key)
-        return keys
+    def send_activation_email(self, email, license_key):
+        """ناردنی ئیمەیڵی چالاککردن"""
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = ADMIN_EMAIL
+            msg['To'] = email
+            msg['Subject'] = '✅ چالاککردنی هەژماری دکتۆر دانیال'
+            
+            body = f"""
+            بەخێربێیت بۆ دکتۆر دانیال!
+            
+            کلیلی لایسەنسی تۆ: {license_key}
+            
+            بۆ چالاککردن:
+            ١. ئەپەکە بکەرەوە
+            ٢. لە بەشی چالاککردن کلیک بکە
+            ٣. ئەم کلیلە بنووسە: {license_key}
+            
+            سوپاس بۆ متمانەت!
+            تیمی دکتۆر دانیال
+            """
+            
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(ADMIN_EMAIL, ADMIN_PASSWORD_APP)
+            server.send_message(msg)
+            server.quit()
+        except Exception as e:
+            st.error(f"نەتوانرا ئیمەیڵ بنێردرێت: {e}")
+    
+    def send_payment_confirmation(self, email, license_key, plan_type):
+        """ناردنی پشتڕاستکردنەوەی پارەدان"""
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = ADMIN_EMAIL
+            msg['To'] = email
+            msg['Subject'] = '💰 پشتڕاستکردنەوەی پارەدان - دکتۆر دانیال'
+            
+            plan_name = {
+                'monthly': 'مانگانە',
+                'yearly': 'ساڵانە',
+                'lifetime': 'هەمیشەیی'
+            }.get(plan_type, plan_type)
+            
+            body = f"""
+            سوپاس بۆ پارەدانەکەت!
+            
+            پلان: {plan_name}
+            کلیلی لایسەنس: {license_key}
+            
+            لایسەنسەکەت ئێستا چالاکە و دەتوانیت بەکاری بهێنیت.
+            
+            بۆ هەر پرسیارێک، پەیوەندیمان پێوە بکە.
+            """
+            
+            msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(ADMIN_EMAIL, ADMIN_PASSWORD_APP)
+            server.send_message(msg)
+            server.quit()
+        except Exception as e:
+            st.error(f"نەتوانرا ئیمەیڵ بنێردرێت: {e}")
     
     def get_all_licenses(self):
         conn = sqlite3.connect(self.license_file)
@@ -199,106 +298,43 @@ class LicenseSystem:
         conn.close()
         return licenses
     
-    def get_license_stats(self):
+    def get_payment_stats(self):
         conn = sqlite3.connect(self.license_file)
         c = conn.cursor()
         
-        c.execute("SELECT COUNT(*) FROM licenses")
-        total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM payments WHERE status='completed'")
+        total_payments = c.fetchone()[0]
         
-        c.execute("SELECT COUNT(*) FROM licenses WHERE is_active=1")
-        active = c.fetchone()[0]
+        c.execute("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='completed'")
+        total_revenue = c.fetchone()[0]
         
-        c.execute("SELECT COUNT(*) FROM licenses WHERE device_id IS NOT NULL AND device_id != ''")
-        used = c.fetchone()[0]
-        
-        c.execute("SELECT COUNT(*) FROM licenses WHERE license_type='lifetime' AND is_active=1")
-        lifetime = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM payments WHERE status='completed' AND payment_date LIKE ?",
+                  (datetime.now().strftime('%Y-%m-%d') + '%',))
+        today_payments = c.fetchone()[0]
         
         conn.close()
-        return {'total': total, 'active': active, 'used': used, 'lifetime': lifetime}
+        return {
+            'total_payments': total_payments,
+            'total_revenue': total_revenue,
+            'today_payments': today_payments
+        }
 
 # Initialize license system
 license_system = LicenseSystem()
-
-# ==================== GENERATE INITIAL LICENSES ====================
-def generate_initial_licenses():
-    conn = sqlite3.connect('licenses.db')
-    c = conn.cursor()
-    
-    c.execute("SELECT COUNT(*) FROM licenses")
-    count = c.fetchone()[0]
-    
-    if count == 0:
-        # حذف أي تواريخ قديمة وإعادة إنشاء تراخيص جديدة
-        license_keys = []
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        expires_time = '2100-12-31 23:59:59'
-        
-        for i in range(500):
-            prefix = "DRD"
-            parts = []
-            for j in range(3):
-                part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
-                parts.append(part)
-            license_key = f"{prefix}-{'-'.join(parts)}"
-            license_keys.append(license_key)
-            
-            c.execute("""INSERT INTO licenses 
-                         (license_key, user_email, license_type, created_at, expires_at, is_active)
-                         VALUES (?, ?, ?, ?, ?, 1)""",
-                      (license_key, f"license_{i+1}@drdaniel.com", 'lifetime', current_time, expires_time))
-        
-        conn.commit()
-        
-        with open('licenses_list.txt', 'w', encoding='utf-8') as f:
-            f.write("=" * 60 + "\n")
-            f.write("کۆدی لایسەنسەکانی دکتۆر دانیال - ٥٠٠ کۆد (Lifetime)\n")
-            f.write("=" * 60 + "\n")
-            f.write("بەرواری بەسەرچوون: 2100-12-31\n")
-            f.write(f"بەرواری دروستکردن: {current_time}\n")
-            f.write("=" * 60 + "\n\n")
-            for i, key in enumerate(license_keys, 1):
-                f.write(f"{i:3d}. {key}\n")
-            f.write("\n" + "=" * 60 + "\n")
-            f.write(f"کۆی گشتی: {len(license_keys)} کۆد\n")
-            f.write("=" * 60 + "\n")
-        
-        conn.close()
-        return license_keys
-    else:
-        # تحديث التراخيص القديمة إن وجدت
-        c.execute("UPDATE licenses SET expires_at='2100-12-31 23:59:59' WHERE expires_at LIKE '2100-12-31%'")
-        conn.commit()
-        conn.close()
-        return None
-
-# حذف قاعدة البيانات القديمة إذا كانت موجودة لتجنب المشاكل
-import os
-if os.path.exists('licenses.db'):
-    try:
-        # لا نحذف القاعدة، فقط نتأكد من تحديثها
-        pass
-    except:
-        pass
-
-# Generate initial licenses
-generated_keys = generate_initial_licenses()
 
 # ==================== DATABASE SETUP ====================
 def init_db():
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     
-    # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   username TEXT UNIQUE,
                   password TEXT,
                   role TEXT,
+                  email TEXT,
                   created_at TEXT)''')
     
-    # Medicines table
     c.execute('''CREATE TABLE IF NOT EXISTS medicines
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT NOT NULL,
@@ -316,7 +352,6 @@ def init_db():
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # Lab tests table
     c.execute('''CREATE TABLE IF NOT EXISTS lab_tests
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   name TEXT NOT NULL,
@@ -332,7 +367,6 @@ def init_db():
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # General notes table
     c.execute('''CREATE TABLE IF NOT EXISTS general_notes
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   title TEXT NOT NULL,
@@ -341,14 +375,12 @@ def init_db():
                   created_at TEXT,
                   updated_at TEXT)''')
     
-    # Insert default admin user
     c.execute("SELECT * FROM users WHERE username='Danyal'")
     if not c.fetchone():
         hashed = hashlib.sha256('Admin@2024'.encode()).hexdigest()
-        c.execute("INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)",
-                 ('Danyal', hashed, 'admin', datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        c.execute("INSERT INTO users (username, password, role, email, created_at) VALUES (?, ?, ?, ?, ?)",
+                 ('Danyal', hashed, 'admin', ADMIN_EMAIL, datetime.now().isoformat()))
     
-    # Insert sample medicines
     c.execute("SELECT COUNT(*) FROM medicines")
     if c.fetchone()[0] == 0:
         sample_medicines = [
@@ -362,14 +394,13 @@ def init_db():
             ('Aspirin', 'Aspirin', 'Acetylsalicylic Acid', '100mg', 'Oral', 'Antiplatelet', 'high', '#ff4757', 'blood thinner,heart', 'Take after food', 0, 0),
         ]
         
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now().isoformat()
         for med in sample_medicines:
             c.execute("""INSERT INTO medicines 
                          (name, brand, generic, dose, route, group_name, priority, color_label, tags, notes, favorite, pinned, created_at, updated_at)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                       (*med, now, now))
     
-    # Insert sample lab tests
     c.execute("SELECT COUNT(*) FROM lab_tests")
     if c.fetchone()[0] == 0:
         sample_tests = [
@@ -383,7 +414,7 @@ def init_db():
             ('Urinalysis', 'Urine Test', 'Normal: No protein, glucose, blood', 'Clean catch midstream', 'low', '#ff4757', 'urine,infection', 'Basic urine test', 0, 0),
         ]
         
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now().isoformat()
         for test in sample_tests:
             c.execute("""INSERT INTO lab_tests 
                          (name, purpose, normal_range, preparation, priority, color_label, tags, notes, favorite, pinned, created_at, updated_at)
@@ -397,7 +428,7 @@ def init_db():
 def add_medicine(name, brand, generic, dose, route, group_name, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""INSERT INTO medicines 
                  (name, brand, generic, dose, route, group_name, priority, color_label, tags, notes, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -409,7 +440,7 @@ def add_medicine(name, brand, generic, dose, route, group_name, priority, color_
 def update_medicine(id, name, brand, generic, dose, route, group_name, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""UPDATE medicines 
                  SET name=?, brand=?, generic=?, dose=?, route=?, group_name=?, 
                      priority=?, color_label=?, tags=?, notes=?, updated_at=?
@@ -471,11 +502,10 @@ def toggle_pin_medicine(id):
         conn.commit()
     conn.close()
 
-# Lab tests CRUD
 def add_lab_test(name, purpose, normal_range, preparation, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""INSERT INTO lab_tests 
                  (name, purpose, normal_range, preparation, priority, color_label, tags, notes, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -487,7 +517,7 @@ def add_lab_test(name, purpose, normal_range, preparation, priority, color_label
 def update_lab_test(id, name, purpose, normal_range, preparation, priority, color_label, tags, notes):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""UPDATE lab_tests 
                  SET name=?, purpose=?, normal_range=?, preparation=?, priority=?, 
                      color_label=?, tags=?, notes=?, updated_at=?
@@ -549,11 +579,10 @@ def toggle_pin_lab_test(id):
         conn.commit()
     conn.close()
 
-# Notes CRUD
 def add_note(title, content, tags):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""INSERT INTO general_notes (title, content, tags, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?)""",
               (title, content, tags, now, now))
@@ -564,7 +593,7 @@ def add_note(title, content, tags):
 def update_note(id, title, content, tags):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.now().isoformat()
     c.execute("""UPDATE general_notes SET title=?, content=?, tags=?, updated_at=? WHERE id=?""",
               (title, content, tags, now, id))
     conn.commit()
@@ -607,13 +636,13 @@ def check_login(username, password):
     conn.close()
     return user
 
-def add_user(username, password, role='user'):
+def add_user(username, password, email='', role='user'):
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
     hashed = hashlib.sha256(password.encode()).hexdigest()
     try:
-        c.execute("INSERT INTO users (username, password, role, created_at) VALUES (?, ?, ?, ?)",
-                 (username, hashed, role, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        c.execute("INSERT INTO users (username, password, role, email, created_at) VALUES (?, ?, ?, ?, ?)",
+                 (username, hashed, role, email, datetime.now().isoformat()))
         conn.commit()
         return True
     except:
@@ -637,7 +666,7 @@ if 'user_role' not in st.session_state:
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = True
 if 'current_page' not in st.session_state:
-    st.session_state.current_page = '📊 داشبۆرد'
+    st.session_state.current_page = '🏠 سەرەکی'
 if 'edit_med_id' not in st.session_state:
     st.session_state.edit_med_id = None
 if 'edit_test_id' not in st.session_state:
@@ -674,6 +703,12 @@ def load_css():
             border: 1px solid {border_color};
             padding: 20px;
             margin: 10px 0;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }}
+        
+        .glass-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }}
         
         .main-header {{
@@ -685,31 +720,66 @@ def load_css():
             margin-bottom: 25px;
         }}
         
+        .pricing-card {{
+            background: {card_bg};
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 2px solid {border_color};
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }}
+        
+        .pricing-card:hover {{
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+            border-color: #667eea;
+        }}
+        
+        .pricing-card.featured {{
+            border-color: gold;
+            background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(102,126,234,0.1));
+        }}
+        
         .stButton > button {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 12px;
-            padding: 8px 16px;
+            padding: 10px 20px;
             font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
         }}
         
         .stButton > button:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.6);
         }}
         
-        .license-badge {{
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 12px;
+        .buy-button > button {{
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            font-size: 18px;
+            padding: 15px 30px;
+        }}
+        
+        .price-tag {{
+            font-size: 48px;
             font-weight: bold;
-            margin: 3px;
+            color: #667eea;
+            margin: 20px 0;
         }}
         
-        .license-valid {{ background: #2ed573; color: white; }}
-        .license-invalid {{ background: #ff4757; color: white; }}
+        .feature-list {{
+            list-style: none;
+            padding: 0;
+            text-align: right;
+        }}
+        
+        .feature-list li {{
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }}
         
         .priority-high {{ border-left: 4px solid #ff4757; }}
         .priority-medium {{ border-left: 4px solid #ffa502; }}
@@ -718,32 +788,138 @@ def load_css():
         @media (max-width: 768px) {{
             .glass-card {{ padding: 15px; }}
             .main-header {{ padding: 15px; }}
+            .price-tag {{ font-size: 32px; }}
         }}
     </style>
     """, unsafe_allow_html=True)
 
-# ==================== LICENSE ACTIVATION PAGE ====================
-def show_license_activation():
+# ==================== LANDING/PURCHASE PAGE ====================
+def show_landing_page():
     st.markdown("""
     <div class="main-header">
         <h1>🏥 دکتۆر دانیال</h1>
-        <p>پلاتفۆرمی خوێندنی پزیشکی - پرۆفیشناڵ</p>
+        <p style="font-size: 20px;">پلاتفۆرمی خوێندنی پزیشکی - دەستگەیشتن بە هەزاران زانیاری پزیشکی</p>
     </div>
     """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Features section
+    st.markdown("### ✨ بۆچی دکتۆر دانیال؟")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown("""
+        <div class="glass-card" style="text-align: center;">
+            <h2>💊</h2>
+            <h4>دەرمانەکان</h4>
+            <p>دەستگەیشتن بە سەدان دەرمان بە وردەکاری تەواو</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div class="glass-card" style="text-align: center;">
+            <h2>🧪</h2>
+            <h4>پشکنینەکان</h4>
+            <p>زانیاری تەواو دەربارەی پشکنینە پزیشکییەکان</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div class="glass-card" style="text-align: center;">
+            <h2>📝</h2>
+            <h4>تێبینییەکان</h4>
+            <p>تۆمارکردن و ڕێکخستنی تێبینییە پزیشکییەکان</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown("""
+        <div class="glass-card" style="text-align: center;">
+            <h2>🔄</h2>
+            <h4>نوێکاری بەردەوام</h4>
+            <p>نوێکردنەوەی ڕۆژانەی زانیارییە پزیشکییەکان</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Pricing section
+    st.markdown("### 💰 پلانەکان")
+    st.markdown("پلانێک هەڵبژێرە کە گونجاوە بۆت:")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <div class="pricing-card">
+            <h3>📅 مانگانە</h3>
+            <div class="price-tag">$9.99</div>
+            <p style="color: #888;">/ مانگ</p>
+            <hr>
+            <ul class="feature-list">
+                <li>✅ دەستگەیشتنی تەواو</li>
+                <li>✅ نوێکاری ڕۆژانە</li>
+                <li>✅ پشتگیری ئیمەیڵ</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("💳 کڕینی پلانی مانگانە", key="buy_monthly", use_container_width=True):
+            st.session_state.selected_plan = 'monthly'
+            st.session_state.current_page = '💳 پارەدان'
+            st.rerun()
     
     with col2:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("### 🔑 چالاککردنی لایسەنس")
+        st.markdown("""
+        <div class="pricing-card featured">
+            <div style="background: gold; color: black; padding: 5px 15px; border-radius: 20px; display: inline-block; margin-bottom: 10px;">
+                ⭐ پێشنیارکراو
+            </div>
+            <h3>📆 ساڵانە</h3>
+            <div class="price-tag">$49.99</div>
+            <p style="color: #888;">/ ساڵ</p>
+            <p style="color: #ff4757;">💰 ٢ مانگ خۆرایی!</p>
+            <hr>
+            <ul class="feature-list">
+                <li>✅ هەموو شتێکی مانگانە</li>
+                <li>✅ پشتگیری پێشکەوتوو</li>
+                <li>✅ نوێکاری پێشوەخت</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.info("کۆدی لایسەنسەکەت لە شێوەی **DRD-XXXX-XXXX-XXXX** دەبێت")
-        st.success("📅 ئێستا ساڵی 2026 ـە و هەموو لایسەنسەکان تا 2100 کاردەکەن")
+        if st.button("💳 کڕینی پلانی ساڵانە", key="buy_yearly", use_container_width=True):
+            st.session_state.selected_plan = 'yearly'
+            st.session_state.current_page = '💳 پارەدان'
+            st.rerun()
+    
+    with col3:
+        st.markdown("""
+        <div class="pricing-card">
+            <h3>💎 هەمیشەیی</h3>
+            <div class="price-tag">$199</div>
+            <p style="color: #888;">/ یەکجار</p>
+            <hr>
+            <ul class="feature-list">
+                <li>✅ هەموو شتێک</li>
+                <li>✅ پشتگیری VIP</li>
+                <li>✅ دەستگەیشتنی هەمیشەیی</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
-        license_key = st.text_input("کۆدی لایسەنس", placeholder="DRD-XXXX-XXXX-XXXX")
-        
-        col_a, col_b = st.columns(2)
-        with col_a:
+        if st.button("💳 کڕینی پلانی هەمیشەیی", key="buy_lifetime", use_container_width=True):
+            st.session_state.selected_plan = 'lifetime'
+            st.session_state.current_page = '💳 پارەدان'
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # License activation for existing users
+    with st.expander("🔑 خاوەن لایسەنسی?"):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("### چالاککردنی لایسەنس")
+            license_key = st.text_input("کۆدی لایسەنس", placeholder="DRD-XXXX-XXXX-XXXX")
+            
             if st.button("✅ چالاککردن", use_container_width=True):
                 if license_key:
                     with st.spinner("⏳ چالاکدەکرێت..."):
@@ -753,40 +929,17 @@ def show_license_activation():
                         st.session_state.license_key = license_key
                         st.session_state.license_valid = True
                         st.success(result['message'])
-                        st.balloons()
                         st.rerun()
-                    elif result['status'] == 'expired':
-                        st.error("⏰ ئەم کۆدە بەسەرچووە")
-                    elif result['status'] == 'used':
-                        st.error("🔒 ئەم کۆدە لەسەر ئامێرێکی تر چالاک کراوە")
                     else:
                         st.error(result['message'])
-                else:
-                    st.warning("⚠️ تکایە کۆدی لایسەنس بنووسە")
-        
-        with col_b:
-            if st.button("🔍 پشکنین", use_container_width=True):
-                if license_key:
-                    status = license_system.check_license_status(license_key)
-                    if status['status'] == 'active':
-                        st.success(f"✅ چالاکە - {status.get('license_type', '')}")
-                    elif status['status'] == 'inactive':
-                        st.error("❌ ناچالاکە")
-                    else:
-                        st.warning("🔍 نەدۆزرایەوە")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Admin login
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("### 👤 چوونەژوورەوە (بەڕێوەبەر)")
-        
-        with st.form("admin_login"):
-            username = st.text_input("ناوی بەکارهێنەر")
-            password = st.text_input("ووشەی نهێنی", type="password")
             
-            if st.form_submit_button("🔓 چوونەژوورەوە", use_container_width=True):
-                if username and password:
+            st.markdown("---")
+            st.markdown("### 👤 چوونەژوورەوە (بەڕێوەبەر)")
+            with st.form("admin_login"):
+                username = st.text_input("ناوی بەکارهێنەر")
+                password = st.text_input("ووشەی نهێنی", type="password")
+                
+                if st.form_submit_button("🔓 چوونەژوورەوە", use_container_width=True):
                     user = check_login(username, password)
                     if user:
                         st.session_state.logged_in = True
@@ -799,8 +952,90 @@ def show_license_activation():
                         st.rerun()
                     else:
                         st.error("❌ ناوی بەکارهێنەر یان پاسۆرد هەڵەیە!")
+
+# ==================== PAYMENT PAGE ====================
+def show_payment_page():
+    st.markdown("### 💳 پارەدان")
+    
+    if 'selected_plan' not in st.session_state:
+        st.warning("تکایە یەکەم پلانێک هەڵبژێرە")
+        if st.button("⬅️ گەڕانەوە بۆ پلانەکان"):
+            st.session_state.current_page = '🏠 سەرەکی'
+            st.rerun()
+        return
+    
+    plan = st.session_state.selected_plan
+    plan_info = PLAN_PRICES[plan]
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown(f"""
+        <div class="glass-card">
+            <h3>پلانی {plan}</h3>
+            <div class="price-tag">{plan_info['price']}</div>
+            <p>ماوە: {plan_info['duration']}</p>
+            <hr>
+            <h4>تایبەتمەندییەکان:</h4>
+            <ul>
+        """, unsafe_allow_html=True)
+        
+        for feature in plan_info['features']:
+            st.markdown(f"<li>✅ {feature}</li>", unsafe_allow_html=True)
+        
+        st.markdown("</ul></div>", unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.markdown("### 📝 زانیاری پارەدان")
+        
+        user_email = st.text_input("📧 ئیمەیڵ *", placeholder="example@gmail.com")
+        user_name = st.text_input("👤 ناوی تەواو", placeholder="ناوی تەواوت بنووسە")
+        
+        st.markdown("---")
+        
+        st.markdown("### 💳 ڕێگاکانی پارەدان")
+        
+        # Stripe Payment Link
+        if STRIPE_PAYMENT_LINKS.get(plan) and STRIPE_PAYMENT_LINKS[plan] != 'https://buy.stripe.com/XXXXXXXXXXXX':
+            st.markdown(f"""
+            <a href="{STRIPE_PAYMENT_LINKS[plan]}" target="_blank">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 15px; text-align: center; color: white; cursor: pointer;">
+                    <h3>💳 پارەدان بە Stripe</h3>
+                    <p>پارەدان بە هەموو کارتی بانکی</p>
+                </div>
+            </a>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("📌 بۆ چالاککردنی پارەدان، لینکی Stripe زیاد بکە")
+        
+        st.markdown("---")
+        
+        # Manual activation for admin
+        st.markdown("### 🔑 چالاککردنی دەستی (تەنها بەڕێوەبەر)")
+        
+        with st.expander("⚙️ چالاککردنی دەستی"):
+            st.warning("ئەم بەشە تەنها بۆ بەڕێوەبەرە")
+            admin_key = st.text_input("کلیلی بەڕێوەبەر", type="password")
+            
+            if st.button("چالاککردن"):
+                # Generate license and mark as paid
+                license_key = license_system.generate_license_key(plan, user_email)
+                license_system.verify_payment_and_activate(
+                    license_key, plan, 
+                    float(plan_info['price'].replace('$', '')), 
+                    user_email
+                )
+                st.success(f"✅ لایسەنس دروستکرا!")
+                st.code(license_key)
+                st.info("ئەم کۆدە بنێرە بۆ بەکارهێنەر")
         
         st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Back button
+    if st.button("⬅️ گەڕانەوە بۆ پلانەکان"):
+        st.session_state.current_page = '🏠 سەرەکی'
+        st.rerun()
 
 # ==================== MAIN APP ====================
 def main():
@@ -813,17 +1048,21 @@ def main():
         if status['status'] != 'active':
             st.session_state.license_valid = False
             if st.session_state.user_role != 'admin':
-                st.warning("⚠️ لایسەنسەکە بەسەرچووە")
+                st.warning("⚠️ لایسەنسەکە بەسەرچووە یان ناچالاکە")
     
     if not st.session_state.get('license_valid') and st.session_state.get('user_role') != 'admin':
-        show_license_activation()
+        # Show landing page or payment
+        if st.session_state.current_page == '💳 پارەدان':
+            show_payment_page()
+        else:
+            show_landing_page()
         return
     
     # ========== MAIN APP CONTENT ==========
     st.markdown(f"""
     <div class="main-header">
         <h1>🏥 دکتۆر دانیال</h1>
-        <p>❤️ بەخێربێیت، {st.session_state.username or 'بەکارهێنەر'}! | ساڵی 2026</p>
+        <p>❤️ بەخێربێیت، {st.session_state.username or 'بەکارهێنەر'}!</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -856,10 +1095,10 @@ def main():
             "📝 تێبینییەکان",
         ]
         
-        # Only admin can see license and users pages
         if st.session_state.get('user_role') == 'admin':
             pages.append("🔑 لایسەنس")
             pages.append("👥 بەکارهێنەران")
+            pages.append("💰 فرۆشتن")
         
         pages.append("⚙️ ڕێکخستنەکان")
         
@@ -870,6 +1109,12 @@ def main():
         
         st.markdown("---")
         
+        # License info
+        if st.session_state.get('license_key'):
+            st.info(f"""
+            🔑 **لایسەنس:** {st.session_state.license_key[:16]}...
+            """)
+        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🚪 دەرچوون", use_container_width=True):
@@ -877,6 +1122,7 @@ def main():
                 st.session_state.license_valid = False
                 st.session_state.license_key = None
                 st.session_state.user_role = None
+                st.session_state.current_page = '🏠 سەرەکی'
                 st.rerun()
         with col2:
             if st.button("🔄 فرێش", use_container_width=True):
@@ -897,6 +1143,8 @@ def main():
         show_license_manager()
     elif page == "👥 بەکارهێنەران" and st.session_state.get('user_role') == 'admin':
         show_users_page()
+    elif page == "💰 فرۆشتن" and st.session_state.get('user_role') == 'admin':
+        show_sales_dashboard()
     elif page == "⚙️ ڕێکخستنەکان":
         show_settings_page()
 
@@ -1086,7 +1334,7 @@ def show_medicines_page():
             else:
                 st.error("دەرمان نەدۆزرایەوە")
         else:
-            st.info("هیچ دەرمانێک بۆ دەستکاری هەڵنەبژێردراوە. لە تابێکی یەکەم دەرمانێک هەڵبژێرە.")
+            st.info("هیچ دەرمانێک بۆ دەستکاری هەڵنەبژێردراوە")
 
 def show_lab_tests_page():
     st.markdown("### 🧪 بەڕێوەبەری پشکنینەکان")
@@ -1287,88 +1535,114 @@ def show_notes_page():
             st.info("هیچ تێبینییەک بۆ دەستکاری هەڵنەبژێردراوە")
 
 def show_license_manager():
-    # 🔒 DOUBLE CHECK: Only admin can access
     if st.session_state.get('user_role') != 'admin':
         st.error("⛔ تەنها بەڕێوەبەر دەتوانێت ئەم بەشە ببینێت!")
         st.stop()
     
     st.markdown("### 🔑 بەڕێوەبەری لایسەنس (تەنها Admin)")
     
-    st.warning("⚠️ ئەم بەشە تەنها بۆ بەڕێوەبەرە و کەسی تر ناتوانێت بیبینێت!")
-    
-    tab1, tab2, tab3 = st.tabs(["📊 ئامار", "➕ دروستکردن", "📋 لیست"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 ئامار", "➕ دروستکردن", "📋 لیست", "💳 پارەدانەکان"])
     
     with tab1:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        stats = license_system.get_license_stats()
+        conn = sqlite3.connect('licenses.db')
+        c = conn.cursor()
         
-        col1, col2, col3, col4 = st.columns(4)
+        c.execute("SELECT COUNT(*) FROM licenses")
+        total = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM licenses WHERE is_active=1")
+        active = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM licenses WHERE device_id IS NOT NULL AND device_id != ''")
+        used = c.fetchone()[0]
+        
+        col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("📦 کۆی گشتی", stats['total'])
+            st.metric("📦 کۆی گشتی", total)
         with col2:
-            st.metric("✅ چالاک", stats['active'])
+            st.metric("✅ چالاک", active)
         with col3:
-            st.metric("💻 بەکارهێنراو", stats['used'])
-        with col4:
-            st.metric("🎖️ Lifetime", stats['lifetime'])
+            st.metric("💻 بەکارهێنراو", used)
         
-        fig = go.Figure(data=[go.Pie(
-            labels=['چالاک', 'ناچالاک'],
-            values=[stats['active'], stats['total'] - stats['active']],
-            marker=dict(colors=['#2ed573', '#ff4757']),
-            hole=0.3
-        )])
-        fig.update_layout(height=300, paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True)
+        conn.close()
         st.markdown('</div>', unsafe_allow_html=True)
     
     with tab2:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         st.subheader("➕ دروستکردنی کۆدی نوێ")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             license_type = st.selectbox("جۆر", ["lifetime", "yearly", "monthly"])
         with col2:
-            count = st.number_input("ژمارە", 1, 500, 1)
+            count = st.number_input("ژمارە", 1, 100, 1)
+        with col3:
+            payment_status = st.selectbox("باری پارەدان", ["paid", "pending"])
         
         user_email = st.text_input("ئیمەیڵ (ئارەزوومەندانە)")
         
         if st.button("🔑 دروستکردن", use_container_width=True):
-            if count == 1:
+            keys = []
+            for _ in range(count):
                 key = license_system.generate_license_key(license_type, user_email)
-                st.success("✅ دروستکرا!")
-                st.code(key)
-            else:
-                keys = license_system.generate_bulk_licenses(count, license_type)
-                st.success(f"✅ {count} کۆد دروستکرا!")
-                keys_text = "\n".join(keys)
-                st.download_button(f"📥 داگرتنی {count} کۆد", keys_text, f"licenses_{datetime.now().strftime('%Y%m%d')}.txt")
+                
+                # ئەگەر پارە درابێت، ڕاستەوخۆ چالاکی بکە
+                if payment_status == 'paid':
+                    conn = sqlite3.connect('licenses.db')
+                    c = conn.cursor()
+                    c.execute("UPDATE licenses SET payment_status='paid' WHERE license_key=?", (key,))
+                    conn.commit()
+                    conn.close()
+                
+                keys.append(key)
+            
+            st.success(f"✅ {count} کۆد دروستکرا!")
+            
+            # پیشاندان و داگرتن
+            keys_text = "\n".join(keys)
+            st.code(keys_text)
+            st.download_button(
+                f"📥 داگرتنی {count} کۆد",
+                keys_text,
+                f"licenses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                use_container_width=True
+            )
         st.markdown('</div>', unsafe_allow_html=True)
     
     with tab3:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
         licenses = license_system.get_all_licenses()
         if licenses:
-            for lic in licenses[:50]:
-                try:
-                    # Parse date safely
-                    expires_str = lic[5]
-                    for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d']:
-                        try:
-                            expires = datetime.strptime(expires_str, fmt)
-                            break
-                        except ValueError:
-                            continue
-                    else:
-                        expires = datetime(2100, 12, 31)
-                    is_expired = expires < datetime.now()
-                except:
-                    is_expired = False
+            st.markdown("| # | کۆد | جۆر | ئیمەیڵ | پارەدان | چالاک | بەکارهێنراو |")
+            st.markdown("|---|-----|-----|--------|---------|-------|-------------|")
+            
+            for i, lic in enumerate(licenses[:50], 1):
+                payment_status = lic[9] if len(lic) > 9 else 'paid'
+                payment_emoji = "💰" if payment_status == 'paid' else "⏳"
+                active_emoji = "✅" if lic[6] else "❌"
+                used_emoji = "💻" if lic[2] else "🆓"
                 
-                status = "✅" if lic[6] and not is_expired else "❌"
-                st.markdown(f"{status} `{lic[1][:16]}...` | {lic[4]} | {lic[5][:10] if lic[5] else ''} | {'بەکارهێنراو' if lic[2] else 'ئازاد'}")
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown(f"| {i} | `{lic[1][:16]}...` | {lic[4]} | {lic[3] or '-'} | {payment_emoji} | {active_emoji} | {used_emoji} |")
+        else:
+            st.info("هیچ لایسەنسێک نەدۆزرایەوە")
+    
+    with tab4:
+        st.markdown("### 💳 مێژووی پارەدانەکان")
+        
+        conn = sqlite3.connect('licenses.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM payments ORDER BY payment_date DESC LIMIT 50")
+        payments = c.fetchall()
+        conn.close()
+        
+        if payments:
+            for payment in payments:
+                st.markdown(f"""
+                <div class="glass-card">
+                    <p>💰 ${payment[3]:.2f} | {payment[4]} | {payment[5][:10] if payment[5] else ''}</p>
+                    <p>👤 {payment[2]} | 🔑 {payment[1][:16]}...</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("هیچ پارەدانێک نەکراوە")
 
 def show_users_page():
     if st.session_state.get('user_role') != 'admin':
@@ -1379,7 +1653,7 @@ def show_users_page():
     
     conn = sqlite3.connect('medical_data.db')
     c = conn.cursor()
-    c.execute("SELECT id, username, role, created_at FROM users")
+    c.execute("SELECT id, username, role, email, created_at FROM users")
     users = c.fetchall()
     conn.close()
     
@@ -1387,7 +1661,7 @@ def show_users_page():
         st.markdown(f"""
         <div class="glass-card">
             <h4>👤 {user[1]} <small>({user[2]})</small></h4>
-            <p>بەرواری دروستکردن: {user[3][:10] if user[3] else ''}</p>
+            <p>📧 {user[3] or 'نییە'} | 📅 {user[4][:10] if user[4] else ''}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1395,14 +1669,32 @@ def show_users_page():
         with st.form("add_user_form"):
             username = st.text_input("ناوی بەکارهێنەر")
             password = st.text_input("ووشەی نهێنی", type="password")
+            email = st.text_input("ئیمەیڵ")
             role = st.selectbox("ڕۆڵ", ["user", "admin"])
             if st.form_submit_button("زیادکردن"):
                 if username and password:
-                    if add_user(username, password, role):
+                    if add_user(username, password, email, role):
                         st.success("✅ زیادکرا!")
                         st.rerun()
                     else:
-                        st.error("❌ هەیە!")
+                        st.error("❌ ئەم ناوە بەکارهێنراوە!")
+
+def show_sales_dashboard():
+    if st.session_state.get('user_role') != 'admin':
+        st.error("⛔ تەنها بۆ بەڕێوەبەر")
+        st.stop()
+    
+    st.markdown("### 💰 داشبۆردی فرۆشتن")
+    
+    stats = license_system.get_payment_stats()
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("💰 کۆی داهات", f"${stats['total_revenue']:.2f}")
+    with col2:
+        st.metric("📦 کۆی فرۆشتن", stats['total_payments'])
+    with col3:
+        st.metric("📈 فرۆشتنی ئەمڕۆ", stats['today_payments'])
 
 def show_settings_page():
     st.markdown("### ⚙️ ڕێکخستنەکان")
@@ -1415,7 +1707,22 @@ def show_settings_page():
         st.rerun()
     
     st.markdown("---")
-    st.markdown("### 📱 زانیاری")
+    
+    st.markdown("### 🛒 پلانی من")
+    if st.session_state.get('license_key'):
+        status = license_system.check_license_status(st.session_state.license_key, st.session_state.device_id)
+        if status['status'] == 'active':
+            st.success(f"""
+            ✅ پلانی {status.get('license_type', 'چالاک')}
+            📅 بەسەردەچێت: {status['expires_at'][:10] if status.get('expires_at') else 'هەمیشەیی'}
+            """)
+        else:
+            st.warning("⚠️ پلانەکەت چالاک نییە")
+    else:
+        st.info("هیچ پلانێکی چالاکت نییە")
+    
+    st.markdown("---")
+    st.markdown("### 📱 زانیاری تەکنیکی")
     st.code(f"Device ID: {st.session_state.device_id[:20]}...")
     if st.session_state.get('license_key'):
         st.code(f"License: {st.session_state.license_key}")
@@ -1427,6 +1734,7 @@ def show_settings_page():
         st.session_state.license_valid = False
         st.session_state.license_key = None
         st.session_state.user_role = None
+        st.session_state.current_page = '🏠 سەرەکی'
         st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
