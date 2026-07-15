@@ -17,3 +17,12 @@ pandas
 plotly
 qrcode
 Pillow
+streamlit
+pandas
+plotl
+Pillow
+openpyxl
+reportlab
+bcrypt
+requests>
+python-dotenv
