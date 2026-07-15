@@ -1,26 +1,32 @@
 import streamlit as st
 
-# ١. وشەی نهێنی دابنێ
-PASSWORD = "123"
+# ١. دیزاینی گشتی
+st.set_page_config(page_title="My App", page_icon="📱", layout="centered")
 
-def main():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
+# ٢. بەکارهێنانی CSS بۆ ئەوەی وەک ئەپ دەربکەوێت (شێوەی کارت)
+st.markdown("""
+    <style>
+    .stApp { background-color: #f0f2f6; }
+    .css-1r6slp0 { padding: 1rem; }
+    </style>
+""", unsafe_allow_html=True)
 
-    if not st.session_state.logged_in:
-        # پەڕەی چوونەژوورەوە
-        user_input = st.text_input("وشەی نهێنی بنووسە:", type="password")
-        if st.button("چوونەژوورەوە"):
-            if user_input == PASSWORD:
-                st.session_state.logged_in = True
-                st.rerun()
-            else:
-                st.error("وشەی نهێنی هەڵەیە!")
-    else:
-        # ئەگەر چوویتە ژوورەوە، ئەمە نیشان بدە
-        st.write("بەخێربێیت! تۆ سەرکەوتووانە چوویتە ژوورەوە.")
-        if st.button("دەرچوون"):
-            st.session_state.logged_in = False
-            st.rerun()
+# ٣. ناوەڕۆکی لاپەڕە
+st.title("📱 ئەپی من")
 
-main()
+# بەکارهێنانی کۆنتەینەر بۆ ئەوەی وەک "کارت" دەربکەوێت
+with st.container(border=True):
+    st.subheader("چوونە ژوورەوە")
+    st.write("تکایە وشەی نهێنی بنووسە")
+    
+    password = st.text_input("وشەی نهێنی", type="password", label_visibility="collapsed")
+    
+    if st.button("چوونە ژوورەوە", use_container_width=True):
+        if password == "123": # وشەی نهێنیەکەت لێرە دابنێ
+            st.success("سەرکەوتوو بوو!")
+            st.balloons()
+        else:
+            st.error("وشەی نهێنی هەڵەیە")
+
+# ٤. فووتەری سادە
+st.markdown("<center>وەشانی ١.٠</center>", unsafe_allow_html=True)
