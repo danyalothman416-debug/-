@@ -1,75 +1,97 @@
 import streamlit as st
 
-# ١. ڕێکخستنی شاشە و شاردنەوەی سایدبار
-st.set_page_config(page_title="ئەپی من", layout="centered", initial_sidebar_state="collapsed")
+# ١. ڕێکخستنی سەرەتایی ئەپەکە
+st.set_page_config(page_title="Future Doctor", page_icon="🩺", layout="centered", initial_sidebar_state="collapsed")
 
-# ٢. کۆدی جوانکاری (CSS) بۆ گۆڕینی شێوەی ئەپەکە
+# ٢. دیزاینی مۆدێرن بۆ ئەپەکە
 st.markdown("""
     <style>
-    /* پاشبنەمای ئەپەکە بە ڕەنگێکی قەشەنگ (شین و مۆر) */
-    .stApp {
-        background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+    .stApp { background-color: #f4f6f9; }
+    .card {
+        background-color: white; padding: 20px; border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;
     }
-    
-    /* شاردنەوەی هێڵی سەرەوەی Streamlit بۆ ئەوەی وەک ئەپی ڕاستەقینە بێت */
-    header {visibility: hidden;}
-    
-    /* جوانکردنی دوگمەی چوونەژوورەوە */
     div.stButton > button {
-        width: 100%;
-        border-radius: 30px;
-        height: 50px;
-        background-color: #ffffff;
-        color: #4facfe;
-        font-size: 18px;
-        font-weight: bold;
-        border: none;
-        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    
-    /* جوڵەی دوگمەکە کاتێک پەنجەی دەچێتە سەر */
-    div.stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        color: #8ec5fc;
-    }
-    
-    /* دیزاینی بۆکسەکانی نووسین */
-    div.stTextInput input {
-        border-radius: 15px;
-        border: 1px solid transparent;
-        padding: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    
-    /* ڕەنگی تێکستەکانی سەرەوە */
-    .title-text {
-        text-align: center;
-        color: white;
-        font-family: sans-serif;
-        margin-top: 40px;
+        width: 100%; border-radius: 15px; background-color: #007AFF;
+        color: white; font-weight: bold; border: none; height: 45px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# ٣. بەشی سەرەوەی ئەپەکە
-st.markdown("<h1 class='title-text'>✨ بەخێربێیت</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: white; font-size: 18px;'>تکایە زانیارییەکانت بنووسە</p>", unsafe_allow_html=True)
+# ٣. داتابەیسی کاتی بۆ گەیمیفیکەیشن (XP و ئاستەکان)
+if 'xp' not in st.session_state:
+    st.session_state.xp = 0
+if 'level' not in st.session_state:
+    st.session_state.level = "Student"
+if 'page' not in st.session_state:
+    st.session_state.page = "Roadmap"
 
-st.write("")
-st.write("")
+# دیاریکردنی ئاست بەپێی XP
+if st.session_state.xp >= 1000: st.session_state.level = "Specialist 🏆"
+elif st.session_state.xp >= 500: st.session_state.level = "Resident 🩺"
+elif st.session_state.xp >= 100: st.session_state.level = "Intern 🏥"
 
-# ٤. بۆکسەکانی چوونەژوورەوە
-with st.container():
-    st.text_input("ئیمەیڵ", placeholder="name@example.com")
-    password = st.text_input("وشەی نهێنی", type="password", placeholder="••••••••")
+# ٤. دروستکردنی مینیوی گەڕان (Navigation)
+st.sidebar.title("🩺 Future Doctor")
+st.sidebar.write(f"**ئاست:** {st.session_state.level} | **XP:** {st.session_state.xp}")
+menu = st.sidebar.radio("بەشەکان", ["🗺️ Career Roadmap", "🚑 AI Case Simulator", "🏆 پرۆفایل و دەستکەوتەکان"])
+
+st.session_state.page = menu
+
+# ==========================================
+# بەشی یەکەم: Doctor Career Roadmap
+# ==========================================
+if st.session_state.page == "🗺️ Career Roadmap":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.title("🗺️ نەخشەی ڕێگای پزیشکی")
+    st.write("با AI تایبەت بە خۆت پلانێکت بۆ دروست بکات.")
     
-    st.write("")
+    col1, col2 = st.columns(2)
+    with col1:
+        year = st.selectbox("لە چ قۆناغێکیت؟", ["قۆناغی ١", "قۆناغی ٢", "قۆناغی ٣", "قۆناغی ٤", "قۆناغی ٥", "قۆناغی ٦"])
+    with col2:
+        interest = st.selectbox("حەزت لە چ بوارێکە؟", ["نەزانراوە", "نەشتەرگەری (Surgery)", "دڵ (Cardiology)", "منداڵان (Pediatrics)", "هەناوی (Internal Med)"])
     
-    if st.button("🚀 چوونەژوورەوە"):
-        if password == "123":
-            st.success("سەرکەوتوو بوویت! 🎉")
-            st.balloons()
+    if st.button("پلانم بۆ دروست بکە بە AI 🤖"):
+        # لێرەدا لە داهاتوودا پەیوەندی بە OpenAI API دەکەین
+        st.success(f"پلانەکە ئامادەیە بۆ فێرخوازی {year} کە ئارەزووی {interest} دەکات!")
+        st.info("📅 **پلانی ئەم هەفتەیە:**\n\n* خوێندنەوەی Anatomy بەشی دڵ.\n* چارەسەرکردنی ٣ Clinical Cases.\n* سەیرکردنی ڤیدیۆی فێرکاری ECG.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==========================================
+# بەشی دووەم: AI Case Simulator
+# ==========================================
+elif st.session_state.page == "🚑 AI Case Simulator":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.title("🚑 نەخۆشخانەی خەیاڵی")
+    st.write("تۆ ئێستا پزیشکی ئێشکگریت. نەخۆشێک هاتووەتە ژوورەوە.")
+    
+    st.warning("**نەخۆش:** پیاوێکی تەمەن ٤٥ ساڵ، سینگ ئێشەیەکی زۆری هەیە و ئارەقەی کردووە.")
+    
+    action = st.radio("چی دەکەیت وەکو پزیشک؟", ["پرسیاری مێژووی نەخۆشییەکەی دەکەم", "ڕاستەوخۆ ECG ی بۆ دەکەم", "حەبی ئازارشکێنی دەدەمێ"])
+    
+    if st.button("ئەنجامدانی بڕیار 🩺"):
+        if action == "ڕاستەوخۆ ECG ی بۆ دەکەم":
+            st.success("بڕیارێکی زۆر دروستە! لەم جۆرە حاڵەتانەدا کات زێڕە. (+50 XP) 🎉")
+            st.session_state.xp += 50
         else:
-            st.error("وشەی نهێنی هەڵەیە! ❌")
+            st.error("پێویستە خێراتر بیت بۆ حاڵەتی دڵ! باشترین بژاردە پێش هەر شتێک ECG یە.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ==========================================
+# بەشی سێیەم: پرۆفایل و XP
+# ==========================================
+elif st.session_state.page == "🏆 پرۆفایل و دەستکەوتەکان":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.title("🏆 پرۆفایلی پزیشک")
+    
+    st.header(f"ئاستی ئێستا: {st.session_state.level}")
+    st.progress(min(st.session_state.xp / 1000, 1.0))
+    st.write(f"**کۆی گشتی خاڵەکان (XP):** {st.session_state.xp}")
+    
+    st.subheader("مەدالیاکان (Badges)")
+    if st.session_state.xp >= 50:
+        st.write("🥇 **First Life Saved** (ڕزگارکەری یەکەم ژیان)")
+    else:
+        st.write("هێشتا هیچ مەدالیایەکت بەدەست نەهێناوە. بڕۆ نەخۆشەکان چارەسەر بکە!")
+    st.markdown("</div>", unsafe_allow_html=True)
