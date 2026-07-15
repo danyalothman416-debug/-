@@ -12,3 +12,8 @@ reportlab
 Pillow
 openpyxl
 qrcode
+streamlit
+pandas
+plotly
+qrcode
+Pillow
