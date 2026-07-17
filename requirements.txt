@@ -1,2 +1,13 @@
 streamlit
-streamlit-google-auth
+pandas
+nump
+plotly
+matplotli
+qrcode
+Pillow
+python-dotenv
+openpyxl
+bcrypt
+cryptography
+reportlab
+xlsxwriter
