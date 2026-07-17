@@ -1,526 +1,649 @@
-# super_cashier.py
+# supermarket_cashier.py
 import streamlit as st
 import json
 import os
 from datetime import datetime
 import pandas as pd
+import hashlib
 
 # -------------------- کۆنفیگ --------------------
 st.set_page_config(
-    page_title="سوپەر کاشێر",
-    page_icon="🛒",
+    page_title="سوپەرمارکێت کاشێر پڕۆ",
+    page_icon="🏪",
     layout="wide"
 )
 
-# -------------------- داتابەیس (JSON) --------------------
-DATA_FILE = "data.json"
+# -------------------- داتابەیس --------------------
+DATA_FILE = "supermarket_data.json"
 
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"products": [], "sales": [], "counter": 0}
+    return {
+        "products": [],
+        "categories": [],
+        "sales": [],
+        "users": [],
+        "inventory": [],
+        "counter": 0,
+        "settings": {
+            "shop_name": "سوپەرمارکێت",
+            "tax_rate": 0.15,
+            "currency": "IQD",
+            "receipt_footer": "سوپاس بۆ کڕین"
+        }
+    }
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# -------------------- دیزاینی CSS --------------------
+# -------------------- دیزاینی پیشەیی --------------------
 st.markdown("""
     <style>
-        .main { background-color: #f0f2f6; }
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+        /* Professional Supermarket Style */
+        .main {
+            background: #f5f5f5;
         }
-        .product-card {
-            background: white;
-            padding: 15px;
+        
+        /* Header like Carrefour */
+        .super-header {
+            background: linear-gradient(135deg, #003366, #004d99);
+            color: white;
+            padding: 20px 30px;
             border-radius: 12px;
-            border: 1px solid #e0e0e0;
-            transition: 0.3s;
-            margin: 8px 0;
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        .product-card:hover {
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-            border-color: #4CAF50;
+        
+        .super-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
         }
-        .price-tag {
-            color: #2e7d32;
-            font-weight: bold;
-            font-size: 1.2rem;
+        
+        .super-header .shop-info {
+            text-align: right;
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
-        .total-box {
-            background: linear-gradient(135deg, #1a237e, #283593);
+        
+        /* Product Categories */
+        .category-tabs {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .category-btn {
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: 500;
+        }
+        
+        .category-btn:hover, .category-btn.active {
+            background: #003366;
             color: white;
-            padding: 25px;
-            border-radius: 15px;
-            text-align: center;
-            margin-top: 15px;
+            border-color: #003366;
         }
-        .cart-item {
+        
+        /* Product Card like supermarket */
+        .product-card-super {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: 0.3s;
+            border: 2px solid transparent;
+            position: relative;
+            text-align: center;
+        }
+        
+        .product-card-super:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            border-color: #003366;
+        }
+        
+        .product-card-super .product-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        
+        .product-card-super .product-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #333;
+            margin: 5px 0;
+        }
+        
+        .product-card-super .product-price {
+            color: #003366;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 5px 0;
+        }
+        
+        .product-card-super .product-barcode {
+            font-size: 0.7rem;
+            color: #999;
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .product-card-super .stock-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff6b6b;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+        
+        .product-card-super .stock-badge.in-stock {
+            background: #51cf66;
+        }
+        
+        /* Cart - like supermarket receipt */
+        .cart-super {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .cart-item-super {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .btn-primary {
-            background-color: #4CAF50;
+        
+        .cart-item-super .item-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .cart-item-super .item-name {
+            font-weight: 500;
+        }
+        
+        .cart-item-super .item-price {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .cart-total-super {
+            background: linear-gradient(135deg, #003366, #004d99);
             color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-        }
-        .btn-danger {
-            background-color: #f44336;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
-        }
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 15px 0;
-        }
-        .product-grid-item {
-            background: white;
-            padding: 15px;
+            padding: 20px;
             border-radius: 12px;
-            border: 2px solid #e0e0e0;
+            margin-top: 15px;
+        }
+        
+        /* Receipt style */
+        .receipt {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            border: 2px dashed #ccc;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .receipt .receipt-header {
             text-align: center;
-            cursor: pointer;
-            transition: 0.3s;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
         }
-        .product-grid-item:hover {
-            border-color: #4CAF50;
-            transform: scale(1.02);
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+        
+        .receipt .receipt-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
         }
+        
+        .receipt .receipt-total {
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        /* Professional buttons */
         .stButton button {
             border-radius: 8px;
-            font-weight: bold;
+            font-weight: 600;
             transition: 0.3s;
         }
+        
         .stButton button:hover {
             transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        /* Professional input */
+        .stTextInput input, .stNumberInput input {
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            padding: 10px;
+        }
+        
+        .stTextInput input:focus, .stNumberInput input:focus {
+            border-color: #003366;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# بارکردنی داتا
 data = load_data()
 
 # Initialize session state
 if "cart" not in st.session_state:
     st.session_state.cart = []
-if "selected_product" not in st.session_state:
-    st.session_state.selected_product = None
+if "selected_category" not in st.session_state:
+    st.session_state.selected_category = "هموو"
+if "receipt_show" not in st.session_state:
+    st.session_state.receipt_show = False
+if "last_sale" not in st.session_state:
+    st.session_state.last_sale = None
 
-# ==================== ناوی فرۆشگا ====================
-st.markdown("""
-    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #1a237e, #0d47a1); border-radius: 15px; margin-bottom: 30px;">
-        <h1 style="color: white; margin: 0;">🛒 سوپەر کاشێر</h1>
-        <p style="color: #e3f2fd; margin: 5px 0;">سیستەمی پیشەیی بەڕێوەبردنی فرۆشتن</p>
+# ==================== HEADER - Professional ====================
+st.markdown(f"""
+    <div class="super-header">
+        <div>
+            <h1>🏪 {data['settings']['shop_name']}</h1>
+            <p style="margin:0; opacity:0.8;">سیستەمی کاشێری پیشەیی</p>
+        </div>
+        <div class="shop-info">
+            <div>📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>
+            <div>👤 کاشێر: ئەحمەد</div>
+        </div>
     </div>
 """, unsafe_allow_html=True)
 
-# ==================== تابەکان ====================
-tab1, tab2, tab3, tab4 = st.tabs(["🧾 فرۆشتن", "📦 بەڕێوەبردنی کاڵا", "📊 ڕاپۆرت", "⚙️ کۆنفیگ"])
+# ==================== MAIN LAYOUT ====================
+col_left, col_right = st.columns([2, 1])
 
-# ==================== تاب 1: فرۆشتن ====================
-with tab1:
-    st.header("🧾 فرۆشتن")
+# ==================== LEFT COLUMN - Products ====================
+with col_left:
+    st.markdown('<div style="background:white; padding:15px; border-radius:12px; margin-bottom:15px;">', unsafe_allow_html=True)
     
-    col1, col2 = st.columns([2, 1])
+    # Search Bar like supermarket
+    search_col1, search_col2, search_col3 = st.columns([3, 1, 1])
+    with search_col1:
+        search = st.text_input("🔍 گەڕان بەدوای کاڵا", placeholder="ناو یان بارکۆد...")
+    with search_col2:
+        if st.button("📷 سکان", use_container_width=True):
+            st.info("پشتیوانی سکانەر لە وەشانی داهاتوودا")
+    with search_col3:
+        if st.button("🔄 نوێکردنەوە", use_container_width=True):
+            st.rerun()
     
-    with col1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("📦 کاڵاکان")
-        
-        # نمایش بە شێوەی گرید
-        if data["products"]:
-            # Searching
-            search = st.text_input("🔍 گەڕان بەدوای کاڵا", placeholder="ناوی کاڵا بنووسە...")
-            
-            # Filter products
-            filtered_products = data["products"]
-            if search:
-                filtered_products = [p for p in data["products"] if search.lower() in p["name"].lower()]
-            
-            if filtered_products:
-                # نمایش بە شێوەی کارت
-                cols = st.columns(3)
-                for idx, product in enumerate(filtered_products):
-                    with cols[idx % 3]:
-                        with st.container():
-                            st.markdown(f"""
-                                <div class="product-grid-item" onclick="alert('{product['name']}')">
-                                    <div style="font-size: 3rem;">📦</div>
-                                    <h4>{product['name']}</h4>
-                                    <p class="price-tag">{product['price']:,} IQD</p>
-                                </div>
-                            """, unsafe_allow_html=True)
-                            
-                            col_qty, col_btn = st.columns([1, 2])
-                            with col_qty:
-                                qty = st.number_input("ژمارد", min_value=1, value=1, step=1, key=f"qty_{idx}")
-                            with col_btn:
-                                if st.button("➕ زیاد بکە", key=f"add_{idx}", use_container_width=True):
-                                    st.session_state.cart.append({
-                                        "name": product["name"],
-                                        "price": product["price"],
-                                        "qty": qty,
-                                        "total": product["price"] * qty
-                                    })
-                                    st.success(f"✅ {qty} x {product['name']} زیاد کرا")
-                                    st.rerun()
-            else:
-                st.warning("هیچ کاڵایەک نەدۆزرایەوە")
-        else:
-            st.warning("⚠️ هیچ کاڵایەک نیە! تکایە سەرەتا کاڵا زیاد بکە لە تابەکەی 'بەڕێوەبردنی کاڵا'")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🛒 سەبەتە")
-        
-        if st.session_state.cart:
-            total = sum(item["total"] for item in st.session_state.cart)
-            
-            # نمایشی کاڵاکانی سەبەتە
-            for i, item in enumerate(st.session_state.cart):
+    # Categories like supermarket
+    st.markdown('<div class="category-tabs">', unsafe_allow_html=True)
+    
+    # Get all categories from products
+    all_categories = list(set([p.get("category", "گشتی") for p in data["products"]]))
+    categories = ["هموو"] + all_categories
+    
+    cols = st.columns(len(categories))
+    for idx, cat in enumerate(categories):
+        with cols[idx]:
+            if st.button(
+                cat,
+                key=f"cat_{idx}",
+                use_container_width=True,
+                type="primary" if st.session_state.selected_category == cat else "secondary"
+            ):
+                st.session_state.selected_category = cat
+                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Products Grid - like supermarket shelves
+    st.markdown('<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px;">', unsafe_allow_html=True)
+    
+    # Filter products
+    filtered_products = data["products"]
+    if st.session_state.selected_category != "هموو":
+        filtered_products = [p for p in data["products"] if p.get("category", "گشتی") == st.session_state.selected_category]
+    
+    if search:
+        filtered_products = [p for p in filtered_products if search.lower() in p["name"].lower() or search in p.get("barcode", "")]
+    
+    # Display products
+    if filtered_products:
+        for product in filtered_products:
+            with st.container():
+                # Determine stock status
+                stock_qty = product.get("stock", 999)
+                in_stock = stock_qty > 0
+                
                 st.markdown(f"""
-                    <div class="cart-item">
-                        <div>
-                            <b>{item['name']}</b>
-                            <span style="color: #666;">× {item['qty']}</span>
-                        </div>
-                        <div>
-                            <span class="price-tag">{item['total']:,} IQD</span>
-                            <button onclick="alert('سڕدرایەوە')" style="background: none; border: none; color: red; cursor: pointer;">✕</button>
+                    <div class="product-card-super">
+                        <div class="product-icon">{product.get('icon', '📦')}</div>
+                        <div class="product-name">{product['name']}</div>
+                        <div class="product-price">{product['price']:,} IQD</div>
+                        <div class="product-barcode">#{product.get('barcode', product['name'][:6].upper())}</div>
+                        <div class="stock-badge {'in-stock' if in_stock else ''}">
+                            {f'{stock_qty}' if in_stock else 'بەتاڵە'}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Delete individual item
-                if st.button(f"🗑️ سڕینەوە", key=f"remove_{i}"):
-                    st.session_state.cart.pop(i)
-                    st.rerun()
-            
-            # کۆی گشتی
+                # Add to cart button
+                col_qty, col_btn = st.columns([1, 2])
+                with col_qty:
+                    qty = st.number_input(
+                        "ژ",
+                        min_value=1,
+                        value=1,
+                        step=1,
+                        key=f"qty_{product['name']}_{product['price']}",
+                        label_visibility="collapsed"
+                    )
+                with col_btn:
+                    if st.button(
+                        "➕ زیاد",
+                        key=f"add_{product['name']}_{product['price']}",
+                        use_container_width=True,
+                        disabled=not in_stock
+                    ):
+                        st.session_state.cart.append({
+                            "name": product["name"],
+                            "price": product["price"],
+                            "qty": qty,
+                            "total": product["price"] * qty,
+                            "barcode": product.get("barcode", ""),
+                            "icon": product.get("icon", "📦")
+                        })
+                        st.success(f"✅ {qty} x {product['name']} زیاد کرا")
+                        st.rerun()
+    else:
+        st.warning("هیچ کاڵایەک نەدۆزرایەوە")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==================== RIGHT COLUMN - Cart ====================
+with col_right:
+    st.markdown('<div class="cart-super">', unsafe_allow_html=True)
+    st.subheader("🛒 سەبەتە")
+    
+    if st.session_state.cart:
+        total = sum(item["total"] for item in st.session_state.cart)
+        total_items = sum(item["qty"] for item in st.session_state.cart)
+        
+        # Show items
+        for idx, item in enumerate(st.session_state.cart):
             st.markdown(f"""
-                <div class="total-box">
-                    <h3>💰 کۆی گشتی</h3>
-                    <h2 style="font-size: 2.5rem; margin: 10px 0;">{total:,} IQD</h2>
+                <div class="cart-item-super">
+                    <div class="item-info">
+                        <span class="item-name">{item.get('icon', '')} {item['name']}</span>
+                        <span class="item-price">{item['qty']} x {item['price']:,} IQD</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-weight:bold;">{item['total']:,}</span>
+                        <button onclick="alert('سڕدرایەوە')" style="background:none; border:none; color:red; cursor:pointer;">✕</button>
+                    </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            # دوگمەکان
-            col_btn1, col_btn2 = st.columns(2)
-            with col_btn1:
-                if st.button("✅ تەواوکردنی فرۆشتن", use_container_width=True, type="primary"):
-                    if st.session_state.cart:
-                        sale = {
-                            "id": data["counter"] + 1,
-                            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "items": st.session_state.cart.copy(),
-                            "total": total
-                        }
-                        data["sales"].append(sale)
-                        data["counter"] += 1
-                        save_data(data)
-                        st.session_state.cart = []
-                        st.success("🎉 فرۆشتن تۆمار کرا! سوپاس")
-                        st.balloons()
-                        st.rerun()
-            with col_btn2:
-                if st.button("🗑️ پاککردنەوە", use_container_width=True):
+            if st.button(f"🗑️ سڕ", key=f"remove_cart_{idx}"):
+                st.session_state.cart.pop(idx)
+                st.rerun()
+        
+        # Total with tax
+        tax = total * data["settings"]["tax_rate"]
+        total_with_tax = total + tax
+        
+        st.markdown(f"""
+            <div class="cart-total-super">
+                <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                    <span>ژمارەی کاڵا:</span>
+                    <span>{total_items}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                    <span>کۆی گشتی:</span>
+                    <span>{total:,} IQD</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid rgba(255,255,255,0.3);">
+                    <span>باج ({int(data['settings']['tax_rate']*100)}%):</span>
+                    <span>+ {tax:,.0f} IQD</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:10px 0 0 0; border-top:2px solid rgba(255,255,255,0.5); font-size:1.4rem;">
+                    <span>کۆی گشتی بە باج:</span>
+                    <span>{total_with_tax:,.0f} IQD</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Payment options
+        col_pay1, col_pay2 = st.columns(2)
+        with col_pay1:
+            if st.button("💵 پارەدان", use_container_width=True, type="primary"):
+                if st.session_state.cart:
+                    sale = {
+                        "id": data["counter"] + 1,
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "items": st.session_state.cart.copy(),
+                        "subtotal": total,
+                        "tax": tax,
+                        "total": total_with_tax,
+                        "payment_method": "نقدی"
+                    }
+                    data["sales"].append(sale)
+                    data["counter"] += 1
+                    
+                    # Update inventory
+                    for item in st.session_state.cart:
+                        for product in data["products"]:
+                            if product["name"] == item["name"]:
+                                product["stock"] = product.get("stock", 999) - item["qty"]
+                    
+                    save_data(data)
+                    st.session_state.last_sale = sale
+                    st.session_state.receipt_show = True
                     st.session_state.cart = []
+                    st.success("🎉 فرۆشتن تەواو بوو!")
+                    st.balloons()
+                    st.rerun()
+        
+        with col_pay2:
+            if st.button("🗑️ پاککردنەوە", use_container_width=True):
+                st.session_state.cart = []
+                st.rerun()
+        
+        # Receipt
+        if st.session_state.receipt_show and st.session_state.last_sale:
+            st.markdown("---")
+            st.markdown("### 🧾 وەچە (Receipt)")
+            sale = st.session_state.last_sale
+            
+            st.markdown(f"""
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <h3>{data['settings']['shop_name']}</h3>
+                        <p>{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+                        <p>وەچە # {sale['id']}</p>
+                    </div>
+            """, unsafe_allow_html=True)
+            
+            for item in sale["items"]:
+                st.markdown(f"""
+                    <div class="receipt-item">
+                        <span>{item['name']} × {item['qty']}</span>
+                        <span>{item['total']:,} IQD</span>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+                    <div class="receipt-item">
+                        <span>کۆی گشتی</span>
+                        <span>{sale['subtotal']:,} IQD</span>
+                    </div>
+                    <div class="receipt-item">
+                        <span>باج</span>
+                        <span>{sale['tax']:,.0f} IQD</span>
+                    </div>
+                    <div class="receipt-total">
+                        <div class="receipt-item">
+                            <span>کۆی گشتی</span>
+                            <span>{sale['total']:,.0f} IQD</span>
+                        </div>
+                    </div>
+                    <div style="text-align:center; margin-top:15px; padding-top:10px; border-top:1px dashed #ccc; font-size:0.8rem; color:#999;">
+                        {data['settings']['receipt_footer']}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🖨️ چاپکردن"):
+                st.info("پشتیوانی چاپ لە وەشانی داهاتوودا")
+            
+            if st.button("✕ داخستنی وەچە"):
+                st.session_state.receipt_show = False
+                st.rerun()
+    
+    else:
+        st.info("🛍️ سەبەتە بەتاڵە")
+        st.markdown("""
+            <div style="text-align:center; padding:30px 0; color:#999;">
+                <p style="font-size:3rem;">🛒</p>
+                <p>تکایە کاڵاکانت هەڵبژێرە</p>
+                <p style="font-size:0.8rem;">بۆ دەستپێکردنی فرۆشتن</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ==================== ADMIN PANEL (sidebar) ====================
+with st.sidebar:
+    st.markdown("### ⚙️ بەڕێوەبردنی کۆگا")
+    
+    admin_tab = st.radio(
+        "هەڵبژێرە",
+        ["➕ زیادکردنی کاڵا", "📦 لیستی کاڵا", "📊 ڕاپۆرت", "⚙️ کۆنفیگ"],
+        label_visibility="collapsed"
+    )
+    
+    if admin_tab == "➕ زیادکردنی کاڵا":
+        st.subheader("➕ کاڵای نوێ")
+        
+        with st.form("add_product_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                name = st.text_input("🏷️ ناو")
+                price = st.number_input("💰 نرخ", min_value=100, value=1000, step=500)
+            with col2:
+                category = st.text_input("📂 پۆل", value="گشتی")
+                stock = st.number_input("📦 کۆتا", min_value=0, value=100, step=10)
+                barcode = st.text_input("🔢 بارکۆد", value=datetime.now().strftime("%Y%m%d%H%M")[-8:])
+            
+            icon = st.selectbox("🎨 ئایکۆن", ["📦", "🥫", "🧃", "🥛", "🍞", "🥩", "🍎", "🧴", "🧹", "📱", "👕", "🛋️"])
+            
+            if st.form_submit_button("➕ زیادکردن", use_container_width=True, type="primary"):
+                data["products"].append({
+                    "name": name,
+                    "price": price,
+                    "category": category,
+                    "stock": stock,
+                    "barcode": barcode,
+                    "icon": icon
+                })
+                save_data(data)
+                st.success(f"✅ {name} زیاد کرا")
+                st.rerun()
+    
+    elif admin_tab == "📦 لیستی کاڵا":
+        st.subheader("📦 هەموو کاڵاکان")
+        
+        if data["products"]:
+            for product in data["products"]:
+                st.markdown(f"""
+                    <div style="background:white; padding:10px; border-radius:8px; margin:5px 0; border-left:4px solid #003366;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div>
+                                <b>{product.get('icon', '')} {product['name']}</b>
+                                <br>
+                                <span style="font-size:0.8rem; color:#666;">{product.get('category', 'گشتی')}</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:bold; color:#003366;">{product['price']:,} IQD</div>
+                                <div style="font-size:0.8rem; color:#999;">کۆتا: {product.get('stock', 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"🗑️ سڕ", key=f"del_admin_{product['name']}"):
+                    data["products"].remove(product)
+                    save_data(data)
                     st.rerun()
         else:
-            st.info("🛒 سەبەتە بەتاڵە")
-            st.markdown("""
-                <div style="text-align: center; padding: 20px; color: #999;">
-                    <p style="font-size: 3rem;">🛍️</p>
-                    <p>هیچ کاڵایەک نیە لە سەبەتەدا</p>
-                </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ==================== تاب 2: بەڕێوەبردنی کاڵا ====================
-with tab2:
-    st.header("📦 بەڕێوەبردنی کاڵا")
+            st.info("هیچ کاڵایەک نیە")
     
-    # زیادکردنی کاڵا - فۆرم
-    with st.expander("➕ زیادکردنی کاڵای نوێ", expanded=True):
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("زیادکردنی کاڵا")
+    elif admin_tab == "📊 ڕاپۆرت":
+        st.subheader("📊 ئاماری فرۆشتن")
         
-        col1, col2, col3 = st.columns([2, 2, 1])
-        with col1:
-            new_name = st.text_input("🏷️ ناوی کاڵا", placeholder="وشەی کاڵا بنووسە...")
-        with col2:
-            new_price = st.number_input("💰 نرخ (IQD)", min_value=100, value=1000, step=500)
-        with col3:
-            st.write(" ")
-            if st.button("➕ زیاد بکە", use_container_width=True, type="primary"):
-                if new_name and new_price > 0:
-                    # Check if product already exists
-                    existing = [p for p in data["products"] if p["name"].lower() == new_name.lower()]
-                    if existing:
-                        st.warning(f"⚠️ کاڵای '{new_name}' پێشتر هەیە!")
-                    else:
-                        data["products"].append({"name": new_name, "price": new_price})
-                        save_data(data)
-                        st.success(f"✅ '{new_name}' بە سەرکەوتوویی زیاد کرا")
-                        st.rerun()
-                else:
-                    st.error("⚠️ تکایە ناو و نرخێکی دروست داخل بکە")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # زیادکردنی چەندین کاڵا لە یەک جار
-    with st.expander("📥 زیادکردنی چەندین کاڵا لە یەک جار", expanded=False):
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.write("کاڵاکان بەم شێوەیە بنووسە: **ناو,نرخ** (هەر کاڵا لە هێڵێکدا)")
-        
-        bulk_input = st.text_area(
-            "کاڵاکان",
-            height=150,
-            placeholder="شیر,1500\nنان,1000\nپەنیر,2500\nکەرە,3000",
-            help="هەر کاڵا لە هێڵێکدا بنووسە، بە کۆما جیای بکەوە"
-        )
-        
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("📥 زیادکردنی هەمووی", use_container_width=True, type="primary"):
-                if bulk_input:
-                    added = 0
-                    for line in bulk_input.strip().split("\n"):
-                        if "," in line:
-                            try:
-                                name, price = line.split(",")
-                                name = name.strip()
-                                price = int(price.strip())
-                                if name and price > 0:
-                                    # Check for duplicates
-                                    existing = [p for p in data["products"] if p["name"].lower() == name.lower()]
-                                    if not existing:
-                                        data["products"].append({"name": name, "price": price})
-                                        added += 1
-                            except:
-                                pass
-                    if added > 0:
-                        save_data(data)
-                        st.success(f"✅ {added} کاڵا بە سەرکەوتوویی زیاد کران")
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ هیچ کاڵایەک زیاد نەکرا! تکایە فۆرماتەکە ڕێک بکە")
-                else:
-                    st.warning("⚠️ تکایە کاڵاکان بنووسە")
-        
-        with col_btn2:
-            if st.button("📋 نموونە", use_container_width=True):
-                st.info("""
-                نموونە:
-                ```
-                شیر,1500
-                نان,1000
-                پەنیر,2500
-                کەرە,3000
-                تۆمات,500
-                بەیبی,750
-                ```
-                """)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # لیستی کاڵاکان
-    st.subheader("📋 لیستی کاڵاکان")
-    
-    if data["products"]:
-        # Search and filter
-        search_products = st.text_input("🔍 گەڕان لەناو کاڵاکان", placeholder="ناوی کاڵا بنووسە...")
-        
-        display_products = data["products"]
-        if search_products:
-            display_products = [p for p in data["products"] if search_products.lower() in p["name"].lower()]
-        
-        # نمایش بە شێوەی خشتە
-        for idx, product in enumerate(display_products):
-            col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-            with col1:
-                st.write(f"🏷️ **{product['name']}**")
-            with col2:
-                st.write(f"💰 {product['price']:,} IQD")
-            with col3:
-                # Edit price
-                new_price = st.number_input(
-                    "نوێ",
-                    min_value=100,
-                    value=product['price'],
-                    step=500,
-                    key=f"edit_{idx}",
-                    label_visibility="collapsed"
-                )
-                if new_price != product['price']:
-                    if st.button("💾 نوێکردنەوە", key=f"update_{idx}"):
-                        product['price'] = new_price
-                        save_data(data)
-                        st.success(f"✅ نرخی {product['name']} نوێکرایەوە")
-                        st.rerun()
-            with col4:
-                if st.button("🗑️", key=f"del_{idx}", help="سڕینەوەی کاڵا"):
-                    data["products"].pop(data["products"].index(product))
-                    save_data(data)
-                    st.rerun()
-        
-        # ئاماری کاڵاکان
-        st.markdown(f"""
-            <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-top: 15px;">
-                <b>📊 ئامار:</b> {len(data['products'])} کاڵا لە کۆگادا
-                | 💰 نرخی تێکڕا: {sum(p['price'] for p in data['products']) / len(data['products']):,.0f} IQD
-                | 💎 گرانترین: {max(data['products'], key=lambda x: x['price'])['name']} ({max(data['products'], key=lambda x: x['price'])['price']:,} IQD)
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("📭 هیچ کاڵایەک نیە! سەرەتا کاڵا زیاد بکە")
-
-# ==================== تاب 3: ڕاپۆرت ====================
-with tab3:
-    st.header("📊 ڕاپۆرت و داهات")
-    
-    if data["sales"]:
-        df = pd.DataFrame(data["sales"])
-        df["date"] = pd.to_datetime(df["date"])
-        
-        # ئاماری سەرەکی
-        total_revenue = df["total"].sum()
-        total_sales = len(df)
-        avg_sale = df["total"].mean() if total_sales > 0 else 0
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("💰 کۆی داهات", f"{total_revenue:,} IQD")
-        col2.metric("🧾 ژمارەی فرۆشتن", total_sales)
-        col3.metric("📊 تێکڕای فرۆشتن", f"{avg_sale:,.0f} IQD")
-        col4.metric("📅 دوایین فرۆشتن", df["date"].max().strftime("%Y-%m-%d") if total_sales > 0 else "نیە")
-        
-        # گرافی ڕۆژانە
-        st.subheader("📈 ئاماری ڕۆژانە")
-        daily = df.groupby(df["date"].dt.date)["total"].sum().reset_index()
-        st.bar_chart(daily.set_index("date"))
-        
-        # گرافی مانگانە
-        st.subheader("📊 ئاماری مانگانە")
-        monthly = df.groupby(df["date"].dt.strftime("%Y-%m"))["total"].sum().reset_index()
-        st.line_chart(monthly.set_index("date"))
-        
-        # خشتەی فرۆشتنەکان
-        with st.expander("📋 بینینی هەموو فرۆشتنەکان", expanded=False):
-            st.dataframe(
-                df[["id", "date", "total"]].sort_values("date", ascending=False),
-                use_container_width=True,
-                column_config={
-                    "id": "ژمارە",
-                    "date": "کات",
-                    "total": st.column_config.NumberColumn("کۆی گشتی", format="%d IQD")
-                }
-            )
+        if data["sales"]:
+            df = pd.DataFrame(data["sales"])
+            total_sales = df["total"].sum()
+            count_sales = len(df)
             
-            # Export to CSV
-            csv = df[["id", "date", "total"]].to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 دابەزاندنی ڕاپۆرت (CSV)",
-                data=csv,
-                file_name=f"report_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-    else:
-        st.info("📭 هیچ فرۆشتنێک تۆمار نەکراوە")
-        st.markdown("""
-            <div style="text-align: center; padding: 40px; color: #999;">
-                <p style="font-size: 4rem;">📊</p>
-                <p>هیچ داتایەک نیە بۆ پیشاندان</p>
-                <p style="font-size: 0.9rem;">دوای تۆمارکردنی یەکەم فرۆشتن، ڕاپۆرتەکان دەردەکەون</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-# ==================== تاب 4: کۆنفیگ ====================
-with tab4:
-    st.header("⚙️ کۆنفیگ و بەڕێوەبردنی سیستەم")
+            col1, col2 = st.columns(2)
+            col1.metric("💰 داهات", f"{total_sales:,.0f} IQD")
+            col2.metric("🧾 فرۆشتن", count_sales)
+            
+            st.write("---")
+            st.write("**دوایین 5 فرۆشتن:**")
+            for sale in data["sales"][-5:]:
+                st.write(f"#{sale['id']} - {sale['total']:,.0f} IQD")
+        else:
+            st.info("هیچ فرۆشتنێک نیە")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🗄️ داتاکان")
-        st.write(f"📁 پەڕگەی داتا: `{DATA_FILE}`")
-        st.write(f"📊 ژمارەی کاڵا: {len(data['products'])}")
-        st.write(f"🧾 ژمارەی فرۆشتن: {len(data['sales'])}")
-        st.write(f"📈 کۆی داهات: {sum(s['total'] for s in data['sales']):,} IQD")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🛠️ ئامرازەکان")
+    elif admin_tab == "⚙️ کۆنفیگ":
+        st.subheader("⚙️ کۆنفیگ")
         
-        # دابەزاندنی backup
-        if data["sales"] or data["products"]:
-            backup_data = json.dumps(data, ensure_ascii=False, indent=2)
-            st.download_button(
-                label="💾 دابەزاندنی پشتیوانی (Backup)",
-                data=backup_data,
-                file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json",
-                use_container_width=True
-            )
+        shop_name = st.text_input("🏪 ناوی فرۆشگا", value=data["settings"]["shop_name"])
+        tax_rate = st.slider("📊 باج", 0.0, 0.30, data["settings"]["tax_rate"], 0.01)
+        footer = st.text_area("📝 پێنووسی وەچە", value=data["settings"]["receipt_footer"])
         
-        # سڕینەوەی هەموو داتاکان
-        with st.expander("⚠️ سڕینەوەی هەموو داتاکان", expanded=False):
-            st.warning("ئاگادار! ئەم کردارە هەموو داتاکان بەهەمیشەیی دەسڕێتەوە")
-            if st.button("🗑️ سڕینەوەی هەموو داتاکان", use_container_width=True):
-                if st.checkbox("دڵنیای لە سڕینەوەی هەموو داتاکان؟"):
-                    data = {"products": [], "sales": [], "counter": 0}
-                    save_data(data)
-                    st.session_state.cart = []
-                    st.success("✅ هەموو داتاکان بە سەرکەوتوویی سڕدرانەوە")
-                    st.rerun()
+        if st.button("💾 هەڵگرتنی کۆنفیگ", use_container_width=True):
+            data["settings"]["shop_name"] = shop_name
+            data["settings"]["tax_rate"] = tax_rate
+            data["settings"]["receipt_footer"] = footer
+            save_data(data)
+            st.success("✅ کۆنفیگ هەڵگیرا")
+            st.rerun()
         
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # زانیاری زیاتر
-    st.markdown("""
-        <div style="background: #e8f5e9; padding: 20px; border-radius: 15px; margin-top: 20px; border-left: 5px solid #4CAF50;">
-            <h4>💡 ڕێنمایی</h4>
-            <ul>
-                <li>کاڵا زیاد بکە لە تابەکەی "بەڕێوەبردنی کاڵا"</li>
-                <li>فرۆشتن ئەنجام بدە لە تابەکەی "فرۆشتن"</li>
-                <li>ڕاپۆرتەکان ببینە لە تابەکەی "ڕاپۆرت"</li>
-                <li>پشتیوانی لە داتاکان بگرە لە تابەکەی "کۆنفیگ"</li>
-            </ul>
-        </div>
-    """, unsafe_allow_html=True)
-
-# ==================== Footer ====================
-st.markdown("""
-    <hr>
-    <div style="text-align: center; color: #999; padding: 20px;">
-        <p>🛒 سوپەر کاشێر © 2026 | دروست کراوە بە ❤️ و Streamlit</p>
-        <p style="font-size: 0.8rem;">هەموو کاڵاکان لە کۆگادا</p>
-    </div>
-""", unsafe_allow_html=True)
+        st.write("---")
+        if st.button("🗑️ سڕینەوەی هەموو داتاکان", use_container_width=True):
+            if st.checkbox("دڵنیای؟"):
+                data = {"products": [], "categories": [], "sales": [], "users": [], "inventory": [], "counter": 0, "settings": data["settings"]}
+                save_data(data)
+                st.success("✅ هەموو داتاکان سڕدرانەوە")
+                st.rerun()
