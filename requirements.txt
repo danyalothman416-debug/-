@@ -1,5 +1,5 @@
 streamlit
-huggingface-hub
+requests
 PyMuPDF
 Pillow
 gTTS
