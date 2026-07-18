@@ -1,6 +1,4 @@
-```python
-# app.py - وەشانی تەواو چاککراو
-import streamlit as st
+importstreamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
