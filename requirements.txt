@@ -2,3 +2,10 @@ streamlit
 groq
 PyMuPDF
 Pillow
+gTTS
+deep-translator
+plotly
+pandas
+duckduckgo-search
+pytesseract
+opencv-python-headless
