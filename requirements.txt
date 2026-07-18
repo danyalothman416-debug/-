@@ -7,5 +7,9 @@ deep-translator
 plotly
 pandas
 duckduckgo-search
+yfinance
+folium
+streamlit-folium
 pytesseract
 opencv-python-headless
+qrcode
