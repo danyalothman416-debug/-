@@ -7,4 +7,3 @@ deep-translator
 plotly
 pandas
 qrcode
-requests
