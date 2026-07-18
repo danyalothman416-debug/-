@@ -1,6 +1,10 @@
 import streamlit as st
 from groq import Groq
 import sys
+import base64
+import fitz  # PyMuPDF بۆ PDF
+from PIL import Image
+import io
 
 # چارەسەری encoding
 sys.stdout.reconfigure(encoding='utf-8')
@@ -29,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🤖 یاریدەدەری زیرەکی دەستکرد")
-st.write("پرسیار بکە و وەڵام وەربگرە - وەک یاریدەدەرێکی زیرەک!")
+st.write("پرسیار بکە، فایل باربکە، یان وێنە بنێرە!")
 
 # ═══════════ سایدبار ═══════════
 with st.sidebar:
@@ -79,6 +83,8 @@ with st.sidebar:
     with col1:
         if st.button("پاککردنەوە", use_container_width=True):
             st.session_state.messages = []
+            st.session_state.uploaded_file_content = None
+            st.session_state.uploaded_image = None
             st.rerun()
     with col2:
         if st.button("سڕینەوە", use_container_width=True):
@@ -121,7 +127,7 @@ except Exception as e:
     st.error(f"کلیلەکە هەڵەیە: {e}")
     st.stop()
 
-# system message بەپێی زمان (بە ئینگلیزی بۆ چارەسەری هەڵە)
+# system message بەپێی زمان
 system_messages = {
     "کوردی": "You are a helpful assistant. IMPORTANT: Always respond in Kurdish (Sorani, using Arabic script). Never use Latin script for Kurdish.",
     "عەرەبی": "You are a helpful assistant. IMPORTANT: Always respond in Arabic language only.",
@@ -132,18 +138,103 @@ system_messages = {
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ═══════════ بارکردنی فایل ═══════════
-uploaded_file = st.file_uploader("فایلێکی دەقی باربکە (تەنها TXT):", type="txt")
-if uploaded_file:
-    try:
-        file_text = uploaded_file.read().decode("utf-8")
-        with st.expander("ناوەڕۆکی فایلەکە"):
-            st.text(file_text)
-        if st.button("شیکاری ئەم دەقە بکە"):
-            prompt = f"Please analyze this text and provide a summary: {file_text}"
-            st.session_state.messages.append({"role": "user", "content": prompt})
-    except Exception as e:
-        st.error(f"نەتوانرا فایلەکە بخوێنرێتەوە: {e}")
+if "uploaded_file_content" not in st.session_state:
+    st.session_state.uploaded_file_content = None
+
+if "uploaded_image" not in st.session_state:
+    st.session_state.uploaded_image = None
+
+# ═══════════ بارکردنی فایل (PDF و TXT) ═══════════
+st.subheader("📄 بارکردنی فایل")
+tab1, tab2 = st.tabs(["📝 فایلی PDF/TXT", "🖼️ وێنە"])
+
+with tab1:
+    uploaded_file = st.file_uploader(
+        "فایلێک باربکە (PDF یان TXT):",
+        type=["pdf", "txt"],
+        key="file_uploader"
+    )
+    
+    if uploaded_file:
+        try:
+            if uploaded_file.type == "application/pdf":
+                # خوێندنەوەی PDF
+                pdf_bytes = uploaded_file.read()
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                file_text = ""
+                for page in doc:
+                    file_text += page.get_text()
+                doc.close()
+                st.success("✅ فایلی PDF بە سەرکەوتوویی خوێندراەوە")
+            else:
+                # خوێندنەوەی TXT
+                file_text = uploaded_file.read().decode("utf-8")
+                st.success("✅ فایلی دەقی خوێندراەوە")
+            
+            st.session_state.uploaded_file_content = file_text
+            
+            with st.expander("📋 ناوەڕۆکی فایلەکە"):
+                st.text_area("ناوەڕۆک:", file_text, height=200)
+            
+            if st.button("🔍 شیکاری ئەم فایلە بکە", type="primary"):
+                prompt = f"Please analyze this document and provide a comprehensive summary in the appropriate language:\n\n{file_text}"
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                st.rerun()
+                
+        except Exception as e:
+            st.error(f"هەڵە لە خوێندنەوەی فایل: {e}")
+
+with tab2:
+    uploaded_image = st.file_uploader(
+        "وێنەیەک باربکە:",
+        type=["png", "jpg", "jpeg"],
+        key="image_uploader"
+    )
+    
+    if uploaded_image:
+        try:
+            # نمایشی وێنە
+            image = Image.open(uploaded_image)
+            st.image(image, caption="وێنەکەت", use_column_width=True)
+            
+            # گۆڕینی وێنە بۆ base64
+            buffered = io.BytesIO()
+            image.save(buffered, format=image.format or "PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            
+            st.session_state.uploaded_image = img_str
+            
+            # پرسیار لەسەر وێنە
+            image_question = st.text_input("💬 پرسیارت لەسەر ئەم وێنەیە چییە؟",
+                                          placeholder="بۆ نموونە: ئەم وێنەیە چی پیشان دەدات؟")
+            
+            if st.button("🔍 پرسیار لەسەر وێنە بکە", type="primary") and image_question:
+                # دروستکردنی payload بۆ مۆدێلی بینایی
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": image_question},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{img_str}"
+                                }
+                            }
+                        ]
+                    }
+                ]
+                
+                st.session_state.messages.append({
+                    "role": "user",
+                    "content": f"[وێنەیەک نێردرا] پرسیار: {image_question}"
+                })
+                st.rerun()
+                
+        except Exception as e:
+            st.error(f"هەڵە لە پرۆسێسکردنی وێنە: {e}")
+
+st.markdown("---")
 
 # ═══════════ نمایشی مێژوو ═══════════
 for i, msg in enumerate(st.session_state.messages):
@@ -151,22 +242,36 @@ for i, msg in enumerate(st.session_state.messages):
         st.write(msg["content"])
 
 # ═══════════ وەرگرتنی پرسیار ═══════════
-prompt = st.chat_input("پرسیارەکەت لێرە بنووسە...")
+prompt = st.chat_input("💬 پرسیارەکەت لێرە بنووسە...")
 
 if prompt:
     # زیادکردنی پرسیاری بەکارهێنەر
     st.session_state.messages.append({"role": "user", "content": prompt})
     
+    # ئامادەکردنی messages
+    api_messages = []
+    
+    # زیادکردنی system message
+    api_messages.append({"role": "system", "content": system_messages[language]})
+    
+    # زیادکردنی مێژوو
+    for m in st.session_state.messages:
+        if m["role"] == "user" and m["content"].startswith("[وێنەیەک نێردرا]"):
+            # ئەگەر وێنە بوو، ناتوانین بنێرین بۆ Groq (Groq بینایی نییە)
+            api_messages.append({
+                "role": "user",
+                "content": m["content"] + "\n\nتکایە وەڵام بدەرەوە وەک ئەوەی وێنەکەت بینیبێت، یان ڕێنمایی بکە کە ناتوانیت وێنە ببینی."
+            })
+        else:
+            api_messages.append({"role": m["role"], "content": m["content"]})
+    
     # وەرگرتنی وەڵام
     with st.chat_message("assistant"):
-        with st.spinner("بیردەکەمەوە..."):
+        with st.spinner("🤔 بیردەکەمەوە..."):
             try:
                 response = client.chat.completions.create(
                     model=model,
-                    messages=[
-                        {"role": "system", "content": system_messages[language]},
-                        *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
-                    ],
+                    messages=api_messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     top_p=top_p
@@ -178,8 +283,8 @@ if prompt:
                 st.session_state.messages.append({"role": "assistant", "content": reply})
                 
             except Exception as e:
-                st.error(f"هەڵەیەک ڕوویدا: {e}")
+                st.error(f"❌ هەڵەیەک ڕوویدا: {e}")
 
 # پەراوێز
 st.markdown("---")
-st.caption(f"دروستکراوە بە Streamlit و Groq | مۆدێل: {model}")
+st.caption(f"🚀 دروستکراوە بە Streamlit و Groq | مۆدێل: {model}")
