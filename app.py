@@ -1,99 +1,59 @@
 import streamlit as st
-from transformers import pipeline
+from groq import Groq
 
-# ڕێکخستنی ڕووکاری پەڕە
-st.set_page_config(
-    page_title="شیکاری هەست و سۆز",
-    page_icon="🧠",
-    layout="centered"
-)
+st.set_page_config(page_title="یاریدەدەری AI", page_icon="🤖")
 
-# ناونیشانی سەرەکی
-st.title("🧠 شیکاری هەست و سۆز بە AI")
-st.markdown("---")
+st.title("🤖 یاریدەدەری زیرەکی دەستکرد")
+st.write("وەک ئەم وتووێژەی ئێمە، پرسیار بکە و وەڵام وەربگرە!")
 
-# ناساندنی بەرنامە
-st.markdown("""
-### بەخێربێیت! 👋
-ئەم بەرنامەیە دەتوانێت هەست و سۆزی دەقەکەت شیکار بکات.
-تەنها دەقێک بنووسە و کلیک لەسەر دوگمەکە بکە!
-""")
-
-# بارکردنی مۆدێل (cache دەکرێت بۆ خێرایی زیاتر)
-@st.cache_resource
-def load_model():
-    with st.spinner("چاوەڕێ بە... مۆدێلەکە باردەکرێت"):
-        return pipeline("sentiment-analysis", 
-                       model="distilbert-base-uncased-finetuned-sst-2-english")
-
-# بارکردنی مۆدێل لە کاتی دەستپێکردندا
-try:
-    classifier = load_model()
-    model_loaded = True
-except Exception as e:
-    st.error(f"هەڵەیەک ڕوویدا لە بارکردنی مۆدێل: {e}")
-    model_loaded = False
-
-st.markdown("---")
-
-# وەرگرتنی دەق لە بەکارهێنەر
-text_input = st.text_area(
-    "✍️ دەقێک لێرە بنووسە:",
-    height=150,
-    placeholder="بۆ نموونە: I really enjoyed this movie, it was fantastic!",
-    max_chars=500
-)
-
-# دوگمەی شیکاری
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    analyze_button = st.button("🔍 شیکاری بکە", type="primary", use_container_width=True)
-
-# شیکاری دەق
-if analyze_button and text_input and model_loaded:
-    with st.spinner("شیکاری دەکرێت..."):
-        try:
-            # ئەنجامدانی شیکاری
-            result = classifier(text_input)
-            
-            st.markdown("---")
-            st.subheader("📊 ئەنجامەکان:")
-            
-            # نمایشکردنی ئەنجامەکان بە شێوەیەکی جوان
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                label = result[0]['label']
-                if label == 'POSITIVE':
-                    st.success(f"✅ هەست: **ئەرێنی** (Positive)")
-                else:
-                    st.error(f"❌ هەست: **نەرێنی** (Negative)")
-            
-            with col2:
-                confidence = result[0]['score']
-                st.info(f"🎯 ڕێژەی دڵنیایی: **{confidence:.2%}**")
-            
-            # پیشاندانی پێوەری پێشکەوتن بۆ ڕێژەی دڵنیایی
-            st.progress(confidence)
-            
-        except Exception as e:
-            st.error(f"هەڵەیەک ڕوویدا لە کاتی شیکاری: {e}")
-
-elif analyze_button and not text_input:
-    st.warning("⚠️ تکایە دەقێک بنووسە پێش ئەوەی کلیک بکەیت!")
-
-# زانیاری زیاتر
-st.markdown("---")
-with st.expander("ℹ️ دەربارەی ئەم بەرنامەیە"):
-    st.write("""
-    ئەم بەرنامەیە بەرنامەیەکی سادەی شیکاری هەست و سۆزە کە:
-    - **Streamlit**: بۆ دروستکردنی ڕووکاری وێب
-    - **Hugging Face Transformers**: بۆ مۆدێلی AI
-    - **DistilBERT**: وەک مۆدێلی زیرەکی دەستکرد
+# وەرگرتنی کلیلی API لە بەکارهێنەر (لە سایدبار)
+with st.sidebar:
+    st.header("⚙️ ڕێکخستنەکان")
+    api_key = st.text_input("کلیلی Groq بنووسە:", type="password")
+    st.markdown("---")
+    st.markdown("[کلیلی خۆرایی بەدەست بهێنە](https://console.groq.com)")
     
-    مۆدێلەکە دەتوانێت هەستی ئەرێنی یان نەرێنی دەقەکەت دیاری بکات.
-    """)
+    if st.button("پاککردنەوەی گفتوگۆ"):
+        st.session_state.messages = []
+        st.rerun()
 
-# پەراوێز
-st.markdown("---")
-st.caption("دروستکراوە بە Streamlit و Hugging Face 🤗")
+# ئەگەر کلیلی API نەنووسراوە
+if not api_key:
+    st.warning("👈 تکایە لە لای چەپ کلیلی Groq -ەکەت بنووسە بۆ دەستپێکردن")
+    st.stop()
+
+# دروستکردنی client
+client = Groq(api_key=api_key)
+
+# مێژووی گفتوگۆ
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# نمایشی مێژوو
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+
+# وەرگرتنی پرسیار
+prompt = st.chat_input("پرسیارەکەت لێرە بنووسە...")
+
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    with st.chat_message("assistant"):
+        with st.spinner("بیردەکەمەوە..."):
+            try:
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": "تۆ یاریدەدەرێکی زیرەکی، هەمیشە بە زمانی کوردی وەڵام بدەوە."},
+                        *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                reply = response.choices[0].message.content
+                st.write(reply)
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+            except Exception as e:
+                st.error(f"هەڵەیەک ڕوویدا: {e}")
