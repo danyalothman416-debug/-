@@ -37,6 +37,7 @@ st.markdown("""
 # سایدبار
 # ═══════════════════════════════════════════
 with st.sidebar:
+    st.image("https://huggingface.co/front/assets/huggingface_logo-noborder.svg", width=60)
     st.markdown("## ⚙️ ڕێکخستنەکان")
     
     hf_token = st.text_input("🔑 کلیلی Hugging Face:", type="password")
@@ -45,27 +46,27 @@ with st.sidebar:
     st.divider()
     
     st.markdown("### 🤖 مۆدێل")
-    model = st.selectbox("", [
-        "microsoft/Phi-3-mini-4k-instruct",
-        "mistralai/Mistral-7B-Instruct-v0.2",
-        "HuggingFaceH4/zephyr-7b-beta",
-        "openchat/openchat-3.5-1210"
-    ])
+    st.info("**Mistral 7B** - خۆرایی و بێ کێشە")
     
     st.divider()
     
     temp = st.slider("🌡️ ڕادەی داهێنان:", 0.0, 2.0, 0.7)
-    max_len = st.slider("📏 درێژی:", 50, 2000, 800)
+    max_len = st.slider("📏 درێژی وەڵام:", 50, 2000, 800)
     lang = st.radio("🌐 زمان:", ["کوردی", "عەرەبی", "English"], horizontal=True)
     
     st.divider()
     
-    if st.button("🗑️ پاککردنەوە", use_container_width=True):
+    if st.button("🗑️ پاککردنەوەی چات", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
+    
+    if "messages" in st.session_state and st.session_state.messages:
+        chat_text = "\n\n".join([f"{'👤' if m['role']=='user' else '🤖'}: {m['content']}" 
+                                for m in st.session_state.messages])
+        st.download_button("📥 هەناردە", chat_text, "chat.txt", use_container_width=True)
 
 # ═══════════════════════════════════════════
-# بەشی سەرەکی - دوو ستوون
+# بەشی سەرەکی
 # ═══════════════════════════════════════════
 col1, col2 = st.columns([2, 1])
 
@@ -73,63 +74,67 @@ col1, col2 = st.columns([2, 1])
 # چات
 # ═══════════════════════════════════════════
 with col1:
-    st.markdown("## 💬 چات")
+    st.markdown("## 💬 چات - Mistral AI")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
     
     if not hf_token:
         st.warning("👈 تکایە کلیلی Hugging Face بنووسە")
+        st.info("🔗 [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)")
     else:
-        client = InferenceClient(token=hf_token)
-        
-        lang_prompts = {
-            "کوردی": "ALWAYS respond in Kurdish (Sorani, Arabic script).",
-            "عەرەبی": "ALWAYS respond in Arabic.",
-            "English": "Respond in English."
-        }
-        sys_msg = f"You are a helpful assistant. {lang_prompts[lang]}"
-        
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
-        
-        prompt = st.chat_input("💬 پرسیارەکەت...")
-        
-        if prompt:
-            st.session_state.messages.append({"role": "user", "content": prompt})
+        try:
+            client = InferenceClient(token=hf_token)
             
-            with st.chat_message("user"):
-                st.write(prompt)
+            lang_prompts = {
+                "کوردی": "ALWAYS respond in Kurdish (Sorani, Arabic script).",
+                "عەرەبی": "ALWAYS respond in Arabic.",
+                "English": "Respond in English."
+            }
+            sys_msg = f"You are a helpful assistant. {lang_prompts[lang]}"
             
-            with st.chat_message("assistant"):
-                with st.spinner("🤔"):
-                    try:
-                        response = client.chat_completion(
-                            model=model,
-                            messages=[
-                                {"role": "system", "content": sys_msg},
-                                *[{"role": m["role"], "content": m["content"]} 
-                                  for m in st.session_state.messages]
-                            ],
-                            max_tokens=max_len,
-                            temperature=temp
-                        )
-                        reply = response.choices[0].message.content
-                        st.write(reply)
-                        
-                        if st.button("🔊", key=f"t{len(st.session_state.messages)}"):
-                            try:
-                                tts = gTTS(text=reply[:500], lang='ar' if lang != 'English' else 'en')
-                                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as f:
-                                    tts.save(f.name)
-                                    st.audio(f.name)
-                            except:
-                                pass
-                        
-                        st.session_state.messages.append({"role": "assistant", "content": reply})
-                    except Exception as e:
-                        st.error(f"هەڵە: {e}")
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
+            
+            prompt = st.chat_input("💬 پرسیارەکەت بنووسە...")
+            
+            if prompt:
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                
+                with st.chat_message("user"):
+                    st.write(prompt)
+                
+                with st.chat_message("assistant"):
+                    with st.spinner("🤔 بیردەکەمەوە..."):
+                        try:
+                            response = client.chat_completion(
+                                model="mistralai/Mistral-7B-Instruct-v0.2",
+                                messages=[
+                                    {"role": "system", "content": sys_msg},
+                                    *[{"role": m["role"], "content": m["content"]} 
+                                      for m in st.session_state.messages]
+                                ],
+                                max_tokens=max_len,
+                                temperature=temp
+                            )
+                            reply = response.choices[0].message.content
+                            st.write(reply)
+                            
+                            if st.button("🔊 بیخوێنەرەوە", key=f"t{len(st.session_state.messages)}"):
+                                try:
+                                    tts = gTTS(text=reply[:500], lang='ar' if lang != 'English' else 'en')
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as f:
+                                        tts.save(f.name)
+                                        st.audio(f.name)
+                                except:
+                                    pass
+                            
+                            st.session_state.messages.append({"role": "assistant", "content": reply})
+                        except Exception as e:
+                            st.error(f"❌ هەڵە: {e}")
+        except Exception as e:
+            st.error(f"❌ هەڵە لە پەیوەندی: {e}")
 
 # ═══════════════════════════════════════════
 # ئامرازەکان
@@ -137,7 +142,6 @@ with col1:
 with col2:
     st.markdown("## 🛠️ ئامرازەکان")
     
-    # PDF
     with st.expander("📄 PDF"):
         f = st.file_uploader("فایل:", type="pdf")
         if f:
@@ -146,11 +150,10 @@ with col2:
                 t = ""
                 for p in doc: t += p.get_text()
                 doc.close()
-                st.text_area("", t, height=150)
+                st.text_area("ناوەڕۆک:", t, height=150)
             except:
                 st.error("هەڵە")
     
-    # وەرگێڕان
     with st.expander("🌐 وەرگێڕان"):
         txt = st.text_area("دەق:", height=100)
         lng = st.selectbox("بۆ:", ["عەرەبی", "English", "فارسی", "تورکی"])
@@ -162,14 +165,12 @@ with col2:
             except:
                 st.error("هەڵە")
     
-    # چارت
     with st.expander("📊 چارت"):
         d = pd.DataFrame({'X':[1,2,3,4,5], 'Y':[10,20,15,25,30]})
         d = st.data_editor(d, num_rows="dynamic")
         if st.button("دروست بکە", use_container_width=True):
             st.plotly_chart(px.line(d, x='X', y='Y'), use_container_width=True)
     
-    # QR
     with st.expander("🎨 QR"):
         q = st.text_input("دەق:", "سڵاو!")
         if q:
@@ -181,7 +182,6 @@ with col2:
             img.save(b, format="PNG")
             st.image(b, width=200)
     
-    # یاری
     with st.expander("🎮 یاری"):
         g = st.selectbox("", ["🎲 زار", "🔢 ژمارە"])
         if g == "🎲 زار":
@@ -200,9 +200,9 @@ with col2:
                     st.session_state.s = random.randint(1,100)
                     st.session_state.a = 0
                 elif n < st.session_state.s:
-                    st.info("⬆️")
+                    st.info("⬆️ گەورەترە")
                 else:
-                    st.info("⬇️")
+                    st.info("⬇️ بچووکترە")
 
 st.divider()
-st.caption("🤖 Hugging Face | خۆرایی | " + datetime.now().strftime('%Y-%m-%d'))
+st.caption(f"🤖 Mistral 7B | Hugging Face | خۆرایی | {datetime.now().strftime('%Y-%m-%d')}")
