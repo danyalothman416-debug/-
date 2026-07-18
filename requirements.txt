@@ -1,9 +1,3 @@
 streamlit
-requests
-PyMuPDF
-Pillow
-gTTS
-deep-translator
-plotly
 pandas
-qrcode
+plotly
