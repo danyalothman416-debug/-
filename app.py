@@ -1,5 +1,9 @@
 import streamlit as st
 from groq import Groq
+import sys
+
+# چارەسەری encoding
+sys.stdout.reconfigure(encoding='utf-8')
 
 # ڕێکخستنی پەڕە
 st.set_page_config(
@@ -32,13 +36,13 @@ with st.sidebar:
     st.header("⚙️ ڕێکخستنەکان")
     
     # کلیلی API
-    api_key = st.text_input("🔑 کلیلی Groq بنووسە:", type="password")
+    api_key = st.text_input("کلیلی Groq بنووسە:", type="password")
     st.markdown("[کلیلی خۆرایی بەدەست بهێنە](https://console.groq.com)")
     
     st.markdown("---")
     
     # هەڵبژاردنی مۆدێل
-    st.subheader("🧠 مۆدێل")
+    st.subheader("مۆدێل")
     model = st.selectbox(
         "مۆدێل هەڵبژێرە:",
         ["llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
@@ -46,7 +50,7 @@ with st.sidebar:
     )
     
     # زمانی وەڵام
-    st.subheader("🌐 زمان")
+    st.subheader("زمان")
     language = st.radio(
         "زمانی وەڵام:",
         ["کوردی", "عەرەبی", "ئینگلیزی"],
@@ -56,28 +60,28 @@ with st.sidebar:
     st.markdown("---")
     
     # ڕێکخستنی وەڵام
-    st.subheader("🎯 ڕێکخستنی وەڵام")
-    temperature = st.slider("🔧 ڕادەی داهێنان:", 0.0, 1.0, 0.7, 0.1)
-    max_tokens = st.slider("📏 درێژی وەڵام:", 50, 2000, 500, 50)
-    top_p = st.slider("🎲 فراوانی بژاردەکان:", 0.0, 1.0, 0.9, 0.1)
+    st.subheader("ڕێکخستنی وەڵام")
+    temperature = st.slider("ڕادەی داهێنان:", 0.0, 1.0, 0.7, 0.1)
+    max_tokens = st.slider("درێژی وەڵام:", 50, 2000, 500, 50)
+    top_p = st.slider("فراوانی بژاردەکان:", 0.0, 1.0, 0.9, 0.1)
     
     st.markdown("---")
     
     # ئامار
     if "messages" in st.session_state:
         msg_count = len(st.session_state.messages) // 2
-        st.metric("💬 ژمارەی گفتوگۆ", msg_count)
+        st.metric("ژمارەی گفتوگۆ", msg_count)
     
     st.markdown("---")
     
     # دوگمەکانی بەڕێوەبردن
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🗑️ پاککردنەوە", use_container_width=True):
+        if st.button("پاککردنەوە", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
     with col2:
-        if st.button("↩️ سڕینەوە", use_container_width=True):
+        if st.button("سڕینەوە", use_container_width=True):
             if len(st.session_state.messages) >= 2:
                 st.session_state.messages = st.session_state.messages[:-2]
                 st.rerun()
@@ -85,11 +89,11 @@ with st.sidebar:
     # هەناردەکردن
     if "messages" in st.session_state and st.session_state.messages:
         chat_text = "\n\n".join([
-            f"{'👤 بەکارهێنەر' if m['role']=='user' else '🤖 یاریدەدەر'}: {m['content']}" 
+            f"{'به‌كارهێنه‌ر' if m['role']=='user' else 'یاریده‌ده‌ر'}: {m['content']}" 
             for m in st.session_state.messages
         ])
         st.download_button(
-            "📥 هەناردەی گفتوگۆ",
+            "هەناردەی گفتوگۆ",
             chat_text,
             "گفتوگۆکەم.txt",
             "text/plain",
@@ -100,7 +104,7 @@ with st.sidebar:
 
 # ئەگەر کلیلی API نەنووسراوە
 if not api_key:
-    st.warning("👈 تکایە لە لای چەپ کلیلی Groq -ەکەت بنووسە بۆ دەستپێکردن")
+    st.warning("تکایە لە لای چەپ کلیلی Groq -ەکەت بنووسە بۆ دەستپێکردن")
     st.info("""
     **چۆن کلیلی خۆرایی بەدەست بهێنیت:**
     1. بڕۆ بۆ [console.groq.com](https://console.groq.com)
@@ -117,11 +121,11 @@ except Exception as e:
     st.error(f"کلیلەکە هەڵەیە: {e}")
     st.stop()
 
-# system message بەپێی زمان
+# system message بەپێی زمان (بە ئینگلیزی بۆ چارەسەری هەڵە)
 system_messages = {
-    "کوردی": "تۆ یاریدەدەرێکی زیرەکی، هەمیشە بە زمانی کوردی وەڵام بدەوە.",
-    "عەرەبی": "أنت مساعد ذكي، أجب دائماً باللغة العربية.",
-    "ئینگلیزی": "You are a helpful assistant, always respond in English."
+    "کوردی": "You are a helpful assistant. IMPORTANT: Always respond in Kurdish (Sorani, using Arabic script). Never use Latin script for Kurdish.",
+    "عەرەبی": "You are a helpful assistant. IMPORTANT: Always respond in Arabic language only.",
+    "ئینگلیزی": "You are a helpful assistant. Always respond in English language only."
 }
 
 # مێژووی گفتوگۆ
@@ -129,14 +133,17 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # ═══════════ بارکردنی فایل ═══════════
-uploaded_file = st.file_uploader("📄 فایلێکی دەقی باربکە (تەنها TXT):", type="txt")
+uploaded_file = st.file_uploader("فایلێکی دەقی باربکە (تەنها TXT):", type="txt")
 if uploaded_file:
-    file_text = uploaded_file.read().decode("utf-8")
-    with st.expander("📋 ناوەڕۆکی فایلەکە"):
-        st.text(file_text)
-    if st.button("🔍 شیکاری ئەم دەقە بکە"):
-        prompt = f"تکایە شیکاری ئەم دەقە بکە و کورتەیەکی لێ بڵێ: {file_text}"
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    try:
+        file_text = uploaded_file.read().decode("utf-8")
+        with st.expander("ناوەڕۆکی فایلەکە"):
+            st.text(file_text)
+        if st.button("شیکاری ئەم دەقە بکە"):
+            prompt = f"Please analyze this text and provide a summary: {file_text}"
+            st.session_state.messages.append({"role": "user", "content": prompt})
+    except Exception as e:
+        st.error(f"نەتوانرا فایلەکە بخوێنرێتەوە: {e}")
 
 # ═══════════ نمایشی مێژوو ═══════════
 for i, msg in enumerate(st.session_state.messages):
@@ -144,7 +151,7 @@ for i, msg in enumerate(st.session_state.messages):
         st.write(msg["content"])
 
 # ═══════════ وەرگرتنی پرسیار ═══════════
-prompt = st.chat_input("💬 پرسیارەکەت لێرە بنووسە...")
+prompt = st.chat_input("پرسیارەکەت لێرە بنووسە...")
 
 if prompt:
     # زیادکردنی پرسیاری بەکارهێنەر
@@ -152,7 +159,7 @@ if prompt:
     
     # وەرگرتنی وەڵام
     with st.chat_message("assistant"):
-        with st.spinner("🤔 بیردەکەمەوە..."):
+        with st.spinner("بیردەکەمەوە..."):
             try:
                 response = client.chat.completions.create(
                     model=model,
@@ -168,17 +175,11 @@ if prompt:
                 reply = response.choices[0].message.content
                 st.write(reply)
                 
-                # دوگمەی کۆپیکردن
-                col1, col2, col3 = st.columns([1, 1, 4])
-                with col1:
-                    if st.button("📋", key=f"copy_{len(st.session_state.messages)}", help="کۆپی بکە"):
-                        st.toast("✅ وەڵامەکە کۆپی کرا!")
-                
                 st.session_state.messages.append({"role": "assistant", "content": reply})
                 
             except Exception as e:
-                st.error(f"❌ هەڵەیەک ڕوویدا: {e}")
+                st.error(f"هەڵەیەک ڕوویدا: {e}")
 
 # پەراوێز
 st.markdown("---")
-st.caption("🚀 دروستکراوە بە Streamlit و Groq | مۆدێل: " + model)
+st.caption(f"دروستکراوە بە Streamlit و Groq | مۆدێل: {model}")
