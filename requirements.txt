@@ -1,5 +1,8 @@
 streamlit
 groq
+openai
+together
+replicate
 PyMuPDF
 Pillow
 gTTS
@@ -13,3 +16,4 @@ streamlit-folium
 pytesseract
 opencv-python-headless
 qrcode
+requests
