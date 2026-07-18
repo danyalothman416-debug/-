@@ -1,331 +1,124 @@
-# mobile_shop_app.py
-# ئەپلیکەیشنی کاشێر بۆ دووکانی مۆبایل
-
 import streamlit as st
-import json
-import os
-from datetime import datetime
 
-# -------------------- کۆنفیگ --------------------
-st.set_page_config(
-    page_title="دووکانی مۆبایل - کاشێر",
-    page_icon="📱",
-    layout="wide"
-)
+# ١. ڕێکخستنی سەرەتایی پەڕەکە (دەبێت یەکەم کۆد بێت)
+st.set_page_config(page_title="دوکانی مۆبایل", page_icon="📱", layout="centered")
 
+# ٢. جوانکاری (CSS) بۆ ڕاستکردنەوەی فۆنت و دروستکردنی دوگمەی وەتساپ
 st.markdown("""
-    <style>
-        .main { background: #f0f2f6; }
-        .product-box {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 10px;
-            border: 1px solid #e0e0e0;
-        }
-        .cart-box {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 20px;
-        }
-        .total-box {
-            background: #1a1a2e;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            margin-top: 15px;
-        }
-        .product-icon {
-            font-size: 2rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# -------------------- داتا --------------------
-DATA_FILE = "mobile_shop_data.json"
-
-def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {
-        "products": [
-            {"id": 1, "name": "مۆبایل ئاسیا", "price": 350000, "stock": 10, "icon": "📱"},
-            {"id": 2, "name": "مۆبایل زێن", "price": 450000, "stock": 8, "icon": "📱"},
-            {"id": 3, "name": "مۆبایل بلو", "price": 280000, "stock": 12, "icon": "📱"},
-            {"id": 4, "name": "یوسی پۆبجی (UC)", "price": 25000, "stock": 50, "icon": "🎮"},
-            {"id": 5, "name": "سپۆنسەری تیکتۆک", "price": 150000, "stock": 20, "icon": "🎵"},
-            {"id": 6, "name": "سپۆنسەری یوتیوب", "price": 200000, "stock": 15, "icon": "🎥"},
-            {"id": 7, "name": "کارتی کۆرەک", "price": 50000, "stock": 30, "icon": "💳"},
-            {"id": 8, "name": "ژمارەی ناوازە (ئاسیا)", "price": 75000, "stock": 5, "icon": "🌟"},
-            {"id": 9, "name": "ژمارەی ناوازە (زێن)", "price": 100000, "stock": 3, "icon": "🌟"}
-        ],
-        "sales": [],
-        "counter": 0
+<style>
+    /* ئاراستەی نووسین بۆ لای ڕاست */
+    body, .stApp {
+        direction: rtl;
+        text-align: right;
     }
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-data = load_data()
-
-# -------------------- سەبەتە --------------------
-if "cart" not in st.session_state:
-    st.session_state.cart = []
-
-# -------------------- هێدر --------------------
-st.title("📱 دووکانی مۆبایل - کاشێر")
-st.caption(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
-# ==================== بەشی سەرەکی ====================
-col_products, col_cart = st.columns([2, 1])
-
-with col_products:
-    st.markdown("### 🛍️ کاڵاکان")
-    
-    # گەڕان
-    search = st.text_input("🔍 گەڕان", placeholder="ناوی کاڵا بنووسە...")
-    
-    # پاڵاوتنی کاڵاکان
-    products = data["products"]
-    if search:
-        products = [p for p in products if search.lower() in p["name"].lower()]
-    
-    # نمایشی کاڵاکان
-    for product in products:
-        with st.container():
-            col1, col2, col3, col4, col5 = st.columns([2, 1.5, 1, 1, 1.2])
-            
-            with col1:
-                st.markdown(f"""
-                    <div class="product-box">
-                        <span class="product-icon">{product['icon']}</span>
-                        <b>{product['name']}</b>
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.write(f"💰 {product['price']:,} دینار")
-            
-            with col3:
-                st.write(f"📦 کۆتا: {product['stock']}")
-            
-            with col4:
-                qty = st.number_input(
-                    "ژ",
-                    min_value=1,
-                    max_value=product['stock'] if product['stock'] > 0 else 1,
-                    value=1,
-                    key=f"qty_{product['id']}",
-                    label_visibility="collapsed"
-                )
-            
-            with col5:
-                if st.button(
-                    "➕ زیاد",
-                    key=f"add_{product['id']}",
-                    use_container_width=True,
-                    disabled=product['stock'] <= 0,
-                    type="primary" if product['stock'] > 0 else "secondary"
-                ):
-                    st.session_state.cart.append({
-                        "product_id": product['id'],
-                        "name": product['name'],
-                        "price": product['price'],
-                        "qty": qty,
-                        "total": product['price'] * qty,
-                        "icon": product['icon']
-                    })
-                    st.success(f"✅ {qty} x {product['name']} زیاد کرا")
-                    st.rerun()
-            
-            st.divider()
-
-with col_cart:
-    st.markdown("### 🛒 سەبەتە")
-    
-    with st.container():
-        if st.session_state.cart:
-            total = sum(item["total"] for item in st.session_state.cart)
-            total_items = sum(item["qty"] for item in st.session_state.cart)
-            
-            # نمایشی کاڵاکانی سەبەتە
-            for idx, item in enumerate(st.session_state.cart):
-                st.markdown(f"""
-                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-                        <div>
-                            <span>{item['icon']}</span>
-                            <span>{item['name']}</span>
-                            <span style="color:#666; font-size:0.8rem;">×{item['qty']}</span>
-                        </div>
-                        <div>
-                            <span style="font-weight:bold;">{item['total']:,} دینار</span>
-                            <button onclick="alert('سڕدرایەوە')" style="background:none; border:none; color:red; cursor:pointer;">✕</button>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button(f"🗑️", key=f"remove_{idx}", help="سڕینەوە"):
-                    st.session_state.cart.pop(idx)
-                    st.rerun()
-            
-            # کۆی گشتی
-            st.markdown(f"""
-                <div class="total-box">
-                    <div style="font-size:1.2rem; font-weight:bold;">
-                        کۆی گشتی: {total:,} دینار
-                    </div>
-                    <div style="font-size:0.9rem; opacity:0.8;">
-                        {total_items} کاڵا
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # دوگمەکان
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ تەواوکردن", use_container_width=True, type="primary"):
-                    # کەمکردنەوەی کۆتا
-                    for cart_item in st.session_state.cart:
-                        for product in data["products"]:
-                            if product["id"] == cart_item["product_id"]:
-                                product["stock"] -= cart_item["qty"]
-                    
-                    # تۆمارکردنی فرۆشتن
-                    data["sales"].append({
-                        "id": data["counter"] + 1,
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "items": st.session_state.cart.copy(),
-                        "total": total,
-                        "items_count": total_items
-                    })
-                    data["counter"] += 1
-                    save_data(data)
-                    
-                    # پاککردنەوەی سەبەتە
-                    st.session_state.cart = []
-                    st.success("🎉 فرۆشتن تەواو بوو!")
-                    st.balloons()
-                    st.rerun()
-            
-            with col2:
-                if st.button("🗑️ پاککردنەوە", use_container_width=True):
-                    st.session_state.cart = []
-                    st.rerun()
-        
-        else:
-            st.info("🛍️ سەبەتە بەتاڵە")
-            st.markdown("""
-                <div style="text-align:center; padding:30px 0; color:#999;">
-                    <p style="font-size:3rem;">🛒</p>
-                    <p>تکایە کاڵاکانت هەڵبژێرە</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-# ==================== تابەکانی تر ====================
-tab1, tab2, tab3 = st.tabs(["📊 داهات", "📦 بەڕێوەبردنی کاڵا", "⚙️ کۆنفیگ"])
-
-with tab1:
-    st.markdown("### 📊 داهات")
-    
-    if data["sales"]:
-        total_revenue = sum(s["total"] for s in data["sales"])
-        total_sales = len(data["sales"])
-        
-        col1, col2, col3 = st.columns(3)
-        col1.metric("💰 کۆی داهات", f"{total_revenue:,} دینار")
-        col2.metric("🧾 ژمارەی فرۆشتن", total_sales)
-        
-        # دوایین ١٠ فرۆشتن
-        st.markdown("#### 📋 دوایین فرۆشتنەکان")
-        for sale in data["sales"][-10:][::-1]:
-            st.markdown(f"""
-                <div style="background:white; padding:10px; border-radius:8px; margin:5px 0; border-right:4px solid #1a1a2e;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <div>
-                            <b>#{sale['id']}</b>
-                            <span style="font-size:0.8rem; color:#666;">{sale['date'][:16]}</span>
-                        </div>
-                        <div style="font-weight:bold; color:#1a1a2e;">
-                            {sale['total']:,} دینار
-                        </div>
-                    </div>
-                    <div style="font-size:0.8rem; color:#888;">
-                        {sale['items_count']} کاڵا
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("هیچ فرۆشتنێک تۆمار نەکراوە")
-
-with tab2:
-    st.markdown("### 📦 بەڕێوەبردنی کاڵا")
-    
-    with st.expander("➕ زیادکردنی کاڵای نوێ", expanded=False):
-        with st.form("add_product"):
-            col1, col2 = st.columns(2)
-            with col1:
-                name = st.text_input("🏷️ ناوی کاڵا")
-                price = st.number_input("💰 نرخ", min_value=100, value=10000, step=1000)
-            with col2:
-                stock = st.number_input("📦 کۆتا", min_value=0, value=10, step=1)
-                icon = st.selectbox("🎨 ئایکۆن", ["📱", "🎮", "🎵", "🎥", "💳", "🌟", "📲", "🕹️", "🎯"])
-            
-            if st.form_submit_button("➕ زیادکردن", use_container_width=True, type="primary"):
-                if name and price > 0:
-                    data["products"].append({
-                        "id": len(data["products"]) + 1,
-                        "name": name,
-                        "price": price,
-                        "stock": stock,
-                        "icon": icon
-                    })
-                    save_data(data)
-                    st.success(f"✅ {name} زیاد کرا")
-                    st.rerun()
-    
-    st.markdown("#### 📋 لیستی کاڵاکان")
-    
-    for product in data["products"]:
-        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-        with col1:
-            st.write(f"{product['icon']} **{product['name']}**")
-        with col2:
-            st.write(f"💰 {product['price']:,} دینار")
-        with col3:
-            st.write(f"📦 {product['stock']}")
-        with col4:
-            if st.button("🗑️", key=f"del_{product['id']}"):
-                data["products"].remove(product)
-                save_data(data)
-                st.rerun()
-        st.divider()
-
-with tab3:
-    st.markdown("### ⚙️ کۆنفیگ")
-    
-    if st.button("🗑️ سڕینەوەی هەموو داتاکان", use_container_width=True):
-        if st.checkbox("دڵنیای لە سڕینەوە؟"):
-            data = {"products": data["products"], "sales": [], "counter": 0}
-            save_data(data)
-            st.session_state.cart = []
-            st.success("✅ هەموو داتاکان سڕدرانەوە")
-            st.rerun()
-    
-    st.caption(f"📁 پەڕگەی داتا: {DATA_FILE}")
-    st.caption(f"📊 ژمارەی کاڵا: {len(data['products'])}")
-    st.caption(f"🧾 ژمارەی فرۆشتن: {len(data['sales'])}")
-
-# ==================== فووتەر ====================
-st.markdown("---")
-st.markdown("""
-    <div style="text-align:center; color:#999; font-size:0.8rem;">
-        📱 دووکانی مۆبایل - کاشێر | دروست کراوە بە ❤️
-    </div>
+    /* جوانکردنی تابەکان */
+    .stTabs [data-baseweb="tab-list"] {
+        display: flex;
+        justify-content: center;
+    }
+    /* دیزاینی دوگمەی وەتساپ */
+    .whatsapp-btn {
+        background-color: #25D366;
+        color: white !important;
+        padding: 10px 15px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 8px;
+        font-weight: bold;
+        width: 100%;
+        margin-top: 10px;
+    }
+    .whatsapp-btn:hover {
+        background-color: #128C7E;
+    }
+</style>
 """, unsafe_allow_html=True)
+
+# --- لێرە ژمارەی مۆبایلەکەت بنووسە (بە کۆدی عێراقەوە 964 بێ پلەس) ---
+MY_NUMBER = "9647700000000"
+
+# ٣. سەرەدێڕی دوکانەکە
+st.title("📱 فرۆشگای دیجیتاڵیی مۆبایل")
+st.write("بەخێربێیت! لێرە باشترین کاڵا و خزمەتگوزارییەکان بەدەست بهێنە.")
+st.markdown("---")
+
+# ٤. دروستکردنی تابەکان (بەشەکان)
+tab1, tab2, tab3, tab4 = st.tabs(["📱 مۆبایل", "🎮 یوسی", "💳 باڵانس", "🌟 VIP ژمارە"])
+
+# ==========================================
+# بەشی یەکەم: مۆبایلەکان
+# ==========================================
+with tab1:
+    st.subheader("نوێترین مۆبایلەکان")
+    # دابەشکردنی شاشەکە بۆ دوو بەش
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.image("https://fdn2.gsmarena.com/vv/bigpic/apple-iphone-15-pro-max.jpg") 
+        st.markdown("**iPhone 15 Pro Max**")
+        st.write("بیرگە: 256GB | ڕەنگ: تیتانیۆم")
+        st.error("نرخ: $1200")
+        msg1 = "سڵاو، دەمەوێت پرسیار لەسەر iPhone 15 Pro Max بکەم."
+        st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text={msg1}" class="whatsapp-btn" target="_blank">کڕین لە وەتساپ 🟢</a>', unsafe_allow_html=True)
+
+    with col2:
+        st.image("https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-s24-ultra-5g-sm-s928-stylus.jpg")
+        st.markdown("**Galaxy S24 Ultra**")
+        st.write("بیرگە: 512GB | ڕەنگ: ڕەش")
+        st.error("نرخ: $1150")
+        msg2 = "سڵاو، دەمەوێت پرسیار لەسەر Galaxy S24 Ultra بکەم."
+        st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text={msg2}" class="whatsapp-btn" target="_blank">کڕین لە وەتساپ 🟢</a>', unsafe_allow_html=True)
+
+# ==========================================
+# بەشی دووەم: یوسی و سپۆنسەر
+# ==========================================
+with tab2:
+    st.subheader("یوسی پۆبجی و سپۆنسەری یوتیوب")
+    
+    st.markdown("#### 🎮 یوسی پۆبجی")
+    uc1, uc2, uc3 = st.columns(3)
+    with uc1:
+        st.info("325 UC\n\n **5,000 IQD**")
+        st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت 325 یوسی بکڕم" class="whatsapp-btn" target="_blank">کڕین 🟢</a>', unsafe_allow_html=True)
+    with uc2:
+        st.info("660 UC\n\n **10,000 IQD**")
+        st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت 660 یوسی بکڕم" class="whatsapp-btn" target="_blank">کڕین 🟢</a>', unsafe_allow_html=True)
+    with uc3:
+        st.info("1800 UC\n\n **25,000 IQD**")
+        st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت 1800 یوسی بکڕم" class="whatsapp-btn" target="_blank">کڕین 🟢</a>', unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.markdown("#### 📺 سپۆنسەری یوتیوب")
+    st.success("پاکێجی زیادکردنی بینەر (Views) - 10,000 بینەر بە $10")
+    st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت پاکێجی ڤیوی یوتیوب بکڕم" class="whatsapp-btn" target="_blank">داواکردن 🟢</a>', unsafe_allow_html=True)
+
+# ==========================================
+# بەشی سێیەم: کارتی باڵانس
+# ==========================================
+with tab3:
+    st.subheader("کارتەکانی باڵانس")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("### 🔴 کۆڕەک")
+    with c2:
+        st.markdown("### 🟣 ئاسیاسێڵ")
+    with c3:
+        st.markdown("### 🔵 زەین")
+        
+    st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت کارتی باڵانس بکڕم" class="whatsapp-btn" target="_blank">داواکردنی کارت لە وەتساپ 🟢</a>', unsafe_allow_html=True)
+
+# ==========================================
+# بەشی چوارەم: ژمارەی VIP
+# ==========================================
+with tab4:
+    st.subheader("🌟 ژمارە ناوازەکان (VIP)")
+    st.write("پەلە بکە پێش ئەوەی بفرۆشرێن!")
+    
+    # بەکارهێنانی ڕەنگی جیاواز بۆ سەرنجڕاکێشان
+    st.warning("🟣 ئاسیاسێڵ: 0770 000 1234 - نرخ: $500")
+    st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت ژمارەی 07700001234 بکڕم" class="whatsapp-btn" target="_blank">کڕینی ئەم ژمارەیە 🟢</a>', unsafe_allow_html=True)
+    
+    st.info("🔵 زەین: 0780 999 999X - نرخ: $800")
+    st.markdown(f'<a href="https://wa.me/{MY_NUMBER}?text=سڵاو، دەمەوێت ژمارەی زەین 0780999999X بکڕم" class="whatsapp-btn" target="_blank">کڕینی ئەم ژمارەیە 🟢</a>', unsafe_allow_html=True)
+
