@@ -1,4 +1,5 @@
 import streamlit as st
+import requests
 import tempfile
 from datetime import datetime
 import pandas as pd
@@ -7,9 +8,9 @@ from deep_translator import GoogleTranslator
 from gtts import gTTS
 import random
 from io import BytesIO
-from huggingface_hub import InferenceClient
 import fitz
 import qrcode
+import json
 
 # ═══════════════════════════════════════════
 # ڕێکخستن
@@ -46,12 +47,16 @@ with st.sidebar:
     st.divider()
     
     st.markdown("### 🤖 مۆدێل")
-    st.info("**Mistral 7B** - خۆرایی و بێ کێشە")
+    model = st.selectbox("", [
+        "google/flan-t5-large",
+        "facebook/blenderbot-400M-distill",
+        "microsoft/DialoGPT-medium"
+    ])
     
     st.divider()
     
     temp = st.slider("🌡️ ڕادەی داهێنان:", 0.0, 2.0, 0.7)
-    max_len = st.slider("📏 درێژی وەڵام:", 50, 2000, 800)
+    max_len = st.slider("📏 درێژی وەڵام:", 50, 500, 200)
     lang = st.radio("🌐 زمان:", ["کوردی", "عەرەبی", "English"], horizontal=True)
     
     st.divider()
@@ -59,11 +64,6 @@ with st.sidebar:
     if st.button("🗑️ پاککردنەوەی چات", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-    
-    if "messages" in st.session_state and st.session_state.messages:
-        chat_text = "\n\n".join([f"{'👤' if m['role']=='user' else '🤖'}: {m['content']}" 
-                                for m in st.session_state.messages])
-        st.download_button("📥 هەناردە", chat_text, "chat.txt", use_container_width=True)
 
 # ═══════════════════════════════════════════
 # بەشی سەرەکی
@@ -74,7 +74,7 @@ col1, col2 = st.columns([2, 1])
 # چات
 # ═══════════════════════════════════════════
 with col1:
-    st.markdown("## 💬 چات - Mistral AI")
+    st.markdown("## 💬 چات - Hugging Face")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -83,58 +83,71 @@ with col1:
         st.warning("👈 تکایە کلیلی Hugging Face بنووسە")
         st.info("🔗 [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)")
     else:
-        try:
-            client = InferenceClient(token=hf_token)
+        # نیشاندانی مێژوو
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+        
+        # پرسیار
+        prompt = st.chat_input("💬 پرسیارەکەت بنووسە...")
+        
+        if prompt:
+            st.session_state.messages.append({"role": "user", "content": prompt})
             
-            lang_prompts = {
-                "کوردی": "ALWAYS respond in Kurdish (Sorani, Arabic script).",
-                "عەرەبی": "ALWAYS respond in Arabic.",
-                "English": "Respond in English."
-            }
-            sys_msg = f"You are a helpful assistant. {lang_prompts[lang]}"
+            with st.chat_message("user"):
+                st.write(prompt)
             
-            for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.write(msg["content"])
-            
-            prompt = st.chat_input("💬 پرسیارەکەت بنووسە...")
-            
-            if prompt:
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                with st.chat_message("user"):
-                    st.write(prompt)
-                
-                with st.chat_message("assistant"):
-                    with st.spinner("🤔 بیردەکەمەوە..."):
-                        try:
-                            response = client.chat_completion(
-                                model="mistralai/Mistral-7B-Instruct-v0.2",
-                                messages=[
-                                    {"role": "system", "content": sys_msg},
-                                    *[{"role": m["role"], "content": m["content"]} 
-                                      for m in st.session_state.messages]
-                                ],
-                                max_tokens=max_len,
-                                temperature=temp
-                            )
-                            reply = response.choices[0].message.content
-                            st.write(reply)
-                            
-                            if st.button("🔊 بیخوێنەرەوە", key=f"t{len(st.session_state.messages)}"):
-                                try:
-                                    tts = gTTS(text=reply[:500], lang='ar' if lang != 'English' else 'en')
-                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as f:
-                                        tts.save(f.name)
-                                        st.audio(f.name)
-                                except:
-                                    pass
-                            
-                            st.session_state.messages.append({"role": "assistant", "content": reply})
-                        except Exception as e:
-                            st.error(f"❌ هەڵە: {e}")
-        except Exception as e:
-            st.error(f"❌ هەڵە لە پەیوەندی: {e}")
+            with st.chat_message("assistant"):
+                with st.spinner("🤔 بیردەکەمەوە..."):
+                    try:
+                        # API URL
+                        API_URL = f"https://api-inference.huggingface.co/models/{model}"
+                        headers = {"Authorization": f"Bearer {hf_token}"}
+                        
+                        # ئامادەکردنی پرسیار
+                        if lang == "کوردی":
+                            full_prompt = f"Answer in Kurdish (Sorani, Arabic script): {prompt}"
+                        elif lang == "عەرەبی":
+                            full_prompt = f"Answer in Arabic: {prompt}"
+                        else:
+                            full_prompt = prompt
+                        
+                        payload = {
+                            "inputs": full_prompt,
+                            "parameters": {
+                                "max_new_tokens": max_len,
+                                "temperature": temp,
+                                "return_full_text": False
+                            }
+                        }
+                        
+                        response = requests.post(API_URL, headers=headers, json=payload)
+                        
+                        if response.status_code == 200:
+                            result = response.json()
+                            if isinstance(result, list) and len(result) > 0:
+                                reply = result[0].get("generated_text", "نەتوانرا وەڵام بدرێتەوە")
+                            else:
+                                reply = str(result)
+                        else:
+                            reply = f"هەڵە: {response.status_code}"
+                        
+                        st.write(reply)
+                        
+                        # دوگمەی خوێندنەوە
+                        if st.button("🔊 بیخوێنەرەوە", key=f"t{len(st.session_state.messages)}"):
+                            try:
+                                tts = gTTS(text=reply[:500], lang='ar' if lang != 'English' else 'en')
+                                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as f:
+                                    tts.save(f.name)
+                                    st.audio(f.name)
+                            except:
+                                pass
+                        
+                        st.session_state.messages.append({"role": "assistant", "content": reply})
+                        
+                    except Exception as e:
+                        st.error(f"❌ هەڵە: {e}")
 
 # ═══════════════════════════════════════════
 # ئامرازەکان
@@ -205,4 +218,4 @@ with col2:
                     st.info("⬇️ بچووکترە")
 
 st.divider()
-st.caption(f"🤖 Mistral 7B | Hugging Face | خۆرایی | {datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"🤖 Hugging Face API | خۆرایی | {datetime.now().strftime('%Y-%m-%d')}")
