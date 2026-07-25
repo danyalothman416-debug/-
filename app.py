@@ -11,78 +11,54 @@ from typing import Dict
 # ================================
 DISEASE_DATABASE = {
     "شەکرەی جۆری 1": {
-        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ"],
-        "پشکنینەکان": {"FBS": ">200 mg/dL", "HbA1c": ">8%"},
-        "چارەسەر": ["ئەنسولین", "پێوانەکردنی شەکر", "شێوازی خواردن"],
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی"],
+        "چارەسەر": ["ئەنسولین", "پێوانەکردنی شەکر"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "جۆری نەخۆشی": "خۆئەگەر"
     },
     "شەکرەی جۆری 2": {
-        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "کێش کەمبوونەوە"],
-        "پشکنینەکان": {"FBS": ">126 mg/dL", "HbA1c": ">6.5%"},
-        "چارەسەر": ["مێتفۆرمین 500mg", "گۆڕینی شێوازی ژیان", "وەرزش"],
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی"],
+        "چارەسەر": ["مێتفۆرمین", "وەرزش"],
         "ئاستی مەترسی": "مەترسیدار",
-        "جۆری نەخۆشی": "مێتابۆلیک"
     },
-    "پەستانی خوێنی سەرەتایی": {
-        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو"],
-        "پشکنینەکان": {"BP": ">140/90 mmHg"},
-        "چارەسەر": ["کاپتۆپریل 25mg", "کەمکردنەوەی نمەک"],
+    "پەستانی خوێن": {
+        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن"],
+        "چارەسەر": ["کاپتۆپریل", "کەمکردنەوەی نمەک"],
         "ئاستی مەترسی": "مامناوەند",
-        "جۆری نەخۆشی": "دڵ و خوێن"
     },
-    "نەخۆشی دڵی ئیسکیمیک": {
-        "نیشانەکان": ["ئازاری سنگ", "کورتی هەناسە", "ئارەقەکردن"],
-        "پشکنینەکان": {"ECG": "ST depression", "Troponin": "بەرز"},
-        "چارەسەر": ["ئەسپیرین 300mg", "نایترۆگلیسیرین"],
+    "نەخۆشی دڵ": {
+        "نیشانەکان": ["ئازاری سنگ", "کورتی هەناسە"],
+        "چارەسەر": ["ئەسپیرین", "نایترۆگلیسیرین"],
         "ئاستی مەترسی": "زۆر مەترسیدار",
-        "جۆری نەخۆشی": "دڵ و خوێن"
     },
     "هەوکردنی سییەکان": {
-        "نیشانەکان": ["تا", "کۆخە", "هەناسەدان بە زەحمەت", "ماندوویی"],
-        "پشکنینەکان": {"Chest X-ray": "Consolidation", "CRP": "بەرز"},
-        "چارەسەر": ["ئەمۆکسیسیلین 500mg", "ئۆکسجین"],
+        "نیشانەکان": ["تا", "کۆخە", "هەناسەدان بە زەحمەت"],
+        "چارەسەر": ["ئەمۆکسیسیلین", "ئۆکسجین"],
         "ئاستی مەترسی": "مامناوەند",
-        "جۆری نەخۆشی": "هەوکردن"
-    },
-    "ئەنیمیا": {
-        "نیشانەکان": ["ماندوویی", "ڕەنگی پێست زەرد", "سەرگێژخواردن"],
-        "پشکنینەکان": {"Hb": "<12 g/dL", "Ferritin": "نزم"},
-        "چارەسەر": ["فێروس سولفەیت 325mg", "گۆڕینی خواردن"],
-        "ئاستی مەترسی": "مامناوەند",
-        "جۆری نەخۆشی": "خوێن"
     }
 }
 
 LAB_TESTS = {
-    "FBS": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": "70 - 126", "یەکە": "mg/dL", "تەفسیر": "شەکری خوێن"},
-    "HbA1c": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": "4.0 - 5.6", "یەکە": "%", "تەفسیر": "شەکری درێژخایەن"},
-    "Creatinine": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": "0.6 - 1.3", "یەکە": "mg/dL", "تەفسیر": "کارایی گورچیلە"},
-    "Hemoglobin": {"گروپ": "خوێن", "نۆرماڵ": "12.0 - 16.0", "یەکە": "g/dL", "تەفسیر": "هیمۆگلۆبین"},
-    "Troponin I": {"گروپ": "دڵ", "نۆرماڵ": "0 - 0.04", "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ"},
-    "ALT": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": "10 - 40", "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر"},
-    "CRP": {"گروپ": "خوێن", "نۆرماڵ": "0 - 5", "یەکە": "mg/L", "تەفسیر": "پروتێینی هەوکردن"},
+    "FBS": {"نۆرماڵ": "70-126", "یەکە": "mg/dL", "تەفسیر": "شەکری خوێن"},
+    "HbA1c": {"نۆرماڵ": "4.0-5.6", "یەکە": "%", "تەفسیر": "شەکری درێژخایەن"},
+    "Creatinine": {"نۆرماڵ": "0.6-1.3", "یەکە": "mg/dL", "تەفسیر": "کارایی گورچیلە"},
+    "Hemoglobin": {"نۆرماڵ": "12-16", "یەکە": "g/dL", "تەفسیر": "هیمۆگلۆبین"},
 }
 
 DRUG_DATABASE = {
     "دژە پەستانی خوێن": {
-        "کاپتۆپریل": {"ڕێژە": "25-50mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە"},
-        "ئەملۆدیپین": {"ڕێژە": "5-10mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "ئاوسان"}
+        "کاپتۆپریل": {"ڕێژە": "25-50mg", "کاریگەری": "کۆخە"},
+        "ئەملۆدیپین": {"ڕێژە": "5-10mg", "کاریگەری": "ئاوسان"}
     },
     "دژە شەکرە": {
-        "مێتفۆرمین": {"ڕێژە": "500-2000mg", "میکانیزم": "Biguanide", "کاریگەری لاوەکی": "سکچوون"},
-    },
-    "دژە هەوکردن": {
-        "ئەمۆکسیسیلین": {"ڕێژە": "500mg", "میکانیزم": "Beta-lactam", "کاریگەری لاوەکی": "زکچوون"},
+        "مێتفۆرمین": {"ڕێژە": "500-2000mg", "کاریگەری": "سکچوون"},
     }
 }
 
 MEDICAL_QUIZZES = [
-    {"پرسیار": "نیشانەی سەرەکی شەکرەی جۆری ٢ چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+    {"پرسیار": "نیشانەی سەرەکی شەکرە چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
     {"پرسیار": "پەستانی خوێنی نۆرماڵ چەندە؟", "هەڵبژاردەکان": ["120/80", "140/90", "160/100", "180/110"], "وەڵامی ڕاست": 0},
     {"پرسیار": "کام دەرمانە بۆ شەکرە؟", "هەڵبژاردەکان": ["مێتفۆرمین", "ئەسپیرین", "کاپتۆپریل", "ئەمۆکسیسیلین"], "وەڵامی ڕاست": 0},
     {"پرسیار": "نیشانەی ئەنیمیا چییە؟", "هەڵبژاردەکان": ["ماندوویی", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
-    {"پرسیار": "Troponin بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵ", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
 ]
 
 # ================================
@@ -126,37 +102,25 @@ def authenticate_user(username: str, password: str) -> bool:
 # ئەپی سەرەکی
 # ================================
 def main(page: ft.Page):
-    # ڕێکخستنی پەڕە - بە شێوازی Flet 0.26.1.2
-    page.title = "Dr.Danyal - ڕاهێنەری پزیشکی"
+    page.title = "Dr.Danyal"
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.bgcolor = "#0f0c29"
     
-    # ڕێکخستنی قەبارەی پەنجەرە (شێوازی نوێ)
-    page.window_width = 1300
-    page.window_height = 850
-    page.window_min_width = 1000
-    page.window_min_height = 700
-    
-    # ڤاریبڵەکانی ستەیت
+    # ستەیت
     current_username = ""
     quiz_score = 0
     quiz_index = 0
     total_cases = 0
     correct_cases = 0
     
-    # کۆنتێنەری سەرەکی
-    main_container = ft.Container(expand=True)
-    
     # ================================
-    # پەڕەی لۆگین
+    # دروستکردنی پەڕەی لۆگین
     # ================================
-    def show_login():
-        main_container.content = None
-        
+    def build_login_page():
         username_field = ft.TextField(
             label="ناوی بەکارهێنەری",
-            border_radius=15,
+            border_radius=10,
             bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
             color=ft.colors.WHITE,
             width=350
@@ -165,16 +129,16 @@ def main(page: ft.Page):
             label="وشەی نهێنی",
             password=True,
             can_reveal_password=True,
-            border_radius=15,
+            border_radius=10,
             bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
             color=ft.colors.WHITE,
             width=350
         )
-        login_error = ft.Text(color=ft.colors.RED_400)
+        login_msg = ft.Text("", color=ft.colors.RED_400)
         
         reg_username = ft.TextField(
             label="ناوی بەکارهێنەری نوێ",
-            border_radius=15,
+            border_radius=10,
             bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
             color=ft.colors.WHITE,
             width=350
@@ -183,7 +147,7 @@ def main(page: ft.Page):
             label="وشەی نهێنی",
             password=True,
             can_reveal_password=True,
-            border_radius=15,
+            border_radius=10,
             bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
             color=ft.colors.WHITE,
             width=350
@@ -192,36 +156,36 @@ def main(page: ft.Page):
             label="دووبارە وشەی نهێنی",
             password=True,
             can_reveal_password=True,
-            border_radius=15,
+            border_radius=10,
             bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
             color=ft.colors.WHITE,
             width=350
         )
-        reg_error = ft.Text(color=ft.colors.RED_400)
-        reg_success = ft.Text(color=ft.colors.GREEN_400)
+        reg_msg = ft.Text("", color=ft.colors.RED_400)
+        reg_success = ft.Text("", color=ft.colors.GREEN_400)
         
-        def handle_login(e):
+        def do_login(e):
             nonlocal current_username
             if authenticate_user(username_field.value, password_field.value):
                 current_username = username_field.value
-                show_main_app()
+                build_main_app()
             else:
-                login_error.value = "❌ ناوی بەکارهێنەری یان وشەی نهێنی هەڵەیە"
+                login_msg.value = "❌ هەڵە"
                 page.update()
         
-        def handle_register(e):
+        def do_register(e):
             if not reg_username.value or not reg_password.value:
-                reg_error.value = "تکایە هەموو خانەکان پڕ بکەرەوە"
+                reg_msg.value = "هەموو خانەکان پڕ بکەرەوە"
             elif reg_password.value != reg_confirm.value:
-                reg_error.value = "وشەی نهێنی یەک ناگرنەوە"
+                reg_msg.value = "وشەی نهێنی یەک ناگرنەوە"
             elif len(reg_password.value) < 4:
-                reg_error.value = "وشەی نهێنی پێویستە لانیکەم ٤ پیت بێت"
+                reg_msg.value = "وشەی نهێنی کورتە"
             else:
                 if create_user(reg_username.value, reg_password.value):
-                    reg_success.value = "✅ هەژمارەکەت بە سەرکەوتوویی دروست کرا!"
-                    reg_error.value = ""
+                    reg_success.value = "✅ دروست کرا!"
+                    reg_msg.value = ""
                 else:
-                    reg_error.value = "❌ ئەم ناوی بەکارهێنەرییە پێشتر بەکارهێنراوە"
+                    reg_msg.value = "❌ پێشتر هەیە"
                     reg_success.value = ""
             page.update()
         
@@ -231,20 +195,14 @@ def main(page: ft.Page):
                 content=ft.Column([
                     username_field,
                     password_field,
-                    login_error,
+                    login_msg,
                     ft.ElevatedButton(
                         "🚪 چوونە ژوورەوە",
-                        on_click=handle_login,
-                        style=ft.ButtonStyle(
-                            bgcolor=ft.colors.BLUE_600,
-                            color=ft.colors.WHITE,
-                            padding=20,
-                            shape=ft.RoundedRectangleBorder(radius=15)
-                        ),
-                        width=350
+                        on_click=do_login,
+                        style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE, padding=15)
                     )
                 ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=30
+                padding=20
             )
         )
         
@@ -255,415 +213,351 @@ def main(page: ft.Page):
                     reg_username,
                     reg_password,
                     reg_confirm,
-                    reg_error,
+                    reg_msg,
                     reg_success,
                     ft.ElevatedButton(
-                        "📝 دروستکردنی هەژمار",
-                        on_click=handle_register,
-                        style=ft.ButtonStyle(
-                            bgcolor=ft.colors.GREEN_600,
-                            color=ft.colors.WHITE,
-                            padding=20,
-                            shape=ft.RoundedRectangleBorder(radius=15)
-                        ),
-                        width=350
+                        "📝 دروستکردن",
+                        on_click=do_register,
+                        style=ft.ButtonStyle(bgcolor=ft.colors.GREEN_600, color=ft.colors.WHITE, padding=15)
                     )
                 ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=30
+                padding=20
             )
         )
         
-        main_container.content = ft.Container(
+        return ft.Container(
             content=ft.Column([
-                ft.Text("🩺", size=80, text_align=ft.TextAlign.CENTER),
-                ft.Text("Dr.Danyal", size=45, weight=ft.FontWeight.BOLD, 
-                       color=ft.colors.BLUE_400),
-                ft.Text("ڕاهێنەری پزیشکی Pro Max", color=ft.colors.GREY_400, size=16),
-                ft.Divider(height=30, color=ft.colors.TRANSPARENT),
+                ft.Text("🩺", size=60, text_align=ft.TextAlign.CENTER),
+                ft.Text("Dr.Danyal", size=40, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_400),
+                ft.Text("ڕاهێنەری پزیشکی", color=ft.colors.GREY_400),
+                ft.Divider(height=20, color=ft.colors.TRANSPARENT),
                 ft.Tabs(
                     selected_index=0,
                     tabs=[login_tab, register_tab],
                     indicator_color=ft.colors.BLUE_400
                 )
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=40,
-            border_radius=30,
+            padding=30,
+            border_radius=25,
             bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
             border=ft.border.all(1, ft.colors.with_opacity(0.1, ft.colors.WHITE)),
-            width=500,
+            width=450,
             alignment=ft.alignment.center
         )
-        
-        page.add(main_container)
-        page.update()
     
     # ================================
-    # ئەپی سەرەکی
+    # دروستکردنی ئەپی سەرەکی
     # ================================
-    def show_main_app():
-        main_container.content = None
+    def build_main_app():
         page.clean()
         
         # کۆنتێنەری ناوەڕۆک
         content_area = ft.Container(
             expand=True,
             padding=25,
-            border_radius=25,
-            bgcolor=ft.colors.with_opacity(0.03, ft.colors.WHITE),
-            border=ft.border.all(1, ft.colors.with_opacity(0.05, ft.colors.WHITE))
+            border_radius=20,
+            bgcolor=ft.colors.with_opacity(0.03, ft.colors.WHITE)
         )
         
         # فەنکشنی گۆڕینی پەڕە
         def switch_page(page_name):
             if page_name == "dashboard":
-                content_area.content = create_dashboard()
+                content_area.content = build_dashboard()
             elif page_name == "diseases":
-                content_area.content = create_diseases_page()
+                content_area.content = build_diseases()
             elif page_name == "cases":
-                content_area.content = create_cases_page()
+                content_area.content = build_cases()
             elif page_name == "quiz":
-                content_area.content = create_quiz_page()
+                content_area.content = build_quiz()
             elif page_name == "lab":
-                content_area.content = create_lab_page()
-            elif page_name == "pharmacy":
-                content_area.content = create_pharmacy_page()
+                content_area.content = build_lab()
+            elif page_name == "drugs":
+                content_area.content = build_drugs()
             elif page_name == "ai":
-                content_area.content = create_ai_page()
+                content_area.content = build_ai()
             elif page_name == "progress":
-                content_area.content = create_progress_page()
+                content_area.content = build_progress()
             page.update()
         
         # ================================
-        # پەڕەی داشبۆرد
+        # پەڕەکان
         # ================================
-        def create_dashboard():
+        def build_dashboard():
             return ft.Column([
-                ft.Text("🎓 ڕاهێنەری پزیشکی Pro Max", size=35, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                ft.Text(f"بەخێربێیت {current_username}!", size=20, color=ft.colors.GREY_400),
-                ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                ft.Text("🎓 داشبۆرد", size=30, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                ft.Text(f"بەخێربێیت {current_username}!", color=ft.colors.GREY_400, size=18),
+                ft.Divider(height=20),
                 ft.Row([
-                    create_stat_card("📚", str(len(DISEASE_DATABASE)), "نەخۆشی", ft.colors.BLUE),
-                    create_stat_card("💊", str(sum(len(v) for v in DRUG_DATABASE.values())), "دەرمان", ft.colors.PURPLE),
-                    create_stat_card("📝", f"{quiz_score}/{len(MEDICAL_QUIZZES)}", "کویز", ft.colors.GREEN),
-                    create_stat_card("🔬", str(len(LAB_TESTS)), "پشکنین", ft.colors.ORANGE)
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20, wrap=True),
-                ft.Divider(height=30, color=ft.colors.TRANSPARENT),
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("🔥 ئامار", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                        ft.Text(f"کەیسەکان: {total_cases}", color=ft.colors.GREY_400),
-                        ft.Text(f"ڕاستی: {correct_cases}", color=ft.colors.GREY_400),
-                    ]),
-                    padding=20,
-                    border_radius=15,
-                    bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)
-                )
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("📚", size=40),
+                            ft.Text(str(len(DISEASE_DATABASE)), size=25, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                            ft.Text("نەخۆشی", color=ft.colors.GREY_400)
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=20,
+                        border_radius=15,
+                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.BLUE),
+                        width=180,
+                        height=130
+                    ),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("💊", size=40),
+                            ft.Text(str(sum(len(v) for v in DRUG_DATABASE.values())), size=25, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                            ft.Text("دەرمان", color=ft.colors.GREY_400)
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=20,
+                        border_radius=15,
+                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.PURPLE),
+                        width=180,
+                        height=130
+                    ),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("📝", size=40),
+                            ft.Text(f"{quiz_score}/{len(MEDICAL_QUIZZES)}", size=25, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                            ft.Text("کویز", color=ft.colors.GREY_400)
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=20,
+                        border_radius=15,
+                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.GREEN),
+                        width=180,
+                        height=130
+                    ),
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text("🔬", size=40),
+                            ft.Text(str(len(LAB_TESTS)), size=25, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                            ft.Text("پشکنین", color=ft.colors.GREY_400)
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=20,
+                        border_radius=15,
+                        bgcolor=ft.colors.with_opacity(0.1, ft.colors.ORANGE),
+                        width=180,
+                        height=130
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=15, wrap=True),
+                ft.Divider(height=20),
+                ft.Text(f"کەیسەکان: {total_cases} | ڕاستی: {correct_cases}", color=ft.colors.GREY_400)
             ], scroll=ft.ScrollMode.AUTO)
         
-        def create_stat_card(icon, number, label, color):
-            return ft.Container(
-                content=ft.Column([
-                    ft.Text(icon, size=40),
-                    ft.Text(number, size=30, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                    ft.Text(label, color=ft.colors.GREY_400)
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                padding=25,
-                border_radius=20,
-                bgcolor=ft.colors.with_opacity(0.1, color),
-                width=200,
-                height=150
-            )
-        
-        # ================================
-        # پەڕەی نەخۆشییەکان
-        # ================================
-        def create_diseases_page():
-            search_field = ft.TextField(
+        def build_diseases():
+            search = ft.TextField(
                 label="🔍 گەڕان",
-                border_radius=15,
+                border_radius=10,
                 bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
                 color=ft.colors.WHITE,
-                on_change=lambda e: filter_diseases()
+                on_change=lambda e: filter_list()
             )
+            d_list = ft.ListView(spacing=10, expand=True)
             
-            diseases_list = ft.ListView(spacing=10, expand=True)
-            
-            def filter_diseases():
-                diseases_list.controls.clear()
-                search = search_field.value.lower() if search_field.value else ""
-                
+            def filter_list():
+                d_list.controls.clear()
+                s = search.value.lower() if search.value else ""
                 for disease, info in DISEASE_DATABASE.items():
-                    if search and search not in disease.lower():
+                    if s and s not in disease.lower():
                         continue
-                    
-                    diseases_list.controls.append(
+                    d_list.controls.append(
                         ft.Container(
                             content=ft.Column([
-                                ft.Text(f"🩺 {disease}", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                                ft.Text(f"نیشانەکان: {', '.join(info.get('نیشانەکان', [])[:3])}", color=ft.colors.GREY_300),
-                                ft.Text(f"چارەسەر: {'، '.join(info.get('چارەسەر', [])[:2])}", color=ft.colors.GREY_300)
+                                ft.Text(f"🩺 {disease}", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                                ft.Text(f"نیشانەکان: {', '.join(info.get('نیشانەکان', [])[:3])}", color=ft.colors.GREY_300, size=13),
+                                ft.Text(f"چارەسەر: {', '.join(info.get('چارەسەر', [])[:2])}", color=ft.colors.GREY_400, size=13)
                             ], spacing=5),
                             padding=15,
-                            border_radius=15,
+                            border_radius=10,
                             bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
-                            border=ft.border.only(left=ft.BorderSide(5, ft.colors.BLUE_600))
+                            border=ft.border.only(left=ft.BorderSide(4, ft.colors.BLUE_400))
                         )
                     )
                 page.update()
             
-            filter_diseases()
-            
+            filter_list()
             return ft.Column([
-                ft.Text(f"📚 کتێبخانەی نەخۆشییەکان ({len(DISEASE_DATABASE)})", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                search_field,
-                diseases_list
+                ft.Text("📚 نەخۆشییەکان", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                search,
+                d_list
             ], expand=True)
         
-        # ================================
-        # پەڕەی کەیس
-        # ================================
-        def create_cases_page():
-            case_text = ft.Text("کلیک بکە بۆ دروستکردنی کەیس", color=ft.colors.GREY_400, size=16)
-            diagnosis_dd = ft.Dropdown(
+        def build_cases():
+            case_text = ft.Text("کلیک بکە بۆ دروستکردنی کەیس", color=ft.colors.GREY_400)
+            dd = ft.Dropdown(
                 label="دەستنیشانکردن",
                 options=[ft.dropdown.Option(d) for d in DISEASE_DATABASE.keys()],
-                border_radius=15,
+                border_radius=10,
                 bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
                 color=ft.colors.WHITE,
                 visible=False,
-                width=400
+                width=350
             )
-            result_text = ft.Text("", size=16)
-            submit_btn = ft.ElevatedButton(
-                "✅ پشتڕاستکردنەوە",
-                visible=False,
-                style=ft.ButtonStyle(bgcolor=ft.colors.GREEN_600, color=ft.colors.WHITE)
-            )
-            current_case_data = {"disease": ""}
+            result = ft.Text("", size=16)
+            submit = ft.ElevatedButton("✅ پشتڕاستکردنەوە", visible=False)
+            case_data = {"disease": ""}
             
-            def generate_case(e):
-                disease = random.choice(list(DISEASE_DATABASE.keys()))
-                info = DISEASE_DATABASE[disease]
+            def gen(e):
+                d = random.choice(list(DISEASE_DATABASE.keys()))
+                info = DISEASE_DATABASE[d]
                 age = random.randint(18, 80)
                 gender = random.choice(['نێر', 'مێ'])
-                symptoms = random.sample(info['نیشانەکان'], min(4, len(info['نیشانەکان'])))
-                
-                current_case_data["disease"] = disease
-                case_text.value = f"تەمەن: {age} | ڕەگەز: {gender}\n\nنیشانەکان:\n• {'\n• '.join(symptoms)}"
-                diagnosis_dd.visible = True
-                submit_btn.visible = True
-                result_text.value = ""
+                symps = random.sample(info['نیشانەکان'], min(3, len(info['نیشانەکان'])))
+                case_data["disease"] = d
+                case_text.value = f"تەمەن: {age} | ڕەگەز: {gender}\n\nنیشانەکان:\n• {'\n• '.join(symps)}"
+                dd.visible = True
+                submit.visible = True
+                result.value = ""
                 page.update()
             
-            def check_diagnosis(e):
+            def check(e):
                 nonlocal total_cases, correct_cases
                 total_cases += 1
-                if diagnosis_dd.value == current_case_data["disease"]:
+                if dd.value == case_data["disease"]:
                     correct_cases += 1
-                    result_text.value = "✅ ڕاستە!"
-                    result_text.color = ft.colors.GREEN_400
+                    result.value = "✅ ڕاستە!"
+                    result.color = ft.colors.GREEN_400
                 else:
-                    result_text.value = f"❌ هەڵە! ڕاست: {current_case_data['disease']}"
-                    result_text.color = ft.colors.RED_400
+                    result.value = f"❌ ڕاست: {case_data['disease']}"
+                    result.color = ft.colors.RED_400
                 page.update()
             
-            submit_btn.on_click = check_diagnosis
+            submit.on_click = check
             
             return ft.Column([
                 ft.Text("🩺 شیکاری کەیس", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                ft.ElevatedButton("🔄 کەیسی نوێ", on_click=generate_case, 
-                                 style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE)),
+                ft.ElevatedButton("🔄 کەیسی نوێ", on_click=gen, style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE)),
                 ft.Divider(height=10, color=ft.colors.TRANSPARENT),
-                ft.Container(
-                    content=case_text,
-                    padding=20,
-                    border_radius=15,
-                    bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
-                    border=ft.border.only(left=ft.BorderSide(5, ft.colors.BLUE_600))
-                ),
-                diagnosis_dd,
-                submit_btn,
-                result_text
-            ])
-        
-        # ================================
-        # پەڕەی کویز
-        # ================================
-        def create_quiz_page():
-            question_text = ft.Text("", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE)
-            options_radio = ft.RadioGroup(content=ft.Column([]))
-            result = ft.Text("", size=16)
-            
-            def load_quiz():
-                nonlocal quiz_index
-                if quiz_index < len(MEDICAL_QUIZZES):
-                    q = MEDICAL_QUIZZES[quiz_index]
-                    question_text.value = q["پرسیار"]
-                    options_radio.content = [
-                        ft.Radio(value=str(i), label=opt)
-                        for i, opt in enumerate(q["هەڵبژاردەکان"])
-                    ]
-                    options_radio.value = None
-                    result.value = ""
-                else:
-                    question_text.value = "🎊 تەواو!"
-                    result.value = f"نمرە: {quiz_score}/{len(MEDICAL_QUIZZES)}"
-                    options_radio.content = []
-                page.update()
-            
-            def check_answer(e):
-                nonlocal quiz_score, quiz_index
-                if quiz_index < len(MEDICAL_QUIZZES) and options_radio.value:
-                    if int(options_radio.value) == MEDICAL_QUIZZES[quiz_index]["وەڵامی ڕاست"]:
-                        quiz_score += 1
-                        result.value = "🎉 ڕاستە!"
-                        result.color = ft.colors.GREEN_400
-                    else:
-                        result.value = "❌ هەڵەیە"
-                        result.color = ft.colors.RED_400
-                    quiz_index += 1
-                page.update()
-            
-            load_quiz()
-            
-            return ft.Column([
-                ft.Text("📝 کویز", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                ft.Container(
-                    content=question_text,
-                    padding=20,
-                    border_radius=15,
-                    bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)
-                ),
-                options_radio,
-                ft.Row([
-                    ft.ElevatedButton("✅ پشتڕاستکردنەوە", on_click=check_answer,
-                                     style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE)),
-                    ft.ElevatedButton("➡️ داهاتوو", on_click=lambda e: load_quiz(),
-                                     style=ft.ButtonStyle(bgcolor=ft.colors.GREEN_600, color=ft.colors.WHITE))
-                ], spacing=20),
+                ft.Container(case_text, padding=15, border_radius=10, bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)),
+                dd,
+                submit,
                 result
             ])
         
-        # ================================
-        # پەڕەی تاقیگە
-        # ================================
-        def create_lab_page():
-            labs_list = ft.ListView(spacing=10, expand=True)
+        def build_quiz():
+            q_text = ft.Text("", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE)
+            opts = ft.RadioGroup(content=ft.Column([]))
+            res = ft.Text("", size=16)
             
-            for test_name, test_info in LAB_TESTS.items():
-                labs_list.controls.append(
+            def load():
+                nonlocal quiz_index
+                if quiz_index < len(MEDICAL_QUIZZES):
+                    q = MEDICAL_QUIZZES[quiz_index]
+                    q_text.value = q["پرسیار"]
+                    opts.content = [ft.Radio(value=str(i), label=opt) for i, opt in enumerate(q["هەڵبژاردەکان"])]
+                    opts.value = None
+                    res.value = ""
+                else:
+                    q_text.value = "🎊 تەواو!"
+                    res.value = f"نمرە: {quiz_score}/{len(MEDICAL_QUIZZES)}"
+                    opts.content = []
+                page.update()
+            
+            def check(e):
+                nonlocal quiz_score, quiz_index
+                if quiz_index < len(MEDICAL_QUIZZES) and opts.value:
+                    if int(opts.value) == MEDICAL_QUIZZES[quiz_index]["وەڵامی ڕاست"]:
+                        quiz_score += 1
+                        res.value = "🎉 ڕاستە!"
+                        res.color = ft.colors.GREEN_400
+                    else:
+                        res.value = "❌ هەڵەیە"
+                        res.color = ft.colors.RED_400
+                    quiz_index += 1
+                page.update()
+            
+            load()
+            
+            return ft.Column([
+                ft.Text("📝 کویز", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                ft.Container(q_text, padding=15, border_radius=10, bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)),
+                opts,
+                ft.Row([
+                    ft.ElevatedButton("✅ پشتڕاستکردنەوە", on_click=check),
+                    ft.ElevatedButton("➡️ داهاتوو", on_click=lambda e: load())
+                ]),
+                res
+            ])
+        
+        def build_lab():
+            l_list = ft.ListView(spacing=10, expand=True)
+            for name, info in LAB_TESTS.items():
+                l_list.controls.append(
                     ft.Container(
                         content=ft.Column([
-                            ft.Text(f"🧪 {test_name}", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                            ft.Text(f"نۆرماڵ: {test_info.get('نۆرماڵ', '')} {test_info.get('یەکە', '')}", 
-                                   color=ft.colors.GREY_300),
-                            ft.Text(f"تەفسیر: {test_info.get('تەفسیر', '')}", 
-                                   color=ft.colors.GREY_400, size=14)
-                        ], spacing=5),
-                        padding=15,
-                        border_radius=15,
-                        bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
-                        border=ft.border.only(left=ft.BorderSide(4, ft.colors.GREEN_600))
+                            ft.Text(f"🧪 {name}", size=14, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                            ft.Text(f"نۆرماڵ: {info['نۆرماڵ']} {info['یەکە']}", color=ft.colors.GREY_300, size=12)
+                        ], spacing=3),
+                        padding=12,
+                        border_radius=10,
+                        bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)
                     )
                 )
-            
             return ft.Column([
                 ft.Text("🔬 تاقیگە", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                ft.Text(f"ژمارە: {len(LAB_TESTS)}", color=ft.colors.GREY_400),
-                labs_list
+                l_list
             ], expand=True)
         
-        # ================================
-        # پەڕەی فارماکۆلۆجی
-        # ================================
-        def create_pharmacy_page():
-            drugs_list = ft.ListView(spacing=10, expand=True)
-            
-            for category, drugs in DRUG_DATABASE.items():
-                drugs_list.controls.append(
-                    ft.Text(f"📂 {category}", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE)
-                )
-                for drug_name, drug_info in drugs.items():
-                    drugs_list.controls.append(
+        def build_drugs():
+            d_list = ft.ListView(spacing=10, expand=True)
+            for cat, drugs in DRUG_DATABASE.items():
+                d_list.controls.append(ft.Text(f"📂 {cat}", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE))
+                for name, info in drugs.items():
+                    d_list.controls.append(
                         ft.Container(
-                            content=ft.Column([
-                                ft.Text(f"💊 {drug_name}", size=14, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                                ft.Text(f"ڕێژە: {drug_info.get('ڕێژە', '')}", color=ft.colors.GREY_300, size=12),
-                            ], spacing=3),
-                            padding=12,
-                            border_radius=12,
-                            bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
-                            margin=ft.margin.only(left=20)
+                            content=ft.Text(f"💊 {name} | {info['ڕێژە']}", color=ft.colors.GREY_300, size=13),
+                            padding=8, margin=ft.margin.only(left=20)
                         )
                     )
-            
             return ft.Column([
-                ft.Text("💊 فارماکۆلۆجی", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                drugs_list
+                ft.Text("💊 دەرمانەکان", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                d_list
             ], expand=True)
         
-        # ================================
-        # پەڕەی AI
-        # ================================
-        def create_ai_page():
-            symptoms_field = ft.TextField(
+        def build_ai():
+            symptoms = ft.TextField(
                 label="🩺 نیشانەکان (بە کۆما جیا بکەرەوە)",
-                multiline=True,
-                min_lines=3,
-                border_radius=15,
+                multiline=True, min_lines=3,
+                border_radius=10,
                 bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
                 color=ft.colors.WHITE
             )
-            ai_results = ft.ListView(spacing=10, expand=True)
+            result_list = ft.ListView(spacing=10, expand=True)
             
             def analyze(e):
-                ai_results.controls.clear()
-                if symptoms_field.value:
-                    symptoms = [s.strip() for s in symptoms_field.value.split(',')]
+                result_list.controls.clear()
+                if symptoms.value:
+                    symps = [s.strip() for s in symptoms.value.split(',')]
                     results = []
-                    
                     for disease, info in DISEASE_DATABASE.items():
-                        match = len(set(symptoms).intersection(set(info['نیشانەکان'])))
+                        match = len(set(symps).intersection(set(info['نیشانەکان'])))
                         if match > 0:
-                            pct = (match / len(info['نیشانەکان'])) * 100
-                            results.append((disease, pct, info))
-                    
+                            results.append((disease, match / len(info['نیشانەکان']) * 100, info))
                     results.sort(key=lambda x: x[1], reverse=True)
                     
-                    for disease, pct, info in results[:5]:
-                        ai_results.controls.append(
+                    for d, p, info in results[:5]:
+                        result_list.controls.append(
                             ft.Container(
                                 content=ft.Column([
-                                    ft.Text(f"🩺 {disease} - {pct:.1f}%", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                                    ft.Text(f"چارەسەر: {'، '.join(info.get('چارەسەر', [])[:3])}", color=ft.colors.GREY_300)
+                                    ft.Text(f"🩺 {d} - {p:.1f}%", size=14, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                                    ft.Text(f"چارەسەر: {', '.join(info['چارەسەر'][:2])}", color=ft.colors.GREY_300, size=12)
                                 ]),
-                                padding=15,
-                                border_radius=15,
-                                bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE),
-                                border=ft.border.only(left=ft.BorderSide(4, ft.colors.BLUE_600))
+                                padding=12, border_radius=10,
+                                bgcolor=ft.colors.with_opacity(0.05, ft.colors.WHITE)
                             )
                         )
                 page.update()
             
             return ft.Column([
                 ft.Text("🧠 AI یاریدەدەر", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                symptoms_field,
-                ft.ElevatedButton("🔍 شیکاری", on_click=analyze,
-                                 style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE)),
-                ft.Divider(height=10, color=ft.colors.TRANSPARENT),
-                ai_results
+                symptoms,
+                ft.ElevatedButton("🔍 شیکاری", on_click=analyze),
+                result_list
             ], expand=True)
         
-        # ================================
-        # پەڕەی پێشکەوتن
-        # ================================
-        def create_progress_page():
+        def build_progress():
             return ft.Column([
                 ft.Text("📊 پێشکەوتن", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
-                ft.Text(f"نمرەی کویز: {quiz_score}/{len(MEDICAL_QUIZZES)}", color=ft.colors.GREY_300, size=18),
-                ft.Text(f"کەیسەکان: {total_cases}", color=ft.colors.GREY_300, size=18),
-                ft.Text(f"ڕاستی: {correct_cases}", color=ft.colors.GREY_300, size=18),
-                ft.Text(f"ڕێژە: {int((correct_cases / max(total_cases, 1)) * 100)}%", color=ft.colors.GREY_300, size=18)
+                ft.Text(f"کویز: {quiz_score}/{len(MEDICAL_QUIZZES)}", color=ft.colors.GREY_300, size=16),
+                ft.Text(f"کەیس: {total_cases}", color=ft.colors.GREY_300, size=16),
+                ft.Text(f"ڕاستی: {correct_cases}", color=ft.colors.GREY_300, size=16)
             ])
         
         # ================================
@@ -671,36 +565,28 @@ def main(page: ft.Page):
         # ================================
         sidebar = ft.Container(
             content=ft.Column([
-                ft.Text("🩺", size=45, text_align=ft.TextAlign.CENTER),
-                ft.Text("Dr.Danyal", size=22, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_400, text_align=ft.TextAlign.CENTER),
-                ft.Text(f"👤 {current_username}", color=ft.colors.GREY_400, size=12, text_align=ft.TextAlign.CENTER),
-                ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                ft.Text("🩺", size=40, text_align=ft.TextAlign.CENTER),
+                ft.Text("Dr.Danyal", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_400, text_align=ft.TextAlign.CENTER),
+                ft.Text(current_username, color=ft.colors.GREY_400, size=12, text_align=ft.TextAlign.CENTER),
+                ft.Divider(height=15, color=ft.colors.TRANSPARENT),
                 
-                create_nav_btn("🏠 داشبۆرد", "dashboard"),
-                create_nav_btn("📚 نەخۆشییەکان", "diseases"),
-                create_nav_btn("🩺 کەیس", "cases"),
-                create_nav_btn("📝 کویز", "quiz"),
-                create_nav_btn("🔬 تاقیگە", "lab"),
-                create_nav_btn("💊 دەرمان", "pharmacy"),
-                create_nav_btn("🧠 AI", "ai"),
-                create_nav_btn("📊 پێشکەوتن", "progress"),
+                ft.TextButton("🏠 داشبۆرد", on_click=lambda e: switch_page("dashboard"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("📚 نەخۆشییەکان", on_click=lambda e: switch_page("diseases"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("🩺 کەیس", on_click=lambda e: switch_page("cases"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("📝 کویز", on_click=lambda e: switch_page("quiz"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("🔬 تاقیگە", on_click=lambda e: switch_page("lab"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("💊 دەرمان", on_click=lambda e: switch_page("drugs"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("🧠 AI", on_click=lambda e: switch_page("ai"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
+                ft.TextButton("📊 پێشکەوتن", on_click=lambda e: switch_page("progress"), style=ft.ButtonStyle(color=ft.colors.WHITE)),
                 
-                ft.Divider(height=20, color=ft.colors.TRANSPARENT),
-                ft.TextButton("🚪 چوونە دەرەوە", on_click=lambda e: show_login(),
-                             style=ft.ButtonStyle(color=ft.colors.RED_400))
-            ], spacing=5, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            width=250,
-            padding=20,
+                ft.Divider(height=15, color=ft.colors.TRANSPARENT),
+                ft.TextButton("🚪 چوونە دەرەوە", on_click=lambda e: build_login_screen(), style=ft.ButtonStyle(color=ft.colors.RED_400))
+            ], spacing=3, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            width=220,
+            padding=15,
             bgcolor="#16213e",
-            border_radius=20
+            border_radius=15
         )
-        
-        def create_nav_btn(text, page_name):
-            return ft.TextButton(
-                text,
-                on_click=lambda e, p=page_name: switch_page(p),
-                style=ft.ButtonStyle(color=ft.colors.WHITE)
-            )
         
         # دانانی پەڕەی سەرەکی
         switch_page("dashboard")
@@ -709,15 +595,29 @@ def main(page: ft.Page):
         page.add(
             ft.Row([
                 sidebar,
-                ft.VerticalDivider(width=10, color=ft.colors.TRANSPARENT),
+                ft.VerticalDivider(width=8, color=ft.colors.TRANSPARENT),
                 content_area
             ], expand=True)
         )
-        
+        page.update()
+    
+    # ================================
+    # دروستکردنی شاشەی لۆگین
+    # ================================
+    def build_login_screen():
+        page.clean()
+        login_page = build_login_page()
+        page.add(
+            ft.Container(
+                content=login_page,
+                alignment=ft.alignment.center,
+                expand=True
+            )
+        )
         page.update()
     
     # دەستپێکردن
-    show_login()
+    build_login_screen()
 
-# ڕاکردنی ئەپ
+# ڕاکردن
 ft.app(target=main)
