@@ -116,87 +116,81 @@ if 'custom_drugs' not in st.session_state:
     st.session_state.custom_drugs = {}
 
 # ================================
-# 2. CSS و ستایلە پێشکەوتووەکان (لەگەڵ ئەنیمەیشنی زیاتر)
+# 2. CSS و ستایلە پێشکەوتووەکان (دیزاینی نوێ پزیشکی پڕۆفیشناڵ)
 # ================================
 st.markdown("""
 <style>
-    /* 2.1 باکگراوندی پشت */
+    /* 2.1 باکگراوندی پشت - ڕوون و پزیشکی */
     .stApp {
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #0f0c29);
-        min-height: 100vh;
-        background-size: 400% 400%;
-        animation: gradientBG 15s ease infinite;
-    }
-    
-    @keyframes gradientBG {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+        background: #f4f7f6;
+        background-image: radial-gradient(#e2e8e0 1px, transparent 1px);
+        background-size: 20px 20px;
     }
     
     .main {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(20px);
-        border-radius: 35px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
         padding: 2.5rem;
         margin: 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
-        animation: fadeIn 1s ease-out;
+        border: 1px solid #dfe6e9;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        animation: fadeIn 0.8s ease-out;
     }
     
     @keyframes fadeIn {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    /* 2.2 سایدبار - پاک و مۆدێرن (دیارترین گۆڕانکاری) */
+    /* 2.2 سایدبار - ڕوون و ئاسان */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0a1929 0%, #0d2137 50%, #0a1929 100%) !important;
-        border-right: 1px solid rgba(79, 172, 254, 0.15) !important;
-        box-shadow: 5px 0 40px rgba(0, 0, 0, 0.5) !important;
-        backdrop-filter: blur(10px) !important;
+        background: #ffffff !important;
+        border-right: 2px solid #e2e8e0 !important;
+        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.03) !important;
     }
     
     [data-testid="stSidebar"] * {
-        color: rgba(255, 255, 255, 0.9) !important;
+        color: #2d3436 !important;
     }
     
     /* سایدبار - هەموو دەقەکان */
     [data-testid="stSidebar"] .stMarkdown p,
     [data-testid="stSidebar"] .stMarkdown span,
     [data-testid="stSidebar"] label {
-        color: rgba(255, 255, 255, 0.85) !important;
-        font-weight: 400 !important;
+        color: #636e72 !important;
+        font-weight: 500 !important;
     }
     
     /* سایدبار - دابەشکەر */
     [data-testid="stSidebar"] hr {
-        border-color: rgba(79, 172, 254, 0.2) !important;
+        border-color: #e2e8e0 !important;
     }
     
     /* سایدبار - ڕادیۆ بەتنی پاک */
     [data-testid="stSidebar"] .stRadio > div {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 16px !important;
-        padding: 8px !important;
-        border: 1px solid rgba(79, 172, 254, 0.15) !important;
+        background: #f8f9fa !important;
+        border-radius: 10px !important;
+        padding: 5px !important;
+        border: 1px solid #e2e8e0 !important;
         transition: all 0.3s ease !important;
     }
     
     [data-testid="stSidebar"] .stRadio > div:hover {
-        background: rgba(79, 172, 254, 0.08) !important;
-        border-color: rgba(79, 172, 254, 0.3) !important;
+        background: #eef2f5 !important;
+        border-color: #00b894 !important;
     }
     
     [data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
-        transition: all 0.3s ease !important;
-        padding: 6px 12px !important;
-        border-radius: 12px !important;
+        transition: all 0.2s ease !important;
+        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        color: #2d3436 !important;
     }
     
     [data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
-        background: rgba(79, 172, 254, 0.1) !important;
+        background: #00b894 !important;
+        color: #ffffff !important;
     }
     
     /* 2.3 ویجێتەکان - چوارچێوەی جوان */
@@ -204,82 +198,76 @@ st.markdown("""
     .stTextInput > div > div,
     .stTextArea > div > div,
     .stNumberInput > div > div {
-        background: rgba(255, 255, 255, 0.06) !important;
-        border: 1px solid rgba(79, 172, 254, 0.2) !important;
-        border-radius: 14px !important;
+        background: #ffffff !important;
+        border: 1px solid #dfe6e9 !important;
+        border-radius: 8px !important;
         transition: all 0.3s ease !important;
+        color: #2d3436 !important;
     }
     
     .stSelectbox > div > div:focus-within,
     .stTextInput > div > div:focus-within,
     .stTextArea > div > div:focus-within,
     .stNumberInput > div > div:focus-within {
-        border-color: #4facfe !important;
-        box-shadow: 0 0 20px rgba(79, 172, 254, 0.25) !important;
-        background: rgba(255, 255, 255, 0.08) !important;
+        border-color: #00b894 !important;
+        box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.1) !important;
+        background: #ffffff !important;
     }
     
     /* کۆنتەینەری پەیوەندی بۆردەر */
     [data-testid="stVerticalBlock"] [data-testid="stVerticalBlock"] {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 22px;
-        border: 1px solid rgba(79, 172, 254, 0.1);
+        background: #f8f9fa;
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
         padding: 20px;
         margin-bottom: 20px;
-        backdrop-filter: blur(10px);
     }
     
-    /* 2.4 دوگمەکان - شێوازی مۆدێرنی پزیشکی (شین و سەوزی کاڵ) */
+    /* 2.4 دوگمەکان - شێوازی پزیشکی (سەوز و شینی تاریک) */
     .stButton > button {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        background: #00b894 !important;
         border: none !important;
-        color: #0a1929 !important;
-        font-weight: 700 !important;
-        padding: 0.8rem 2.5rem !important;
-        border-radius: 50px !important;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.35) !important;
-        letter-spacing: 0.5px;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 2rem !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 6px rgba(0, 184, 148, 0.2) !important;
         font-size: 0.95rem !important;
-        text-transform: none !important;
     }
     
     .stButton > button:hover {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
-        transform: translateY(-3px) !important;
-        box-shadow: 0 15px 35px rgba(67, 233, 123, 0.45) !important;
-        color: #0a1929 !important;
+        background: #00a381 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 7px 14px rgba(0, 184, 148, 0.3) !important;
     }
     
     .stButton > button:active {
-        transform: scale(0.96) !important;
-        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3) !important;
+        transform: scale(0.98) !important;
     }
     
     /* دوگمەی سەرەتایی */
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
-        box-shadow: 0 8px 25px rgba(67, 233, 123, 0.35) !important;
-        color: #0a1929 !important;
+        background: #0984e3 !important;
+        box-shadow: 0 4px 6px rgba(9, 132, 227, 0.2) !important;
     }
     
     .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-        box-shadow: 0 15px 35px rgba(79, 172, 254, 0.45) !important;
+        background: #0773c5 !important;
+        box-shadow: 0 7px 14px rgba(9, 132, 227, 0.3) !important;
     }
     
     /* دوگمەی چوونە دەرەوە */
     [data-testid="stSidebar"] .stButton > button {
-        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
-        border: 1px solid rgba(79, 172, 254, 0.3) !important;
-        color: white !important;
+        background: #ffffff !important;
+        border: 1px solid #d63031 !important;
+        color: #d63031 !important;
         box-shadow: none !important;
     }
     
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
-        border-color: #ff6b6b !important;
-        color: white !important;
+        background: #d63031 !important;
+        color: #ffffff !important;
     }
     
     /* 2.5 لۆگۆی Dr.Danyal */
@@ -288,55 +276,38 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         gap: 15px;
-        animation: float 4s ease-in-out infinite;
-        background: rgba(255,255,255,0.05);
+        background: linear-gradient(135deg, #0984e3, #00b894);
         padding: 15px 30px;
-        border-radius: 60px;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
         margin-bottom: 20px;
-        box-shadow: 0 10px 40px rgba(102,126,234,0.2);
+        box-shadow: 0 8px 20px rgba(9, 132, 227, 0.2);
     }
     .logo-icon {
-        font-size: 4rem;
-        animation: pulse 2s infinite;
-        filter: drop-shadow(0 0 20px rgba(102,126,234,0.5));
+        font-size: 3.5rem;
     }
     .logo-text {
         font-size: 2.2rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #f093fb, #4facfe, #667eea);
-        background-size: 300% 300%;
-        animation: textShimmer 4s ease infinite;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #ffffff;
         letter-spacing: 1px;
     }
     .logo-sub {
         font-size: 0.9rem;
-        color: rgba(255,255,255,0.6);
-        -webkit-text-fill-color: rgba(255,255,255,0.6);
+        color: rgba(255,255,255,0.8);
         text-align: center;
         margin-top: -5px;
     }
     
-    @keyframes textShimmer {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
     @keyframes float {
         0% { transform: translateY(0px); }
-        50% { transform: translateY(-12px); }
+        50% { transform: translateY(-8px); }
         100% { transform: translateY(0px); }
     }
     
     @keyframes pulse {
-        0% { transform: scale(1); text-shadow: 0 0 20px rgba(102,126,234,0.3); }
-        50% { transform: scale(1.05); text-shadow: 0 0 40px rgba(102,126,234,0.6), 0 0 80px rgba(118,75,162,0.3); }
-        100% { transform: scale(1); text-shadow: 0 0 20px rgba(102,126,234,0.3); }
+        0% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+        100% { transform: scale(1); }
     }
     
     @keyframes spin {
@@ -345,29 +316,23 @@ st.markdown("""
     }
     
     @keyframes slideInLeft {
-        from { opacity: 0; transform: translateX(-50px); }
+        from { opacity: 0; transform: translateX(-30px); }
         to { opacity: 1; transform: translateX(0); }
     }
     
     @keyframes slideInRight {
-        from { opacity: 0; transform: translateX(50px); }
+        from { opacity: 0; transform: translateX(30px); }
         to { opacity: 1; transform: translateX(0); }
     }
     
-    @keyframes glow {
-        0% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
-        50% { box-shadow: 0 0 60px rgba(102, 126, 234, 0.6), 0 0 100px rgba(118, 75, 162, 0.3); }
-        100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
-    }
-    
     @keyframes shimmer {
-        0% { background-position: 400% 0; }
-        100% { background-position: -400% 0; }
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
     }
     
     @keyframes iconFloat {
         0% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-15px) rotate(5deg); }
+        50% { transform: translateY(-10px) rotate(3deg); }
         100% { transform: translateY(0px) rotate(0deg); }
     }
     
@@ -377,11 +342,6 @@ st.markdown("""
         animation: iconFloat 3s ease-in-out infinite;
         font-size: 2rem;
     }
-    .icon-animated-slow {
-        display: inline-block;
-        animation: iconFloat 5s ease-in-out infinite;
-        font-size: 2.5rem;
-    }
     .icon-spin {
         display: inline-block;
         animation: spin 10s linear infinite;
@@ -389,157 +349,91 @@ st.markdown("""
     }
     
     .main-header {
-        font-size: 3.8rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #4facfe 100%);
-        background-size: 300% 300%;
-        animation: headerGradient 4s ease infinite;
+        font-size: 2.8rem;
+        background: linear-gradient(135deg, #0984e3, #00b894);
         color: white;
         text-align: center;
-        padding: 2.8rem;
-        border-radius: 35px;
-        margin-bottom: 2.5rem;
-        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.5);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 25px rgba(9, 132, 227, 0.15);
         font-family: 'Noto Naskh Arabic', sans-serif;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    @keyframes headerGradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    .main-header::before {
-        content: '🩺';
-        position: absolute;
-        left: 20px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 4rem;
-        opacity: 0.3;
-        animation: spin 20s linear infinite;
-    }
-    
-    .main-header::after {
-        content: '⚕️';
-        position: absolute;
-        right: 20px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 4rem;
-        opacity: 0.3;
-        animation: spin 20s linear infinite reverse;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .case-card {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(15px);
-        padding: 2.2rem;
-        border-radius: 28px;
-        border-left: 8px solid #667eea;
-        margin: 1.2rem 0;
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        animation: slideInLeft 0.6s ease-out;
-        color: #fff;
+        background: #ffffff;
+        padding: 1.8rem;
+        border-radius: 12px;
+        border-left: 6px solid #0984e3;
+        margin: 1rem 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border-top: 1px solid #eee;
+        border-right: 1px solid #eee;
+        border-bottom: 1px solid #eee;
+        animation: slideInLeft 0.5s ease-out;
+        color: #2d3436;
         position: relative;
-        overflow: hidden;
-    }
-    
-    .case-card::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(circle, rgba(102,126,234,0.08) 0%, transparent 70%);
-        pointer-events: none;
     }
     
     .case-card:hover {
-        transform: translateY(-10px) scale(1.01);
-        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.3);
-        border-color: #764ba2;
-        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        border-left-color: #00b894;
     }
     
     .success-box {
-        background: linear-gradient(135deg, rgba(40, 167, 69, 0.3), rgba(40, 167, 69, 0.08));
-        backdrop-filter: blur(15px);
-        padding: 2.2rem;
-        border-radius: 25px;
-        border-left: 8px solid #28a745;
-        box-shadow: 0 10px 45px rgba(40, 167, 69, 0.2);
-        animation: pulse 2s infinite;
-        color: #fff;
-        border: 1px solid rgba(40, 167, 69, 0.15);
+        background: #e6fffa;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 6px solid #00b894;
+        box-shadow: 0 4px 15px rgba(0, 184, 148, 0.1);
+        color: #005247;
+        border: 1px solid #b2f5ea;
     }
     
     .error-box {
-        background: linear-gradient(135deg, rgba(220, 53, 69, 0.3), rgba(220, 53, 69, 0.08));
-        backdrop-filter: blur(15px);
-        padding: 2.2rem;
-        border-radius: 25px;
-        border-left: 8px solid #dc3545;
-        box-shadow: 0 10px 45px rgba(220, 53, 69, 0.2);
-        color: #fff;
-        border: 1px solid rgba(220, 53, 69, 0.15);
+        background: #fff5f5;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 6px solid #d63031;
+        box-shadow: 0 4px 15px rgba(214, 48, 49, 0.1);
+        color: #721c24;
+        border: 1px solid #fed7d7;
     }
     
     .quiz-card {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(20px);
-        padding: 3rem;
-        border-radius: 32px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         margin: 1.5rem 0;
-        border: 2px solid rgba(102, 126, 234, 0.15);
-        transition: all 0.4s ease;
-        color: #fff;
-        position: relative;
-        overflow: hidden;
-        animation: slideInRight 0.6s ease-out;
-    }
-    
-    .quiz-card::before {
-        content: '📝';
-        position: absolute;
-        top: 15px;
-        right: 25px;
-        font-size: 5rem;
-        opacity: 0.05;
-        animation: iconFloat 6s ease-in-out infinite;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+        color: #2d3436;
+        animation: slideInRight 0.5s ease-out;
     }
     
     .quiz-card:hover {
-        box-shadow: 0 30px 80px rgba(102, 126, 234, 0.3);
-        transform: translateY(-6px);
-        border-color: #764ba2;
-        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        border-color: #0984e3;
     }
     
     .progress-container {
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 25px;
-        height: 22px;
+        background: #e9ecef;
+        border-radius: 20px;
+        height: 18px;
         overflow: hidden;
         margin: 1rem 0;
-        box-shadow: inset 0 3px 8px rgba(0,0,0,0.2);
-        position: relative;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     }
     
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #4facfe, #667eea);
-        background-size: 400% 100%;
-        border-radius: 25px;
-        transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-        animation: shimmer 4s infinite linear;
+        background: linear-gradient(90deg, #0984e3, #00b894);
+        border-radius: 20px;
+        transition: width 1s ease;
         position: relative;
     }
     
@@ -550,330 +444,191 @@ st.markdown("""
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        animation: shine 2s infinite;
-    }
-    
-    @keyframes shine {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: shimmer 2s infinite;
     }
     
     .stat-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(15px);
-        padding: 2.2rem;
-        border-radius: 25px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        background: #ffffff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         text-align: center;
-        border-top: 6px solid #667eea;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        cursor: default;
-        animation: float 6s ease-in-out infinite;
+        border-top: 5px solid #0984e3;
+        transition: all 0.3s ease;
+        color: #2d3436;
+        border: 1px solid #eee;
     }
     
     .stat-card:hover {
-        transform: translateY(-15px) scale(1.02);
-        box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
-        background: rgba(255, 255, 255, 0.1);
-        border-top-color: #f093fb;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border-top-color: #00b894;
     }
     
     .stat-number {
-        font-size: 4rem;
+        font-size: 2.8rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #f093fb, #4facfe);
-        background-size: 200% 200%;
-        animation: numberGradient 3s ease infinite;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-shadow: none;
-    }
-    
-    @keyframes numberGradient {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+        color: #0984e3;
     }
     
     .badge-level {
         display: inline-block;
-        padding: 0.6rem 2.2rem;
-        border-radius: 40px;
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea, #f093fb);
-        color: white;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        animation: pulse 3s infinite;
-        font-size: 1.2rem;
-        letter-spacing: 1px;
+        background: #dfe6e9;
+        color: #2d3436;
+        font-size: 1rem;
     }
     
     .footer-style {
         text-align: center;
-        padding: 3.5rem;
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(20px);
-        color: white;
-        border-radius: 35px;
+        padding: 2rem;
+        background: #ffffff;
+        color: #636e72;
+        border-radius: 12px;
         margin-top: 3rem;
-        box-shadow: 0 25px 60px rgba(0,0,0,0.2);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        animation: fadeIn 1s ease-out;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border: 1px solid #eee;
     }
     
     .drug-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(15px);
-        padding: 1.8rem;
-        border-radius: 22px;
-        border: 2px solid rgba(102, 126, 234, 0.08);
-        margin: 0.8rem 0;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        color: #fff;
-        position: relative;
-        animation: slideInLeft 0.5s ease-out;
+        background: #ffffff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid #eee;
+        margin: 0.5rem 0;
+        transition: all 0.3s ease;
+        color: #2d3436;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
     
     .drug-card:hover {
-        transform: translateY(-6px) scale(1.01);
-        border-color: #764ba2;
-        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.2);
-        background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .drug-card .drug-icon {
-        position: absolute;
-        top: 10px;
-        right: 15px;
-        font-size: 3rem;
-        opacity: 0.08;
-        animation: spin 20s linear infinite;
+        transform: translateY(-3px);
+        border-color: #00b894;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.07);
     }
     
     .symptom-tag {
         display: inline-block;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
-        backdrop-filter: blur(5px);
-        padding: 0.4rem 1.4rem;
-        border-radius: 30px;
-        margin: 0.25rem;
+        background: #e3f2fd;
+        padding: 0.3rem 1rem;
+        border-radius: 15px;
+        margin: 0.2rem;
         font-size: 0.85rem;
-        color: #c8d0ff;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(102, 126, 234, 0.15);
-        cursor: default;
+        color: #0984e3;
+        border: 1px solid #bbdefb;
     }
     
     .symptom-tag:hover {
-        background: rgba(102, 126, 234, 0.5);
+        background: #0984e3;
         color: white;
-        transform: scale(1.08);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
-    .risk-high { color: #ff6b6b; font-weight: bold; }
-    .risk-medium { color: #ffd93d; font-weight: bold; }
-    .risk-low { color: #6bcb77; font-weight: bold; }
+    .risk-high { color: #d63031; font-weight: bold; }
+    .risk-medium { color: #fdcb6e; font-weight: bold; }
+    .risk-low { color: #00b894; font-weight: bold; }
     
     .achievement-badge {
         display: inline-flex;
         align-items: center;
-        background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 179, 0, 0.08));
-        backdrop-filter: blur(10px);
-        padding: 0.6rem 2rem;
-        border-radius: 40px;
-        color: #ffd700;
+        background: #fff9c4;
+        padding: 0.5rem 1.2rem;
+        border-radius: 20px;
+        color: #f57f17;
         font-weight: bold;
-        box-shadow: 0 6px 25px rgba(255, 215, 0, 0.2);
         margin: 0.3rem;
-        border: 1px solid rgba(255, 215, 0, 0.15);
-        transition: all 0.3s ease;
-    }
-    
-    .achievement-badge:hover {
-        transform: scale(1.05);
-        box-shadow: 0 10px 35px rgba(255, 215, 0, 0.3);
+        border: 1px solid #fff59d;
+        box-shadow: 0 2px 5px rgba(245, 127, 23, 0.1);
     }
     
     .tab-container {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(20px);
-        padding: 2.8rem;
-        border-radius: 28px;
-        box-shadow: 0 10px 45px rgba(0,0,0,0.1);
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         margin: 1.5rem 0;
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        color: #fff;
-        animation: fadeIn 0.8s ease-out;
-    }
-    
-    .button-primary {
-        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
-        color: white;
-        border: none;
-        padding: 1.1rem 3rem;
-        border-radius: 20px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 1.1rem;
-        letter-spacing: 0.5px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .button-primary::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-        transform: rotate(45deg);
-        transition: all 0.6s ease;
-    }
-    
-    .button-primary:hover {
-        transform: scale(1.06);
-        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.5);
-    }
-    
-    .button-primary:hover::before {
-        transform: rotate(45deg) scale(1.5);
+        border: 1px solid #eee;
+        color: #2d3436;
     }
     
     .medication-card {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        padding: 1.5rem;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        margin: 0.8rem 0;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        color: #fff;
-        position: relative;
-        padding-left: 20px;
-    }
-    
-    .medication-card::before {
-        content: '💊';
-        position: absolute;
-        left: -5px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 2rem;
-        opacity: 0.15;
+        background: #f8f9fa;
+        padding: 1.2rem;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        margin: 0.5rem 0;
+        transition: all 0.3s ease;
+        color: #2d3436;
     }
     
     .medication-card:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: #667eea;
-        transform: translateX(10px);
+        background: #eef2f5;
+        border-color: #0984e3;
     }
     
     .level-badge {
         display: inline-block;
-        padding: 0.3rem 1.2rem;
-        border-radius: 20px;
+        padding: 0.2rem 0.8rem;
+        border-radius: 15px;
         font-weight: bold;
         font-size: 0.8rem;
         margin: 0.2rem;
-        transition: all 0.3s ease;
     }
     
-    .level-1 { background: rgba(40, 167, 69, 0.3); color: #6bcb77; border: 1px solid rgba(40, 167, 69, 0.2); }
-    .level-2 { background: rgba(23, 162, 184, 0.3); color: #5bc0de; border: 1px solid rgba(23, 162, 184, 0.2); }
-    .level-3 { background: rgba(255, 193, 7, 0.3); color: #ffd93d; border: 1px solid rgba(255, 193, 7, 0.2); }
-    .level-4 { background: rgba(255, 153, 0, 0.3); color: #ff9f1c; border: 1px solid rgba(255, 153, 0, 0.2); }
-    .level-5 { background: rgba(220, 53, 69, 0.3); color: #ff6b6b; border: 1px solid rgba(220, 53, 69, 0.2); }
+    .level-1 { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .level-2 { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .level-3 { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .level-4 { background: #ffe2cc; color: #8a4b08; border: 1px solid #ffd6b3; }
+    .level-5 { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     
     .lab-result-card {
-        background: rgba(0, 0, 0, 0.2);
-        padding: 1.2rem;
-        border-radius: 15px;
+        background: #ffffff;
+        padding: 1rem;
+        border-radius: 8px;
         margin: 0.5rem 0;
-        border-left: 4px solid #667eea;
-        transition: all 0.3s ease;
+        border-left: 4px solid #0984e3;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
     }
     
     .lab-result-card:hover {
-        background: rgba(0, 0, 0, 0.3);
-        transform: translateX(5px);
+        background: #f8f9fa;
     }
     
-    .lab-normal { border-left-color: #28a745; }
-    .lab-high { border-left-color: #dc3545; }
-    .lab-low { border-left-color: #ffc107; }
-    
-    .quiz-level-progress {
-        background: rgba(255, 255, 255, 0.04);
-        padding: 1rem 2rem;
-        border-radius: 18px;
-        margin: 0.5rem 0;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: all 0.3s ease;
-    }
-    
-    .quiz-level-progress:hover {
-        background: rgba(255, 255, 255, 0.08);
-        transform: scale(1.01);
-    }
+    .lab-normal { border-left-color: #00b894; }
+    .lab-high { border-left-color: #d63031; }
+    .lab-low { border-left-color: #fdcb6e; }
     
     .notification-toast {
         position: fixed;
         top: 20px;
         right: 20px;
-        background: linear-gradient(135deg, #28a745, #20c997);
+        background: #00b894;
         color: white;
-        padding: 1.2rem 2.5rem;
-        border-radius: 15px;
-        box-shadow: 0 10px 35px rgba(0,0,0,0.3);
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         z-index: 1000;
-        animation: slideInRight 0.5s ease;
-        font-weight: bold;
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    @keyframes slideInRight {
-        from { opacity: 0; transform: translateX(100px); }
-        to { opacity: 1; transform: translateX(0); }
     }
     
     .timeline-item {
-        padding: 1rem 1.8rem;
-        border-left: 4px solid #667eea;
-        margin: 0.8rem 0;
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 0 16px 16px 0;
-        transition: all 0.3s ease;
-        color: #ddd;
+        padding: 1rem 1.5rem;
+        border-left: 3px solid #0984e3;
+        margin: 0.5rem 0;
+        background: #ffffff;
+        border-radius: 0 8px 8px 0;
+        color: #2d3436;
     }
     
     .timeline-item:hover {
-        background: rgba(255, 255, 255, 0.08);
-        transform: translateX(8px);
+        background: #f8f9fa;
     }
     
-    .timeline-item .time {
-        font-size: 0.8rem;
-        color: #888;
-    }
-    
-    /* ئایکۆنی تایبەت بۆ Dr.Danyal */
     .dr-icon {
         font-size: 3.5rem;
-        animation: pulse 2s infinite, float 4s ease-in-out infinite;
-        display: inline-block;
-        filter: drop-shadow(0 0 30px rgba(102,126,234,0.4));
     }
     
-    /* ستایلی پەڕەی لۆگین */
     .login-container {
         display: flex;
         justify-content: center;
@@ -882,48 +637,39 @@ st.markdown("""
     }
     
     .login-box {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(30px);
+        background: #ffffff;
         padding: 3rem;
-        border-radius: 30px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        border-radius: 15px;
+        border: 1px solid #e2e8e0;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
         text-align: center;
         max-width: 450px;
         width: 100%;
-        animation: fadeIn 1s ease-out;
     }
     
     .login-input {
-        background: rgba(255, 255, 255, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 15px !important;
-        color: white !important;
+        background: #f8f9fa !important;
+        border: 1px solid #dfe6e9 !important;
+        border-radius: 8px !important;
+        color: #2d3436 !important;
         padding: 12px 20px !important;
         margin: 10px 0 !important;
         width: 100% !important;
-        font-size: 1rem !important;
     }
     
     @media (max-width: 768px) {
         .main-header {
-            font-size: 2.2rem;
-            padding: 1.2rem;
+            font-size: 2rem;
+            padding: 1.5rem;
         }
         .stat-number {
-            font-size: 2.8rem;
+            font-size: 2rem;
         }
         .stat-card {
             padding: 1rem;
         }
         .logo-text {
-            font-size: 1.5rem;
-        }
-        .logo-icon {
-            font-size: 2.5rem;
-        }
-        .dr-icon {
-            font-size: 2.5rem;
+            font-size: 1.8rem;
         }
     }
 </style>
@@ -1023,7 +769,6 @@ def get_level_icon(level: int) -> str:
 # 4. داتابەسی نەخۆشییەکان (١٠٠+ نەخۆشی)
 # ================================
 DISEASE_DATABASE = {
-    # 4.1 نەخۆشییەکانی کۆئەندامی هەرس (٢٠ نەخۆشی)
     "شەکرەی جۆری 1": {
         "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "برسێتی زۆر", "سەرگێژخواردن", "هەستی بەمەزە", "پێست وشک", "هەستی بێهێزی"],
         "پشکنینەکان": {"FBS": ">200 mg/dL", "HbA1c": ">8%", "C-peptide": "نزم", "Anti-GAD": "positive", "Insulin": "نزم"},
@@ -1562,7 +1307,6 @@ for test_dict in [blood_tests, biochem_tests, cardiac_tests, inflammation_tests,
 # 6. داتابەسی دەرمانەکان (١٢٠+ دەرمان) - بە وەسفی تەواو و تێبینی
 # ================================
 DRUG_DATABASE = {
-    # 6.1 دژە پەستانی خوێن (٢٠ دەرمان)
     "دژە پەستانی خوێن": {
         "کاپتۆپریل": {"ڕێژە": "25-50mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە, سەرگێژخواردن", "پێچەوانە": "حەملی دووگانی", "وەسف": "دەرمانی ACE inhibitor کە پەستانی خوێن کەم دەکاتەوە بە فراوانکردنی خوێنبەرەکان", "بۆچی": "بۆ کەمکردنەوەی پەستانی خوێن و پاراستنی گورچیلە لە نەخۆشانی شەکرە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "ئەملۆدیپین": {"ڕێژە": "5-10mg", "میکانیزم": "Calcium channel blocker", "کاریگەری لاوەکی": "ئاوسانی قاچ", "پێچەوانە": "هەستیاری", "وەسف": "بەربەستەری کالسیۆم کە خوێنبەرەکان فراوان دەکات", "بۆچی": "بۆ چارەسەری پەستانی خوێنی بەرز و ئازاری سنگ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1585,7 +1329,6 @@ DRUG_DATABASE = {
         "فۆزینۆپریل": {"ڕێژە": "10-40mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "وەسف": "ACE inhibitor بۆ خوێنبەرەکان", "بۆچی": "بۆ پەستانی خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "سپیرۆنۆلاکتۆن": {"ڕێژە": "25-50mg", "میکانیزم": "Aldosterone antagonist", "کاریگەری لاوەکی": "بەرزی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دژە ئەلدۆستێرۆن بۆ دەرکردنی ئاو و نمەک", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵی شکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.2 دژە شەکرە (١٥ دەرمان)
     "دژە شەکرە": {
         "مێتفۆرمین": {"ڕێژە": "500-2000mg", "میکانیزم": "Biguanide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دەرمانی هێڵی یەکەم بۆ شەکرەی جۆری ٢ - کەمکردنی بەرهەمهێنانی شەکر لە جگەر و زیادکردنی هەستی ئەنسولین", "بۆچی": "بۆ کۆنتڕۆڵکردنی شەکری خوێن لە نەخۆشانی شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "گلیپیزاید": {"ڕێژە": "5-20mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری", "وەسف": "دەرمانی سەلفۆنیل یوریا کە پەنکریاس هان دەدات بۆ بەرهەمهێنانی زیاتری ئەنسولین", "بۆچی": "بۆ کەمکردنەوەی شەکری خوێن لە شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1601,9 +1344,8 @@ DRUG_DATABASE = {
         "ئەنسولین Regular": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "وەسف": "ئەنسولینی ستاندارد بۆ کۆنتڕۆڵی شەکر", "بۆچی": "بۆ شەکرەی جۆری ١ و جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "گلیمێپیراید": {"ڕێژە": "1-4mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری", "وەسف": "سەلفۆنیل یوریا بۆ زیادی ئەنسولین", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "پایۆگلیتازۆن": {"ڕێژە": "15-45mg", "میکانیزم": "Thiazolidinedione", "کاریگەری لاوەکی": "ئاوسان", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "زیادکەری هەستی ئەنسولین لە شانەکاندا", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
-        "ئەکاربۆز": {"ڕێژە": "25-50mg", "میکانیزم": "Alpha-glucosidase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گەدە", "وەسف": "بەربەستەری هەرسکردنی کاربۆهیدرات بۆ کەمکردنەوەی شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+        "ئەکاربۆس": {"ڕێژە": "25-50mg", "میکانیزم": "Alpha-glucosidase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گەدە", "وەسف": "بەربەستەری هەرسکردنی کاربۆهیدرات بۆ کەمکردنەوەی شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.3 دژە کۆخە و هەوکردن (١٥ دەرمان)
     "دژە کۆخە و هەوکردن": {
         "ئەمۆکسیسیلین": {"ڕێژە": "500mg", "میکانیزم": "Beta-lactam", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری پێنیسیلین", "وەسف": "ئەنتیبایۆتیکی پێنیسیلین بۆ هەوکردنی بەکتریایی", "بۆچی": "بۆ هەوکردنی سییەکان، گەدە، میز", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "ئازیترۆمایسین": {"ڕێژە": "250-500mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "ئەنتیبایۆتیکی ماکرۆلید بۆ هەوکردنی هەناسە", "بۆچی": "بۆ هەوکردنی سییەکان و کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1621,7 +1363,6 @@ DRUG_DATABASE = {
         "ئایسۆنیازید": {"ڕێژە": "300mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "ئەنتیبایۆتیک بۆ سیل", "بۆچی": "بۆ چارەسەری سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "پیرازیناماید": {"ڕێژە": "1500mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "ئازاری جومگە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "ئەنتیبایۆتیک بۆ سیل", "بۆچی": "بۆ چارەسەری سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.4 دژە ئەنیمیا (١٠ دەرمان)
     "دژە ئەنیمیا": {
         "فێروس سولفەیت": {"ڕێژە": "300-600mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هیمۆکروماتۆسیس", "وەسف": "پڕکەری ئاسن بۆ چارەسەری ئەنیمیای کەمخوێنی ئاسن", "بۆچی": "بۆ زیادی ئاسن لە جەستە و چارەسەری ئەنیمیا", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "فۆلیک ئەسید": {"ڕێژە": "1mg", "میکانیزم": "Folate supplement", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "وەسف": "پڕکەری فۆلیک ئەسید بۆ ئەنیمیای ماکرۆسایتیک", "بۆچی": "بۆ زیادکردنی فۆلیک ئەسید و چارەسەری ئەنیمیا", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1634,7 +1375,6 @@ DRUG_DATABASE = {
         "دەیکسۆمیتازۆن": {"ڕێژە": "0.5-2mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن", "وەسف": "ستیرۆید بۆ هەوکردن و ئەنیمیا", "بۆچی": "بۆ چارەسەری ئەنیمیای هیمۆلایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "پرەدنیسۆلۆن": {"ڕێژە": "5-20mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن", "وەسف": "ستیرۆید بۆ هەوکردن و خۆئەگەری", "بۆچی": "بۆ ئەنیمیای هیمۆلایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.5 دژە کۆکە (١٠ دەرمان)
     "دژە کۆکە": {
         "سالبوتامۆل": {"ڕێژە": "2 puffs", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە بۆ کۆکە", "بۆچی": "بۆ چارەسەری کۆکە و COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "بۆدیزۆناید": {"ڕێژە": "200-800mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری", "وەسف": "ستیرۆیدی هەناسەدان بۆ کەمکردنەوەی هەوکردن", "بۆچی": "بۆ پێشگیری لە کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1647,7 +1387,6 @@ DRUG_DATABASE = {
         "تئۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە", "بۆچی": "بۆ کۆکە و COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "ئامینۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە", "بۆچی": "بۆ کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.6 دژە سکچوون (١٠ دەرمان)
     "دژە سکچوون": {
         "ئومەپرازۆل": {"ڕێژە": "20-40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "بەربەستەری پمپەی پرۆتۆن بۆ کەمکردنەوەی ترشێتی گەدە", "بۆچی": "بۆ چارەسەری سکچوون و برینداری گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "لانسۆپرازۆل": {"ڕێژە": "30mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "بەربەستەری پمپەی پرۆتۆن", "بۆچی": "بۆ سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1660,7 +1399,6 @@ DRUG_DATABASE = {
         "میزۆپرۆستۆل": {"ڕێژە": "100-200mcg", "میکانیزم": "Prostaglandin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل", "وەسف": "پرۆستاگلاندین بۆ پاراستنی گەدە", "بۆچی": "بۆ پێشگیری لە برینداری گەدە لە NSAIDs", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "پارێزەری گەدە", "بۆچی": "بۆ برینداری گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.7 دژە ئازار (١٠ دەرمان)
     "دژە ئازار": {
         "ئەسپیرین": {"ڕێژە": "75-300mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە ئازار و دژە تەمەن بۆ کەمکردنەوەی ئازار و تا", "بۆچی": "بۆ ئازاری کەم و ناوەند و پێشگیری لە خوێن مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "ئیبۆپروفین": {"ڕێژە": "200-400mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دژە ئازار و دژە هەوکردن", "بۆچی": "بۆ ئازاری ماسوولکە و سەرئێشە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1673,7 +1411,6 @@ DRUG_DATABASE = {
         "ناکسۆکسان": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "دژە ئازار", "بۆچی": "بۆ ئازاری ناوەند", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "فوێنتانیل": {"ڕێژە": "25mcg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە", "وەسف": "دژە ئازاری زۆر بەهێز", "بۆچی": "بۆ ئازاری شێرپەنجە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
     },
-    # 6.8 دژە خوێن (١٠ دەرمان)
     "دژە خوێن": {
         "وارفارین": {"ڕێژە": "5mg", "میکانیزم": "Vitamin K antagonist", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "حەمل", "وەسف": "دژە خوێن بۆ پێشگیری لە مەبەست", "بۆچی": "بۆ پێشگیری لە خوێن مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
         "هێپارین": {"ڕێژە": "5000 IU", "میکانیزم": "Anticoagulant", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە خوێنی خێرا بۆ نەخۆشخانە", "بۆچی": "بۆ پێشگیری لە مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
@@ -1694,7 +1431,6 @@ DRUG_DATABASE = {
 def generate_quizzes_by_level():
     quizzes = []
     
-    # پرس و وەڵامەکان بۆ ئاستی ١ (سەرەتایی)
     level1_questions = [
         {"پرسیار": "نیشانەی سەرەکی شەکرەی جۆری ٢ چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
         {"پرسیار": "پەستانی خوێنی نۆرماڵ چەندە؟", "هەڵبژاردەکان": ["120/80", "140/90", "160/100", "180/110"], "وەڵامی ڕاست": 0},
@@ -1718,7 +1454,6 @@ def generate_quizzes_by_level():
         {"پرسیار": "کام دەرمانە بۆ هەوکردن؟", "هەڵبژاردەکان": ["ئەمۆکسیسیلین", "مێتفۆرمین", "کاپتۆپریل", "ئەسپیرین"], "وەڵامی ڕاست": 0}
     ]
     
-    # پرس و وەڵامەکان بۆ ئاستی ٢ (مامناوەند)
     level2_questions = [
         {"پرسیار": "HbA1c > 6.5% ئاماژەیە بۆ چی؟", "هەڵبژاردەکان": ["شەکرە", "ئەنیمیا", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
         {"پرسیار": "BP > 140/90 نیشانەی چییە؟", "هەڵبژاردەکان": ["پەستانی خوێن", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
@@ -1742,7 +1477,6 @@ def generate_quizzes_by_level():
         {"پرسیار": "کام پشکنینە بۆ نەخۆشی جگەر؟", "هەڵبژاردەکان": ["ALT", "Troponin", "CBC", "ESR"], "وەڵامی ڕاست": 0}
     ]
     
-    # پرس و وەڵامەکان بۆ ئاستی ٣ (پێشکەوتوو)
     level3_questions = [
         {"پرسیار": "ST depression + Troponin elevated نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
         {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
@@ -1766,7 +1500,6 @@ def generate_quizzes_by_level():
         {"پرسیار": "H. pylori positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "هەوکردنی گەدە", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0}
     ]
     
-    # پرس و وەڵامەکان بۆ ئاستی ٤ (شارەزا)
     level4_questions = [
         {"پرسیار": "CA19-9 بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پەنکریاس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
         {"پرسیار": "PSA بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پڕۆستات", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
@@ -1790,7 +1523,6 @@ def generate_quizzes_by_level():
         {"پرسیار": "Water deprivation test positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی میزی شەکر", "شەکرە", "نەخۆشی گورچیلە", "هەوکردن"], "وەڵامی ڕاست": 0}
     ]
     
-    # پرس و وەڵامەکان بۆ ئاستی ٥ (پزیشک)
     level5_questions = [
         {"پرسیار": "CAG تەنگی کرۆنەری نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
         {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
@@ -1822,7 +1554,6 @@ def generate_quizzes_by_level():
         5: level5_questions
     }
     
-    # دروستکردنی کویزەکان بۆ هەر ئاستێک
     for level, questions in level_questions.items():
         for i in range(LEVELS[level]["quizzes"]):
             q = random.choice(questions)
@@ -2097,8 +1828,8 @@ if not st.session_state.logged_in:
     
     st.markdown("""
         <span class="dr-icon">🩺</span>
-        <h2 style="color:white;margin-bottom:20px;">Dr.Danyal</h2>
-        <p style="color:rgba(255,255,255,0.6);">تکایە بچۆ ژوورەوە یان هەژمارێکی نوێ دروست بکە</p>
+        <h2 style="color:#0984e3;margin-bottom:20px;">Dr.Danyal</h2>
+        <p style="color:#636e72;">تکایە بچۆ ژوورەوە یان هەژمارێکی نوێ دروست بکە</p>
     """, unsafe_allow_html=True)
     
     tab1, tab2 = st.tabs(["چوونە ژوورەوە", "دروستکردنی هەژمار"])
@@ -2151,10 +1882,10 @@ with st.sidebar:
     st.markdown(f"""
     <div style="text-align:center;padding:10px 0;">
         <span class="dr-icon">🩺</span>
-        <div style="font-size:2rem;font-weight:bold;background:linear-gradient(135deg,#4facfe,#43e97b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        <div style="font-size:2rem;font-weight:bold;color:#0984e3;">
             Dr.Danyal
         </div>
-        <div style="color:rgba(255,255,255,0.5);font-size:0.8rem;margin-top:-5px;">🎓 ڕاهێنەری پزیشکی Pro Max</div>
+        <div style="color:#636e72;font-size:0.8rem;margin-top:-5px;">🎓 ڕاهێنەری پزیشکی Pro Max</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2435,377 +2166,4 @@ elif page == "🔬 تاقیگە (٢٠٠)":
                 <p><strong>دۆخ:</strong> <span style="color:{result['color']}">{result['status']}</span></p>
                 <p><strong>تەفسیر:</strong> {result['interpretation']}</p>
                 <p style="color:#aaa;font-size:0.8rem;"><strong>ئامێر:</strong> {all_lab_tests[test_to_analyze].get('ئامێر', 'نەزانراو')}</p>
-                <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {note}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("### ➕ پشکنینێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
-    with st.form("add_lab_test_form", clear_on_submit=True):
-        col_new_lab1, col_new_lab2 = st.columns(2)
-        with col_new_lab1:
-            new_lab_name = st.text_input("ناوی پشکنین:")
-            new_lab_group = st.selectbox("گروپ:", ["گشتی", "خوێن", "بایۆکیمیایی", "دڵ", "هەوکردن", "هۆرمۆن", "میز", "ڤیتامین", "معدن"])
-            new_lab_low = st.number_input("نزمترین ڕێژەی نۆرماڵ:", value=0.0)
-            new_lab_high = st.number_input("بەرزترین ڕێژەی نۆرماڵ:", value=10.0)
-        with col_new_lab2:
-            new_lab_unit = st.text_input("یەکە:", placeholder="mg/dL")
-            new_lab_machine = st.text_input("ئامێر:", placeholder="ئامێری پێوانەکردن")
-            new_lab_desc = st.text_area("تەفسیر:", placeholder="ڕوونکردنەوەی ئەم پشکنینە...")
-            new_lab_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
-            
-        submitted = st.form_submit_button("✅ پشکنینەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
-        if submitted and new_lab_name:
-            st.session_state.custom_lab_tests[new_lab_name] = {
-                "گروپ": new_lab_group,
-                "نۆرماڵ": (new_lab_low, new_lab_high),
-                "یەکە": new_lab_unit,
-                "تەفسیر": new_lab_desc,
-                "ئامێر": new_lab_machine,
-                "تێبینی": new_lab_note
-            }
-            auto_save()
-            st.success(f"پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
-            st.rerun()
-
-# ================================
-# 16. پەڕەی شیکاری کەیس
-# ================================
-elif page == "🩺 شیکاری کەیس":
-    st.markdown("""
-    <div class="main">
-        <h2>🩺 شیکاری کەیسی پزیشکی</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🔄 کەیسی نوێ", type="primary"):
-        random_case = training_data.sample(1).iloc[0]
-        st.session_state.current_case = random_case
-        st.session_state.diagnosis_submitted = False
-        st.rerun()
-    
-    if st.session_state.current_case is not None:
-        case = st.session_state.current_case
-        st.markdown(f"""
-        <div class="case-card">
-            <h3>📋 کەیسی {case.get('case_id', 'N/A')}</h3>
-            <p><strong>تەمەن:</strong> {case.get('تەمەن', 'N/A')} ساڵ ({get_age_group(case.get('تەمەن', 40))})</p>
-            <p><strong>ڕەگەز:</strong> {case.get('ڕەگەز', 'N/A')}</p>
-            <p><strong>نیشانەکان:</strong> {', '.join(case.get('نیشانە سەرەکییەکان', []))}</p>
-            <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(case.get('ئاستی مەترسی', 'کەم'))}">{case.get('ئاستی مەترسی', 'نەزانراو')}</span></p>
-            <p><strong>نمرەی مەترسی:</strong> {case.get('نمرەی مەترسی', 0)}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        user_diagnosis = st.selectbox("دەستنیشانکردن:", list(DISEASE_DATABASE.keys()))
-        
-        if st.button("✅ پشتڕاستکردنەوە", type="primary"):
-            correct = case.get('دەستنیشانکردن', '')
-            st.session_state.total_cases_solved += 1
-            st.session_state.study_time += 3
-            
-            if user_diagnosis == correct:
-                st.session_state.correct_diagnoses += 1
-                st.markdown(f'<div class="success-box"><h3>🎉 ڕاستە!</h3><p>{correct}</p></div>', unsafe_allow_html=True)
-                st.balloons()
-                if st.session_state.correct_diagnoses >= 5:
-                    if "دەستنیشانکەری شارەزا" not in st.session_state.achievements:
-                        st.session_state.achievements.append("دەستنیشانکەری شارەزا")
-            else:
-                st.markdown(f'<div class="error-box"><h3>❌ هەڵەیە</h3><p>ڕاست: {correct}</p></div>', unsafe_allow_html=True)
-                disease_info = DISEASE_DATABASE.get(correct, {})
-                if disease_info:
-                    st.info(f"**🔑 خاڵی جیاکەرەوە:** {disease_info.get('تایبەتمەندی', 'نییە')}")
-                    st.info(f"**🩺 نیشانە سەرەکییەکان:** {', '.join(disease_info.get('نیشانەکان', [])[:4])}")
-
-# ================================
-# 17. پەڕەی فارماکۆلۆجی - بە وەسفی تەواو و تێبینی
-# ================================
-elif page == "💊 فارماکۆلۆجی":
-    st.markdown("""
-    <div class="main">
-        <h2>💊 فارماکۆلۆجی و دەرمانناسی - Dr.Danyal</h2>
-        <p style="color:#aaa;">120+ دەرمان لەگەڵ وەسف و شوێنی تێبینی تایبەتی خۆت</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    search_drug = st.text_input("🔍 گەڕان:", placeholder="ناوی دەرمان...")
-    
-    for category, drugs in DRUG_DATABASE.items():
-        if search_drug:
-            filtered = {k: v for k, v in drugs.items() if search_drug.lower() in k.lower() or search_drug.lower() in category.lower()}
-            if not filtered:
-                continue
-            drugs = filtered
-        
-        with st.expander(f"📂 {category} ({len(drugs)} دەرمان)"):
-            cols = st.columns(2)
-            idx = 0
-            for drug, info in drugs.items():
-                with cols[idx % 2]:
-                    note = info.get("تێبینی", "تێبینی تایبەتی خۆت لێرە بنووسە...")
-                    st.markdown(f"""
-                    <div class="drug-card">
-                        <div class="drug-icon">💊</div>
-                        <h4>{drug}</h4>
-                        <p><strong>ڕێژە:</strong> {info.get('ڕێژە', 'نەزانراو')}</p>
-                        <p><strong>میکانیزم:</strong> {info.get('میکانیزم', 'نەزانراو')}</p>
-                        <p><strong>وەسف:</strong> {info.get('وەسف', 'نییە')}</p>
-                        <p><strong>بۆچی بەکاردێت:</strong> {info.get('بۆچی', 'نییە')}</p>
-                        <p><strong>کاریگەری لاوەکی:</strong> {info.get('کاریگەری لاوەکی', 'نەزانراو')}</p>
-                        <p><strong>پێچەوانە:</strong> {info.get('پێچەوانە', 'نەزانراو')}</p>
-                        <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {note}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                idx += 1
-
-    if st.session_state.custom_drugs:
-        with st.expander(f"📂 دەرمانە تایبەتییەکانی خۆت ({len(st.session_state.custom_drugs)} دەرمان)"):
-            cols = st.columns(2)
-            idx = 0
-            for drug, info in st.session_state.custom_drugs.items():
-                with cols[idx % 2]:
-                    st.markdown(f"""
-                    <div class="drug-card">
-                        <div class="drug-icon">💊</div>
-                        <h4>{drug}</h4>
-                        <p><strong>ڕێژە:</strong> {info.get('ڕێژە', '')}</p>
-                        <p><strong>میکانیزم:</strong> {info.get('میکانیزم', '')}</p>
-                        <p><strong>وەسف:</strong> {info.get('وەسف', '')}</p>
-                        <p><strong>بۆچی بەکاردێت:</strong> {info.get('بۆچی', '')}</p>
-                        <p><strong>کاریگەری لاوەکی:</strong> {info.get('کاریگەری لاوەکی', '')}</p>
-                        <p><strong>پێچەوانە:</strong> {info.get('پێچەوانە', '')}</p>
-                        <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {info.get('تێبینی', '')}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                idx += 1
-
-    st.markdown("---")
-    st.markdown("### ➕ دەرمانێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
-    with st.form("add_drug_form", clear_on_submit=True):
-        col_new_drug1, col_new_drug2 = st.columns(2)
-        with col_new_drug1:
-            new_drug_name = st.text_input("ناوی دەرمان:")
-            new_drug_dose = st.text_input("ڕێژە:", placeholder="500mg")
-            new_drug_mech = st.text_input("میکانیزم:", placeholder="چۆن کار دەکات")
-            new_drug_effect = st.text_input("کاریگەری لاوەکی:", placeholder="سەرگێژخواردن")
-        with col_new_drug2:
-            new_drug_contra = st.text_input("پێچەوانە:", placeholder="نەخۆشی گورچیلە")
-            new_drug_desc = st.text_area("وەسف:", placeholder="ڕوونکردنەوەی دەرمانەکە...")
-            new_drug_why = st.text_area("بۆچی:", placeholder="بۆ چارەسەری چی بەکاردێت...")
-            new_drug_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
-            
-        submitted = st.form_submit_button("✅ دەرمانەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
-        if submitted and new_drug_name:
-            st.session_state.custom_drugs[new_drug_name] = {
-                "ڕێژە": new_drug_dose,
-                "میکانیزم": new_drug_mech,
-                "کاریگەری لاوەکی": new_drug_effect,
-                "پێچەوانە": new_drug_contra,
-                "وەسف": new_drug_desc,
-                "بۆچی": new_drug_why,
-                "تێبینی": new_drug_note
-            }
-            auto_save()
-            st.success(f"دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
-            st.rerun()
-
-# ================================
-# 18. پەڕەی AI یاریدەدەر
-# ================================
-elif page == "🧠 AI یاریدەدەر":
-    st.markdown("""
-    <div class="main">
-        <h2>🧠 یاریدەدەری هۆشمەند - Dr.Danyal</h2>
-        <p style="color:#aaa;">شیکاری نیشانەکان بە یارمەتی AI</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    symptoms_input = st.text_area("🩺 نیشانەکان بنووسە:", placeholder="وەک: سەرئێشە, تا, کۆخە, ...", height=120)
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        age_ai = st.number_input("تەمەن:", 1, 120, 40)
-        gender_ai = st.selectbox("ڕەگەز:", ["نێر", "مێ"])
-    
-    with col2:
-        if st.button("🔍 شیکاری AI بکە", type="primary"):
-            if symptoms_input.strip():
-                symptoms_list = [s.strip() for s in symptoms_input.split(',') if s.strip()]
-                if symptoms_list:
-                    results = []
-                    for disease, info in DISEASE_DATABASE.items():
-                        match = len(set(symptoms_list).intersection(set(info['نیشانەکان'])))
-                        if match > 0:
-                            pct = (match / len(info['نیشانەکان'])) * 100
-                            risk_score = calculate_risk_score(disease, age_ai, gender_ai, symptoms_list)
-                            results.append({
-                                'disease': disease,
-                                'pct': round(pct, 1),
-                                'risk': info['ئاستی مەترسی'],
-                                'risk_score': risk_score,
-                                'symptoms': list(set(symptoms_list).intersection(set(info['نیشانەکان']))),
-                                'treatment': info['چارەسەر'][:2]
-                            })
-                    results.sort(key=lambda x: x['pct'], reverse=True)
-                    
-                    if results:
-                        st.markdown("### 📊 ئەنجامی شیکاری")
-                        for r in results[:5]:
-                            st.markdown(f"""
-                            <div class="case-card">
-                                <h4>{r['disease']}</h4>
-                                <p><strong>ڕێژەی گونجاندن:</strong> {r['pct']}%</p>
-                                <p><strong>نیشانە هاوبەشەکان:</strong> {', '.join(r['symptoms'])}</p>
-                                <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(r['risk'])}">{r['risk']}</span></p>
-                                <p><strong>نمرەی مەترسی:</strong> {r['risk_score']}%</p>
-                                <p><strong>چارەسەر:</strong> {', '.join(r['treatment'])}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.warning("هیچ نەخۆشییەک نەدۆزرایەوە کە نیشانەکانت بگونجێت.")
-                else:
-                    st.error("تکایە نیشانەکان بنووسە.")
-            else:
-                st.error("تکایە نیشانەکان بنووسە.")
-
-# ================================
-# 19. پەڕەی پێشکەوتن و دەستکەوتەکان
-# ================================
-elif page == "🏆 دەستکەوتەکان" or page == "📊 پێشکەوتن":
-    st.markdown("""
-    <div class="main">
-        <h2>📊 پێشکەوتن و دەستکەوتەکان - Dr.Danyal</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("### 🎯 ئاستەکان")
-    cols = st.columns(5)
-    for i in range(1, 6):
-        with cols[i-1]:
-            info = get_level_info(i)
-            done = st.session_state.get(f'level_{i}_done', 0)
-            total = info['quizzes']
-            pct = (done / total) * 100 if total > 0 else 0
-            is_current = i == get_user_level(st.session_state.quiz_score)
-            st.markdown(f"""
-            <div class="stat-card" style="border-top-color: {info['color']}; {'transform: scale(1.05); box-shadow: 0 10px 30px rgba(102,126,234,0.3);' if is_current else ''}">
-                <h4>{get_level_icon(i)} ئاست {i}</h4>
-                <p style="font-size:0.9rem;">{info['name']}</p>
-                <p>{done}/{total}</p>
-                <div class="progress-container">
-                    <div class="progress-fill" style="width:{pct}%;background:{info['color']};"></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("### 🏆 دەستکەوتەکان")
-    
-    all_achievements = [
-        {"icon": "⭐", "name": "دەستنیشانکەری شارەزا", "condition": st.session_state.correct_diagnoses >= 5},
-        {"icon": "📚", "name": "ڕاهێنەری پزیشکی", "condition": st.session_state.total_cases_solved >= 20},
-        {"icon": "📝", "name": "شارەزای کویز", "condition": st.session_state.quiz_score >= 30},
-        {"icon": "🎓", "name": "پزیشکی گشتی", "condition": st.session_state.quiz_score >= 50},
-        {"icon": "👨‍⚕️", "name": "پزیشکی لێهاتوو", "condition": st.session_state.quiz_score >= 80},
-        {"icon": "🔥", "name": "بەردەوامی ٧ ڕۆژ", "condition": st.session_state.streak_days >= 7},
-        {"icon": "💪", "name": "بەردەوامی ٣٠ ڕۆژ", "condition": st.session_state.streak_days >= 30},
-        {"icon": "🔬", "name": "شارەزای تاقیگە", "condition": len(st.session_state.lab_history) >= 50},
-        {"icon": "💊", "name": "فارماکۆلۆجیست", "condition": len(st.session_state.favorite_diseases) >= 10}
-    ]
-    
-    for ach in all_achievements:
-        if ach["condition"] and ach["name"] not in st.session_state.achievements:
-            st.session_state.achievements.append(ach["name"])
-    
-    if st.session_state.achievements:
-        cols = st.columns(3)
-        for i, ach in enumerate(st.session_state.achievements):
-            with cols[i % 3]:
-                st.markdown(f"""
-                <div class="achievement-badge">
-                    {ach} ✅
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.info("💪 بەردەوام بە! دەستکەوتەکان لە ڕێگادان...")
-    
-    st.markdown("---")
-    st.markdown("### 📊 ئاماری گشتی")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("📝 کویز", f"{st.session_state.quiz_score}/100")
-    with col2:
-        st.metric("🩺 کەیس", st.session_state.total_cases_solved)
-    with col3:
-        accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
-        st.metric("🎯 دەقی", f"{accuracy}%")
-    with col4:
-        st.metric("🔥 بەردەوامی", f"{st.session_state.streak_days} ڕۆژ")
-
-# ================================
-# 20. پەڕەی نەخۆشییەکان
-# ================================
-elif page == "📚 نەخۆشییەکان":
-    st.markdown(f"""
-    <div class="main">
-        <h2>📚 کتێبخانەی نەخۆشییەکان - Dr.Danyal</h2>
-        <p style="color:#aaa;">{get_disease_count()} نەخۆشی لەگەڵ پشکنین و چارەسەر</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    search = st.text_input("🔍 گەڕان:", placeholder="ناوی نەخۆشی...")
-    filter_risk = st.selectbox("فلتر:", ["هەموو", "زۆر مەترسیدار", "مەترسیدار", "مامناوەند", "کەم"])
-    filter_age = st.selectbox("گروپی تەمەن:", ["هەموو", "منداڵان", "گەنجان", "تەمەن مامناوەند", "پیران"])
-    
-    filtered = {k: v for k, v in DISEASE_DATABASE.items() if (not search or search in k)}
-    if filter_risk != "هەموو":
-        filtered = {k: v for k, v in filtered.items() if v.get('ئاستی مەترسی', '') == filter_risk}
-    if filter_age != "هەموو":
-        filtered = {k: v for k, v in filtered.items() if filter_age in v.get('گروپی تەمەن', '')}
-    
-    st.markdown(f"**📊 ژمارە:** {len(filtered)} نەخۆشی")
-    
-    cols = st.columns(2)
-    idx = 0
-    for disease, info in filtered.items():
-        with cols[idx % 2]:
-            with st.expander(f"🩺 {disease}"):
-                st.markdown(f"**⚠️ ئاستی مەترسی:** <span style='color:{get_risk_color(info.get('ئاستی مەترسی', 'کەم'))}'>{info.get('ئاستی مەترسی', 'نەزانراو')}</span>", unsafe_allow_html=True)
-                st.markdown(f"**👤 گروپی تەمەن:** {info.get('گروپی تەمەن', 'هەموو')}")
-                st.markdown(f"**📊 ڕێژەی تووشبوون:** {info.get('ڕێژەی تووشبوون', 'نەزانراو')}")
-                st.markdown(f"**🏥 جۆری نەخۆشی:** {info.get('جۆری نەخۆشی', 'نەزانراو')}")
-                
-                st.markdown("**🔍 نیشانەکان:**")
-                for s in info.get('نیشانەکان', [])[:6]:
-                    st.markdown(f"- {s}")
-                
-                st.markdown("**🧪 پشکنینەکان (لەگەڵ نۆرماڵ):**")
-                for test, value in list(info.get('پشکنینەکان', {}).items())[:4]:
-                    st.markdown(f"- {test}: {value}")
-                
-                st.markdown("**💊 چارەسەر:**")
-                for t in info.get('چارەسەر', [])[:4]:
-                    st.markdown(f"- {t}")
-                
-                st.info(f"**🔑 تایبەتمەندی:** {info.get('تایبەتمەندی', 'نییە')}")
-                
-                if info.get('ڕێپیشگیری'):
-                    st.markdown("**🛡️ ڕێپیشگیری:**")
-                    for p in info['ڕێپیشگیری'][:3]:
-                        st.markdown(f"- {p}")
-        idx += 1
-
-# ================================
-# 21. فووەتەر
-# ================================
-st.markdown("---")
-st.markdown(f"""
-<div class="footer-style">
-    <h3>🩺 Dr.Danyal - ڕاهێنەری پزیشکی Pro Max v5.0</h3>
-    <p>{get_disease_count()} نەخۆشی | {get_drug_count() + len(st.session_state.custom_drugs)} دەرمان | {get_quiz_count()} کویز | {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)} پشکنین</p>
-    <p style="font-size:0.8rem;opacity:0.8;">© 2024 Dr.Danyal | بەکارهێنەر: {st.session_state.username} | داتاکانت بۆ هەمیشە خەزن دەکرێن</p>
-    <p style="font-size:0.7rem;opacity:0.5;">پشکنین و دەرمانە زیادکراوەکانت بە پارێزراوی لە فایلی JSON دا هەڵدەگیرێن</p>
-</div>
-""", unsafe_allow_html=True)
+                <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.
