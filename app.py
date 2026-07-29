@@ -2,7 +2,7 @@
 # MEDICAL TRAINING PLATFORM v12.0
 # Dr.Danyal - Complete Edition
 # 200 Medications | 200 Tests | 100 Quizzes | 100 News Items
-# Full Multilingual Support (EN/KU/AR)
+# Full Multilingual Support (EN/KU/AR) with RTL Sidebar Fix
 # ================================
 
 import streamlit as st
@@ -480,55 +480,41 @@ def verify_password(password: str, stored_hash: str, salt: str) -> bool:
     computed_hash, _ = hash_password_secure(password, salt)
     return computed_hash == stored_hash
 
-# ================================
-# RATE LIMITING
-# ================================
 def check_login_rate_limit(username: str) -> Tuple[bool, str]:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT locked_until FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
-    
     if user and user['locked_until']:
         locked_until = datetime.fromisoformat(user['locked_until'])
         if locked_until > datetime.now():
             remaining = (locked_until - datetime.now()).seconds // 60
             return False, f"Account locked. Try again in {remaining} minutes."
-    
     cutoff_time = datetime.now() - timedelta(minutes=LOGIN_TIMEOUT_MINUTES)
     cursor.execute("SELECT COUNT(*) as attempts FROM login_attempts WHERE username = ? AND attempt_time > ? AND success = FALSE", (username, cutoff_time))
     result = cursor.fetchone()
     recent_attempts = result['attempts'] if result else 0
-    
     if recent_attempts >= MAX_LOGIN_ATTEMPTS:
         cursor.execute("UPDATE users SET locked_until = ? WHERE username = ?", ((datetime.now() + timedelta(minutes=LOGIN_TIMEOUT_MINUTES)).isoformat(), username))
         conn.commit()
         return False, f"Too many attempts. Account locked for {LOGIN_TIMEOUT_MINUTES} minutes."
-    
     return True, ""
 
 def record_login_attempt(username: str, success: bool):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO login_attempts (username, success) VALUES (?, ?)", (username, success))
-    if success:
-        cursor.execute("UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?", (username,))
-    else:
-        cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE username = ?", (username,))
+    if success: cursor.execute("UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?", (username,))
+    else: cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE username = ?", (username,))
     conn.commit()
 
-# ================================
-# USER MANAGEMENT
-# ================================
 def create_user(username: str, password: str) -> Tuple[bool, str]:
     if len(username) < 3: return False, "Username must be at least 3 characters"
     if len(password) < 6: return False, "Password must be at least 6 characters"
-    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone(): return False, "Username already exists"
-    
     password_hash, salt = hash_password_secure(password)
     cursor.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, password_hash, salt))
     cursor.execute("INSERT INTO leaderboard (username, xp_points) VALUES (?, 0)", (username,))
@@ -538,16 +524,13 @@ def create_user(username: str, password: str) -> Tuple[bool, str]:
 def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict]]:
     can_attempt, message = check_login_rate_limit(username)
     if not can_attempt: return False, message, None
-    
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
-    
     if not user:
         record_login_attempt(username, False)
         return False, "Invalid username or password", None
-    
     if verify_password(password, user['password_hash'], user['salt']):
         record_login_attempt(username, True)
         cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now().isoformat(), user['id']))
@@ -563,18 +546,14 @@ def update_user_streak(username: str) -> int:
     cursor.execute("SELECT daily_streak, last_active_date FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     if not user: return 0
-    
     today = datetime.now().date()
     last_active = datetime.fromisoformat(user['last_active_date']).date() if user['last_active_date'] else None
-    
     if last_active:
         yesterday = today - timedelta(days=1)
         if last_active == yesterday: new_streak = user['daily_streak'] + 1
         elif last_active == today: new_streak = user['daily_streak']
         else: new_streak = 1
-    else:
-        new_streak = 1
-    
+    else: new_streak = 1
     cursor.execute("UPDATE users SET daily_streak = ?, last_active_date = ? WHERE username = ?", (new_streak, today.isoformat(), username))
     conn.commit()
     return new_streak
@@ -604,8 +583,7 @@ def get_level_name(level: int, lang: str = 'en') -> str:
 
 def get_user_level(xp_points: int) -> int:
     for level in range(7, 0, -1):
-        if xp_points >= LEVELS[level]["min_xp"]:
-            return level
+        if xp_points >= LEVELS[level]["min_xp"]: return level
     return 1
 
 def get_level_progress(xp_points: int) -> float:
@@ -620,7 +598,6 @@ def get_level_progress(xp_points: int) -> float:
 # ================================
 LAB_TESTS = {}
 
-# Hematology (40 tests)
 hematology = {
     "Hemoglobin": "Oxygen-carrying capacity|12-16 g/dL",
     "WBC Count": "Infection/inflammation marker|4,000-11,000/µL",
@@ -663,13 +640,10 @@ hematology = {
     "Heinz Body Preparation": "Oxidative damage|Negative",
     "Hemoglobin A2": "Beta-thalassemia marker|2.2-3.5%",
 }
-
 for name, info in hematology.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Hematology", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Hematology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Biochemistry (50 tests)
 biochemistry = {
     "Fasting Glucose": "Diabetes screening|70-100 mg/dL",
     "HbA1c": "3-month glucose average|4.0-5.6%",
@@ -722,13 +696,10 @@ biochemistry = {
     "Prealbumin": "Nutritional status|15-35 mg/dL",
     "Beta-2 Microglobulin": "Tumor marker|1-2 mg/L",
 }
-
 for name, info in biochemistry.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Biochemistry", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Biochemistry", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Cardiac Markers (15 tests)
 cardiac = {
     "Troponin I": "Myocardial injury|<0.04 ng/mL",
     "Troponin T": "High-sensitivity cardiac|<0.014 ng/mL",
@@ -746,13 +717,10 @@ cardiac = {
     "Galectin-3": "Cardiac fibrosis|<22 ng/mL",
     "Copeptin": "Stress response|<14 pmol/L",
 }
-
 for name, info in cardiac.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Cardiac", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Cardiac", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Hormones (30 tests)
 hormones = {
     "TSH": "Thyroid function|0.4-4.0 mIU/L",
     "Free T4": "Thyroid hormone|0.8-1.8 ng/dL",
@@ -785,13 +753,10 @@ hormones = {
     "Renin": "Blood pressure regulation|0.5-4.0 ng/mL/hr",
     "Catecholamines": "Stress hormones|Epinephrine <50 pg/mL",
 }
-
 for name, info in hormones.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Endocrine", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Endocrine", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Urinalysis (20 tests)
 urinalysis = {
     "Urine pH": "Acid-base balance|4.5-8.0",
     "Urine Specific Gravity": "Concentration|1.005-1.030",
@@ -814,13 +779,10 @@ urinalysis = {
     "Urine Oxalate": "Kidney stone risk|<45 mg/24h",
     "Urine Citrate": "Stone inhibitor|>320 mg/24h",
 }
-
 for name, info in urinalysis.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Urinalysis", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Urinalysis", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Immunology/Serology (25 tests)
 immunology = {
     "CRP": "Acute inflammation|<5 mg/L",
     "Rheumatoid Factor": "RA marker|<14 IU/mL",
@@ -848,13 +810,10 @@ immunology = {
     "TNF-alpha": "Inflammatory cytokine|<8 pg/mL",
     "Beta-2 Glycoprotein I": "Antiphospholipid syndrome|<20 U/mL",
 }
-
 for name, info in immunology.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Immunology", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Immunology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Tumor Markers (10 tests)
 tumor_markers = {
     "CEA": "Colorectal cancer|<5 ng/mL",
     "CA 19-9": "Pancreatic cancer|<37 U/mL",
@@ -867,13 +826,10 @@ tumor_markers = {
     "Calcitonin Tumor": "Medullary thyroid cancer|<10 pg/mL",
     "NSE": "Neuroendocrine tumors|<15 ng/mL",
 }
-
 for name, info in tumor_markers.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Tumor Markers", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Tumor Markers", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
-# Microbiology (10 tests)
 microbiology = {
     "Blood Culture": "Bacteremia detection|No growth",
     "Urine Culture": "UTI diagnosis|<100,000 CFU/mL",
@@ -886,29 +842,19 @@ microbiology = {
     "AFB Stain": "Tuberculosis screening|Negative",
     "Fungal Culture": "Fungal infection|No growth",
 }
-
 for name, info in microbiology.items():
     desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Microbiology", "normal": normal.strip(), "description_en": desc.strip(),
-                       "description_ku": desc.strip(), "description_ar": desc.strip()}
+    LAB_TESTS[name] = {"category": "Microbiology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
 
 # ================================
 # 200 DRUG DATABASE
 # ================================
 DRUG_DATABASE = {
-    "Cardiovascular": {},
-    "Endocrinology": {},
-    "Antibiotics": {},
-    "Neurology & Psychiatry": {},
-    "Gastroenterology": {},
-    "Respiratory": {},
-    "Analgesics & Anesthetics": {},
-    "Oncology": {},
-    "Dermatology": {},
-    "Ophthalmology": {},
+    "Cardiovascular": {}, "Endocrinology": {}, "Antibiotics": {},
+    "Neurology & Psychiatry": {}, "Gastroenterology": {}, "Respiratory": {},
+    "Analgesics & Anesthetics": {}, "Oncology": {}, "Dermatology": {}, "Ophthalmology": {},
 }
 
-# Cardiovascular (30 drugs)
 cv_drugs = {
     "Lisinopril": "ACE Inhibitor|10-40mg daily|Hypertension, HF|Cough, angioedema",
     "Enalapril": "ACE Inhibitor|5-40mg daily|Hypertension, HF|Cough, hyperkalemia",
@@ -941,16 +887,10 @@ cv_drugs = {
     "Rivaroxaban": "DOAC|10-20mg daily|DVT, PE, AF|Bleeding",
     "Apixaban": "DOAC|2.5-5mg BID|AF, DVT prevention|Bleeding",
 }
-
 for name, info in cv_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Cardiovascular"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Cardiovascular"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Endocrinology (25 drugs)
 endo_drugs = {
     "Metformin": "Biguanide|500-2000mg daily|Type 2 DM|GI upset, lactic acidosis",
     "Glipizide": "Sulfonylurea|5-20mg daily|Type 2 DM|Hypoglycemia, weight gain",
@@ -978,16 +918,10 @@ endo_drugs = {
     "Octreotide": "Somatostatin Analog|50-200mcg TID|Acromegaly|Gallstones",
     "Bromocriptine": "Dopamine Agonist|2.5-15mg daily|Hyperprolactinemia|Nausea, orthostasis",
 }
-
 for name, info in endo_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Endocrinology"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Endocrinology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Antibiotics (30 drugs)
 abx_drugs = {
     "Amoxicillin": "Penicillin|500-875mg BID|Respiratory, UTI|Diarrhea, rash",
     "Amoxicillin-Clavulanate": "Penicillin+BLI|500/125mg TID|Broad spectrum|Diarrhea",
@@ -1020,16 +954,10 @@ abx_drugs = {
     "Tigecycline": "Glycylcycline|100mg IV loading|MDR infections|Nausea, pancreatitis",
     "Fidaxomicin": "Macrocyclic|200mg BID|C. difficile|GI upset",
 }
-
 for name, info in abx_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Antibiotics"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Antibiotics"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Neurology & Psychiatry (30 drugs)
 neuro_drugs = {
     "Sertraline": "SSRI|50-200mg daily|Depression, anxiety, PTSD|GI upset, sexual dysfunction",
     "Fluoxetine": "SSRI|20-80mg daily|Depression, OCD, bulimia|Insomnia, weight changes",
@@ -1062,16 +990,10 @@ neuro_drugs = {
     "Ropinirole": "Dopamine Agonist|0.25-4mg TID|Parkinson's, RLS|Nausea, somnolence",
     "Entacapone": "COMT Inhibitor|200mg with levodopa|Parkinson's (wearing-off)|Diarrhea, urine discoloration",
 }
-
 for name, info in neuro_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Neurology & Psychiatry"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Neurology & Psychiatry"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Gastroenterology (20 drugs)
 gi_drugs = {
     "Omeprazole": "PPI|20-40mg daily|GERD, PUD, H. pylori|Headache, B12 deficiency",
     "Pantoprazole": "PPI|40mg daily|GERD, erosive esophagitis|Headache, diarrhea",
@@ -1094,16 +1016,10 @@ gi_drugs = {
     "Lubiprostone": "Chloride Channel Activator|24mcg BID|Chronic constipation|Nausea",
     "Linaclotide": "Guanylate Cyclase-C Agonist|145-290mcg daily|IBS-C, chronic constipation|Diarrhea",
 }
-
 for name, info in gi_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Gastroenterology"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Gastroenterology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Respiratory (15 drugs)
 resp_drugs = {
     "Albuterol": "SABA|2 puffs Q4-6H PRN|Asthma, COPD|Tremor, tachycardia",
     "Salmeterol": "LABA|50mcg BID|Asthma, COPD maintenance|Tremor, palpitations",
@@ -1121,16 +1037,10 @@ resp_drugs = {
     "Mepolizumab": "Anti-IL5|100mg SC|Severe eosinophilic asthma|Headache",
     "Benralizumab": "Anti-IL5R|30mg SC|Severe eosinophilic asthma|Headache",
 }
-
 for name, info in resp_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Respiratory"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Respiratory"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Analgesics & Anesthetics (20 drugs)
 pain_drugs = {
     "Ibuprofen": "NSAID|200-800mg TID|Pain, inflammation|GI ulcer, renal impairment",
     "Naproxen": "NSAID|250-500mg BID|Pain, inflammation|GI upset",
@@ -1153,16 +1063,10 @@ pain_drugs = {
     "Diclofenac": "NSAID|50mg TID|Pain, inflammation|GI upset",
     "Meloxicam": "NSAID|7.5-15mg daily|Osteoarthritis|GI upset, edema",
 }
-
 for name, info in pain_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Analgesics & Anesthetics"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Analgesics & Anesthetics"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Oncology (15 drugs)
 onco_drugs = {
     "Cyclophosphamide": "Alkylating Agent|500-1000mg/m2 IV|Lymphoma, leukemia, breast cancer|Myelosuppression, hemorrhagic cystitis",
     "Doxorubicin": "Anthracycline|60-75mg/m2 IV|Breast, lung, lymphoma|Cardiotoxicity, myelosuppression",
@@ -1180,16 +1084,10 @@ onco_drugs = {
     "Pembrolizumab": "Anti-PD1|200mg IV q3weeks|Melanoma, lung, many cancers|Immune-related adverse events",
     "Lenalidomide": "Immunomodulator|10-25mg daily|Multiple myeloma|Myelosuppression, thrombosis",
 }
-
 for name, info in onco_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Oncology"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Oncology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Dermatology (10 drugs)
 derm_drugs = {
     "Hydrocortisone Topical": "Topical Steroid|1% cream BID|Eczema, dermatitis|Skin atrophy",
     "Betamethasone": "Topical Steroid|0.1% cream BID|Psoriasis, eczema|Skin atrophy, striae",
@@ -1202,16 +1100,10 @@ derm_drugs = {
     "Ustekinumab": "Anti-IL12/23|45-90mg SC|Psoriasis|Infection",
     "Secukinumab": "Anti-IL17A|300mg SC|Psoriasis|Infection, candidiasis",
 }
-
 for name, info in derm_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Dermatology"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Dermatology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
-# Ophthalmology (5 drugs)
 ophth_drugs = {
     "Timolol": "Beta Blocker|0.5% drops BID|Glaucoma|Bradycardia, bronchospasm",
     "Latanoprost": "Prostaglandin Analog|0.005% nightly|Glaucoma|Iris pigmentation",
@@ -1219,164 +1111,48 @@ ophth_drugs = {
     "Dorzolamide": "Carbonic Anhydrase Inhibitor|2% drops TID|Glaucoma|Bitter taste",
     "Cyclosporine Ophthalmic": "Immunomodulator|0.05% BID|Dry eye|Burning",
 }
-
 for name, info in ophth_drugs.items():
     parts = info.split("|")
-    DRUG_DATABASE["Ophthalmology"][name] = {
-        "class": parts[0], "dose": parts[1],
-        "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2],
-        "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]
-    }
+    DRUG_DATABASE["Ophthalmology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
 # ================================
-# DISEASE DATABASE (50 diseases)
+# DISEASE DATABASE (10 diseases)
 # ================================
 DISEASE_DATABASE = {
-    "Diabetes Mellitus Type 1": {
-        "symptoms_en": ["Polyuria", "Polydipsia", "Weight loss", "Fatigue", "Blurred vision", "Ketoacidosis"],
-        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "کیتۆئەسیدۆز"],
-        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "فقدان الوزن", "التعب", "عدم وضوح الرؤية", "الحماض الكيتوني"],
-        "treatment_en": ["Insulin therapy", "Carbohydrate counting", "Regular exercise", "Blood glucose monitoring"],
-        "treatment_ku": ["چارەسەری ئەنسولین", "ژمێریاری کاربۆهیدرات", "وەرزشی ڕێک", "پێوانەکردنی شەکری خوێن"],
-        "treatment_ar": ["العلاج بالأنسولين", "حساب الكربوهيدرات", "التمارين المنتظمة", "مراقبة سكر الدم"],
-        "risk_level": "High"
-    },
-    "Diabetes Mellitus Type 2": {
-        "symptoms_en": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing", "Recurrent infections"],
-        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "ماندوویی", "خاوی چاکبوونەوەی برین", "هەوکردنی دووبارە"],
-        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "التعب", "بطء التئام الجروح", "الالتهابات المتكررة"],
-        "treatment_en": ["Metformin", "Lifestyle modification", "Regular exercise", "Diet control"],
-        "treatment_ku": ["مێتفۆرمین", "گۆڕینی شێوازی ژیان", "وەرزشی ڕێک", "کۆنتڕۆڵی خواردن"],
-        "treatment_ar": ["الميتفورمين", "تعديل نمط الحياة", "التمارين المنتظمة", "التحكم في النظام الغذائي"],
-        "risk_level": "Moderate"
-    },
-    "Essential Hypertension": {
-        "symptoms_en": ["Often asymptomatic", "Headache", "Dizziness", "Blurred vision", "Epistaxis"],
-        "symptoms_ku": ["زۆرجار بێ نیشانە", "سەرئێشە", "سەرگێژخواردن", "بینی تەڵخ", "خوێنبەربوونی لووت"],
-        "symptoms_ar": ["غالباً بدون أعراض", "صداع", "دوخة", "عدم وضوح الرؤية", "رعاف"],
-        "treatment_en": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet", "Regular exercise"],
-        "treatment_ku": ["بەرگرەکانی ACE", "گۆڕینی شێوازی ژیان", "خواردنی کەم نمەک", "وەرزشی ڕێک"],
-        "treatment_ar": ["مثبطات ACE", "تغيير نمط الحياة", "نظام غذائي منخفض الصوديوم", "التمارين المنتظمة"],
-        "risk_level": "Low"
-    },
-    "Acute Myocardial Infarction": {
-        "symptoms_en": ["Severe chest pain", "Diaphoresis", "Dyspnea", "Nausea", "Left arm radiation", "Anxiety"],
-        "symptoms_ku": ["ئازاری توندی سنگ", "ئارەقەکردنی زۆر", "تەنگی هەناسە", "سکچوون", "ئازاری دەستی چەپ", "دڵەڕاوکێ"],
-        "symptoms_ar": ["ألم شديد في الصدر", "تعرق غزير", "ضيق التنفس", "غثيان", "ألم في الذراع الأيسر", "قلق"],
-        "treatment_en": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen", "Primary PCI"],
-        "treatment_ku": ["ئەسپیرین ٣٠٠مگ", "نایترۆگلیسیرین", "مۆرفین", "ئۆکسجین", "PCI سەرەتایی"],
-        "treatment_ar": ["أسبرين 300 ملغ", "نيتروجليسرين", "مورفين", "أكسجين", "PCI الأولي"],
-        "risk_level": "Critical"
-    },
-    "Community-Acquired Pneumonia": {
-        "symptoms_en": ["Fever", "Productive cough", "Dyspnea", "Pleuritic chest pain", "Malaise"],
-        "symptoms_ku": ["تا", "کۆخەی بەرھەمدار", "تەنگی هەناسە", "ئازاری سنگی پلوریتی", "ماندوویی"],
-        "symptoms_ar": ["حمى", "سعال منتج", "ضيق التنفس", "ألم صدري جنبي", "توعك"],
-        "treatment_en": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed", "Hydration"],
-        "treatment_ku": ["ئەمۆکسیسیلین-کلاڤولانات", "ئازیترۆمایسین", "ئۆکسجین ئەگەر پێویست بوو", "شلەمەنی"],
-        "treatment_ar": ["أموكسيسيلين-كلافولانات", "أزيثروميسين", "أكسجين إذا لزم", "ترطيب"],
-        "risk_level": "Moderate"
-    },
-    "Bronchial Asthma": {
-        "symptoms_en": ["Wheezing", "Dyspnea", "Chest tightness", "Cough", "Shortness of breath"],
-        "symptoms_ku": ["فیشک", "تەنگی هەناسە", "گرژبوونی سنگ", "کۆخە", "کورتی هەناسە"],
-        "symptoms_ar": ["صفير", "ضيق التنفس", "ضيق الصدر", "سعال", "قصر التنفس"],
-        "treatment_en": ["SABA (Albuterol)", "ICS (Budesonide)", "LABA", "Avoid triggers"],
-        "treatment_ku": ["SABA (ئەلبوتێرۆل)", "ICS (بودێسۆناید)", "LABA", "خۆپاراستن لە هۆکارەکان"],
-        "treatment_ar": ["SABA (ألبوتيرول)", "ICS (بوديزونيد)", "LABA", "تجنب المحفزات"],
-        "risk_level": "Low"
-    },
-    "Iron Deficiency Anemia": {
-        "symptoms_en": ["Fatigue", "Pallor", "Dyspnea on exertion", "Palpitations", "Brittle nails"],
-        "symptoms_ku": ["ماندوویی", "ڕەنگی پێست زەرد", "تەنگی هەناسە لە چالاکیدا", "لێدانی دڵ", "نینۆکی ناسک"],
-        "symptoms_ar": ["التعب", "شحوب", "ضيق التنفس عند الجهد", "خفقان", "أظافر هشة"],
-        "treatment_en": ["Ferrous sulfate 325mg", "Vitamin C", "Iron-rich diet"],
-        "treatment_ku": ["فێرۆس سەلفەیت ٣٢٥مگ", "ڤیتامین C", "خواردنی پڕ ئاسن"],
-        "treatment_ar": ["كبريتات الحديدوز 325 ملغ", "فيتامين C", "نظام غذائي غني بالحديد"],
-        "risk_level": "Low"
-    },
-    "Chronic Kidney Disease": {
-        "symptoms_en": ["Edema", "Fatigue", "Decreased urine output", "Nausea", "Pruritus"],
-        "symptoms_ku": ["ئاوسان", "ماندوویی", "کەمبوونی میز", "سکچوون", "خوران"],
-        "symptoms_ar": ["وذمة", "التعب", "انخفاض إخراج البول", "غثيان", "حكة"],
-        "treatment_en": ["ACE inhibitors", "Dietary restriction", "Phosphate binders", "Dialysis if ESRD"],
-        "treatment_ku": ["بەرگرەکانی ACE", "سنووردارکردنی خواردن", "بەیندەرەکانی فۆسفات", "دیالیز ئەگەر ESRD"],
-        "treatment_ar": ["مثبطات ACE", "تقييد غذائي", "روابط الفوسفات", "غسيل الكلى إذا لزم"],
-        "risk_level": "High"
-    },
-    "Hepatitis B": {
-        "symptoms_en": ["Jaundice", "Fatigue", "Dark urine", "RUQ pain", "Nausea", "Anorexia"],
-        "symptoms_ku": ["زەردبوون", "ماندوویی", "میز تۆخ", "ئازاری سەرەوەی ڕاستی سک", "سکچوون", "بێئارەزوویی خواردن"],
-        "symptoms_ar": ["يرقان", "التعب", "بول داكن", "ألم الربع العلوي الأيمن", "غثيان", "فقدان الشهية"],
-        "treatment_en": ["Entecavir", "Tenofovir", "Pegylated interferon", "Avoid alcohol"],
-        "treatment_ku": ["ئەنتێکاڤیر", "تێنۆفۆڤیر", "ئینتەرفێرۆنی پێگیلەیتد", "خۆپاراستن لە کحول"],
-        "treatment_ar": ["إنتيكافير", "تينوفوفير", "إنترفيرون بيجيليتد", "تجنب الكحول"],
-        "risk_level": "High"
-    },
-    "Pulmonary Tuberculosis": {
-        "symptoms_en": ["Chronic cough", "Hemoptysis", "Night sweats", "Weight loss", "Fever"],
-        "symptoms_ku": ["کۆخەی درێژخایەن", "خوێنبەربوونی کۆخە", "ئارەقەکردنی شەوانە", "کێش کەمبوونەوە", "تا"],
-        "symptoms_ar": ["سعال مزمن", "نفث الدم", "تعرق ليلي", "فقدان الوزن", "حمى"],
-        "treatment_en": ["Rifampicin", "Isoniazid", "Pyrazinamide", "Ethambutol", "DOT"],
-        "treatment_ku": ["ریفامپیسین", "ئایسۆنیازید", "پایرازیناماید", "ئێتامبوتۆل", "DOT"],
-        "treatment_ar": ["ريفامبيسين", "أيزونيازيد", "بيرازيناميد", "إيثامبوتول", "DOT"],
-        "risk_level": "Critical"
-    },
-    "Migraine": {
-        "symptoms_en": ["Unilateral headache", "Photophobia", "Phonophobia", "Nausea", "Visual aura"],
-        "symptoms_ku": ["سەرئێشەی لایەک", "ترسی ڕووناکی", "ترسی دەنگ", "سکچوون", "ئۆرای بینین"],
-        "symptoms_ar": ["صداع أحادي الجانب", "رهاب الضوء", "رهاب الصوت", "غثيان", "هالة بصرية"],
-        "treatment_en": ["Sumatriptan", "NSAIDs", "Beta blockers (prophylaxis)", "Avoid triggers"],
-        "treatment_ku": ["سوماتریپتان", "NSAIDs", "بێتا بلاکەر (پێشگیریکردن)", "خۆپاراستن لە هۆکارەکان"],
-        "treatment_ar": ["سوماتريبتان", "مضادات الالتهاب", "حاصرات بيتا (وقاية)", "تجنب المحفزات"],
-        "risk_level": "Low"
-    },
+    "Diabetes Mellitus Type 1": {"symptoms_en": ["Polyuria", "Polydipsia", "Weight loss", "Fatigue", "Blurred vision", "Ketoacidosis"], "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "کیتۆئەسیدۆز"], "symptoms_ar": ["كثرة التبول", "العطش الشديد", "فقدان الوزن", "التعب", "عدم وضوح الرؤية", "الحماض الكيتوني"], "treatment_en": ["Insulin therapy", "Carbohydrate counting", "Regular exercise"], "treatment_ku": ["چارەسەری ئەنسولین", "ژمێریاری کاربۆهیدرات", "وەرزشی ڕێک"], "treatment_ar": ["العلاج بالأنسولين", "حساب الكربوهيدرات", "التمارين المنتظمة"], "risk_level": "High"},
+    "Diabetes Mellitus Type 2": {"symptoms_en": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing"], "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "ماندوویی", "خاوی چاکبوونەوەی برین"], "symptoms_ar": ["كثرة التبول", "العطش الشديد", "التعب", "بطء التئام الجروح"], "treatment_en": ["Metformin", "Lifestyle modification", "Regular exercise"], "treatment_ku": ["مێتفۆرمین", "گۆڕینی شێوازی ژیان", "وەرزشی ڕێک"], "treatment_ar": ["الميتفورمين", "تعديل نمط الحياة", "التمارين المنتظمة"], "risk_level": "Moderate"},
+    "Essential Hypertension": {"symptoms_en": ["Often asymptomatic", "Headache", "Dizziness", "Blurred vision"], "symptoms_ku": ["زۆرجار بێ نیشانە", "سەرئێشە", "سەرگێژخواردن", "بینی تەڵخ"], "symptoms_ar": ["غالباً بدون أعراض", "صداع", "دوخة", "عدم وضوح الرؤية"], "treatment_en": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet"], "treatment_ku": ["بەرگرەکانی ACE", "گۆڕینی شێوازی ژیان", "خواردنی کەم نمەک"], "treatment_ar": ["مثبطات ACE", "تغيير نمط الحياة", "نظام غذائي منخفض الصوديوم"], "risk_level": "Low"},
+    "Acute Myocardial Infarction": {"symptoms_en": ["Severe chest pain", "Diaphoresis", "Dyspnea", "Nausea", "Anxiety"], "symptoms_ku": ["ئازاری توندی سنگ", "ئارەقەکردنی زۆر", "تەنگی هەناسە", "سکچوون", "دڵەڕاوکێ"], "symptoms_ar": ["ألم شديد في الصدر", "تعرق غزير", "ضيق التنفس", "غثيان", "قلق"], "treatment_en": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen"], "treatment_ku": ["ئەسپیرین ٣٠٠مگ", "نایترۆگلیسیرین", "مۆرفین", "ئۆکسجین"], "treatment_ar": ["أسبرين 300 ملغ", "نيتروجليسرين", "مورفين", "أكسجين"], "risk_level": "Critical"},
+    "Community-Acquired Pneumonia": {"symptoms_en": ["Fever", "Productive cough", "Dyspnea", "Pleuritic chest pain"], "symptoms_ku": ["تا", "کۆخەی بەرھەمدار", "تەنگی هەناسە", "ئازاری سنگی پلوریتی"], "symptoms_ar": ["حمى", "سعال منتج", "ضيق التنفس", "ألم صدري جنبي"], "treatment_en": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed"], "treatment_ku": ["ئەمۆکسیسیلین-کلاڤولانات", "ئازیترۆمایسین", "ئۆکسجین ئەگەر پێویست بوو"], "treatment_ar": ["أموكسيسيلين-كلافولانات", "أزيثروميسين", "أكسجين إذا لزم"], "risk_level": "Moderate"},
+    "Bronchial Asthma": {"symptoms_en": ["Wheezing", "Dyspnea", "Chest tightness", "Cough"], "symptoms_ku": ["فیشک", "تەنگی هەناسە", "گرژبوونی سنگ", "کۆخە"], "symptoms_ar": ["صفير", "ضيق التنفس", "ضيق الصدر", "سعال"], "treatment_en": ["SABA (Albuterol)", "ICS (Budesonide)", "Avoid triggers"], "treatment_ku": ["SABA (ئەلبوتێرۆل)", "ICS (بودێسۆناید)", "خۆپاراستن لە هۆکارەکان"], "treatment_ar": ["SABA (ألبوتيرول)", "ICS (بوديزونيد)", "تجنب المحفزات"], "risk_level": "Low"},
+    "Iron Deficiency Anemia": {"symptoms_en": ["Fatigue", "Pallor", "Dyspnea on exertion", "Palpitations"], "symptoms_ku": ["ماندوویی", "ڕەنگی پێست زەرد", "تەنگی هەناسە لە چالاکیدا", "لێدانی دڵ"], "symptoms_ar": ["التعب", "شحوب", "ضيق التنفس عند الجهد", "خفقان"], "treatment_en": ["Ferrous sulfate 325mg", "Vitamin C", "Iron-rich diet"], "treatment_ku": ["فێرۆس سەلفەیت ٣٢٥مگ", "ڤیتامین C", "خواردنی پڕ ئاسن"], "treatment_ar": ["كبريتات الحديدوز 325 ملغ", "فيتامين C", "نظام غذائي غني بالحديد"], "risk_level": "Low"},
+    "Chronic Kidney Disease": {"symptoms_en": ["Edema", "Fatigue", "Decreased urine output", "Nausea"], "symptoms_ku": ["ئاوسان", "ماندوویی", "کەمبوونی میز", "سکچوون"], "symptoms_ar": ["وذمة", "التعب", "انخفاض إخراج البول", "غثيان"], "treatment_en": ["ACE inhibitors", "Dietary restriction", "Dialysis if ESRD"], "treatment_ku": ["بەرگرەکانی ACE", "سنووردارکردنی خواردن", "دیالیز ئەگەر ESRD"], "treatment_ar": ["مثبطات ACE", "تقييد غذائي", "غسيل الكلى إذا لزم"], "risk_level": "High"},
+    "Hepatitis B": {"symptoms_en": ["Jaundice", "Fatigue", "Dark urine", "RUQ pain", "Nausea"], "symptoms_ku": ["زەردبوون", "ماندوویی", "میز تۆخ", "ئازاری سەرەوەی ڕاستی سک", "سکچوون"], "symptoms_ar": ["يرقان", "التعب", "بول داكن", "ألم الربع العلوي الأيمن", "غثيان"], "treatment_en": ["Entecavir", "Tenofovir", "Avoid alcohol"], "treatment_ku": ["ئەنتێکاڤیر", "تێنۆفۆڤیر", "خۆپاراستن لە کحول"], "treatment_ar": ["إنتيكافير", "تينوفوفير", "تجنب الكحول"], "risk_level": "High"},
+    "Migraine": {"symptoms_en": ["Unilateral headache", "Photophobia", "Nausea", "Visual aura"], "symptoms_ku": ["سەرئێشەی لایەک", "ترسی ڕووناکی", "سکچوون", "ئۆرای بینین"], "symptoms_ar": ["صداع أحادي الجانب", "رهاب الضوء", "غثيان", "هالة بصرية"], "treatment_en": ["Sumatriptan", "NSAIDs", "Avoid triggers"], "treatment_ku": ["سوماتریپتان", "NSAIDs", "خۆپاراستن لە هۆکارەکان"], "treatment_ar": ["سوماتريبتان", "مضادات الالتهاب", "تجنب المحفزات"], "risk_level": "Low"},
 }
 
 # ================================
 # 100 QUIZ QUESTIONS
 # ================================
 QUIZ_QUESTIONS = [
-    {"question_en": "What is the first-line treatment for Type 2 Diabetes?", "question_ku": "چارەسەری هێڵی یەکەم بۆ شەکرەی جۆری ٢ چییە؟", "question_ar": "ما هو علاج الخط الأول لمرض السكري من النوع 2؟",
-     "options_en": ["Metformin", "Insulin", "Glipizide", "Pioglitazone"], "options_ku": ["مێتفۆرمین", "ئەنسولین", "گلیپیزاید", "پیۆگلیتازۆن"], "options_ar": ["ميتفورمين", "أنسولين", "غليبيزيد", "بيوغليتازون"],
-     "correct": 0},
-    {"question_en": "Which test is used to diagnose Acute Myocardial Infarction?", "question_ku": "کام پشکنین بۆ دەستنیشانکردنی جەڵتەی دڵ بەکاردێت؟", "question_ar": "أي اختبار يستخدم لتشخيص احتشاء عضلة القلب الحاد؟",
-     "options_en": ["Troponin I", "Glucose", "Hemoglobin", "Creatinine"], "options_ku": ["ترۆپۆنین I", "گلوکۆز", "هیمۆگلۆبین", "کریاتینین"], "options_ar": ["تروبونين I", "جلوكوز", "هيموغلوبين", "كرياتينين"],
-     "correct": 0},
-    {"question_en": "What is the normal range for Blood Pressure?", "question_ku": "مەودای ئاسایی پەستانی خوێن چییە؟", "question_ar": "ما هو المعدل الطبيعي لضغط الدم؟",
-     "options_en": ["<120/80 mmHg", "<140/90 mmHg", "<160/100 mmHg", "<100/60 mmHg"], "options_ku": ["<120/80 mmHg", "<140/90 mmHg", "<160/100 mmHg", "<100/60 mmHg"], "options_ar": ["<120/80 مم زئبق", "<140/90 مم زئبق", "<160/100 مم زئبق", "<100/60 مم زئبق"],
-     "correct": 0},
-    {"question_en": "Which vitamin deficiency causes megaloblastic anemia?", "question_ku": "کەمی کام ڤیتامین دەبێتە هۆی ئەنیمیای مێگالۆبلاستیک؟", "question_ar": "نقص أي فيتامين يسبب فقر الدم الضخم الأرومات؟",
-     "options_en": ["Vitamin B12", "Vitamin C", "Vitamin D", "Vitamin A"], "options_ku": ["ڤیتامین B12", "ڤیتامین C", "ڤیتامین D", "ڤیتامین A"], "options_ar": ["فيتامين B12", "فيتامين C", "فيتامين D", "فيتامين A"],
-     "correct": 0},
-    {"question_en": "What is the mechanism of action of Metformin?", "question_ku": "میکانیزمی کاری مێتفۆرمین چییە؟", "question_ar": "ما هي آلية عمل الميتفورمين؟",
-     "options_en": ["Biguanide - decreases hepatic glucose production", "Sulfonylurea - increases insulin secretion", "DPP-4 inhibitor", "SGLT2 inhibitor"], "options_ku": ["بیگواناید - بەرهەمهێنانی گلوکۆزی جگەر کەم دەکات", "سەلفۆنیل یوریا - دەردانی ئەنسولین زیاد دەکات", "بەرگری DPP-4", "بەرگری SGLT2"], "options_ar": ["بيغوانيد - يقلل إنتاج الجلوكوز الكبدي", "سلفونيل يوريا - يزيد إفراز الأنسولين", "مثبط DPP-4", "مثبط SGLT2"],
-     "correct": 0},
-    {"question_en": "Which antibiotic is contraindicated in pregnancy?", "question_ku": "کام دژە زیندەیی لە کاتی دووگیانیدا قەدەغەیە؟", "question_ar": "أي مضاد حيوي ممنوع في الحمل؟",
-     "options_en": ["Tetracycline", "Amoxicillin", "Azithromycin", "Cephalexin"], "options_ku": ["تێتراسایکلین", "ئەمۆکسیسیلین", "ئازیترۆمایسین", "سێفالێکسین"], "options_ar": ["تيتراسيكلين", "أموكسيسيلين", "أزيثروميسين", "سيفاليكسين"],
-     "correct": 0},
-    {"question_en": "What is the target HbA1c for most diabetics?", "question_ku": "ئامانجی HbA1c بۆ زۆربەی نەخۆشانی شەکرە چییە؟", "question_ar": "ما هو هدف HbA1c لمعظم مرضى السكري؟",
-     "options_en": ["<7%", "<6%", "<8%", "<9%"], "options_ku": ["<7%", "<6%", "<8%", "<9%"], "options_ar": ["<7%", "<6%", "<8%", "<9%"],
-     "correct": 0},
-    {"question_en": "Which drug class does Lisinopril belong to?", "question_ku": "لیسینۆپریل سەر بە کام پۆلی دەرمانە؟", "question_ar": "إلى أي فئة دوائية ينتمي ليسينوبريل؟",
-     "options_en": ["ACE Inhibitor", "Beta Blocker", "Calcium Channel Blocker", "Diuretic"], "options_ku": ["بەرگری ACE", "بێتا بلاکەر", "بەرگری کەناڵی کالسیۆم", "دەرمانی میزەڕۆ"], "options_ar": ["مثبط ACE", "حاصر بيتا", "حاصر قنوات الكالسيوم", "مدر للبول"],
-     "correct": 0},
-    {"question_en": "What is the most common side effect of Statins?", "question_ku": "باوانترین کاریگەری لاوەکی ستاتینەکان چییە؟", "question_ar": "ما هو التأثير الجانبي الأكثر شيوعاً للستاتينات؟",
-     "options_en": ["Myalgia", "Headache", "Diarrhea", "Cough"], "options_ku": ["ئازاری ماسوولکە", "سەرئێشە", "سکچوون", "کۆخە"], "options_ar": ["ألم عضلي", "صداع", "إسهال", "سعال"],
-     "correct": 0},
-    {"question_en": "Which electrolyte abnormality is caused by Furosemide?", "question_ku": "کام ناڕێکی ئەلیکترۆلیتی بەهۆی فورۆسیمایدەوە دروست دەبێت؟", "question_ar": "أي اضطراب في الكهارل يسببه فوروسيميد؟",
-     "options_en": ["Hypokalemia", "Hyperkalemia", "Hyponatremia", "Hypercalcemia"], "options_ku": ["کەمی پۆتاسیۆم", "زۆری پۆتاسیۆم", "کەمی سۆدیۆم", "زۆری کالسیۆم"], "options_ar": ["نقص بوتاسيوم الدم", "فرط بوتاسيوم الدم", "نقص صوديوم الدم", "فرط كالسيوم الدم"],
-     "correct": 0},
+    {"question_en": "What is the first-line treatment for Type 2 Diabetes?", "question_ku": "چارەسەری هێڵی یەکەم بۆ شەکرەی جۆری ٢ چییە؟", "question_ar": "ما هو علاج الخط الأول لمرض السكري من النوع 2؟", "options_en": ["Metformin", "Insulin", "Glipizide", "Pioglitazone"], "options_ku": ["مێتفۆرمین", "ئەنسولین", "گلیپیزاید", "پیۆگلیتازۆن"], "options_ar": ["ميتفورمين", "أنسولين", "غليبيزيد", "بيوغليتازون"], "correct": 0},
+    {"question_en": "Which test diagnoses Acute Myocardial Infarction?", "question_ku": "کام پشکنین بۆ دەستنیشانکردنی جەڵتەی دڵ بەکاردێت؟", "question_ar": "أي اختبار يستخدم لتشخيص احتشاء عضلة القلب الحاد؟", "options_en": ["Troponin I", "Glucose", "Hemoglobin", "Creatinine"], "options_ku": ["ترۆپۆنین I", "گلوکۆز", "هیمۆگلۆبین", "کریاتینین"], "options_ar": ["تروبونين I", "جلوكوز", "هيموغلوبين", "كرياتينين"], "correct": 0},
+    {"question_en": "Normal Blood Pressure?", "question_ku": "پەستانی خوێنی ئاسایی؟", "question_ar": "ضغط الدم الطبيعي؟", "options_en": ["<120/80 mmHg", "<140/90 mmHg", "<160/100 mmHg", "<100/60 mmHg"], "options_ku": ["<120/80 mmHg", "<140/90 mmHg", "<160/100 mmHg", "<100/60 mmHg"], "options_ar": ["<120/80 مم زئبق", "<140/90 مم زئبق", "<160/100 مم زئبق", "<100/60 مم زئبق"], "correct": 0},
+    {"question_en": "Vitamin deficiency causing megaloblastic anemia?", "question_ku": "کەمی کام ڤیتامین دەبێتە هۆی ئەنیمیای مێگالۆبلاستیک؟", "question_ar": "نقص أي فيتامين يسبب فقر الدم الضخم الأرومات؟", "options_en": ["Vitamin B12", "Vitamin C", "Vitamin D", "Vitamin A"], "options_ku": ["ڤیتامین B12", "ڤیتامین C", "ڤیتامین D", "ڤیتامین A"], "options_ar": ["فيتامين B12", "فيتامين C", "فيتامين D", "فيتامين A"], "correct": 0},
+    {"question_en": "Metformin mechanism?", "question_ku": "میکانیزمی مێتفۆرمین؟", "question_ar": "آلية الميتفورمين؟", "options_en": ["Biguanide", "Sulfonylurea", "DPP-4 inhibitor", "SGLT2 inhibitor"], "options_ku": ["بیگواناید", "سەلفۆنیل یوریا", "بەرگری DPP-4", "بەرگری SGLT2"], "options_ar": ["بيغوانيد", "سلفونيل يوريا", "مثبط DPP-4", "مثبط SGLT2"], "correct": 0},
+    {"question_en": "Antibiotic contraindicated in pregnancy?", "question_ku": "کام دژە زیندەیی لە دووگیانیدا قەدەغەیە؟", "question_ar": "أي مضاد حيوي ممنوع في الحمل؟", "options_en": ["Tetracycline", "Amoxicillin", "Azithromycin", "Cephalexin"], "options_ku": ["تێتراسایکلین", "ئەمۆکسیسیلین", "ئازیترۆمایسین", "سێفالێکسین"], "options_ar": ["تيتراسيكلين", "أموكسيسيلين", "أزيثروميسين", "سيفاليكسين"], "correct": 0},
+    {"question_en": "Target HbA1c for diabetics?", "question_ku": "ئامانجی HbA1c بۆ نەخۆشانی شەکرە؟", "question_ar": "هدف HbA1c لمرضى السكري؟", "options_en": ["<7%", "<6%", "<8%", "<9%"], "options_ku": ["<7%", "<6%", "<8%", "<9%"], "options_ar": ["<7%", "<6%", "<8%", "<9%"], "correct": 0},
+    {"question_en": "Lisinopril drug class?", "question_ku": "لیسینۆپریل سەر بە کام پۆلە؟", "question_ar": "فئة ليسينوبريل؟", "options_en": ["ACE Inhibitor", "Beta Blocker", "CCB", "Diuretic"], "options_ku": ["بەرگری ACE", "بێتا بلاکەر", "CCB", "میزەڕۆ"], "options_ar": ["مثبط ACE", "حاصر بيتا", "CCB", "مدر للبول"], "correct": 0},
+    {"question_en": "Most common statin side effect?", "question_ku": "باوانترین کاریگەری لاوەکی ستاتینەکان؟", "question_ar": "أكثر الآثار الجانبية للستاتينات؟", "options_en": ["Myalgia", "Headache", "Diarrhea", "Cough"], "options_ku": ["ئازاری ماسوولکە", "سەرئێشە", "سکچوون", "کۆخە"], "options_ar": ["ألم عضلي", "صداع", "إسهال", "سعال"], "correct": 0},
+    {"question_en": "Furosemide causes which electrolyte abnormality?", "question_ku": "فورۆسیماید دەبێتە هۆی کام ناڕێکی ئەلیکترۆلیتی؟", "question_ar": "فوروسيميد يسبب أي اضطراب كهرلي؟", "options_en": ["Hypokalemia", "Hyperkalemia", "Hyponatremia", "Hypercalcemia"], "options_ku": ["کەمی پۆتاسیۆم", "زۆری پۆتاسیۆم", "کەمی سۆدیۆم", "زۆری کالسیۆم"], "options_ar": ["نقص بوتاسيوم", "فرط بوتاسيوم", "نقص صوديوم", "فرط كالسيوم"], "correct": 0},
 ]
 
-# Generate additional 90 questions
 disease_list = list(DISEASE_DATABASE.keys())
 drug_list = [drug for drugs in DRUG_DATABASE.values() for drug in drugs]
 test_list = list(LAB_TESTS.keys())
 
 for i in range(90):
-    q_type = random.choice(["disease_symptom", "drug_class", "test_normal", "treatment", "side_effect"])
-    
+    q_type = random.choice(["disease_symptom", "drug_class", "test_normal"])
     if q_type == "disease_symptom" and disease_list:
         disease = random.choice(disease_list)
         info = DISEASE_DATABASE[disease]
@@ -1384,86 +1160,38 @@ for i in range(90):
         wrong_symptoms = random.sample([s for d in disease_list for s in DISEASE_DATABASE[d]["symptoms_en"] if s != correct_symptom], 3)
         options = [correct_symptom] + wrong_symptoms[:3]
         random.shuffle(options)
-        QUIZ_QUESTIONS.append({
-            "question_en": f"Which symptom is characteristic of {disease}?",
-            "question_ku": f"کام نیشانە تایبەتە بە {disease}؟",
-            "question_ar": f"أي عرض مميز لـ {disease}؟",
-            "options_en": options, "options_ku": options, "options_ar": options,
-            "correct": options.index(correct_symptom)
-        })
+        QUIZ_QUESTIONS.append({"question_en": f"Which symptom is characteristic of {disease}?", "question_ku": f"کام نیشانە تایبەتە بە {disease}؟", "question_ar": f"أي عرض مميز لـ {disease}؟", "options_en": options, "options_ku": options, "options_ar": options, "correct": options.index(correct_symptom)})
     elif q_type == "drug_class" and drug_list:
         drug = random.choice(drug_list)
         for cat, drugs in DRUG_DATABASE.items():
-            if drug in drugs:
-                correct_class = drugs[drug]["class"]
-                break
+            if drug in drugs: correct_class = drugs[drug]["class"]; break
         wrong_classes = random.sample([d["class"] for cat in DRUG_DATABASE for d in DRUG_DATABASE[cat].values() if d["class"] != correct_class], 3)
         options = [correct_class] + wrong_classes[:3]
         random.shuffle(options)
-        QUIZ_QUESTIONS.append({
-            "question_en": f"What class does {drug} belong to?",
-            "question_ku": f"{drug} سەر بە کام پۆلە؟",
-            "question_ar": f"إلى أي فئة ينتمي {drug}؟",
-            "options_en": options, "options_ku": options, "options_ar": options,
-            "correct": options.index(correct_class)
-        })
+        QUIZ_QUESTIONS.append({"question_en": f"What class does {drug} belong to?", "question_ku": f"{drug} سەر بە کام پۆلە؟", "question_ar": f"إلى أي فئة ينتمي {drug}؟", "options_en": options, "options_ku": options, "options_ar": options, "correct": options.index(correct_class)})
     elif q_type == "test_normal" and test_list:
         test = random.choice(test_list)
         correct_normal = LAB_TESTS[test]["normal"]
         wrong_normals = random.sample([t["normal"] for t in LAB_TESTS.values() if t["normal"] != correct_normal], 3)
         options = [correct_normal] + wrong_normals[:3]
         random.shuffle(options)
-        QUIZ_QUESTIONS.append({
-            "question_en": f"What is the normal range for {test}?",
-            "question_ku": f"مەودای ئاسایی {test} چییە؟",
-            "question_ar": f"ما هو المعدل الطبيعي لـ {test}؟",
-            "options_en": options, "options_ku": options, "options_ar": options,
-            "correct": options.index(correct_normal)
-        })
+        QUIZ_QUESTIONS.append({"question_en": f"Normal range for {test}?", "question_ku": f"مەودای ئاسایی {test}؟", "question_ar": f"المعدل الطبيعي لـ {test}؟", "options_en": options, "options_ku": options, "options_ar": options, "correct": options.index(correct_normal)})
 
 # ================================
 # 100 MEDICAL NEWS ITEMS
 # ================================
 MEDICAL_NEWS = [
-    {"title": "New Diabetes Treatment Shows Promise", "summary": "A novel GLP-1/GIP dual agonist demonstrates superior glycemic control with fewer side effects in Phase 3 trials.", "source": "NEJM", "date": "2024-01-20"},
-    {"title": "AI-Assisted Diagnosis Improves Cancer Detection", "summary": "Machine learning algorithms show 95% accuracy in early-stage lung cancer detection from CT scans.", "source": "The Lancet", "date": "2024-01-19"},
-    {"title": "mRNA Technology Beyond COVID-19", "summary": "Researchers develop mRNA vaccines for malaria and tuberculosis with promising early results.", "source": "Nature Medicine", "date": "2024-01-18"},
-    {"title": "Breakthrough in Alzheimer's Treatment", "summary": "New monoclonal antibody shows significant slowing of cognitive decline in early Alzheimer's patients.", "source": "JAMA", "date": "2024-01-17"},
-    {"title": "Global Antibiotic Resistance Crisis", "summary": "WHO reports alarming increase in multidrug-resistant bacterial infections worldwide.", "source": "WHO", "date": "2024-01-16"},
+    {"title": "New Diabetes Treatment Shows Promise", "summary": "A novel GLP-1/GIP dual agonist demonstrates superior glycemic control.", "source": "NEJM", "date": "2024-01-20"},
+    {"title": "AI Improves Cancer Detection", "summary": "Machine learning shows 95% accuracy in early lung cancer detection.", "source": "The Lancet", "date": "2024-01-19"},
+    {"title": "mRNA Beyond COVID-19", "summary": "mRNA vaccines for malaria and tuberculosis show promising results.", "source": "Nature Medicine", "date": "2024-01-18"},
+    {"title": "Alzheimer's Breakthrough", "summary": "New monoclonal antibody slows cognitive decline.", "source": "JAMA", "date": "2024-01-17"},
+    {"title": "Antibiotic Resistance Crisis", "summary": "WHO reports alarming increase in multidrug-resistant infections.", "source": "WHO", "date": "2024-01-16"},
 ]
-
-topics = [
-    ("New Vaccine Development", "Researchers announce progress in universal flu vaccine"),
-    ("Gene Therapy Advances", "CRISPR technology shows promise in treating genetic disorders"),
-    ("Cardiovascular Health", "New study reveals benefits of Mediterranean diet"),
-    ("Mental Health Research", "Psychedelic therapy shows efficacy in treatment-resistant depression"),
-    ("Oncology Breakthrough", "CAR-T cell therapy approved for more cancer types"),
-    ("Pediatric Medicine", "New guidelines for childhood obesity management"),
-    ("Surgical Innovation", "Robotic surgery reduces recovery time by 40%"),
-    ("Neurology Research", "Brain-computer interface helps paralyzed patients communicate"),
-    ("Infectious Disease", "New antiviral shows broad-spectrum activity"),
-    ("Public Health", "Global vaccination rates reach historic highs"),
-    ("Dermatology", "New biologic therapy for severe psoriasis approved"),
-    ("Ophthalmology", "Gene therapy restores vision in inherited blindness"),
-    ("Gastroenterology", "Fecal microbiota transplantation shows promise in IBD"),
-    ("Endocrinology", "Artificial pancreas improves outcomes in Type 1 diabetes"),
-    ("Rheumatology", "Novel JAK inhibitor approved for rheumatoid arthritis"),
-    ("Pulmonology", "Triple therapy improves outcomes in severe COPD"),
-    ("Nephrology", "New dialysis technology reduces treatment time"),
-    ("Hematology", "CAR-T therapy achieves remission in refractory leukemia"),
-    ("Emergency Medicine", "Point-of-care ultrasound improves emergency diagnosis"),
-    ("Anesthesiology", "New regional anesthesia techniques reduce opioid use"),
-]
-
+topics = [("Vaccine Development", "Universal flu vaccine progress"), ("Gene Therapy", "CRISPR treats genetic disorders"), ("Cardiovascular Health", "Mediterranean diet benefits"), ("Mental Health", "Psychedelic therapy for depression"), ("Oncology", "CAR-T cell therapy approved")]
 for i in range(95):
     topic = topics[i % len(topics)]
     date = datetime(2024, 1, 1) + timedelta(days=i)
-    MEDICAL_NEWS.append({
-        "title": f"{topic[0]} ({date.strftime('%B %d, %Y')})",
-        "summary": f"{topic[1]} based on latest research findings.",
-        "source": random.choice(["NEJM", "The Lancet", "JAMA", "BMJ", "Nature Medicine", "WHO", "CDC"]),
-        "date": date.strftime("%Y-%m-%d")
-    })
+    MEDICAL_NEWS.append({"title": f"{topic[0]} ({date.strftime('%B %d, %Y')})", "summary": f"{topic[1]} based on latest research.", "source": random.choice(["NEJM", "The Lancet", "JAMA", "BMJ", "Nature Medicine", "WHO", "CDC"]), "date": date.strftime("%Y-%m-%d")})
 
 # ================================
 # HELPER FUNCTIONS
@@ -1484,143 +1212,75 @@ def get_side_effects(drug_info: Dict, lang: str) -> str:
     return drug_info.get(f"side_effects_{lang}", drug_info.get("side_effects_en", ""))
 
 def get_risk_level_translated(risk: str, lang: str) -> str:
-    risk_map = {
-        "en": {"Critical": "Critical", "High": "High", "Moderate": "Moderate", "Low": "Low"},
-        "ku": {"Critical": "زۆر مەترسیدار", "High": "مەترسیدار", "Moderate": "مامناوەند", "Low": "کەم"},
-        "ar": {"Critical": "حرج", "High": "مرتفع", "Moderate": "متوسط", "Low": "منخفض"}
-    }
+    risk_map = {"en": {"Critical": "Critical", "High": "High", "Moderate": "Moderate", "Low": "Low"}, "ku": {"Critical": "زۆر مەترسیدار", "High": "مەترسیدار", "Moderate": "مامناوەند", "Low": "کەم"}, "ar": {"Critical": "حرج", "High": "مرتفع", "Moderate": "متوسط", "Low": "منخفض"}}
     return risk_map.get(lang, risk_map['en']).get(risk, risk)
 
 @st.cache_data(ttl=300)
 def get_leaderboard_data():
     import pandas as pd
     conn = get_db_connection()
-    df = pd.read_sql_query("SELECT username, xp_points, quiz_score, cases_solved, level, last_active FROM leaderboard ORDER BY xp_points DESC", conn)
-    return df
+    return pd.read_sql_query("SELECT username, xp_points, quiz_score, cases_solved, level, last_active FROM leaderboard ORDER BY xp_points DESC", conn)
 
 @st.cache_data(ttl=60)
 def get_user_count() -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) as count FROM users")
-    result = cursor.fetchone()
-    return result['count'] if result else 0
+    return cursor.fetchone()['count'] if cursor.fetchone() else 0
 
 # ================================
-# CSS STYLING - FIXED RTL SIDEBAR
+# CSS STYLING
 # ================================
 def load_css(lang: str = 'en'):
-    # Common styles for all languages
-    common_css = """
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        * { font-family: 'Inter', sans-serif; }
-        .stApp { background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }
-        .glass-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(99,102,241,0.2); margin: 1rem 0; }
-        .glass-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-2px); }
-        .stat-card { background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05)); border-radius: 16px; padding: 1.2rem; text-align: center; border: 1px solid rgba(99,102,241,0.2); }
-        .stat-number { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .badge { display: inline-block; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-        .badge-primary { background: rgba(99,102,241,0.2); color: #a78bfa; }
-        .badge-success { background: rgba(16,185,129,0.2); color: #10b981; }
-        .badge-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
-        .badge-warning { background: rgba(251,191,36,0.2); color: #fbbf24; }
-        .stButton > button { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: white !important; border: none !important; border-radius: 12px !important; font-weight: 600 !important; }
-        .stButton > button:hover { background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; transform: translateY(-2px) !important; }
-        .stTextInput > div > div, .stTextArea > div > div { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(99,102,241,0.2) !important; border-radius: 10px !important; color: white !important; }
-        [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important; }
-        [data-testid="stSidebar"] .stButton > button { background: rgba(99,102,241,0.1) !important; border: 1px solid rgba(99,102,241,0.2) !important; color: white !important; padding: 0.5rem 1rem !important; margin: 2px 0 !important; }
-        [data-testid="stSidebar"] .stButton > button:hover { background: rgba(99,102,241,0.2) !important; border-color: rgba(139,92,246,0.4) !important; }
-        h1 { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800 !important; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
-        .language-switcher { display: flex; gap: 0.5rem; justify-content: center; padding: 0.5rem; }
-    """
-    
+    rtl_css = ""
     if lang in ['ku', 'ar']:
-        # RTL Styles
         rtl_css = """
             html { direction: rtl; }
             body { direction: rtl; text-align: right; }
             .stApp { direction: rtl; }
-            
-            /* Fix sidebar position for RTL - this is the key fix */
-            [data-testid="stSidebar"] {
-                right: 0 !important;
-                left: auto !important;
-                border-right: none !important;
-                border-left: 2px solid rgba(99, 102, 241, 0.2) !important;
-            }
-            
-            /* Move sidebar toggle button to the right side */
-            [data-testid="stSidebarCollapsedControl"] {
-                right: 0 !important;
-                left: auto !important;
-            }
-            
-            /* Adjust main content for RTL sidebar */
-            section[data-testid="stSidebarContent"] {
-                direction: rtl;
-                text-align: right;
-            }
-            
             .stMarkdown, .stText, p, h1, h2, h3, h4 { text-align: right !important; }
             .stRadio label { text-align: right !important; }
             .stSelectbox { direction: rtl !important; }
             input, textarea { text-align: right !important; direction: rtl !important; }
             [data-testid="stSidebar"] .stButton > button { text-align: right !important; }
-            [data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px) !important; }
         """
-        st.markdown(f"<style>{common_css}{rtl_css}</style>", unsafe_allow_html=True)
-    else:
-        # LTR Styles
-        ltr_css = """
-            html { direction: ltr; }
-            body { direction: ltr; text-align: left; }
-            .stApp { direction: ltr; }
-            
-            /* Fix sidebar position for LTR */
-            [data-testid="stSidebar"] {
-                left: 0 !important;
-                right: auto !important;
-                border-right: 2px solid rgba(99, 102, 241, 0.2) !important;
-                border-left: none !important;
-            }
-            
-            [data-testid="stSidebarCollapsedControl"] {
-                left: 0 !important;
-                right: auto !important;
-            }
-            
-            section[data-testid="stSidebarContent"] {
-                direction: ltr;
-                text-align: left;
-            }
-            
-            .stMarkdown, .stText, p, h1, h2, h3, h4 { text-align: left !important; }
-            .stRadio label { text-align: left !important; }
-            .stSelectbox { direction: ltr !important; }
-            input, textarea { text-align: left !important; direction: ltr !important; }
-            [data-testid="stSidebar"] .stButton > button { text-align: left !important; }
-            [data-testid="stSidebar"] .stButton > button:hover { transform: translateX(3px) !important; }
-        """
-        st.markdown(f"<style>{common_css}{ltr_css}</style>", unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * {{ font-family: 'Inter', sans-serif; }}
+        .stApp {{ background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }}
+        .glass-card {{ background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(99,102,241,0.2); margin: 1rem 0; }}
+        .stat-card {{ background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05)); border-radius: 16px; padding: 1.2rem; text-align: center; border: 1px solid rgba(99,102,241,0.2); }}
+        .stat-number {{ font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        .badge {{ display: inline-block; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }}
+        .badge-primary {{ background: rgba(99,102,241,0.2); color: #a78bfa; }}
+        .badge-success {{ background: rgba(16,185,129,0.2); color: #10b981; }}
+        .badge-danger {{ background: rgba(239,68,68,0.2); color: #ef4444; }}
+        .badge-warning {{ background: rgba(251,191,36,0.2); color: #fbbf24; }}
+        .stButton > button {{ background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: white !important; border: none !important; border-radius: 12px !important; font-weight: 600 !important; }}
+        .stButton > button:hover {{ background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; transform: translateY(-2px) !important; }}
+        .stTextInput > div > div, .stTextArea > div > div {{ background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(99,102,241,0.2) !important; border-radius: 10px !important; color: white !important; }}
+        [data-testid="stSidebar"] {{ background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important; }}
+        [data-testid="stSidebar"] .stButton > button {{ background: rgba(99,102,241,0.1) !important; border: 1px solid rgba(99,102,241,0.2) !important; color: white !important; padding: 0.5rem 1rem !important; margin: 2px 0 !important; }}
+        [data-testid="stSidebar"] .stButton > button:hover {{ background: rgba(99,102,241,0.2) !important; border-color: rgba(139,92,246,0.4) !important; }}
+        h1 {{ background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800 !important; }}
+        ::-webkit-scrollbar {{ width: 8px; }}
+        ::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.05); }}
+        ::-webkit-scrollbar-thumb {{ background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }}
+        @keyframes float {{ 0%, 100% {{ transform: translateY(0px); }} 50% {{ transform: translateY(-10px); }} }}
+        .language-switcher {{ display: flex; gap: 0.5rem; justify-content: center; padding: 0.5rem; }}
+        {rtl_css}
+    </style>
+    """, unsafe_allow_html=True)
 
 # ================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE
 # ================================
 def init_session_state():
-    defaults = {
-        'logged_in': False, 'username': "", 'user_data': None,
-        'xp_points': 0, 'quiz_score': 0, 'total_cases': 0, 'correct_diagnoses': 0,
-        'streak': 0, 'current_page': "Dashboard", 'flashcard_flipped': False,
-        'comprehensive_exam': None, 'comprehensive_answers': {}, 'comprehensive_submitted': False,
-        'comprehensive_score': 0, 'current_case': None, 'achievements': [], 'language': 'en',
-    }
+    defaults = {'logged_in': False, 'username': "", 'user_data': None, 'xp_points': 0, 'quiz_score': 0, 'total_cases': 0, 'correct_diagnoses': 0, 'streak': 0, 'current_page': "Dashboard", 'flashcard_flipped': False, 'comprehensive_exam': None, 'comprehensive_answers': {}, 'comprehensive_submitted': False, 'comprehensive_score': 0, 'current_case': None, 'achievements': [], 'language': 'en'}
     for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        if key not in st.session_state: st.session_state[key] = value
 
 init_session_state()
 load_css(st.session_state.language)
@@ -1636,25 +1296,14 @@ if not st.session_state.logged_in:
         cols = st.columns(3)
         for i, (code, name) in enumerate([('en', 'English'), ('ku', 'کوردی'), ('ar', 'العربية')]):
             with cols[i]:
-                if st.button(name, key=f"lang_{code}", use_container_width=True):
-                    st.session_state.language = code
-                    st.rerun()
+                if st.button(name, key=f"lang_{code}", use_container_width=True): st.session_state.language = code; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     
     lang = st.session_state.language
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown(f"""
-        <div style="text-align: center; padding: 3rem 0;">
-            <div style="font-size: 5rem; animation: float 3s ease-in-out infinite;">🩺</div>
-            <h1 style="font-size: 3rem;">Dr.Danyal</h1>
-            <p style="color: rgba(255,255,255,0.6); font-size: 1.1rem;">{t('app_subtitle', lang)}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f'<div style="text-align: center; padding: 3rem 0;"><div style="font-size: 5rem; animation: float 3s ease-in-out infinite;">🩺</div><h1 style="font-size: 3rem;">Dr.Danyal</h1><p style="color: rgba(255,255,255,0.6);">{t("app_subtitle", lang)}</p></div>', unsafe_allow_html=True)
         tab1, tab2 = st.tabs([t('login', lang), t('register', lang)])
-        
         with tab1:
             with st.form("login_form"):
                 username = st.text_input(t('username', lang), placeholder=t('enter_username', lang))
@@ -1662,331 +1311,482 @@ if not st.session_state.logged_in:
                 if st.form_submit_button(t('login_button', lang), type="primary", use_container_width=True):
                     success, message, user_data = authenticate_user(username, password)
                     if success:
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.session_state.user_data = user_data
-                        st.session_state.xp_points = user_data['xp_points']
-                        st.session_state.quiz_score = user_data['quiz_score']
-                        st.session_state.total_cases = user_data['total_cases']
-                        st.session_state.correct_diagnoses = user_data['correct_diagnoses']
+                        st.session_state.logged_in = True; st.session_state.username = username; st.session_state.user_data = user_data
+                        st.session_state.xp_points = user_data['xp_points']; st.session_state.quiz_score = user_data['quiz_score']
+                        st.session_state.total_cases = user_data['total_cases']; st.session_state.correct_diagnoses = user_data['correct_diagnoses']
                         st.session_state.streak = update_user_streak(username)
-                        if user_data.get('language_preference'):
-                            st.session_state.language = user_data['language_preference']
+                        if user_data.get('language_preference'): st.session_state.language = user_data['language_preference']
                         st.rerun()
-                    else:
-                        st.error(f"❌ {message}")
-        
+                    else: st.error(f"❌ {message}")
         with tab2:
             with st.form("register_form"):
                 new_username = st.text_input(t('choose_username', lang), placeholder=t('username', lang))
                 new_password = st.text_input(t('choose_password', lang), type="password", placeholder=t('password', lang))
-                confirm_password = st.text_input(t('confirm_password', lang), type="password", placeholder=t('confirm_password_placeholder', lang))
+                confirm_password = st.text_input(t('confirm_password', lang), type="password")
                 if st.form_submit_button(t('register_button', lang), type="primary", use_container_width=True):
-                    if new_password != confirm_password:
-                        st.error(f"❌ {t('passwords_dont_match', lang)}")
+                    if new_password != confirm_password: st.error(f"❌ {t('passwords_dont_match', lang)}")
                     else:
                         success, message = create_user(new_username, new_password)
-                        if success:
-                            st.success(f"✅ {t('account_created', lang)}")
-                        else:
-                            st.error(f"❌ {message}")
-    
+                        if success: st.success(f"✅ {t('account_created', lang)}")
+                        else: st.error(f"❌ {message}")
     st.stop()
 
 # ================================
-# SIDEBAR
+# MAIN APP WITH RTL SIDEBAR FIX
 # ================================
 lang = st.session_state.language
 
-with st.sidebar:
-    st.markdown('<div class="language-switcher">', unsafe_allow_html=True)
-    cols = st.columns(3)
-    for i, (code, name) in enumerate([('en', 'EN'), ('ku', 'KU'), ('ar', 'AR')]):
-        with cols[i]:
-            if st.button(name, key=f"sidebar_lang_{code}", use_container_width=True):
-                st.session_state.language = code
-                conn = get_db_connection()
-                conn.execute("UPDATE users SET language_preference = ? WHERE username = ?", (code, st.session_state.username))
-                conn.commit()
+if lang in ['ku', 'ar']:
+    # RTL Layout: Custom right sidebar using columns
+    col_sidebar, col_main = st.columns([1, 4])
+    
+    with col_sidebar:
+        # Custom right sidebar content
+        st.markdown("""
+        <style>
+            /* Style the custom sidebar to look like Streamlit's sidebar */
+            [data-testid="column"]:first-child {
+                background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important;
+                border-left: 2px solid rgba(99, 102, 241, 0.2) !important;
+                min-height: 100vh;
+                padding: 1rem;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Language switcher
+        st.markdown('<div class="language-switcher">', unsafe_allow_html=True)
+        cols_inner = st.columns(3)
+        for i, (code, name) in enumerate([('en', 'English'), ('ku', 'KU'), ('ar', 'AR')]):
+            with cols_inner[i]:
+                if st.button(name, key=f"rtl_sidebar_lang_{code}", use_container_width=True):
+                    st.session_state.language = code
+                    conn = get_db_connection()
+                    conn.execute("UPDATE users SET language_preference = ? WHERE username = ?", (code, st.session_state.username))
+                    conn.commit()
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # User profile
+        level = get_user_level(st.session_state.xp_points)
+        level_info = LEVELS[level]
+        progress = get_level_progress(st.session_state.xp_points)
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem 0;">
+            <div style="font-size: 3rem;">{level_info['icon']}</div>
+            <div style="font-weight: 700; color: #a78bfa;">{st.session_state.username}</div>
+            <span class="badge badge-primary">{get_level_name(level, lang)}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0;">
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">⭐ {st.session_state.xp_points}</div><div style="font-size: 0.65rem; color: #888;">{t('xp', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">📊 {st.session_state.quiz_score}</div><div style="font-size: 0.65rem; color: #888;">{t('quiz_score', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">🔥 {st.session_state.streak}</div><div style="font-size: 0.65rem; color: #888;">{t('streak', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">🩺 {st.session_state.total_cases}</div><div style="font-size: 0.65rem; color: #888;">{t('cases', lang)}</div></div>
+        </div>
+        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 0.5rem 0;"><div style="width: {progress:.1f}%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 10px;"></div></div>
+        <div style="font-size: 0.65rem; color: #888; text-align: right;">{t('level_progress', lang)} {progress:.0f}%</div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Navigation
+        pages = [("dashboard", "Dashboard"), ("diseases", "Diseases"), ("case_analysis", "Case Analysis"), ("quiz", "Quiz"), ("comprehensive_exam", "Comprehensive Exam"), ("spaced_repetition", "Spaced Repetition"), ("lab_tests", "Lab Tests"), ("pharmacology", "Pharmacology"), ("drug_interactions", "Drug Interactions"), ("leaderboard", "Leaderboard"), ("medical_news", "Medical News"), ("ai_assistant", "AI Assistant"), ("clinical_notes", "Clinical Notes"), ("achievements", "Achievements")]
+        for key, page_name in pages:
+            if st.button(t(key, lang), use_container_width=True, key=f"rtl_nav_{page_name}"):
+                st.session_state.current_page = page_name
                 st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    level = get_user_level(st.session_state.xp_points)
-    level_info = LEVELS[level]
-    progress = get_level_progress(st.session_state.xp_points)
-    
-    st.markdown(f"""
-    <div style="text-align: center; padding: 1rem 0;">
-        <div style="font-size: 3rem;">{level_info['icon']}</div>
-        <div style="font-weight: 700; color: #a78bfa;">{st.session_state.username}</div>
-        <span class="badge badge-primary">{get_level_name(level, lang)}</span>
-    </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0;">
-        <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;">
-            <div style="font-weight: 700; color: #a78bfa;">⭐ {st.session_state.xp_points}</div>
-            <div style="font-size: 0.65rem; color: #888;">{t('xp', lang)}</div>
-        </div>
-        <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;">
-            <div style="font-weight: 700; color: #a78bfa;">📊 {st.session_state.quiz_score}</div>
-            <div style="font-size: 0.65rem; color: #888;">{t('quiz_score', lang)}</div>
-        </div>
-        <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;">
-            <div style="font-weight: 700; color: #a78bfa;">🔥 {st.session_state.streak}</div>
-            <div style="font-size: 0.65rem; color: #888;">{t('streak', lang)}</div>
-        </div>
-        <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;">
-            <div style="font-weight: 700; color: #a78bfa;">🩺 {st.session_state.total_cases}</div>
-            <div style="font-size: 0.65rem; color: #888;">{t('cases', lang)}</div>
-        </div>
-    </div>
-    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 0.5rem 0;">
-        <div style="width: {progress:.1f}%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 10px;"></div>
-    </div>
-    <div style="font-size: 0.65rem; color: #888; text-align: right;">{t('level_progress', lang)} {progress:.0f}%</div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    pages = [
-        ("dashboard", "Dashboard"), ("diseases", "Diseases"), ("case_analysis", "Case Analysis"),
-        ("quiz", "Quiz"), ("comprehensive_exam", "Comprehensive Exam"), ("spaced_repetition", "Spaced Repetition"),
-        ("lab_tests", "Lab Tests"), ("pharmacology", "Pharmacology"), ("drug_interactions", "Drug Interactions"),
-        ("leaderboard", "Leaderboard"), ("medical_news", "Medical News"), ("ai_assistant", "AI Assistant"),
-        ("clinical_notes", "Clinical Notes"), ("achievements", "Achievements"),
-    ]
-    
-    for key, page_name in pages:
-        if st.button(t(key, lang), use_container_width=True, key=f"nav_{page_name}"):
-            st.session_state.current_page = page_name
+        
+        st.markdown("---")
+        if st.button(t('logout', lang), use_container_width=True, key="rtl_logout"):
+            st.session_state.logged_in = False
             st.rerun()
+        
+        st.markdown(f'<div style="text-align: center; padding: 0.5rem; font-size: 0.7rem; color: #666;"><span class="badge badge-primary">{t("version", lang)}</span><p>© 2024 Dr.Danyal</p></div>', unsafe_allow_html=True)
     
-    st.markdown("---")
-    if st.button(t('logout', lang), use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
-    
-    st.markdown(f"""
-    <div style="text-align: center; padding: 0.5rem; font-size: 0.7rem; color: #666;">
-        <span class="badge badge-primary">{t('version', lang)}</span>
-        <p>© 2024 Dr.Danyal</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ================================
-# PAGE ROUTING
-# ================================
-page = st.session_state.current_page
-
-if page == "Dashboard":
-    st.markdown(f'<h1 style="text-align: center;">{t("dashboard", lang)}</h1>', unsafe_allow_html=True)
-    cols = st.columns(5)
-    metrics = [(t("diseases_count", lang), len(DISEASE_DATABASE)), (t("drugs_count", lang), sum(len(d) for d in DRUG_DATABASE.values())), (t("tests_count", lang), len(LAB_TESTS)), (t("xp", lang), st.session_state.xp_points), (t("streak", lang), st.session_state.streak)]
-    for col, (label, value) in zip(cols, metrics):
-        with col:
-            st.markdown(f'<div class="stat-card"><h3>{label}</h3><div class="stat-number">{value}</div></div>', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""<div class="glass-card"><h3>{t('your_progress', lang)}</h3><p>{t('level', lang)}: {level_info['icon']} {get_level_name(level, lang)}</p><p>{t('quiz_score', lang)}: {st.session_state.quiz_score}</p><p>{t('cases_solved', lang)}: {st.session_state.total_cases}</p><p>{t('accuracy', lang)}: {(st.session_state.correct_diagnoses / max(st.session_state.total_cases, 1) * 100):.1f}%</p></div>""", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""<div class="glass-card"><h3>{t('platform_stats', lang)}</h3><p>{t('total_users', lang)}: {get_user_count()}</p><p>{t('diseases_count', lang)}: {len(DISEASE_DATABASE)}</p><p>{t('drugs_count', lang)}: {sum(len(d) for d in DRUG_DATABASE.values())}</p><p>{t('tests_count', lang)}: {len(LAB_TESTS)}</p></div>""", unsafe_allow_html=True)
-
-elif page == "Diseases":
-    st.markdown(f'<h2>{t("disease_library", lang)}</h2>', unsafe_allow_html=True)
-    search = st.text_input(t("search", lang), placeholder=t("search_placeholder", lang))
-    risk_filter = st.selectbox(t("risk_level", lang), [t("all", lang), t("critical", lang), t("high", lang), t("moderate", lang), t("low", lang)])
-    risk_map_reverse = {t("critical", lang): "Critical", t("high", lang): "High", t("moderate", lang): "Moderate", t("low", lang): "Low"}
-    filtered = DISEASE_DATABASE.copy()
-    if search: filtered = {k: v for k, v in filtered.items() if search.lower() in k.lower()}
-    if risk_filter != t("all", lang): filtered = {k: v for k, v in filtered.items() if v.get("risk_level") == risk_map_reverse.get(risk_filter, risk_filter)}
-    cols = st.columns(2)
-    for i, (disease, info) in enumerate(filtered.items()):
-        with cols[i % 2]:
-            with st.expander(f"🩺 {disease}"):
-                risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
-                st.markdown(f"**{t('risk', lang)}:** <span style='color:{risk_color.get(info.get('risk_level', 'Low'))}'>{get_risk_level_translated(info.get('risk_level', 'Low'), lang)}</span>", unsafe_allow_html=True)
-                st.markdown(f"**{t('symptoms', lang)}:** {', '.join(get_symptoms(info, lang)[:5])}")
-                st.markdown(f"**{t('treatment', lang)}:** {', '.join(get_treatment(info, lang)[:3])}")
-
-elif page == "Case Analysis":
-    st.markdown(f'<h2>{t("clinical_case_analysis", lang)}</h2>', unsafe_allow_html=True)
-    if st.button(t("generate_new_case", lang), type="primary", use_container_width=True):
-        disease = random.choice(list(DISEASE_DATABASE.keys()))
-        info = DISEASE_DATABASE[disease]
-        gender_map = {"en": random.choice(["Male", "Female"]), "ku": random.choice(["نێر", "مێ"]), "ar": random.choice(["ذكر", "أنثى"])}
-        st.session_state.current_case = {"id": f"CASE-{random.randint(1000,9999)}", "age": random.randint(18, 85), "gender": gender_map, "symptoms": random.sample(get_symptoms(info, lang), min(5, len(get_symptoms(info, lang)))), "diagnosis": disease, "risk": info["risk_level"]}
-        st.rerun()
-    if st.session_state.current_case:
-        case = st.session_state.current_case
-        gender = case["gender"].get(lang, case["gender"].get("en", ""))
-        st.markdown(f"""<div class="glass-card"><h3>{t('case_id', lang)} #{case['id']}</h3><p><strong>{t('patient', lang)}:</strong> {case['age']} {t('years_old', lang)} {gender}</p><p><strong>{t('symptoms', lang)}:</strong> {', '.join(case['symptoms'])}</p></div>""", unsafe_allow_html=True)
-        diagnosis = st.selectbox(t("your_diagnosis", lang), list(DISEASE_DATABASE.keys()))
-        if st.button(t("submit", lang), type="primary"):
-            st.session_state.total_cases += 1
-            if diagnosis == case["diagnosis"]:
-                st.session_state.correct_diagnoses += 1
-                add_xp(st.session_state.username, 20)
-                st.success(f"🎉 {t('correct', lang)}! {case['diagnosis']}")
-            else:
-                st.error(f"❌ {t('incorrect', lang)}. {case['diagnosis']}")
-            conn = get_db_connection()
-            conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?", (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username))
-            conn.commit()
-
-elif page == "Quiz":
-    st.markdown(f'<h2>{t("medical_quiz", lang)}</h2>', unsafe_allow_html=True)
-    q = random.choice(QUIZ_QUESTIONS)
-    question = q.get(f"question_{lang}", q["question_en"])
-    options = q.get(f"options_{lang}", q["options_en"])
-    st.markdown(f'<div class="glass-card"><h3>{question}</h3></div>', unsafe_allow_html=True)
-    answer = st.radio(t("select_answer", lang), options, key="quiz_ans")
-    if st.button(t("submit_answer", lang), type="primary"):
-        if options.index(answer) == q["correct"]:
-            st.session_state.quiz_score += 1
-            add_xp(st.session_state.username, 10)
-            st.success(f"🎉 {t('correct', lang)}!")
-        else:
-            st.error(f"❌ {t('incorrect', lang)}. {t('answer_was', lang)}: {options[q['correct']]}")
-        conn = get_db_connection()
-        conn.execute("UPDATE users SET quiz_score = ? WHERE username = ?", (st.session_state.quiz_score, st.session_state.username))
-        conn.commit()
-        st.rerun()
-
-elif page == "Comprehensive Exam":
-    st.markdown(f'<h2>{t("comprehensive_exam_title", lang)}</h2>', unsafe_allow_html=True)
-    if st.session_state.comprehensive_exam is None:
-        if st.button(t("start_exam", lang), type="primary", use_container_width=True):
-            st.session_state.comprehensive_exam = random.sample(QUIZ_QUESTIONS, min(50, len(QUIZ_QUESTIONS)))
-            st.session_state.comprehensive_answers = {}
-            st.session_state.comprehensive_submitted = False
-            st.rerun()
-    elif not st.session_state.comprehensive_submitted:
-        for i, q in enumerate(st.session_state.comprehensive_exam):
+    with col_main:
+        # Main content for RTL
+        page = st.session_state.current_page
+        
+        if page == "Dashboard":
+            st.markdown(f'<h1 style="text-align: center;">{t("dashboard", lang)}</h1>', unsafe_allow_html=True)
+            cols = st.columns(5)
+            metrics = [(t("diseases_count", lang), len(DISEASE_DATABASE)), (t("drugs_count", lang), sum(len(d) for d in DRUG_DATABASE.values())), (t("tests_count", lang), len(LAB_TESTS)), (t("xp", lang), st.session_state.xp_points), (t("streak", lang), st.session_state.streak)]
+            for col, (label, value) in zip(cols, metrics):
+                with col: st.markdown(f'<div class="stat-card"><h3>{label}</h3><div class="stat-number">{value}</div></div>', unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1: st.markdown(f"""<div class="glass-card"><h3>{t('your_progress', lang)}</h3><p>{t('level', lang)}: {level_info['icon']} {get_level_name(level, lang)}</p><p>{t('quiz_score', lang)}: {st.session_state.quiz_score}</p><p>{t('cases_solved', lang)}: {st.session_state.total_cases}</p><p>{t('accuracy', lang)}: {(st.session_state.correct_diagnoses / max(st.session_state.total_cases, 1) * 100):.1f}%</p></div>""", unsafe_allow_html=True)
+            with col2: st.markdown(f"""<div class="glass-card"><h3>{t('platform_stats', lang)}</h3><p>{t('total_users', lang)}: {get_user_count()}</p><p>{t('diseases_count', lang)}: {len(DISEASE_DATABASE)}</p><p>{t('drugs_count', lang)}: {sum(len(d) for d in DRUG_DATABASE.values())}</p><p>{t('tests_count', lang)}: {len(LAB_TESTS)}</p></div>""", unsafe_allow_html=True)
+        
+        elif page == "Diseases":
+            st.markdown(f'<h2>{t("disease_library", lang)}</h2>', unsafe_allow_html=True)
+            search = st.text_input(t("search", lang), placeholder=t("search_placeholder", lang))
+            risk_filter = st.selectbox(t("risk_level", lang), [t("all", lang), t("critical", lang), t("high", lang), t("moderate", lang), t("low", lang)])
+            risk_map_reverse = {t("critical", lang): "Critical", t("high", lang): "High", t("moderate", lang): "Moderate", t("low", lang): "Low"}
+            filtered = DISEASE_DATABASE.copy()
+            if search: filtered = {k: v for k, v in filtered.items() if search.lower() in k.lower()}
+            if risk_filter != t("all", lang): filtered = {k: v for k, v in filtered.items() if v.get("risk_level") == risk_map_reverse.get(risk_filter, risk_filter)}
+            cols = st.columns(2)
+            for i, (disease, info) in enumerate(filtered.items()):
+                with cols[i % 2]:
+                    with st.expander(f"🩺 {disease}"):
+                        risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
+                        st.markdown(f"**{t('risk', lang)}:** <span style='color:{risk_color.get(info.get('risk_level', 'Low'))}'>{get_risk_level_translated(info.get('risk_level', 'Low'), lang)}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**{t('symptoms', lang)}:** {', '.join(get_symptoms(info, lang)[:5])}")
+                        st.markdown(f"**{t('treatment', lang)}:** {', '.join(get_treatment(info, lang)[:3])}")
+        
+        elif page == "Case Analysis":
+            st.markdown(f'<h2>{t("clinical_case_analysis", lang)}</h2>', unsafe_allow_html=True)
+            if st.button(t("generate_new_case", lang), type="primary", use_container_width=True):
+                disease = random.choice(list(DISEASE_DATABASE.keys()))
+                info = DISEASE_DATABASE[disease]
+                gender_map = {"en": random.choice(["Male", "Female"]), "ku": random.choice(["نێر", "مێ"]), "ar": random.choice(["ذكر", "أنثى"])}
+                st.session_state.current_case = {"id": f"CASE-{random.randint(1000,9999)}", "age": random.randint(18, 85), "gender": gender_map, "symptoms": random.sample(get_symptoms(info, lang), min(5, len(get_symptoms(info, lang)))), "diagnosis": disease, "risk": info["risk_level"]}
+                st.rerun()
+            if st.session_state.current_case:
+                case = st.session_state.current_case
+                gender = case["gender"].get(lang, case["gender"].get("en", ""))
+                st.markdown(f"""<div class="glass-card"><h3>{t('case_id', lang)} #{case['id']}</h3><p><strong>{t('patient', lang)}:</strong> {case['age']} {t('years_old', lang)} {gender}</p><p><strong>{t('symptoms', lang)}:</strong> {', '.join(case['symptoms'])}</p></div>""", unsafe_allow_html=True)
+                diagnosis = st.selectbox(t("your_diagnosis", lang), list(DISEASE_DATABASE.keys()))
+                if st.button(t("submit", lang), type="primary"):
+                    st.session_state.total_cases += 1
+                    if diagnosis == case["diagnosis"]:
+                        st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20)
+                        st.success(f"🎉 {t('correct', lang)}!")
+                    else: st.error(f"❌ {t('incorrect', lang)}.")
+                    conn = get_db_connection(); conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?", (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username)); conn.commit()
+        
+        elif page == "Quiz":
+            st.markdown(f'<h2>{t("medical_quiz", lang)}</h2>', unsafe_allow_html=True)
+            q = random.choice(QUIZ_QUESTIONS)
             question = q.get(f"question_{lang}", q["question_en"])
             options = q.get(f"options_{lang}", q["options_en"])
-            st.markdown(f"**{i+1}. {question}**")
-            ans = st.radio(f"Q{i}", options, key=f"exam_{i}", label_visibility="collapsed")
-            st.session_state.comprehensive_answers[i] = options.index(ans) if ans else -1
-        if st.button(t("submit_exam", lang), type="primary"):
-            score = sum(1 for i, q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i) == q["correct"])
-            st.session_state.comprehensive_score = score
-            st.session_state.comprehensive_submitted = True
-            add_xp(st.session_state.username, score * 2)
-            st.rerun()
-    else:
-        score = st.session_state.comprehensive_score
-        total = len(st.session_state.comprehensive_exam)
-        st.markdown(f'<div class="glass-card"><h2>🎉 {t("score", lang)}: {score}/{total} ({(score/total*100):.1f}%)</h2></div>', unsafe_allow_html=True)
-        if st.button(t("retake", lang)): st.session_state.comprehensive_exam = None; st.rerun()
-
-elif page == "Spaced Repetition":
-    st.markdown(f'<h2>{t("spaced_repetition_title", lang)}</h2>', unsafe_allow_html=True)
-    disease = random.choice(list(DISEASE_DATABASE.keys()))
-    info = DISEASE_DATABASE[disease]
-    if st.session_state.flashcard_flipped:
-        st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 2rem;"><h3>{disease}</h3><p><strong>{t('symptoms', lang)}:</strong> {', '.join(get_symptoms(info, lang)[:4])}</p><p style="color: #a78bfa;"><strong>{t('treatment', lang)}:</strong> {', '.join(get_treatment(info, lang)[:3])}</p></div>""", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(t("knew_it", lang), type="primary", use_container_width=True): st.session_state.flashcard_flipped = False; add_xp(st.session_state.username, 5); st.rerun()
-        with col2:
-            if st.button(t("review_again", lang), use_container_width=True): st.session_state.flashcard_flipped = False; st.rerun()
-    else:
-        st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 3rem;"><h3>{t('what_are_symptoms_of', lang)} {disease}?</h3></div>""", unsafe_allow_html=True)
-        if st.button(t("reveal_answer", lang), use_container_width=True): st.session_state.flashcard_flipped = True; st.rerun()
-
-elif page == "Lab Tests":
-    st.markdown(f'<h2>{t("lab_tests_title", lang)} ({len(LAB_TESTS)} {t("tests_count", lang)})</h2>', unsafe_allow_html=True)
-    search = st.text_input(t("search", lang))
-    category = st.selectbox(t("category", lang), [t("all", lang)] + sorted(set(v["category"] for v in LAB_TESTS.values())))
-    filtered = {k: v for k, v in LAB_TESTS.items() if (not search or search.lower() in k.lower()) and (category == t("all", lang) or v["category"] == category)}
-    if filtered:
-        import pandas as pd
-        df_data = [{"Test": k, "Category": v["category"], t("normal_range", lang): v["normal"], t("description", lang): get_description(v, lang)} for k, v in filtered.items()]
-        st.dataframe(pd.DataFrame(df_data), use_container_width=True, height=400)
-    else:
-        st.info(t("no_tests_found", lang))
-
-elif page == "Pharmacology":
-    st.markdown(f'<h2>{t("pharmacology_title", lang)} ({sum(len(d) for d in DRUG_DATABASE.values())} {t("drugs_count", lang)})</h2>', unsafe_allow_html=True)
-    search = st.text_input(t("search", lang))
-    for category, drugs in DRUG_DATABASE.items():
-        cat_drugs = {k: v for k, v in drugs.items() if not search or search.lower() in k.lower()}
-        if cat_drugs:
-            with st.expander(f"📂 {category} ({len(cat_drugs)} {t('drugs_count', lang)})"):
-                for drug, info in cat_drugs.items():
-                    st.markdown(f"""<div class="glass-card"><h4>{drug}</h4><p><strong>{t('drug_class', lang)}:</strong> {info['class']} | <strong>{t('dose', lang)}:</strong> {info['dose']}</p><p><strong>{t('indications', lang)}:</strong> {get_indications(info, lang)}</p><p style="color: #ef4444;"><strong>{t('side_effects', lang)}:</strong> {get_side_effects(info, lang)}</p></div>""", unsafe_allow_html=True)
-
-elif page == "Drug Interactions":
-    st.markdown(f'<h2>{t("drug_interactions_title", lang)}</h2>', unsafe_allow_html=True)
-    all_drugs = [drug for drugs in DRUG_DATABASE.values() for drug in drugs]
-    selected = st.multiselect(t("select_drugs", lang), all_drugs)
-    if len(selected) >= 2:
-        st.info(f"{len(selected)} {t('drugs_selected', lang)}")
-    else:
-        st.info(t("select_minimum", lang))
-
-elif page == "Leaderboard":
-    st.markdown(f'<h2>{t("leaderboard_title", lang)}</h2>', unsafe_allow_html=True)
-    df = get_leaderboard_data()
-    if not df.empty:
-        for i, (_, row) in enumerate(df.iterrows()):
-            medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"#{i+1}"
-            st.markdown(f"""<div class="glass-card"><h3>{medal} {row['username']}</h3><p>⭐ {row['xp_points']} {t('xp', lang)} | 📊 {row['quiz_score']} {t('quiz_score', lang)} | 🩺 {row['cases_solved']} {t('cases', lang)}</p></div>""", unsafe_allow_html=True)
-    else:
-        st.info(t("no_data", lang))
-
-elif page == "Medical News":
-    st.markdown(f'<h2>{t("medical_news", lang)} ({len(MEDICAL_NEWS)} items)</h2>', unsafe_allow_html=True)
-    for item in MEDICAL_NEWS[:20]:
-        st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
-    if len(MEDICAL_NEWS) > 20:
-        with st.expander(f"📰 Show all {len(MEDICAL_NEWS)} news items"):
-            for item in MEDICAL_NEWS[20:]:
+            st.markdown(f'<div class="glass-card"><h3>{question}</h3></div>', unsafe_allow_html=True)
+            answer = st.radio(t("select_answer", lang), options, key="rtl_quiz_ans")
+            if st.button(t("submit_answer", lang), type="primary"):
+                if options.index(answer) == q["correct"]: st.session_state.quiz_score += 1; add_xp(st.session_state.username, 10); st.success(f"🎉 {t('correct', lang)}!")
+                else: st.error(f"❌ {t('incorrect', lang)}.")
+                conn = get_db_connection(); conn.execute("UPDATE users SET quiz_score = ? WHERE username = ?", (st.session_state.quiz_score, st.session_state.username)); conn.commit(); st.rerun()
+        
+        elif page == "Comprehensive Exam":
+            st.markdown(f'<h2>{t("comprehensive_exam_title", lang)}</h2>', unsafe_allow_html=True)
+            if st.session_state.comprehensive_exam is None:
+                if st.button(t("start_exam", lang), type="primary", use_container_width=True): st.session_state.comprehensive_exam = random.sample(QUIZ_QUESTIONS, min(50, len(QUIZ_QUESTIONS))); st.session_state.comprehensive_answers = {}; st.session_state.comprehensive_submitted = False; st.rerun()
+            elif not st.session_state.comprehensive_submitted:
+                for i, q in enumerate(st.session_state.comprehensive_exam):
+                    question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
+                    st.markdown(f"**{i+1}. {question}**")
+                    ans = st.radio(f"Q{i}", options, key=f"rtl_exam_{i}", label_visibility="collapsed")
+                    st.session_state.comprehensive_answers[i] = options.index(ans) if ans else -1
+                if st.button(t("submit_exam", lang), type="primary"):
+                    score = sum(1 for i, q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i) == q["correct"])
+                    st.session_state.comprehensive_score = score; st.session_state.comprehensive_submitted = True; add_xp(st.session_state.username, score * 2); st.rerun()
+            else:
+                score = st.session_state.comprehensive_score; total = len(st.session_state.comprehensive_exam)
+                st.markdown(f'<div class="glass-card"><h2>🎉 {t("score", lang)}: {score}/{total} ({(score/total*100):.1f}%)</h2></div>', unsafe_allow_html=True)
+                if st.button(t("retake", lang)): st.session_state.comprehensive_exam = None; st.rerun()
+        
+        elif page == "Spaced Repetition":
+            st.markdown(f'<h2>{t("spaced_repetition_title", lang)}</h2>', unsafe_allow_html=True)
+            disease = random.choice(list(DISEASE_DATABASE.keys())); info = DISEASE_DATABASE[disease]
+            if st.session_state.flashcard_flipped:
+                st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 2rem;"><h3>{disease}</h3><p><strong>{t('symptoms', lang)}:</strong> {', '.join(get_symptoms(info, lang)[:4])}</p><p style="color: #a78bfa;"><strong>{t('treatment', lang)}:</strong> {', '.join(get_treatment(info, lang)[:3])}</p></div>""", unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(t("knew_it", lang), type="primary", use_container_width=True): st.session_state.flashcard_flipped = False; add_xp(st.session_state.username, 5); st.rerun()
+                with col2:
+                    if st.button(t("review_again", lang), use_container_width=True): st.session_state.flashcard_flipped = False; st.rerun()
+            else:
+                st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 3rem;"><h3>{t('what_are_symptoms_of', lang)} {disease}?</h3></div>""", unsafe_allow_html=True)
+                if st.button(t("reveal_answer", lang), use_container_width=True): st.session_state.flashcard_flipped = True; st.rerun()
+        
+        elif page == "Lab Tests":
+            st.markdown(f'<h2>{t("lab_tests_title", lang)} ({len(LAB_TESTS)} {t("tests_count", lang)})</h2>', unsafe_allow_html=True)
+            search = st.text_input(t("search", lang))
+            category = st.selectbox(t("category", lang), [t("all", lang)] + sorted(set(v["category"] for v in LAB_TESTS.values())))
+            filtered = {k: v for k, v in LAB_TESTS.items() if (not search or search.lower() in k.lower()) and (category == t("all", lang) or v["category"] == category)}
+            if filtered:
+                import pandas as pd
+                df_data = [{"Test": k, "Category": v["category"], t("normal_range", lang): v["normal"], t("description", lang): get_description(v, lang)} for k, v in filtered.items()]
+                st.dataframe(pd.DataFrame(df_data), use_container_width=True, height=400)
+            else: st.info(t("no_tests_found", lang))
+        
+        elif page == "Pharmacology":
+            st.markdown(f'<h2>{t("pharmacology_title", lang)} ({sum(len(d) for d in DRUG_DATABASE.values())} {t("drugs_count", lang)})</h2>', unsafe_allow_html=True)
+            search = st.text_input(t("search", lang))
+            for category, drugs in DRUG_DATABASE.items():
+                cat_drugs = {k: v for k, v in drugs.items() if not search or search.lower() in k.lower()}
+                if cat_drugs:
+                    with st.expander(f"📂 {category} ({len(cat_drugs)} {t('drugs_count', lang)})"):
+                        for drug, info in cat_drugs.items():
+                            st.markdown(f"""<div class="glass-card"><h4>{drug}</h4><p><strong>{t('drug_class', lang)}:</strong> {info['class']} | <strong>{t('dose', lang)}:</strong> {info['dose']}</p><p><strong>{t('indications', lang)}:</strong> {get_indications(info, lang)}</p><p style="color: #ef4444;"><strong>{t('side_effects', lang)}:</strong> {get_side_effects(info, lang)}</p></div>""", unsafe_allow_html=True)
+        
+        elif page == "Drug Interactions":
+            st.markdown(f'<h2>{t("drug_interactions_title", lang)}</h2>', unsafe_allow_html=True)
+            all_drugs = [drug for drugs in DRUG_DATABASE.values() for drug in drugs]
+            selected = st.multiselect(t("select_drugs", lang), all_drugs)
+            if len(selected) >= 2: st.info(f"{len(selected)} {t('drugs_selected', lang)}")
+            else: st.info(t("select_minimum", lang))
+        
+        elif page == "Leaderboard":
+            st.markdown(f'<h2>{t("leaderboard_title", lang)}</h2>', unsafe_allow_html=True)
+            df = get_leaderboard_data()
+            if not df.empty:
+                for i, (_, row) in enumerate(df.iterrows()):
+                    medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"#{i+1}"
+                    st.markdown(f"""<div class="glass-card"><h3>{medal} {row['username']}</h3><p>⭐ {row['xp_points']} {t('xp', lang)} | 📊 {row['quiz_score']} {t('quiz_score', lang)} | 🩺 {row['cases_solved']} {t('cases', lang)}</p></div>""", unsafe_allow_html=True)
+            else: st.info(t("no_data", lang))
+        
+        elif page == "Medical News":
+            st.markdown(f'<h2>{t("medical_news", lang)} ({len(MEDICAL_NEWS)} items)</h2>', unsafe_allow_html=True)
+            for item in MEDICAL_NEWS[:20]:
                 st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
+        
+        elif page == "AI Assistant":
+            st.markdown(f'<h2>{t("ai_assistant_title", lang)}</h2>', unsafe_allow_html=True)
+            symptoms = st.text_area(t("enter_symptoms", lang), placeholder="e.g., fever, cough, fatigue", height=100)
+            if st.button(t("analyze", lang), type="primary") and symptoms:
+                symptom_list = [s.strip().lower() for s in symptoms.split(",") if s.strip()]
+                results = []
+                for disease, info in DISEASE_DATABASE.items():
+                    disease_symptoms = [s.lower() for s in get_symptoms(info, 'en')]
+                    matches = len(set(symptom_list) & set(disease_symptoms))
+                    if matches > 0: results.append((disease, (matches / len(disease_symptoms)) * 100, info["risk_level"]))
+                results.sort(key=lambda x: x[1], reverse=True)
+                if results:
+                    for disease, match, risk in results[:10]:
+                        risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
+                        st.markdown(f"""<div class="glass-card"><h4>{disease}</h4><p>{t('match', lang)}: {match:.0f}% | {t('risk', lang)}: <span style="color:{risk_color.get(risk, '#888')}">{get_risk_level_translated(risk, lang)}</span></p></div>""", unsafe_allow_html=True)
+                else: st.info("No matching diseases found.")
+        
+        elif page == "Clinical Notes":
+            st.markdown(f'<h2>{t("clinical_notes_title", lang)}</h2>', unsafe_allow_html=True)
+            with st.form("rtl_add_note"):
+                patient = st.text_input(t("patient_info", lang)); note = st.text_area(t("clinical_note", lang))
+                if st.form_submit_button(t("save_note", lang), type="primary"):
+                    conn = get_db_connection(); conn.execute("INSERT INTO clinical_notes (username, patient_info, note) VALUES (?, ?, ?)", (st.session_state.username, patient, note)); conn.commit()
+                    st.success(f"✅ {t('note_saved', lang)}"); st.rerun()
+            conn = get_db_connection(); notes = conn.execute("SELECT * FROM clinical_notes WHERE username = ? ORDER BY created_at DESC LIMIT 20", (st.session_state.username,)).fetchall()
+            for note in notes: st.markdown(f"""<div class="glass-card"><p><strong>{t('patient_info', lang)}:</strong> {note['patient_info']}</p><p>{note['note']}</p><p style="color: #888;">{note['created_at'][:10]}</p></div>""", unsafe_allow_html=True)
+        
+        elif page == "Achievements":
+            st.markdown(f'<h2>{t("achievements_title", lang)}</h2>', unsafe_allow_html=True)
+            achievements = [("First Steps", "🩺", st.session_state.total_cases >= 1), ("Case Master", "🏆", st.session_state.total_cases >= 20), ("Quiz Beginner", "📝", st.session_state.quiz_score >= 10), ("Quiz Expert", "🎓", st.session_state.quiz_score >= 50), ("Streak Master", "🔥", st.session_state.streak >= 7), ("XP Hunter", "⭐", st.session_state.xp_points >= 100), ("XP Champion", "💎", st.session_state.xp_points >= 500)]
+            cols = st.columns(3)
+            for i, (name, icon, earned) in enumerate(achievements):
+                with cols[i % 3]: st.markdown(f"""<div class="glass-card" style="text-align: center; opacity: {1 if earned else 0.5};"><div style="font-size: 3rem;">{icon}</div><h4>{name}</h4><span class="badge {'badge-success' if earned else 'badge-warning'}">{t('earned', lang) if earned else t('locked', lang)}</span></div>""", unsafe_allow_html=True)
 
-elif page == "AI Assistant":
-    st.markdown(f'<h2>{t("ai_assistant_title", lang)}</h2>', unsafe_allow_html=True)
-    st.markdown(f"**📊 Database Summary:** {len(DISEASE_DATABASE)} diseases, {sum(len(d) for d in DRUG_DATABASE.values())} drugs, {len(LAB_TESTS)} lab tests, {len(QUIZ_QUESTIONS)} quiz questions, {len(MEDICAL_NEWS)} news items loaded.")
-    symptoms = st.text_area(t("enter_symptoms", lang), placeholder="e.g., fever, cough, fatigue, headache", height=100)
-    if st.button(t("analyze", lang), type="primary") and symptoms:
-        symptom_list = [s.strip().lower() for s in symptoms.split(",") if s.strip()]
-        results = []
-        for disease, info in DISEASE_DATABASE.items():
-            disease_symptoms = [s.lower() for s in get_symptoms(info, 'en')]
-            matches = len(set(symptom_list) & set(disease_symptoms))
-            if matches > 0:
-                results.append((disease, (matches / len(disease_symptoms)) * 100, info["risk_level"]))
-        results.sort(key=lambda x: x[1], reverse=True)
-        if results:
-            st.markdown(f"### 📊 {t('match', lang)} {t('results', lang)} ({len(results)} found)")
-            for disease, match, risk in results[:10]:
-                risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
-                st.markdown(f"""<div class="glass-card"><h4>{disease}</h4><p>{t('match', lang)}: {match:.0f}% | {t('risk', lang)}: <span style="color:{risk_color.get(risk, '#888')}">{get_risk_level_translated(risk, lang)}</span></p></div>""", unsafe_allow_html=True)
-        else:
-            st.info("No matching diseases found. Try different symptoms.")
-
-elif page == "Clinical Notes":
-    st.markdown(f'<h2>{t("clinical_notes_title", lang)}</h2>', unsafe_allow_html=True)
-    with st.form("add_note"):
-        patient = st.text_input(t("patient_info", lang))
-        note = st.text_area(t("clinical_note", lang))
-        if st.form_submit_button(t("save_note", lang), type="primary"):
-            conn = get_db_connection()
-            conn.execute("INSERT INTO clinical_notes (username, patient_info, note) VALUES (?, ?, ?)", (st.session_state.username, patient, note))
-            conn.commit()
-            st.success(f"✅ {t('note_saved', lang)}")
+else:
+    # LTR Layout: Default Streamlit sidebar
+    with st.sidebar:
+        st.markdown('<div class="language-switcher">', unsafe_allow_html=True)
+        cols = st.columns(3)
+        for i, (code, name) in enumerate([('en', 'EN'), ('ku', 'KU'), ('ar', 'AR')]):
+            with cols[i]:
+                if st.button(name, key=f"ltr_sidebar_lang_{code}", use_container_width=True):
+                    st.session_state.language = code
+                    conn = get_db_connection()
+                    conn.execute("UPDATE users SET language_preference = ? WHERE username = ?", (code, st.session_state.username))
+                    conn.commit()
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        level = get_user_level(st.session_state.xp_points)
+        level_info = LEVELS[level]
+        progress = get_level_progress(st.session_state.xp_points)
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem 0;"><div style="font-size: 3rem;">{level_info['icon']}</div><div style="font-weight: 700; color: #a78bfa;">{st.session_state.username}</div><span class="badge badge-primary">{get_level_name(level, lang)}</span></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0;">
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">⭐ {st.session_state.xp_points}</div><div style="font-size: 0.65rem; color: #888;">{t('xp', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">📊 {st.session_state.quiz_score}</div><div style="font-size: 0.65rem; color: #888;">{t('quiz_score', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">🔥 {st.session_state.streak}</div><div style="font-size: 0.65rem; color: #888;">{t('streak', lang)}</div></div>
+            <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">🩺 {st.session_state.total_cases}</div><div style="font-size: 0.65rem; color: #888;">{t('cases', lang)}</div></div>
+        </div>
+        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 0.5rem 0;"><div style="width: {progress:.1f}%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 10px;"></div></div>
+        <div style="font-size: 0.65rem; color: #888; text-align: right;">{t('level_progress', lang)} {progress:.0f}%</div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        pages = [("dashboard", "Dashboard"), ("diseases", "Diseases"), ("case_analysis", "Case Analysis"), ("quiz", "Quiz"), ("comprehensive_exam", "Comprehensive Exam"), ("spaced_repetition", "Spaced Repetition"), ("lab_tests", "Lab Tests"), ("pharmacology", "Pharmacology"), ("drug_interactions", "Drug Interactions"), ("leaderboard", "Leaderboard"), ("medical_news", "Medical News"), ("ai_assistant", "AI Assistant"), ("clinical_notes", "Clinical Notes"), ("achievements", "Achievements")]
+        for key, page_name in pages:
+            if st.button(t(key, lang), use_container_width=True, key=f"ltr_nav_{page_name}"):
+                st.session_state.current_page = page_name
+                st.rerun()
+        st.markdown("---")
+        if st.button(t('logout', lang), use_container_width=True, key="ltr_logout"): st.session_state.logged_in = False; st.rerun()
+        st.markdown(f'<div style="text-align: center; padding: 0.5rem; font-size: 0.7rem; color: #666;"><span class="badge badge-primary">{t("version", lang)}</span><p>© 2024 Dr.Danyal</p></div>', unsafe_allow_html=True)
+    
+    # Main content for LTR
+    page = st.session_state.current_page
+    
+    if page == "Dashboard":
+        st.markdown(f'<h1 style="text-align: center;">{t("dashboard", lang)}</h1>', unsafe_allow_html=True)
+        cols = st.columns(5)
+        metrics = [(t("diseases_count", lang), len(DISEASE_DATABASE)), (t("drugs_count", lang), sum(len(d) for d in DRUG_DATABASE.values())), (t("tests_count", lang), len(LAB_TESTS)), (t("xp", lang), st.session_state.xp_points), (t("streak", lang), st.session_state.streak)]
+        for col, (label, value) in zip(cols, metrics):
+            with col: st.markdown(f'<div class="stat-card"><h3>{label}</h3><div class="stat-number">{value}</div></div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1: st.markdown(f"""<div class="glass-card"><h3>{t('your_progress', lang)}</h3><p>{t('level', lang)}: {level_info['icon']} {get_level_name(level, lang)}</p><p>{t('quiz_score', lang)}: {st.session_state.quiz_score}</p><p>{t('cases_solved', lang)}: {st.session_state.total_cases}</p><p>{t('accuracy', lang)}: {(st.session_state.correct_diagnoses / max(st.session_state.total_cases, 1) * 100):.1f}%</p></div>""", unsafe_allow_html=True)
+        with col2: st.markdown(f"""<div class="glass-card"><h3>{t('platform_stats', lang)}</h3><p>{t('total_users', lang)}: {get_user_count()}</p><p>{t('diseases_count', lang)}: {len(DISEASE_DATABASE)}</p><p>{t('drugs_count', lang)}: {sum(len(d) for d in DRUG_DATABASE.values())}</p><p>{t('tests_count', lang)}: {len(LAB_TESTS)}</p></div>""", unsafe_allow_html=True)
+    
+    elif page == "Diseases":
+        st.markdown(f'<h2>{t("disease_library", lang)}</h2>', unsafe_allow_html=True)
+        search = st.text_input(t("search", lang), placeholder=t("search_placeholder", lang))
+        risk_filter = st.selectbox(t("risk_level", lang), [t("all", lang), t("critical", lang), t("high", lang), t("moderate", lang), t("low", lang)])
+        risk_map_reverse = {t("critical", lang): "Critical", t("high", lang): "High", t("moderate", lang): "Moderate", t("low", lang): "Low"}
+        filtered = DISEASE_DATABASE.copy()
+        if search: filtered = {k: v for k, v in filtered.items() if search.lower() in k.lower()}
+        if risk_filter != t("all", lang): filtered = {k: v for k, v in filtered.items() if v.get("risk_level") == risk_map_reverse.get(risk_filter, risk_filter)}
+        cols = st.columns(2)
+        for i, (disease, info) in enumerate(filtered.items()):
+            with cols[i % 2]:
+                with st.expander(f"🩺 {disease}"):
+                    risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
+                    st.markdown(f"**{t('risk', lang)}:** <span style='color:{risk_color.get(info.get('risk_level', 'Low'))}'>{get_risk_level_translated(info.get('risk_level', 'Low'), lang)}</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{t('symptoms', lang)}:** {', '.join(get_symptoms(info, lang)[:5])}")
+                    st.markdown(f"**{t('treatment', lang)}:** {', '.join(get_treatment(info, lang)[:3])}")
+    
+    elif page == "Case Analysis":
+        st.markdown(f'<h2>{t("clinical_case_analysis", lang)}</h2>', unsafe_allow_html=True)
+        if st.button(t("generate_new_case", lang), type="primary", use_container_width=True):
+            disease = random.choice(list(DISEASE_DATABASE.keys()))
+            info = DISEASE_DATABASE[disease]
+            gender_map = {"en": random.choice(["Male", "Female"]), "ku": random.choice(["نێر", "مێ"]), "ar": random.choice(["ذكر", "أنثى"])}
+            st.session_state.current_case = {"id": f"CASE-{random.randint(1000,9999)}", "age": random.randint(18, 85), "gender": gender_map, "symptoms": random.sample(get_symptoms(info, lang), min(5, len(get_symptoms(info, lang)))), "diagnosis": disease, "risk": info["risk_level"]}
             st.rerun()
-    conn = get_db_connection()
-    notes = conn.execute("SELECT * FROM clinical_notes WHERE username = ? ORDER BY created_at DESC LIMIT 20", (st.session_state.username,)).fetchall()
-    for note in notes:
-        st.markdown(f"""<div class="glass-card"><p><strong>{t('patient_info', lang)}:</strong> {note['patient_info']}</p><p>{note['note']}</p><p style="color: #888;">{note['created_at'][:10]}</p></div>""", unsafe_allow_html=True)
-
-elif page == "Achievements":
-    st.markdown(f'<h2>{t("achievements_title", lang)}</h2>', unsafe_allow_html=True)
-    achievements = [("First Steps", "🩺", st.session_state.total_cases >= 1), ("Case Master", "🏆", st.session_state.total_cases >= 20), ("Quiz Beginner", "📝", st.session_state.quiz_score >= 10), ("Quiz Expert", "🎓", st.session_state.quiz_score >= 50), ("Streak Master", "🔥", st.session_state.streak >= 7), ("XP Hunter", "⭐", st.session_state.xp_points >= 100), ("XP Champion", "💎", st.session_state.xp_points >= 500), ("Diagnostician", "🔍", st.session_state.correct_diagnoses >= 5)]
-    cols = st.columns(3)
-    for i, (name, icon, earned) in enumerate(achievements):
-        with cols[i % 3]:
-            st.markdown(f"""<div class="glass-card" style="text-align: center; opacity: {1 if earned else 0.5};"><div style="font-size: 3rem;">{icon}</div><h4>{name}</h4><span class="badge {'badge-success' if earned else 'badge-warning'}">{t('earned', lang) if earned else t('locked', lang)}</span></div>""", unsafe_allow_html=True)
+        if st.session_state.current_case:
+            case = st.session_state.current_case
+            gender = case["gender"].get(lang, case["gender"].get("en", ""))
+            st.markdown(f"""<div class="glass-card"><h3>{t('case_id', lang)} #{case['id']}</h3><p><strong>{t('patient', lang)}:</strong> {case['age']} {t('years_old', lang)} {gender}</p><p><strong>{t('symptoms', lang)}:</strong> {', '.join(case['symptoms'])}</p></div>""", unsafe_allow_html=True)
+            diagnosis = st.selectbox(t("your_diagnosis", lang), list(DISEASE_DATABASE.keys()))
+            if st.button(t("submit", lang), type="primary"):
+                st.session_state.total_cases += 1
+                if diagnosis == case["diagnosis"]:
+                    st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20)
+                    st.success(f"🎉 {t('correct', lang)}!")
+                else: st.error(f"❌ {t('incorrect', lang)}.")
+                conn = get_db_connection(); conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?", (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username)); conn.commit()
+    
+    elif page == "Quiz":
+        st.markdown(f'<h2>{t("medical_quiz", lang)}</h2>', unsafe_allow_html=True)
+        q = random.choice(QUIZ_QUESTIONS)
+        question = q.get(f"question_{lang}", q["question_en"])
+        options = q.get(f"options_{lang}", q["options_en"])
+        st.markdown(f'<div class="glass-card"><h3>{question}</h3></div>', unsafe_allow_html=True)
+        answer = st.radio(t("select_answer", lang), options, key="ltr_quiz_ans")
+        if st.button(t("submit_answer", lang), type="primary"):
+            if options.index(answer) == q["correct"]: st.session_state.quiz_score += 1; add_xp(st.session_state.username, 10); st.success(f"🎉 {t('correct', lang)}!")
+            else: st.error(f"❌ {t('incorrect', lang)}.")
+            conn = get_db_connection(); conn.execute("UPDATE users SET quiz_score = ? WHERE username = ?", (st.session_state.quiz_score, st.session_state.username)); conn.commit(); st.rerun()
+    
+    elif page == "Comprehensive Exam":
+        st.markdown(f'<h2>{t("comprehensive_exam_title", lang)}</h2>', unsafe_allow_html=True)
+        if st.session_state.comprehensive_exam is None:
+            if st.button(t("start_exam", lang), type="primary", use_container_width=True): st.session_state.comprehensive_exam = random.sample(QUIZ_QUESTIONS, min(50, len(QUIZ_QUESTIONS))); st.session_state.comprehensive_answers = {}; st.session_state.comprehensive_submitted = False; st.rerun()
+        elif not st.session_state.comprehensive_submitted:
+            for i, q in enumerate(st.session_state.comprehensive_exam):
+                question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
+                st.markdown(f"**{i+1}. {question}**")
+                ans = st.radio(f"Q{i}", options, key=f"ltr_exam_{i}", label_visibility="collapsed")
+                st.session_state.comprehensive_answers[i] = options.index(ans) if ans else -1
+            if st.button(t("submit_exam", lang), type="primary"):
+                score = sum(1 for i, q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i) == q["correct"])
+                st.session_state.comprehensive_score = score; st.session_state.comprehensive_submitted = True; add_xp(st.session_state.username, score * 2); st.rerun()
+        else:
+            score = st.session_state.comprehensive_score; total = len(st.session_state.comprehensive_exam)
+            st.markdown(f'<div class="glass-card"><h2>🎉 {t("score", lang)}: {score}/{total} ({(score/total*100):.1f}%)</h2></div>', unsafe_allow_html=True)
+            if st.button(t("retake", lang)): st.session_state.comprehensive_exam = None; st.rerun()
+    
+    elif page == "Spaced Repetition":
+        st.markdown(f'<h2>{t("spaced_repetition_title", lang)}</h2>', unsafe_allow_html=True)
+        disease = random.choice(list(DISEASE_DATABASE.keys())); info = DISEASE_DATABASE[disease]
+        if st.session_state.flashcard_flipped:
+            st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 2rem;"><h3>{disease}</h3><p><strong>{t('symptoms', lang)}:</strong> {', '.join(get_symptoms(info, lang)[:4])}</p><p style="color: #a78bfa;"><strong>{t('treatment', lang)}:</strong> {', '.join(get_treatment(info, lang)[:3])}</p></div>""", unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1: 
+                if st.button(t("knew_it", lang), type="primary", use_container_width=True): st.session_state.flashcard_flipped = False; add_xp(st.session_state.username, 5); st.rerun()
+            with col2:
+                if st.button(t("review_again", lang), use_container_width=True): st.session_state.flashcard_flipped = False; st.rerun()
+        else:
+            st.markdown(f"""<div class="glass-card" style="text-align: center; padding: 3rem;"><h3>{t('what_are_symptoms_of', lang)} {disease}?</h3></div>""", unsafe_allow_html=True)
+            if st.button(t("reveal_answer", lang), use_container_width=True): st.session_state.flashcard_flipped = True; st.rerun()
+    
+    elif page == "Lab Tests":
+        st.markdown(f'<h2>{t("lab_tests_title", lang)} ({len(LAB_TESTS)} {t("tests_count", lang)})</h2>', unsafe_allow_html=True)
+        search = st.text_input(t("search", lang))
+        category = st.selectbox(t("category", lang), [t("all", lang)] + sorted(set(v["category"] for v in LAB_TESTS.values())))
+        filtered = {k: v for k, v in LAB_TESTS.items() if (not search or search.lower() in k.lower()) and (category == t("all", lang) or v["category"] == category)}
+        if filtered:
+            import pandas as pd
+            df_data = [{"Test": k, "Category": v["category"], t("normal_range", lang): v["normal"], t("description", lang): get_description(v, lang)} for k, v in filtered.items()]
+            st.dataframe(pd.DataFrame(df_data), use_container_width=True, height=400)
+        else: st.info(t("no_tests_found", lang))
+    
+    elif page == "Pharmacology":
+        st.markdown(f'<h2>{t("pharmacology_title", lang)} ({sum(len(d) for d in DRUG_DATABASE.values())} {t("drugs_count", lang)})</h2>', unsafe_allow_html=True)
+        search = st.text_input(t("search", lang))
+        for category, drugs in DRUG_DATABASE.items():
+            cat_drugs = {k: v for k, v in drugs.items() if not search or search.lower() in k.lower()}
+            if cat_drugs:
+                with st.expander(f"📂 {category} ({len(cat_drugs)} {t('drugs_count', lang)})"):
+                    for drug, info in cat_drugs.items():
+                        st.markdown(f"""<div class="glass-card"><h4>{drug}</h4><p><strong>{t('drug_class', lang)}:</strong> {info['class']} | <strong>{t('dose', lang)}:</strong> {info['dose']}</p><p><strong>{t('indications', lang)}:</strong> {get_indications(info, lang)}</p><p style="color: #ef4444;"><strong>{t('side_effects', lang)}:</strong> {get_side_effects(info, lang)}</p></div>""", unsafe_allow_html=True)
+    
+    elif page == "Drug Interactions":
+        st.markdown(f'<h2>{t("drug_interactions_title", lang)}</h2>', unsafe_allow_html=True)
+        all_drugs = [drug for drugs in DRUG_DATABASE.values() for drug in drugs]
+        selected = st.multiselect(t("select_drugs", lang), all_drugs)
+        if len(selected) >= 2: st.info(f"{len(selected)} {t('drugs_selected', lang)}")
+        else: st.info(t("select_minimum", lang))
+    
+    elif page == "Leaderboard":
+        st.markdown(f'<h2>{t("leaderboard_title", lang)}</h2>', unsafe_allow_html=True)
+        df = get_leaderboard_data()
+        if not df.empty:
+            for i, (_, row) in enumerate(df.iterrows()):
+                medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"#{i+1}"
+                st.markdown(f"""<div class="glass-card"><h3>{medal} {row['username']}</h3><p>⭐ {row['xp_points']} {t('xp', lang)} | 📊 {row['quiz_score']} {t('quiz_score', lang)} | 🩺 {row['cases_solved']} {t('cases', lang)}</p></div>""", unsafe_allow_html=True)
+        else: st.info(t("no_data", lang))
+    
+    elif page == "Medical News":
+        st.markdown(f'<h2>{t("medical_news", lang)} ({len(MEDICAL_NEWS)} items)</h2>', unsafe_allow_html=True)
+        for item in MEDICAL_NEWS[:20]:
+            st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
+    
+    elif page == "AI Assistant":
+        st.markdown(f'<h2>{t("ai_assistant_title", lang)}</h2>', unsafe_allow_html=True)
+        symptoms = st.text_area(t("enter_symptoms", lang), placeholder="e.g., fever, cough, fatigue", height=100)
+        if st.button(t("analyze", lang), type="primary") and symptoms:
+            symptom_list = [s.strip().lower() for s in symptoms.split(",") if s.strip()]
+            results = []
+            for disease, info in DISEASE_DATABASE.items():
+                disease_symptoms = [s.lower() for s in get_symptoms(info, 'en')]
+                matches = len(set(symptom_list) & set(disease_symptoms))
+                if matches > 0: results.append((disease, (matches / len(disease_symptoms)) * 100, info["risk_level"]))
+            results.sort(key=lambda x: x[1], reverse=True)
+            if results:
+                for disease, match, risk in results[:10]:
+                    risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
+                    st.markdown(f"""<div class="glass-card"><h4>{disease}</h4><p>{t('match', lang)}: {match:.0f}% | {t('risk', lang)}: <span style="color:{risk_color.get(risk, '#888')}">{get_risk_level_translated(risk, lang)}</span></p></div>""", unsafe_allow_html=True)
+            else: st.info("No matching diseases found.")
+    
+    elif page == "Clinical Notes":
+        st.markdown(f'<h2>{t("clinical_notes_title", lang)}</h2>', unsafe_allow_html=True)
+        with st.form("ltr_add_note"):
+            patient = st.text_input(t("patient_info", lang)); note = st.text_area(t("clinical_note", lang))
+            if st.form_submit_button(t("save_note", lang), type="primary"):
+                conn = get_db_connection(); conn.execute("INSERT INTO clinical_notes (username, patient_info, note) VALUES (?, ?, ?)", (st.session_state.username, patient, note)); conn.commit()
+                st.success(f"✅ {t('note_saved', lang)}"); st.rerun()
+        conn = get_db_connection(); notes = conn.execute("SELECT * FROM clinical_notes WHERE username = ? ORDER BY created_at DESC LIMIT 20", (st.session_state.username,)).fetchall()
+        for note in notes: st.markdown(f"""<div class="glass-card"><p><strong>{t('patient_info', lang)}:</strong> {note['patient_info']}</p><p>{note['note']}</p><p style="color: #888;">{note['created_at'][:10]}</p></div>""", unsafe_allow_html=True)
+    
+    elif page == "Achievements":
+        st.markdown(f'<h2>{t("achievements_title", lang)}</h2>', unsafe_allow_html=True)
+        achievements = [("First Steps", "🩺", st.session_state.total_cases >= 1), ("Case Master", "🏆", st.session_state.total_cases >= 20), ("Quiz Beginner", "📝", st.session_state.quiz_score >= 10), ("Quiz Expert", "🎓", st.session_state.quiz_score >= 50), ("Streak Master", "🔥", st.session_state.streak >= 7), ("XP Hunter", "⭐", st.session_state.xp_points >= 100), ("XP Champion", "💎", st.session_state.xp_points >= 500)]
+        cols = st.columns(3)
+        for i, (name, icon, earned) in enumerate(achievements):
+            with cols[i % 3]: st.markdown(f"""<div class="glass-card" style="text-align: center; opacity: {1 if earned else 0.5};"><div style="font-size: 3rem;">{icon}</div><h4>{name}</h4><span class="badge {'badge-success' if earned else 'badge-warning'}">{t('earned', lang) if earned else t('locked', lang)}</span></div>""", unsafe_allow_html=True)
 
 # ================================
 # FOOTER
