@@ -57,6 +57,11 @@ TRANSLATIONS = {
         "account_locked": "Account locked. Try again in",
         "minutes": "minutes",
         "too_many_attempts": "Too many attempts. Account locked for",
+        "enter_username": "Enter username",
+        "enter_password": "Enter password",
+        "confirm_password_placeholder": "Confirm password",
+        "choose_username": "Choose Username",
+        "choose_password": "Choose Password",
         
         # Navigation
         "dashboard": "📊 Dashboard",
@@ -84,11 +89,11 @@ TRANSLATIONS = {
         "diseases_count": "Diseases",
         "drugs_count": "Drugs",
         "tests_count": "Tests",
+        "total_users": "Total Users",
         
         # Dashboard
         "your_progress": "Your Progress",
         "platform_stats": "Platform Stats",
-        "total_users": "Total Users",
         "accuracy": "Accuracy",
         "cases_solved": "Cases Solved",
         
@@ -116,11 +121,14 @@ TRANSLATIONS = {
         "incorrect": "Incorrect",
         "patient": "Patient",
         "case_id": "Case",
+        "years_old": "years old",
         
         # Quiz
         "medical_quiz": "Medical Quiz",
         "select_answer": "Select your answer",
         "submit_answer": "✅ Submit Answer",
+        "is_characteristic_of": "is characteristic of",
+        "answer_was": "Answer was",
         
         # Comprehensive Exam
         "comprehensive_exam_title": "Comprehensive Exam",
@@ -134,6 +142,7 @@ TRANSLATIONS = {
         "reveal_answer": "🔄 Reveal Answer",
         "knew_it": "✅ Knew It",
         "review_again": "❌ Review Again",
+        "what_are_symptoms_of": "What are the symptoms of",
         
         # Lab Tests
         "lab_tests_title": "Laboratory Tests",
@@ -147,6 +156,7 @@ TRANSLATIONS = {
         "dose": "Dose",
         "indications": "Indications",
         "side_effects": "Side Effects",
+        "drugs_selected": "drugs selected",
         
         # Drug Interactions
         "drug_interactions_title": "Drug Interaction Checker",
@@ -174,22 +184,6 @@ TRANSLATIONS = {
         "achievements_title": "Achievements",
         "earned": "Earned",
         "locked": "Locked",
-        
-        # Levels
-        "medical_student": "Medical Student",
-        "intern": "Intern",
-        "resident": "Resident",
-        "specialist": "Specialist",
-        "consultant": "Consultant",
-        "professor": "Professor",
-        "legend": "Legend",
-        
-        # Placeholder texts
-        "enter_username": "Enter username",
-        "enter_password": "Enter password",
-        "confirm_password_placeholder": "Confirm password",
-        "choose_username": "Choose Username",
-        "choose_password": "Choose Password",
     },
     "ku": {
         # General
@@ -217,6 +211,11 @@ TRANSLATIONS = {
         "account_locked": "هەژمارەکەت داخراوە. دووبارە هەوڵبدەرەوە دوای",
         "minutes": "خولەک",
         "too_many_attempts": "هەوڵی زۆر. هەژمارەکەت بۆ ماوەی",
+        "enter_username": "ناوی بەکارهێنەر بنووسە",
+        "enter_password": "وشەی نهێنی بنووسە",
+        "confirm_password_placeholder": "وشەی نهێنی دووپات بکەرەوە",
+        "choose_username": "ناوی بەکارهێنەر هەڵبژێرە",
+        "choose_password": "وشەی نهێنی هەڵبژێرە",
         
         # Navigation
         "dashboard": "📊 داشبۆرد",
@@ -244,11 +243,11 @@ TRANSLATIONS = {
         "diseases_count": "نەخۆشی",
         "drugs_count": "دەرمان",
         "tests_count": "پشکنین",
+        "total_users": "کۆی بەکارهێنەران",
         
         # Dashboard
         "your_progress": "پێشکەوتنەکەت",
         "platform_stats": "ئاماری پلاتفۆرم",
-        "total_users": "کۆی بەکارهێنەران",
         "accuracy": "ڕێژەی ڕاستی",
         "cases_solved": "کەیسەکانی شیکارکراو",
         
@@ -276,11 +275,14 @@ TRANSLATIONS = {
         "incorrect": "هەڵە",
         "patient": "نەخۆش",
         "case_id": "کەیس",
+        "years_old": "ساڵ",
         
         # Quiz
         "medical_quiz": "کویزی پزیشکی",
         "select_answer": "وەڵامەکەت هەڵبژێرە",
         "submit_answer": "✅ ناردنی وەڵام",
+        "is_characteristic_of": "تایبەتە بە",
+        "answer_was": "وەڵامەکە",
         
         # Comprehensive Exam
         "comprehensive_exam_title": "تاقیکردنەوەی گشتی",
@@ -294,6 +296,7 @@ TRANSLATIONS = {
         "reveal_answer": "🔄 ئاشکراکردنی وەڵام",
         "knew_it": "✅ زانیم",
         "review_again": "❌ دووبارە خوێندنەوە",
+        "what_are_symptoms_of": "نیشانەکانی چیین",
         
         # Lab Tests
         "lab_tests_title": "پشکنینەکانی تاقیگە",
@@ -307,6 +310,7 @@ TRANSLATIONS = {
         "dose": "ڕێژە",
         "indications": "بەکارهێنانەکان",
         "side_effects": "کاریگەرییە لاوەکییەکان",
+        "drugs_selected": "دەرمان هەڵبژێردرا",
         
         # Drug Interactions
         "drug_interactions_title": "پشکنینی کارلێکی دەرمانەکان",
@@ -334,22 +338,6 @@ TRANSLATIONS = {
         "achievements_title": "دەستکەوتەکان",
         "earned": "بەدەستهێنراوە",
         "locked": "داخراوە",
-        
-        # Levels
-        "medical_student": "خوێندکاری پزیشکی",
-        "intern": "کارمەندی ڕاهێنان",
-        "resident": "پزیشکی دانیشتوو",
-        "specialist": "پزیشکی پسپۆڕ",
-        "consultant": "پزیشکی ڕاوێژکار",
-        "professor": "پڕۆفیسۆر",
-        "legend": "ئەفسانە",
-        
-        # Placeholder texts
-        "enter_username": "ناوی بەکارهێنەر بنووسە",
-        "enter_password": "وشەی نهێنی بنووسە",
-        "confirm_password_placeholder": "وشەی نهێنی دووپات بکەرەوە",
-        "choose_username": "ناوی بەکارهێنەر هەڵبژێرە",
-        "choose_password": "وشەی نهێنی هەڵبژێرە",
     },
     "ar": {
         # General
@@ -377,6 +365,11 @@ TRANSLATIONS = {
         "account_locked": "تم قفل الحساب. حاول مرة أخرى بعد",
         "minutes": "دقائق",
         "too_many_attempts": "محاولات كثيرة جداً. تم قفل الحساب لمدة",
+        "enter_username": "أدخل اسم المستخدم",
+        "enter_password": "أدخل كلمة المرور",
+        "confirm_password_placeholder": "أكد كلمة المرور",
+        "choose_username": "اختر اسم المستخدم",
+        "choose_password": "اختر كلمة المرور",
         
         # Navigation
         "dashboard": "📊 لوحة التحكم",
@@ -404,11 +397,11 @@ TRANSLATIONS = {
         "diseases_count": "الأمراض",
         "drugs_count": "الأدوية",
         "tests_count": "التحاليل",
+        "total_users": "إجمالي المستخدمين",
         
         # Dashboard
         "your_progress": "تقدمك",
         "platform_stats": "إحصائيات المنصة",
-        "total_users": "إجمالي المستخدمين",
         "accuracy": "الدقة",
         "cases_solved": "الحالات المحلولة",
         
@@ -436,11 +429,14 @@ TRANSLATIONS = {
         "incorrect": "غير صحيح",
         "patient": "المريض",
         "case_id": "الحالة",
+        "years_old": "سنة",
         
         # Quiz
         "medical_quiz": "اختبار طبي",
         "select_answer": "اختر إجابتك",
         "submit_answer": "✅ إرسال الإجابة",
+        "is_characteristic_of": "مميز لـ",
+        "answer_was": "الإجابة كانت",
         
         # Comprehensive Exam
         "comprehensive_exam_title": "الامتحان الشامل",
@@ -454,6 +450,7 @@ TRANSLATIONS = {
         "reveal_answer": "🔄 كشف الإجابة",
         "knew_it": "✅ كنت أعرفها",
         "review_again": "❌ مراجعة مرة أخرى",
+        "what_are_symptoms_of": "ما هي أعراض",
         
         # Lab Tests
         "lab_tests_title": "التحاليل المخبرية",
@@ -467,6 +464,7 @@ TRANSLATIONS = {
         "dose": "الجرعة",
         "indications": "دواعي الاستعمال",
         "side_effects": "الآثار الجانبية",
+        "drugs_selected": "أدوية مختارة",
         
         # Drug Interactions
         "drug_interactions_title": "مدقق تداخلات الأدوية",
@@ -494,22 +492,6 @@ TRANSLATIONS = {
         "achievements_title": "الإنجازات",
         "earned": "تم الإنجاز",
         "locked": "مقفل",
-        
-        # Levels
-        "medical_student": "طالب طب",
-        "intern": "طبيب امتياز",
-        "resident": "طبيب مقيم",
-        "specialist": "أخصائي",
-        "consultant": "استشاري",
-        "professor": "أستاذ",
-        "legend": "أسطورة",
-        
-        # Placeholder texts
-        "enter_username": "أدخل اسم المستخدم",
-        "enter_password": "أدخل كلمة المرور",
-        "confirm_password_placeholder": "أكد كلمة المرور",
-        "choose_username": "اختر اسم المستخدم",
-        "choose_password": "اختر كلمة المرور",
     }
 }
 
@@ -544,6 +526,7 @@ def init_database():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Create tables
     cursor.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -594,6 +577,12 @@ def init_database():
         CREATE INDEX IF NOT EXISTS idx_leaderboard_xp ON leaderboard(xp_points DESC);
         CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(username, attempt_time);
     """)
+    
+    # Check if language_preference column exists, add if not (for existing databases)
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'language_preference' not in columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN language_preference TEXT DEFAULT 'en'")
     
     conn.commit()
 
@@ -813,59 +802,49 @@ def get_level_progress(xp_points: int) -> float:
 # ================================
 DISEASE_DATABASE = {
     "Diabetes Mellitus Type 1": {
-        "symptoms_en": ["Polyuria", "Polydipsia", "Weight loss", "Fatigue", "Blurred vision", "Ketoacidosis"],
-        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "کیتۆئەسیدۆز"],
-        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "فقدان الوزن", "التعب", "عدم وضوح الرؤية", "الحماض الكيتوني"],
-        "treatment_en": ["Insulin therapy", "Carbohydrate counting", "Regular exercise", "Blood glucose monitoring"],
-        "treatment_ku": ["چارەسەری ئەنسولین", "ژمێریاری کاربۆهیدرات", "وەرزشی ڕێک", "پێوانەکردنی شەکری خوێن"],
-        "treatment_ar": ["العلاج بالأنسولين", "حساب الكربوهيدرات", "التمارين المنتظمة", "مراقبة سكر الدم"],
+        "symptoms_en": ["Polyuria", "Polydipsia", "Weight loss", "Fatigue", "Blurred vision"],
+        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ"],
+        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "فقدان الوزن", "التعب", "عدم وضوح الرؤية"],
+        "treatment_en": ["Insulin therapy", "Carbohydrate counting", "Regular exercise"],
+        "treatment_ku": ["چارەسەری ئەنسولین", "ژمێریاری کاربۆهیدرات", "وەرزشی ڕێک"],
+        "treatment_ar": ["العلاج بالأنسولين", "حساب الكربوهيدرات", "التمارين المنتظمة"],
         "risk_level": "High",
-        "age_group": "Children & Young Adults",
-        "category": "Endocrine"
     },
     "Diabetes Mellitus Type 2": {
-        "symptoms_en": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing", "Recurrent infections"],
-        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "ماندوویی", "خاوی چاکبوونەوەی برین", "هەوکردنی دووبارە"],
-        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "التعب", "بطء التئام الجروح", "الالتهابات المتكررة"],
-        "treatment_en": ["Metformin", "Lifestyle modification", "SGLT2 inhibitors", "Regular exercise"],
-        "treatment_ku": ["مێتفۆرمین", "گۆڕینی شێوازی ژیان", "بەرگرەکانی SGLT2", "وەرزشی ڕێک"],
-        "treatment_ar": ["الميتفورمين", "تعديل نمط الحياة", "مثبطات SGLT2", "التمارين المنتظمة"],
+        "symptoms_en": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing"],
+        "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "ماندوویی", "خاوی چاکبوونەوەی برین"],
+        "symptoms_ar": ["كثرة التبول", "العطش الشديد", "التعب", "بطء التئام الجروح"],
+        "treatment_en": ["Metformin", "Lifestyle modification", "Regular exercise"],
+        "treatment_ku": ["مێتفۆرمین", "گۆڕینی شێوازی ژیان", "وەرزشی ڕێک"],
+        "treatment_ar": ["الميتفورمين", "تعديل نمط الحياة", "التمارين المنتظمة"],
         "risk_level": "Moderate",
-        "age_group": "Adults >40 years",
-        "category": "Endocrine"
     },
     "Essential Hypertension": {
-        "symptoms_en": ["Often asymptomatic", "Headache", "Dizziness", "Blurred vision", "Epistaxis"],
-        "symptoms_ku": ["زۆرجار بێ نیشانە", "سەرئێشە", "سەرگێژخواردن", "بینی تەڵخ", "خوێنبەربوونی لووت"],
-        "symptoms_ar": ["غالباً بدون أعراض", "صداع", "دوخة", "عدم وضوح الرؤية", "رعاف"],
-        "treatment_en": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet", "Regular exercise"],
-        "treatment_ku": ["بەرگرەکانی ACE", "گۆڕینی شێوازی ژیان", "خواردنی کەم نمەک", "وەرزشی ڕێک"],
-        "treatment_ar": ["مثبطات ACE", "تغيير نمط الحياة", "نظام غذائي منخفض الصوديوم", "التمارين المنتظمة"],
+        "symptoms_en": ["Often asymptomatic", "Headache", "Dizziness", "Blurred vision"],
+        "symptoms_ku": ["زۆرجار بێ نیشانە", "سەرئێشە", "سەرگێژخواردن", "بینی تەڵخ"],
+        "symptoms_ar": ["غالباً بدون أعراض", "صداع", "دوخة", "عدم وضوح الرؤية"],
+        "treatment_en": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet"],
+        "treatment_ku": ["بەرگرەکانی ACE", "گۆڕینی شێوازی ژیان", "خواردنی کەم نمەک"],
+        "treatment_ar": ["مثبطات ACE", "تغيير نمط الحياة", "نظام غذائي منخفض الصوديوم"],
         "risk_level": "Low",
-        "age_group": "All ages",
-        "category": "Cardiovascular"
     },
     "Acute Myocardial Infarction": {
-        "symptoms_en": ["Severe chest pain", "Diaphoresis", "Dyspnea", "Nausea", "Left arm radiation", "Anxiety"],
-        "symptoms_ku": ["ئازاری توندی سنگ", "ئارەقەکردنی زۆر", "تەنگی هەناسە", "سکچوون", "ئازاری دەستی چەپ", "دڵەڕاوکێ"],
-        "symptoms_ar": ["ألم شديد في الصدر", "تعرق غزير", "ضيق التنفس", "غثيان", "ألم في الذراع الأيسر", "قلق"],
-        "treatment_en": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen", "Primary PCI"],
-        "treatment_ku": ["ئەسپیرین ٣٠٠مگ", "نایترۆگلیسیرین", "مۆرفین", "ئۆکسجین", "PCI سەرەتایی"],
-        "treatment_ar": ["أسبرين 300 ملغ", "نيتروجليسرين", "مورفين", "أكسجين", "PCI الأولي"],
+        "symptoms_en": ["Severe chest pain", "Diaphoresis", "Dyspnea", "Nausea", "Anxiety"],
+        "symptoms_ku": ["ئازاری توندی سنگ", "ئارەقەکردنی زۆر", "تەنگی هەناسە", "سکچوون", "دڵەڕاوکێ"],
+        "symptoms_ar": ["ألم شديد في الصدر", "تعرق غزير", "ضيق التنفس", "غثيان", "قلق"],
+        "treatment_en": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen"],
+        "treatment_ku": ["ئەسپیرین ٣٠٠مگ", "نایترۆگلیسیرین", "مۆرفین", "ئۆکسجین"],
+        "treatment_ar": ["أسبرين 300 ملغ", "نيتروجليسرين", "مورفين", "أكسجين"],
         "risk_level": "Critical",
-        "age_group": ">45 years",
-        "category": "Cardiovascular"
     },
     "Community-Acquired Pneumonia": {
-        "symptoms_en": ["Fever", "Productive cough", "Dyspnea", "Pleuritic chest pain", "Malaise"],
-        "symptoms_ku": ["تا", "کۆخەی بەرھەمدار", "تەنگی هەناسە", "ئازاری سنگی پلوریتی", "ماندوویی"],
-        "symptoms_ar": ["حمى", "سعال منتج", "ضيق التنفس", "ألم صدري جنبي", "توعك"],
-        "treatment_en": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed", "Hydration"],
-        "treatment_ku": ["ئەمۆکسیسیلین-کلاڤولانات", "ئازیترۆمایسین", "ئۆکسجین ئەگەر پێویست بوو", "شلەمەنی"],
-        "treatment_ar": ["أموكسيسيلين-كلافولانات", "أزيثروميسين", "أكسجين إذا لزم", "ترطيب"],
+        "symptoms_en": ["Fever", "Productive cough", "Dyspnea", "Pleuritic chest pain"],
+        "symptoms_ku": ["تا", "کۆخەی بەرھەمدار", "تەنگی هەناسە", "ئازاری سنگی پلوریتی"],
+        "symptoms_ar": ["حمى", "سعال منتج", "ضيق التنفس", "ألم صدري جنبي"],
+        "treatment_en": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed"],
+        "treatment_ku": ["ئەمۆکسیسیلین-کلاڤولانات", "ئازیترۆمایسین", "ئۆکسجین ئەگەر پێویست بوو"],
+        "treatment_ar": ["أموكسيسيلين-كلافولانات", "أزيثروميسين", "أكسجين إذا لزم"],
         "risk_level": "Moderate",
-        "age_group": "All ages",
-        "category": "Respiratory"
     }
 }
 
@@ -874,10 +853,8 @@ DISEASE_DATABASE = {
 # ================================
 LAB_TESTS = {
     "Hemoglobin": {"category": "Hematology", "normal": "12-16 g/dL", "description_en": "Oxygen-carrying capacity", "description_ku": "توانای هەڵگرتنی ئۆکسجین", "description_ar": "القدرة على حمل الأكسجين"},
-    "WBC Count": {"category": "Hematology", "normal": "4,000-11,000/µL", "description_en": "Infection/inflammation marker", "description_ku": "نیشانەی هەوکردن/هەوکردن", "description_ar": "علامة العدوى/الالتهاب"},
+    "WBC Count": {"category": "Hematology", "normal": "4,000-11,000/µL", "description_en": "Infection/inflammation marker", "description_ku": "نیشانەی هەوکردن", "description_ar": "علامة العدوى/الالتهاب"},
     "RBC Count": {"category": "Hematology", "normal": "4.5-5.5 million/µL", "description_en": "Oxygen transport", "description_ku": "گواستنەوەی ئۆکسجین", "description_ar": "نقل الأكسجين"},
-    "Hematocrit": {"category": "Hematology", "normal": "37-47%", "description_en": "RBC volume percentage", "description_ku": "ڕێژەی قەبارەی خڕۆکە سوورەکان", "description_ar": "نسبة حجم كريات الدم الحمراء"},
-    "MCV": {"category": "Hematology", "normal": "80-100 fL", "description_en": "RBC size", "description_ku": "قەبارەی خڕۆکە سوورەکان", "description_ar": "حجم كريات الدم الحمراء"},
     "Platelet Count": {"category": "Hematology", "normal": "150,000-450,000/µL", "description_en": "Clotting ability", "description_ku": "توانای مەیین", "description_ar": "القدرة على التخثر"},
     "Fasting Glucose": {"category": "Biochemistry", "normal": "70-100 mg/dL", "description_en": "Diabetes screening", "description_ku": "پشکنینی شەکرە", "description_ar": "فحص السكري"},
     "HbA1c": {"category": "Biochemistry", "normal": "4.0-5.6%", "description_en": "3-month glucose average", "description_ku": "تێکڕای شەکری ٣ مانگ", "description_ar": "متوسط السكر لـ 3 أشهر"},
@@ -896,110 +873,60 @@ LAB_TESTS = {
 DRUG_DATABASE = {
     "Cardiovascular": {
         "Lisinopril": {
-            "class": "ACE Inhibitor", 
-            "dose": "10-40mg daily", 
-            "indications_en": "Hypertension, HF", 
-            "indications_ku": "پەستانی خوێن, شکستی دڵ", 
-            "indications_ar": "ارتفاع ضغط الدم, فشل القلب",
-            "side_effects_en": "Cough, angioedema", 
-            "side_effects_ku": "کۆخە, ئاوسانی ڕوو", 
-            "side_effects_ar": "سعال, وذمة وعائية"
+            "class": "ACE Inhibitor", "dose": "10-40mg daily",
+            "indications_en": "Hypertension, HF", "indications_ku": "پەستانی خوێن, شکستی دڵ", "indications_ar": "ارتفاع ضغط الدم, فشل القلب",
+            "side_effects_en": "Cough, angioedema", "side_effects_ku": "کۆخە, ئاوسانی ڕوو", "side_effects_ar": "سعال, وذمة وعائية"
         },
         "Losartan": {
-            "class": "ARB", 
-            "dose": "50-100mg daily", 
-            "indications_en": "Hypertension, HF", 
-            "indications_ku": "پەستانی خوێن, شکستی دڵ", 
-            "indications_ar": "ارتفاع ضغط الدم, فشل القلب",
-            "side_effects_en": "Dizziness, hyperkalemia", 
-            "side_effects_ku": "سەرگێژخواردن, پۆتاسیۆمی بەرز", 
-            "side_effects_ar": "دوخة, فرط بوتاسيوم الدم"
+            "class": "ARB", "dose": "50-100mg daily",
+            "indications_en": "Hypertension, HF", "indications_ku": "پەستانی خوێن, شکستی دڵ", "indications_ar": "ارتفاع ضغط الدم, فشل القلب",
+            "side_effects_en": "Dizziness, hyperkalemia", "side_effects_ku": "سەرگێژخواردن, پۆتاسیۆمی بەرز", "side_effects_ar": "دوخة, فرط بوتاسيوم الدم"
         },
         "Amlodipine": {
-            "class": "CCB", 
-            "dose": "5-10mg daily", 
-            "indications_en": "Hypertension, angina", 
-            "indications_ku": "پەستانی خوێن, ئازاری سنگ", 
-            "indications_ar": "ارتفاع ضغط الدم, ذبحة صدرية",
-            "side_effects_en": "Edema, flushing", 
-            "side_effects_ku": "ئاوسان, سووربوونەوە", 
-            "side_effects_ar": "وذمة, احمرار"
+            "class": "CCB", "dose": "5-10mg daily",
+            "indications_en": "Hypertension, angina", "indications_ku": "پەستانی خوێن, ئازاری سنگ", "indications_ar": "ارتفاع ضغط الدم, ذبحة صدرية",
+            "side_effects_en": "Edema, flushing", "side_effects_ku": "ئاوسان, سووربوونەوە", "side_effects_ar": "وذمة, احمرار"
         },
         "Metoprolol": {
-            "class": "Beta Blocker", 
-            "dose": "25-200mg daily", 
-            "indications_en": "Hypertension, angina", 
-            "indications_ku": "پەستانی خوێن, ئازاری سنگ", 
-            "indications_ar": "ارتفاع ضغط الدم, ذبحة صدرية",
-            "side_effects_en": "Bradycardia, fatigue", 
-            "side_effects_ku": "خاوی لێدانی دڵ, ماندوویی", 
-            "side_effects_ar": "بطء القلب, إرهاق"
+            "class": "Beta Blocker", "dose": "25-200mg daily",
+            "indications_en": "Hypertension, angina", "indications_ku": "پەستانی خوێن, ئازاری سنگ", "indications_ar": "ارتفاع ضغط الدم, ذبحة صدرية",
+            "side_effects_en": "Bradycardia, fatigue", "side_effects_ku": "خاوی لێدانی دڵ, ماندوویی", "side_effects_ar": "بطء القلب, إرهاق"
         },
     },
     "Endocrinology": {
         "Metformin": {
-            "class": "Biguanide", 
-            "dose": "500-2000mg daily", 
-            "indications_en": "Type 2 DM", 
-            "indications_ku": "شەکرەی جۆری ٢", 
-            "indications_ar": "السكري النوع 2",
-            "side_effects_en": "GI upset, lactic acidosis", 
-            "side_effects_ku": "ناخۆشی گەدە, ترشێتی لاکتیک", 
-            "side_effects_ar": "اضطراب معدي, حماض لاكتيكي"
+            "class": "Biguanide", "dose": "500-2000mg daily",
+            "indications_en": "Type 2 DM", "indications_ku": "شەکرەی جۆری ٢", "indications_ar": "السكري النوع 2",
+            "side_effects_en": "GI upset, lactic acidosis", "side_effects_ku": "ناخۆشی گەدە, ترشێتی لاکتیک", "side_effects_ar": "اضطراب معدي, حماض لاكتيكي"
         },
         "Insulin Glargine": {
-            "class": "Long-acting Insulin", 
-            "dose": "Individualized", 
-            "indications_en": "Type 1 & 2 DM", 
-            "indications_ku": "شەکرەی جۆری ١ و ٢", 
-            "indications_ar": "السكري النوع 1 و 2",
-            "side_effects_en": "Hypoglycemia", 
-            "side_effects_ku": "شەکری نزم", 
-            "side_effects_ar": "نقص سكر الدم"
+            "class": "Long-acting Insulin", "dose": "Individualized",
+            "indications_en": "Type 1 & 2 DM", "indications_ku": "شەکرەی جۆری ١ و ٢", "indications_ar": "السكري النوع 1 و 2",
+            "side_effects_en": "Hypoglycemia", "side_effects_ku": "شەکری نزم", "side_effects_ar": "نقص سكر الدم"
         },
     },
     "Antibiotics": {
         "Amoxicillin": {
-            "class": "Penicillin", 
-            "dose": "500-875mg BID", 
-            "indications_en": "Respiratory, UTI", 
-            "indications_ku": "هەناسە, میزەڕۆ", 
-            "indications_ar": "الجهاز التنفسي, المسالك البولية",
-            "side_effects_en": "Diarrhea, rash", 
-            "side_effects_ku": "سکچوون, پەڵە", 
-            "side_effects_ar": "إسهال, طفح جلدي"
+            "class": "Penicillin", "dose": "500-875mg BID",
+            "indications_en": "Respiratory, UTI", "indications_ku": "هەناسە, میزەڕۆ", "indications_ar": "الجهاز التنفسي, المسالك البولية",
+            "side_effects_en": "Diarrhea, rash", "side_effects_ku": "سکچوون, پەڵە", "side_effects_ar": "إسهال, طفح جلدي"
         },
         "Azithromycin": {
-            "class": "Macrolide", 
-            "dose": "250-500mg daily", 
-            "indications_en": "Respiratory infections", 
-            "indications_ku": "هەوکردنی هەناسە", 
-            "indications_ar": "التهابات الجهاز التنفسي",
-            "side_effects_en": "GI upset, QT prolongation", 
-            "side_effects_ku": "ناخۆشی گەدە, درێژبوونەوەی QT", 
-            "side_effects_ar": "اضطراب معدي, إطالة QT"
+            "class": "Macrolide", "dose": "250-500mg daily",
+            "indications_en": "Respiratory infections", "indications_ku": "هەوکردنی هەناسە", "indications_ar": "التهابات الجهاز التنفسي",
+            "side_effects_en": "GI upset", "side_effects_ku": "ناخۆشی گەدە", "side_effects_ar": "اضطراب معدي"
         },
     },
     "Analgesics": {
         "Ibuprofen": {
-            "class": "NSAID", 
-            "dose": "200-800mg TID", 
-            "indications_en": "Pain, inflammation", 
-            "indications_ku": "ئازار, هەوکردن", 
-            "indications_ar": "ألم, التهاب",
-            "side_effects_en": "GI ulcer, renal impairment", 
-            "side_effects_ku": "برینی گەدە, زیانی گورچیلە", 
-            "side_effects_ar": "قرحة معدية, قصور كلوي"
+            "class": "NSAID", "dose": "200-800mg TID",
+            "indications_en": "Pain, inflammation", "indications_ku": "ئازار, هەوکردن", "indications_ar": "ألم, التهاب",
+            "side_effects_en": "GI ulcer", "side_effects_ku": "برینی گەدە", "side_effects_ar": "قرحة معدية"
         },
         "Acetaminophen": {
-            "class": "Analgesic", 
-            "dose": "500-1000mg Q6H", 
-            "indications_en": "Pain, fever", 
-            "indications_ku": "ئازار, تا", 
-            "indications_ar": "ألم, حمى",
-            "side_effects_en": "Hepatotoxicity (overdose)", 
-            "side_effects_ku": "ژەهراویی جگەر (زۆر خواردنەوە)", 
-            "side_effects_ar": "سمية كبدية (جرعة زائدة)"
+            "class": "Analgesic", "dose": "500-1000mg Q6H",
+            "indications_en": "Pain, fever", "indications_ku": "ئازار, تا", "indications_ar": "ألم, حمى",
+            "side_effects_en": "Hepatotoxicity", "side_effects_ku": "ژەهراویی جگەر", "side_effects_ar": "سمية كبدية"
         },
     }
 }
@@ -1166,28 +1093,6 @@ def load_css(lang: str = 'en'):
             padding: 0.5rem;
         }}
         
-        .language-btn {{
-            padding: 0.3rem 0.8rem;
-            border-radius: 8px;
-            border: 1px solid rgba(99,102,241,0.3);
-            background: rgba(99,102,241,0.1);
-            color: white;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-        }}
-        
-        .language-btn:hover {{
-            background: rgba(99,102,241,0.2);
-            border-color: rgba(139,92,246,0.5);
-        }}
-        
-        .language-btn.active {{
-            background: rgba(99,102,241,0.3);
-            border-color: #a78bfa;
-            font-weight: 600;
-        }}
-        
         {rtl_styles}
     </style>
     """, unsafe_allow_html=True)
@@ -1246,8 +1151,7 @@ if not st.session_state.logged_in:
         cols = st.columns(3)
         for i, (code, name) in enumerate([('en', 'English'), ('ku', 'کوردی'), ('ar', 'العربية')]):
             with cols[i]:
-                if st.button(name, key=f"lang_{code}", use_container_width=True,
-                           help=f"Switch to {name}"):
+                if st.button(name, key=f"lang_{code}", use_container_width=True):
                     st.session_state.language = code
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1322,8 +1226,7 @@ with st.sidebar:
     languages = [('en', 'EN'), ('ku', 'KU'), ('ar', 'AR')]
     for i, (code, name) in enumerate(languages):
         with cols[i]:
-            if st.button(name, key=f"sidebar_lang_{code}", use_container_width=True,
-                       help=f"Switch to {name}"):
+            if st.button(name, key=f"sidebar_lang_{code}", use_container_width=True):
                 st.session_state.language = code
                 # Save preference
                 conn = get_db_connection()
@@ -1456,12 +1359,9 @@ elif page == "Diseases":
     search = st.text_input(t("search", lang), placeholder=t("search_placeholder", lang))
     risk_filter = st.selectbox(t("risk_level", lang), [t("all", lang), t("critical", lang), t("high", lang), t("moderate", lang), t("low", lang)])
     
-    # Map translated risk back to English for filtering
     risk_map_reverse = {
-        t("critical", lang): "Critical",
-        t("high", lang): "High", 
-        t("moderate", lang): "Moderate",
-        t("low", lang): "Low"
+        t("critical", lang): "Critical", t("high", lang): "High", 
+        t("moderate", lang): "Moderate", t("low", lang): "Low"
     }
     
     filtered = DISEASE_DATABASE.copy()
@@ -1487,12 +1387,11 @@ elif page == "Case Analysis":
     if st.button(t("generate_new_case", lang), type="primary", use_container_width=True):
         disease = random.choice(list(DISEASE_DATABASE.keys()))
         info = DISEASE_DATABASE[disease]
+        gender_map = {"en": random.choice(["Male", "Female"]), "ku": random.choice(["نێر", "مێ"]), "ar": random.choice(["ذكر", "أنثى"])}
         st.session_state.current_case = {
             "id": f"CASE-{random.randint(1000,9999)}",
             "age": random.randint(18, 85),
-            "gender_en": random.choice(["Male", "Female"]),
-            "gender_ku": random.choice(["نێر", "مێ"]),
-            "gender_ar": random.choice(["ذكر", "أنثى"]),
+            "gender": gender_map,
             "symptoms": random.sample(get_symptoms(info, lang), min(5, len(get_symptoms(info, lang)))),
             "diagnosis": disease,
             "risk": info["risk_level"]
@@ -1501,7 +1400,7 @@ elif page == "Case Analysis":
     
     if st.session_state.current_case:
         case = st.session_state.current_case
-        gender = case.get(f"gender_{lang}", case.get("gender_en", ""))
+        gender = case["gender"].get(lang, case["gender"].get("en", ""))
         st.markdown(f"""
         <div class="glass-card">
             <h3>{t('case_id', lang)} #{case['id']}</h3>
@@ -1538,7 +1437,7 @@ elif page == "Quiz":
         options = [correct] + wrong
         random.shuffle(options)
         
-        st.markdown(f'<div class="glass-card"><h3>{get_symptoms(info, lang)[0]} {t("is_characteristic_of", lang)} <strong>{disease}</strong>?</h3></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-card"><h3>{correct} {t("is_characteristic_of", lang)} <strong>{disease}</strong>?</h3></div>', unsafe_allow_html=True)
         
         answer = st.radio(t("select_answer", lang), options, key="quiz_ans")
         
@@ -1546,7 +1445,7 @@ elif page == "Quiz":
             if answer == correct:
                 st.session_state.quiz_score += 1
                 add_xp(st.session_state.username, 10)
-                st.success(f"🎉 {t('correct', lang)}! {correct}")
+                st.success(f"🎉 {t('correct', lang)}!")
             else:
                 st.error(f"❌ {t('incorrect', lang)}. {t('answer_was', lang)}: {correct}")
             
@@ -1571,7 +1470,7 @@ elif page == "Comprehensive Exam":
                     opts = [correct] + wrong_opts[:3]
                     random.shuffle(opts)
                     questions.append({
-                        "question": f"{get_symptoms(info, lang)[0]} - {disease}?",
+                        "question": f"{disease}?",
                         "options": opts,
                         "correct": opts.index(correct)
                     })
@@ -1801,24 +1700,6 @@ elif page == "Achievements":
                 <span class="badge {'badge-success' if earned else 'badge-warning'}">{t('earned', lang) if earned else t('locked', lang)}</span>
             </div>
             """, unsafe_allow_html=True)
-
-# ================================
-# ADD MISSING TRANSLATION KEYS
-# ================================
-# Add any missing keys that might be referenced in the UI
-for lang_code in ['en', 'ku', 'ar']:
-    missing_keys = {
-        "years_old": {"en": "years old", "ku": "ساڵ", "ar": "سنة"},
-        "is_characteristic_of": {"en": "is characteristic of", "ku": "تایبەتە بە", "ar": "مميز لـ"},
-        "answer_was": {"en": "Answer was", "ku": "وەڵامەکە", "ar": "الإجابة كانت"},
-        "what_are_symptoms_of": {"en": "What are the symptoms of", "ku": "نیشانەکانی چیین", "ar": "ما هي أعراض"},
-        "drugs_selected": {"en": "drugs selected", "ku": "دەرمان هەڵبژێردرا", "ar": "أدوية مختارة"},
-        "online": {"en": "Online", "ku": "ئۆنلاین", "ar": "متصل"},
-    }
-    
-    for key, translations in missing_keys.items():
-        if key not in TRANSLATIONS[lang_code]:
-            TRANSLATIONS[lang_code][key] = translations.get(lang_code, key)
 
 # ================================
 # FOOTER
