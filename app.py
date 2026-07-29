@@ -1507,14 +1507,45 @@ def get_user_count() -> int:
     return result['count'] if result else 0
 
 # ================================
-# CSS STYLING - FIXED SIDEBAR FOR RTL
+# CSS STYLING - FIXED RTL SIDEBAR
 # ================================
 def load_css(lang: str = 'en'):
-    # RTL styles that fix the sidebar position
-    rtl_sidebar_fix = ""
+    # Common styles for all languages
+    common_css = """
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        .stApp { background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }
+        .glass-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(99,102,241,0.2); margin: 1rem 0; }
+        .glass-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-2px); }
+        .stat-card { background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05)); border-radius: 16px; padding: 1.2rem; text-align: center; border: 1px solid rgba(99,102,241,0.2); }
+        .stat-number { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .badge { display: inline-block; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .badge-primary { background: rgba(99,102,241,0.2); color: #a78bfa; }
+        .badge-success { background: rgba(16,185,129,0.2); color: #10b981; }
+        .badge-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .badge-warning { background: rgba(251,191,36,0.2); color: #fbbf24; }
+        .stButton > button { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: white !important; border: none !important; border-radius: 12px !important; font-weight: 600 !important; }
+        .stButton > button:hover { background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; transform: translateY(-2px) !important; }
+        .stTextInput > div > div, .stTextArea > div > div { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(99,102,241,0.2) !important; border-radius: 10px !important; color: white !important; }
+        [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important; }
+        [data-testid="stSidebar"] .stButton > button { background: rgba(99,102,241,0.1) !important; border: 1px solid rgba(99,102,241,0.2) !important; color: white !important; padding: 0.5rem 1rem !important; margin: 2px 0 !important; }
+        [data-testid="stSidebar"] .stButton > button:hover { background: rgba(99,102,241,0.2) !important; border-color: rgba(139,92,246,0.4) !important; }
+        h1 { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800 !important; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        .language-switcher { display: flex; gap: 0.5rem; justify-content: center; padding: 0.5rem; }
+    """
+    
     if lang in ['ku', 'ar']:
-        rtl_sidebar_fix = """
-            /* Move sidebar to the right for RTL languages */
+        # RTL Styles
+        rtl_css = """
+            html { direction: rtl; }
+            body { direction: rtl; text-align: right; }
+            .stApp { direction: rtl; }
+            
+            /* Fix sidebar position for RTL - this is the key fix */
             [data-testid="stSidebar"] {
                 right: 0 !important;
                 left: auto !important;
@@ -1522,77 +1553,59 @@ def load_css(lang: str = 'en'):
                 border-left: 2px solid rgba(99, 102, 241, 0.2) !important;
             }
             
-            /* Adjust main content to be on the left */
-            .main {
-                padding-left: 1rem !important;
-                padding-right: calc(var(--sidebar-width) + 2rem) !important;
+            /* Move sidebar toggle button to the right side */
+            [data-testid="stSidebarCollapsedControl"] {
+                right: 0 !important;
+                left: auto !important;
             }
             
-            /* RTL text alignment */
-            body {
+            /* Adjust main content for RTL sidebar */
+            section[data-testid="stSidebarContent"] {
                 direction: rtl;
                 text-align: right;
             }
             
-            .stApp {
-                direction: rtl;
-            }
-            
-            [data-testid="stSidebar"] {
-                direction: rtl;
-                text-align: right;
-            }
-            
-            [data-testid="stSidebar"] .stButton > button {
-                text-align: right !important;
-            }
-            
-            .stMarkdown, .stText, p, h1, h2, h3, h4 {
-                text-align: right;
-            }
-            
-            .stRadio label {
-                text-align: right;
-            }
-            
-            .stSelectbox {
-                direction: rtl;
-            }
-            
-            input {
-                text-align: right;
-            }
+            .stMarkdown, .stText, p, h1, h2, h3, h4 { text-align: right !important; }
+            .stRadio label { text-align: right !important; }
+            .stSelectbox { direction: rtl !important; }
+            input, textarea { text-align: right !important; direction: rtl !important; }
+            [data-testid="stSidebar"] .stButton > button { text-align: right !important; }
+            [data-testid="stSidebar"] .stButton > button:hover { transform: translateX(-3px) !important; }
         """
-    
-    st.markdown(f"""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        * {{ font-family: 'Inter', sans-serif; }}
-        .stApp {{ background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }}
-        .glass-card {{ background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(99,102,241,0.2); margin: 1rem 0; }}
-        .glass-card:hover {{ border-color: rgba(139,92,246,0.4); transform: translateY(-2px); }}
-        .stat-card {{ background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.05)); border-radius: 16px; padding: 1.2rem; text-align: center; border: 1px solid rgba(99,102,241,0.2); }}
-        .stat-number {{ font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
-        .badge {{ display: inline-block; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }}
-        .badge-primary {{ background: rgba(99,102,241,0.2); color: #a78bfa; }}
-        .badge-success {{ background: rgba(16,185,129,0.2); color: #10b981; }}
-        .badge-danger {{ background: rgba(239,68,68,0.2); color: #ef4444; }}
-        .badge-warning {{ background: rgba(251,191,36,0.2); color: #fbbf24; }}
-        .stButton > button {{ background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; color: white !important; border: none !important; border-radius: 12px !important; font-weight: 600 !important; }}
-        .stButton > button:hover {{ background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; transform: translateY(-2px) !important; }}
-        .stTextInput > div > div, .stTextArea > div > div {{ background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(99,102,241,0.2) !important; border-radius: 10px !important; color: white !important; }}
-        [data-testid="stSidebar"] {{ background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important; border-right: 2px solid rgba(99,102,241,0.2) !important; }}
-        [data-testid="stSidebar"] .stButton > button {{ background: rgba(99,102,241,0.1) !important; border: 1px solid rgba(99,102,241,0.2) !important; color: white !important; padding: 0.5rem 1rem !important; margin: 2px 0 !important; }}
-        [data-testid="stSidebar"] .stButton > button:hover {{ background: rgba(99,102,241,0.2) !important; border-color: rgba(139,92,246,0.4) !important; }}
-        h1 {{ background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800 !important; }}
-        ::-webkit-scrollbar {{ width: 8px; }}
-        ::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.05); }}
-        ::-webkit-scrollbar-thumb {{ background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }}
-        @keyframes float {{ 0%, 100% {{ transform: translateY(0px); }} 50% {{ transform: translateY(-10px); }} }}
-        .language-switcher {{ display: flex; gap: 0.5rem; justify-content: center; padding: 0.5rem; }}
-        {rtl_sidebar_fix}
-    </style>
-    """, unsafe_allow_html=True)
+        st.markdown(f"<style>{common_css}{rtl_css}</style>", unsafe_allow_html=True)
+    else:
+        # LTR Styles
+        ltr_css = """
+            html { direction: ltr; }
+            body { direction: ltr; text-align: left; }
+            .stApp { direction: ltr; }
+            
+            /* Fix sidebar position for LTR */
+            [data-testid="stSidebar"] {
+                left: 0 !important;
+                right: auto !important;
+                border-right: 2px solid rgba(99, 102, 241, 0.2) !important;
+                border-left: none !important;
+            }
+            
+            [data-testid="stSidebarCollapsedControl"] {
+                left: 0 !important;
+                right: auto !important;
+            }
+            
+            section[data-testid="stSidebarContent"] {
+                direction: ltr;
+                text-align: left;
+            }
+            
+            .stMarkdown, .stText, p, h1, h2, h3, h4 { text-align: left !important; }
+            .stRadio label { text-align: left !important; }
+            .stSelectbox { direction: ltr !important; }
+            input, textarea { text-align: left !important; direction: ltr !important; }
+            [data-testid="stSidebar"] .stButton > button { text-align: left !important; }
+            [data-testid="stSidebar"] .stButton > button:hover { transform: translateX(3px) !important; }
+        """
+        st.markdown(f"<style>{common_css}{ltr_css}</style>", unsafe_allow_html=True)
 
 # ================================
 # SESSION STATE INITIALIZATION
