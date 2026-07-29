@@ -1,6 +1,7 @@
 # ================================
 # MEDICAL TRAINING PLATFORM v10.0
 # Dr.Danyal - Production Ready
+# Complete Fixed Version
 # ================================
 
 import streamlit as st
@@ -13,7 +14,6 @@ import uuid
 import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any
-from functools import lru_cache
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -33,14 +33,14 @@ st.set_page_config(
 DB_PATH = "medical_platform.db"
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_TIMEOUT_MINUTES = 15
-SESSION_TIMEOUT_HOURS = 24
 
 # ================================
 # DATABASE SETUP (SQLite - Secure)
 # ================================
+@st.cache_resource
 def get_db_connection():
     """Create a secure database connection with proper settings"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -51,7 +51,6 @@ def init_database():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Users table with bcrypt-like hashing
     cursor.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,72 +81,18 @@ def init_database():
             last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         
-        CREATE TABLE IF NOT EXISTS custom_drugs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            drug_name TEXT NOT NULL,
-            category TEXT,
-            dose TEXT,
-            mechanism TEXT,
-            side_effects TEXT,
-            clinical_use TEXT,
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(username, drug_name)
-        );
-        
-        CREATE TABLE IF NOT EXISTS custom_lab_tests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            test_name TEXT NOT NULL,
-            category TEXT,
-            normal_range TEXT,
-            unit TEXT,
-            description TEXT,
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(username, test_name)
-        );
-        
         CREATE TABLE IF NOT EXISTS clinical_notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             patient_info TEXT,
             note TEXT,
-            diagnosis TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE TABLE IF NOT EXISTS study_rooms (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            creator TEXT NOT NULL,
-            members TEXT DEFAULT '[]',
-            messages TEXT DEFAULT '[]',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE TABLE IF NOT EXISTS spaced_repetition (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            item_key TEXT NOT NULL,
-            item_type TEXT,
-            interval_days INTEGER DEFAULT 1,
-            repetitions INTEGER DEFAULT 0,
-            ease_factor REAL DEFAULT 2.5,
-            next_review TIMESTAMP,
-            correct_count INTEGER DEFAULT 0,
-            wrong_count INTEGER DEFAULT 0,
-            UNIQUE(username, item_key)
         );
         
         CREATE TABLE IF NOT EXISTS login_attempts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            ip_address TEXT,
             success BOOLEAN DEFAULT FALSE
         );
         
@@ -157,7 +102,6 @@ def init_database():
     """)
     
     conn.commit()
-    conn.close()
 
 # ================================
 # PASSWORD SECURITY (Enhanced)
@@ -168,18 +112,17 @@ def generate_salt(length: int = 32) -> str:
 
 def hash_password_secure(password: str, salt: str = None) -> Tuple[str, str]:
     """
-    Enhanced password hashing using PBKDF2 (bcrypt alternative for SQLite)
+    Enhanced password hashing using PBKDF2
     Uses multiple iterations to slow down brute-force attacks
     """
     if salt is None:
         salt = generate_salt()
     
-    # PBKDF2 with 200,000 iterations (OWASP 2024 recommendation)
     key = hashlib.pbkdf2_hmac(
         'sha256',
         password.encode('utf-8'),
         salt.encode('utf-8'),
-        200000,  # High iteration count for security
+        200000,
         dklen=64
     )
     
@@ -198,48 +141,28 @@ def check_login_rate_limit(username: str) -> Tuple[bool, str]:
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Check if account is locked
-    cursor.execute("""
-        SELECT locked_until, login_attempts 
-        FROM users 
-        WHERE username = ?
-    """, (username,))
-    
+    cursor.execute("SELECT locked_until FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     
     if user and user['locked_until']:
         locked_until = datetime.fromisoformat(user['locked_until'])
         if locked_until > datetime.now():
             remaining = (locked_until - datetime.now()).seconds // 60
-            conn.close()
             return False, f"Account locked. Try again in {remaining} minutes."
     
-    # Check recent attempts
     cutoff_time = datetime.now() - timedelta(minutes=LOGIN_TIMEOUT_MINUTES)
     cursor.execute("""
-        SELECT COUNT(*) as attempts 
-        FROM login_attempts 
-        WHERE username = ? 
-        AND attempt_time > ? 
-        AND success = FALSE
+        SELECT COUNT(*) as attempts FROM login_attempts 
+        WHERE username = ? AND attempt_time > ? AND success = FALSE
     """, (username, cutoff_time))
     
     result = cursor.fetchone()
     recent_attempts = result['attempts'] if result else 0
     
-    conn.close()
-    
     if recent_attempts >= MAX_LOGIN_ATTEMPTS:
-        # Lock the account
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE users 
-            SET locked_until = ? 
-            WHERE username = ?
-        """, ((datetime.now() + timedelta(minutes=LOGIN_TIMEOUT_MINUTES)).isoformat(), username))
+        cursor.execute("UPDATE users SET locked_until = ? WHERE username = ?",
+                      ((datetime.now() + timedelta(minutes=LOGIN_TIMEOUT_MINUTES)).isoformat(), username))
         conn.commit()
-        conn.close()
         return False, f"Too many attempts. Account locked for {LOGIN_TIMEOUT_MINUTES} minutes."
     
     return True, ""
@@ -249,43 +172,27 @@ def record_login_attempt(username: str, success: bool):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("""
-        INSERT INTO login_attempts (username, success) 
-        VALUES (?, ?)
-    """, (username, success))
+    cursor.execute("INSERT INTO login_attempts (username, success) VALUES (?, ?)", (username, success))
     
     if success:
-        # Reset attempts on successful login
-        cursor.execute("""
-            UPDATE users 
-            SET login_attempts = 0, locked_until = NULL 
-            WHERE username = ?
-        """, (username,))
+        cursor.execute("UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?", (username,))
     else:
-        # Increment attempts on failure
-        cursor.execute("""
-            UPDATE users 
-            SET login_attempts = login_attempts + 1 
-            WHERE username = ?
-        """, (username,))
+        cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE username = ?", (username,))
     
     conn.commit()
-    conn.close()
 
 # ================================
-# CACHED DATA LOADING FUNCTIONS
+# CACHED DATA FUNCTIONS
 # ================================
 @st.cache_data(ttl=300)
-def get_leaderboard_data() -> pd.DataFrame:
-    """Cached leaderboard data - refreshes every 5 minutes"""
+def get_leaderboard_data():
+    """Cached leaderboard data"""
     import pandas as pd
     conn = get_db_connection()
     df = pd.read_sql_query("""
         SELECT username, xp_points, quiz_score, cases_solved, level, last_active
-        FROM leaderboard 
-        ORDER BY xp_points DESC
+        FROM leaderboard ORDER BY xp_points DESC
     """, conn)
-    conn.close()
     return df
 
 @st.cache_data(ttl=60)
@@ -295,11 +202,10 @@ def get_user_count() -> int:
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) as count FROM users")
     result = cursor.fetchone()
-    conn.close()
     return result['count'] if result else 0
 
 # ================================
-# USER MANAGEMENT FUNCTIONS
+# USER MANAGEMENT
 # ================================
 def create_user(username: str, password: str) -> Tuple[bool, str]:
     """Create a new user with secure password storage"""
@@ -311,69 +217,42 @@ def create_user(username: str, password: str) -> Tuple[bool, str]:
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Check if username exists
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
-        conn.close()
         return False, "Username already exists"
     
-    # Hash password
     password_hash, salt = hash_password_secure(password)
     
-    # Create user
-    cursor.execute("""
-        INSERT INTO users (username, password_hash, salt) 
-        VALUES (?, ?, ?)
-    """, (username, password_hash, salt))
-    
-    # Create leaderboard entry
-    cursor.execute("""
-        INSERT INTO leaderboard (username, xp_points) 
-        VALUES (?, 0)
-    """, (username,))
+    cursor.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
+                  (username, password_hash, salt))
+    cursor.execute("INSERT INTO leaderboard (username, xp_points) VALUES (?, 0)", (username,))
     
     conn.commit()
-    conn.close()
-    
     return True, "Account created successfully"
 
 def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict]]:
     """Authenticate user with rate limiting"""
-    # Check rate limit
     can_attempt, message = check_login_rate_limit(username)
     if not can_attempt:
         return False, message, None
     
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT * FROM users WHERE username = ?
-    """, (username,))
-    
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     
     if not user:
         record_login_attempt(username, False)
-        conn.close()
         return False, "Invalid username or password", None
     
-    # Verify password
     if verify_password(password, user['password_hash'], user['salt']):
         record_login_attempt(username, True)
-        
-        # Update last login
-        cursor.execute("""
-            UPDATE users SET last_login = ? WHERE id = ?
-        """, (datetime.now().isoformat(), user['id']))
+        cursor.execute("UPDATE users SET last_login = ? WHERE id = ?",
+                      (datetime.now().isoformat(), user['id']))
         conn.commit()
-        
-        user_dict = dict(user)
-        conn.close()
-        return True, "Login successful", user_dict
+        return True, "Login successful", dict(user)
     else:
         record_login_attempt(username, False)
-        conn.close()
         return False, "Invalid username or password", None
 
 def update_user_streak(username: str) -> int:
@@ -385,7 +264,6 @@ def update_user_streak(username: str) -> int:
     user = cursor.fetchone()
     
     if not user:
-        conn.close()
         return 0
     
     today = datetime.now().date()
@@ -402,14 +280,9 @@ def update_user_streak(username: str) -> int:
     else:
         new_streak = 1
     
-    cursor.execute("""
-        UPDATE users 
-        SET daily_streak = ?, last_active_date = ? 
-        WHERE username = ?
-    """, (new_streak, today.isoformat(), username))
-    
+    cursor.execute("UPDATE users SET daily_streak = ?, last_active_date = ? WHERE username = ?",
+                  (new_streak, today.isoformat(), username))
     conn.commit()
-    conn.close()
     return new_streak
 
 def add_xp(username: str, points: int):
@@ -417,16 +290,10 @@ def add_xp(username: str, points: int):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("""
-        UPDATE users SET xp_points = xp_points + ? WHERE username = ?
-    """, (points, username))
-    
-    cursor.execute("""
-        UPDATE leaderboard SET xp_points = xp_points + ?, last_active = ? WHERE username = ?
-    """, (points, datetime.now().isoformat(), username))
-    
+    cursor.execute("UPDATE users SET xp_points = xp_points + ? WHERE username = ?", (points, username))
+    cursor.execute("UPDATE leaderboard SET xp_points = xp_points + ?, last_active = ? WHERE username = ?",
+                  (points, datetime.now().isoformat(), username))
     conn.commit()
-    conn.close()
 
 # ================================
 # LEVEL SYSTEM
@@ -461,25 +328,6 @@ def get_level_progress(xp_points: int) -> float:
     return min(progress, 100)
 
 # ================================
-# LAZY IMPORTS (Performance)
-# ================================
-@st.cache_resource
-def get_pandas():
-    import pandas as pd
-    return pd
-
-@st.cache_resource
-def get_numpy():
-    import numpy as np
-    return np
-
-@st.cache_resource
-def get_matplotlib():
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    return plt, sns
-
-# ================================
 # DATA DATABASES
 # ================================
 DISEASE_DATABASE = {
@@ -493,7 +341,7 @@ DISEASE_DATABASE = {
     },
     "Diabetes Mellitus Type 2": {
         "symptoms": ["Polyuria", "Polydipsia", "Fatigue", "Slow wound healing", "Recurrent infections", "Blurred vision"],
-        "tests": {"Fasting Glucose": ">126 mg/dL", "HbA1c": ">6.5%", "OGTT": ">200 mg/dL", "C-peptide": "Normal/High"},
+        "tests": {"Fasting Glucose": ">126 mg/dL", "HbA1c": ">6.5%", "OGTT": ">200 mg/dL"},
         "treatment": ["Metformin", "Lifestyle modification", "SGLT2 inhibitors", "GLP-1 agonists", "Regular exercise"],
         "risk_level": "Moderate",
         "age_group": "Adults >40 years",
@@ -501,64 +349,64 @@ DISEASE_DATABASE = {
     },
     "Essential Hypertension": {
         "symptoms": ["Often asymptomatic", "Headache", "Dizziness", "Blurred vision", "Epistaxis"],
-        "tests": {"Blood Pressure": ">140/90 mmHg", "ECG": "Possible LVH", "Creatinine": "Normal", "Potassium": "Normal"},
-        "treatment": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet", "Regular exercise", "Weight management"],
+        "tests": {"Blood Pressure": ">140/90 mmHg", "ECG": "Possible LVH", "Creatinine": "Normal"},
+        "treatment": ["ACE inhibitors", "Lifestyle changes", "Low sodium diet", "Regular exercise"],
         "risk_level": "Low",
         "age_group": "All ages",
         "category": "Cardiovascular"
     },
     "Acute Myocardial Infarction": {
         "symptoms": ["Severe chest pain", "Diaphoresis", "Dyspnea", "Nausea", "Left arm radiation", "Anxiety"],
-        "tests": {"ECG": "ST elevation/depression", "Troponin I": ">0.04 ng/mL", "CK-MB": "Elevated", "CRP": "Elevated"},
-        "treatment": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen", "Primary PCI", "Beta blockers"],
+        "tests": {"ECG": "ST elevation", "Troponin I": ">0.04 ng/mL", "CK-MB": "Elevated"},
+        "treatment": ["Aspirin 300mg", "Nitroglycerin", "Morphine", "Oxygen", "Primary PCI"],
         "risk_level": "Critical",
         "age_group": ">45 years",
         "category": "Cardiovascular"
     },
     "Community-Acquired Pneumonia": {
         "symptoms": ["Fever", "Productive cough", "Dyspnea", "Pleuritic chest pain", "Malaise", "Chills"],
-        "tests": {"Chest X-ray": "Consolidation", "WBC": ">11,000", "CRP": "Elevated", "Blood culture": "Positive", "Procalcitonin": ">0.5"},
-        "treatment": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed", "Hydration", "Rest"],
+        "tests": {"Chest X-ray": "Consolidation", "WBC": ">11,000", "CRP": "Elevated"},
+        "treatment": ["Amoxicillin-clavulanate", "Azithromycin", "Oxygen if needed", "Hydration"],
         "risk_level": "Moderate",
         "age_group": "All ages",
         "category": "Respiratory"
     },
     "Bronchial Asthma": {
         "symptoms": ["Wheezing", "Dyspnea", "Chest tightness", "Cough (especially at night)", "Shortness of breath"],
-        "tests": {"Pulmonary Function": "FEV1 <80%", "Peak Flow": "Reduced", "Chest X-ray": "Hyperinflation", "IgE": "Elevated"},
-        "treatment": ["SABA (Albuterol)", "ICS (Budesonide)", "LABA", "Leukotriene antagonists", "Avoid triggers"],
+        "tests": {"Pulmonary Function": "FEV1 <80%", "Peak Flow": "Reduced", "Chest X-ray": "Hyperinflation"},
+        "treatment": ["SABA (Albuterol)", "ICS (Budesonide)", "LABA", "Avoid triggers"],
         "risk_level": "Low",
         "age_group": "Children & Adults",
         "category": "Respiratory"
     },
     "Iron Deficiency Anemia": {
         "symptoms": ["Fatigue", "Pallor", "Dyspnea on exertion", "Palpitations", "Brittle nails", "Pica"],
-        "tests": {"Hemoglobin": "<12 g/dL", "MCV": "<80 fL", "Ferritin": "<15 ng/mL", "TIBC": ">450", "Iron": "<60"},
-        "treatment": ["Ferrous sulfate 325mg", "Vitamin C supplementation", "Iron-rich diet", "Treat underlying cause"],
+        "tests": {"Hemoglobin": "<12 g/dL", "MCV": "<80 fL", "Ferritin": "<15 ng/mL"},
+        "treatment": ["Ferrous sulfate 325mg", "Vitamin C supplementation", "Iron-rich diet"],
         "risk_level": "Low",
         "age_group": "All ages",
         "category": "Hematology"
     },
     "Chronic Kidney Disease": {
-        "symptoms": ["Edema", "Fatigue", "Decreased urine output", "Nausea", "Pruritus", "Muscle cramps"],
-        "tests": {"Creatinine": ">1.3 mg/dL", "eGFR": "<60", "BUN": ">20", "Urinalysis": "Proteinuria", "Potassium": "Elevated"},
-        "treatment": ["ACE inhibitors", "Dietary restriction", "Phosphate binders", "Erythropoietin", "Dialysis if ESRD"],
+        "symptoms": ["Edema", "Fatigue", "Decreased urine output", "Nausea", "Pruritus"],
+        "tests": {"Creatinine": ">1.3 mg/dL", "eGFR": "<60", "BUN": ">20", "Urinalysis": "Proteinuria"},
+        "treatment": ["ACE inhibitors", "Dietary restriction", "Phosphate binders", "Dialysis if ESRD"],
         "risk_level": "High",
         "age_group": ">50 years",
         "category": "Nephrology"
     },
     "Hepatitis B": {
         "symptoms": ["Jaundice", "Fatigue", "Dark urine", "Right upper quadrant pain", "Nausea", "Anorexia"],
-        "tests": {"HBsAg": "Positive", "Anti-HBc": "Positive", "ALT": ">1000", "AST": "Elevated", "HBV DNA": "Detectable"},
-        "treatment": ["Entecavir", "Tenofovir", "Pegylated interferon", "Avoid alcohol", "Monitor HCC"],
+        "tests": {"HBsAg": "Positive", "Anti-HBc": "Positive", "ALT": ">1000", "AST": "Elevated"},
+        "treatment": ["Entecavir", "Tenofovir", "Pegylated interferon", "Avoid alcohol"],
         "risk_level": "High",
         "age_group": "All ages",
         "category": "Gastroenterology"
     },
     "Pulmonary Tuberculosis": {
         "symptoms": ["Chronic cough (>3 weeks)", "Hemoptysis", "Night sweats", "Weight loss", "Fever", "Anorexia"],
-        "tests": {"Chest X-ray": "Cavitary lesions", "Sputum AFB": "Positive", "GeneXpert": "MTB detected", "PPD": ">15mm", "IGRA": "Positive"},
-        "treatment": ["Rifampicin", "Isoniazid", "Pyrazinamide", "Ethambutol", "Directly observed therapy"],
+        "tests": {"Chest X-ray": "Cavitary lesions", "Sputum AFB": "Positive", "GeneXpert": "MTB detected"},
+        "treatment": ["Rifampicin", "Isoniazid", "Pyrazinamide", "Ethambutol", "DOT"],
         "risk_level": "Critical",
         "age_group": "All ages",
         "category": "Infectious Disease"
@@ -566,7 +414,6 @@ DISEASE_DATABASE = {
 }
 
 LAB_TESTS = {
-    # Hematology (25 tests)
     "Hemoglobin": {"category": "Hematology", "normal": "12-16 g/dL", "description": "Oxygen-carrying capacity"},
     "WBC Count": {"category": "Hematology", "normal": "4,000-11,000/µL", "description": "Infection/inflammation marker"},
     "RBC Count": {"category": "Hematology", "normal": "4.5-5.5 million/µL", "description": "Oxygen transport"},
@@ -576,24 +423,17 @@ LAB_TESTS = {
     "MCHC": {"category": "Hematology", "normal": "32-36 g/dL", "description": "Hemoglobin concentration"},
     "RDW": {"category": "Hematology", "normal": "11.5-14.5%", "description": "RBC size variation"},
     "Platelet Count": {"category": "Hematology", "normal": "150,000-450,000/µL", "description": "Clotting ability"},
-    "MPV": {"category": "Hematology", "normal": "7.5-11.5 fL", "description": "Platelet size"},
-    "Reticulocyte Count": {"category": "Hematology", "normal": "0.5-2.5%", "description": "Bone marrow activity"},
     "ESR": {"category": "Hematology", "normal": "0-20 mm/hr", "description": "Inflammation marker"},
     "Ferritin": {"category": "Hematology", "normal": "15-300 ng/mL", "description": "Iron stores"},
     "Serum Iron": {"category": "Hematology", "normal": "60-170 µg/dL", "description": "Circulating iron"},
     "TIBC": {"category": "Hematology", "normal": "250-450 µg/dL", "description": "Iron binding capacity"},
-    "Transferrin Saturation": {"category": "Hematology", "normal": "20-50%", "description": "Iron saturation"},
-    "Vitamin B12": {"category": "Hematology", "normal": "200-900 pg/mL", "description": "B12 deficiency"},
-    "Folate": {"category": "Hematology", "normal": "3-17 ng/mL", "description": "Folate deficiency"},
+    "Vitamin B12": {"category": "Hematology", "normal": "200-900 pg/mL", "description": "B12 deficiency marker"},
+    "Folate": {"category": "Hematology", "normal": "3-17 ng/mL", "description": "Folate deficiency marker"},
     "PT": {"category": "Hematology", "normal": "11-13.5 sec", "description": "Extrinsic pathway"},
     "PTT": {"category": "Hematology", "normal": "25-35 sec", "description": "Intrinsic pathway"},
     "INR": {"category": "Hematology", "normal": "0.9-1.1", "description": "Coagulation status"},
     "Fibrinogen": {"category": "Hematology", "normal": "200-400 mg/dL", "description": "Clotting factor"},
     "D-Dimer": {"category": "Hematology", "normal": "<0.5 mg/L", "description": "Thrombosis marker"},
-    "Haptoglobin": {"category": "Hematology", "normal": "50-250 mg/dL", "description": "Hemolysis marker"},
-    "LDH": {"category": "Hematology", "normal": "100-250 U/L", "description": "Cell damage marker"},
-    
-    # Biochemistry (30 tests)
     "Fasting Glucose": {"category": "Biochemistry", "normal": "70-100 mg/dL", "description": "Diabetes screening"},
     "HbA1c": {"category": "Biochemistry", "normal": "4.0-5.6%", "description": "3-month glucose average"},
     "Creatinine": {"category": "Biochemistry", "normal": "0.6-1.3 mg/dL", "description": "Kidney function"},
@@ -602,9 +442,7 @@ LAB_TESTS = {
     "Uric Acid": {"category": "Biochemistry", "normal": "3.5-7.2 mg/dL", "description": "Gout marker"},
     "Total Protein": {"category": "Biochemistry", "normal": "6.0-8.0 g/dL", "description": "Nutritional status"},
     "Albumin": {"category": "Biochemistry", "normal": "3.5-5.0 g/dL", "description": "Liver function"},
-    "Globulin": {"category": "Biochemistry", "normal": "2.0-3.5 g/dL", "description": "Immune proteins"},
     "Total Bilirubin": {"category": "Biochemistry", "normal": "0.1-1.2 mg/dL", "description": "Jaundice marker"},
-    "Direct Bilirubin": {"category": "Biochemistry", "normal": "0.0-0.3 mg/dL", "description": "Conjugated bilirubin"},
     "ALT": {"category": "Biochemistry", "normal": "10-40 U/L", "description": "Liver enzyme"},
     "AST": {"category": "Biochemistry", "normal": "10-40 U/L", "description": "Liver/muscle enzyme"},
     "ALP": {"category": "Biochemistry", "normal": "44-147 U/L", "description": "Bone/liver enzyme"},
@@ -612,187 +450,106 @@ LAB_TESTS = {
     "Amylase": {"category": "Biochemistry", "normal": "20-200 U/L", "description": "Pancreatic enzyme"},
     "Lipase": {"category": "Biochemistry", "normal": "20-200 U/L", "description": "Pancreatic enzyme"},
     "CK": {"category": "Biochemistry", "normal": "22-198 U/L", "description": "Muscle enzyme"},
-    "CK-MB": {"category": "Biochemistry", "normal": "0-5 ng/mL", "description": "Cardiac enzyme"},
     "Sodium": {"category": "Biochemistry", "normal": "135-145 mmol/L", "description": "Electrolyte"},
     "Potassium": {"category": "Biochemistry", "normal": "3.5-5.0 mmol/L", "description": "Electrolyte"},
     "Chloride": {"category": "Biochemistry", "normal": "96-106 mmol/L", "description": "Electrolyte"},
     "Calcium": {"category": "Biochemistry", "normal": "8.5-10.5 mg/dL", "description": "Bone metabolism"},
     "Magnesium": {"category": "Biochemistry", "normal": "1.7-2.2 mg/dL", "description": "Neuromuscular function"},
     "Phosphorus": {"category": "Biochemistry", "normal": "2.5-4.5 mg/dL", "description": "Bone metabolism"},
-    "Total Cholesterol": {"category": "Biochemistry", "normal": "<200 mg/dL", "description": "Lipid profile"},
-    "LDL": {"category": "Biochemistry", "normal": "<100 mg/dL", "description": "Bad cholesterol"},
-    "HDL": {"category": "Biochemistry", "normal": ">40 mg/dL", "description": "Good cholesterol"},
-    "Triglycerides": {"category": "Biochemistry", "normal": "<150 mg/dL", "description": "Blood fats"},
-    "VLDL": {"category": "Biochemistry", "normal": "<30 mg/dL", "description": "Very low density lipoprotein"},
-    
-    # Cardiac Markers (8 tests)
+    "Total Cholesterol": {"category": "Lipids", "normal": "<200 mg/dL", "description": "Lipid profile"},
+    "LDL Cholesterol": {"category": "Lipids", "normal": "<100 mg/dL", "description": "Bad cholesterol"},
+    "HDL Cholesterol": {"category": "Lipids", "normal": ">40 mg/dL", "description": "Good cholesterol"},
+    "Triglycerides": {"category": "Lipids", "normal": "<150 mg/dL", "description": "Blood fats"},
     "Troponin I": {"category": "Cardiac", "normal": "<0.04 ng/mL", "description": "Myocardial injury"},
     "Troponin T": {"category": "Cardiac", "normal": "<0.014 ng/mL", "description": "High-sensitivity cardiac"},
     "BNP": {"category": "Cardiac", "normal": "<100 pg/mL", "description": "Heart failure"},
-    "NT-proBNP": {"category": "Cardiac", "normal": "<125 pg/mL", "description": "Heart failure"},
-    "Myoglobin": {"category": "Cardiac", "normal": "<80 ng/mL", "description": "Early cardiac marker"},
-    "hs-CRP": {"category": "Cardiac", "normal": "<2 mg/L", "description": "Cardiovascular risk"},
-    "Homocysteine": {"category": "Cardiac", "normal": "5-15 µmol/L", "description": "Vascular risk"},
-    "Lipoprotein(a)": {"category": "Cardiac", "normal": "<30 mg/dL", "description": "Genetic cardiac risk"},
-    
-    # Thyroid & Hormones (15 tests)
+    "CK-MB": {"category": "Cardiac", "normal": "0-5 ng/mL", "description": "Cardiac enzyme"},
     "TSH": {"category": "Endocrine", "normal": "0.4-4.0 mIU/L", "description": "Thyroid function"},
     "Free T4": {"category": "Endocrine", "normal": "0.8-1.8 ng/dL", "description": "Thyroid hormone"},
     "Free T3": {"category": "Endocrine", "normal": "2.3-4.2 pg/mL", "description": "Active thyroid hormone"},
     "Cortisol (AM)": {"category": "Endocrine", "normal": "6-23 µg/dL", "description": "Adrenal function"},
     "Testosterone (Male)": {"category": "Endocrine", "normal": "300-1000 ng/dL", "description": "Androgen"},
-    "Estradiol": {"category": "Endocrine", "normal": "20-400 pg/mL", "description": "Estrogen"},
-    "Progesterone": {"category": "Endocrine", "normal": "0.1-25 ng/mL", "description": "Ovulation marker"},
-    "Prolactin": {"category": "Endocrine", "normal": "4-23 ng/mL", "description": "Pituitary function"},
-    "LH": {"category": "Endocrine", "normal": "1.5-9.3 IU/L", "description": "Reproductive hormone"},
-    "FSH": {"category": "Endocrine", "normal": "1.4-18.1 IU/L", "description": "Reproductive hormone"},
-    "Insulin (Fasting)": {"category": "Endocrine", "normal": "2-25 µIU/mL", "description": "Glucose metabolism"},
-    "C-Peptide": {"category": "Endocrine", "normal": "0.5-2.0 ng/mL", "description": "Insulin production"},
-    "IGF-1": {"category": "Endocrine", "normal": "100-300 ng/mL", "description": "Growth factor"},
-    "PTH": {"category": "Endocrine", "normal": "10-65 pg/mL", "description": "Calcium regulation"},
     "Vitamin D (25-OH)": {"category": "Endocrine", "normal": "30-100 ng/mL", "description": "Vitamin D status"},
-    
-    # Urinalysis (12 tests)
-    "Urine pH": {"category": "Urinalysis", "normal": "4.5-8.0", "description": "Acid-base balance"},
-    "Urine Specific Gravity": {"category": "Urinalysis", "normal": "1.005-1.030", "description": "Concentration"},
-    "Urine Protein": {"category": "Urinalysis", "normal": "Negative", "description": "Kidney damage"},
-    "Urine Glucose": {"category": "Urinalysis", "normal": "Negative", "description": "Diabetes"},
-    "Urine Ketones": {"category": "Urinalysis", "normal": "Negative", "description": "Starvation/DKA"},
-    "Urine Bilirubin": {"category": "Urinalysis", "normal": "Negative", "description": "Liver disease"},
-    "Urine Urobilinogen": {"category": "Urinalysis", "normal": "0.1-1.0 mg/dL", "description": "Hemolysis"},
-    "Urine Nitrite": {"category": "Urinalysis", "normal": "Negative", "description": "Bacteria"},
-    "Urine Leukocyte Esterase": {"category": "Urinalysis", "normal": "Negative", "description": "WBC enzyme"},
-    "Urine WBC": {"category": "Urinalysis", "normal": "0-5/HPF", "description": "Infection"},
-    "Urine RBC": {"category": "Urinalysis", "normal": "0-3/HPF", "description": "Bleeding"},
-    "Microalbumin": {"category": "Urinalysis", "normal": "<30 mg/24h", "description": "Early nephropathy"},
-    
-    # Immunology/Serology (10 tests)
     "CRP": {"category": "Immunology", "normal": "<5 mg/L", "description": "Acute inflammation"},
     "Rheumatoid Factor": {"category": "Immunology", "normal": "<14 IU/mL", "description": "RA marker"},
     "ANA": {"category": "Immunology", "normal": "Negative", "description": "Autoimmune screening"},
-    "Anti-dsDNA": {"category": "Immunology", "normal": "<30 IU/mL", "description": "SLE marker"},
-    "C3 Complement": {"category": "Immunology", "normal": "90-180 mg/dL", "description": "Complement system"},
-    "C4 Complement": {"category": "Immunology", "normal": "10-40 mg/dL", "description": "Complement system"},
-    "IgG": {"category": "Immunology", "normal": "700-1600 mg/dL", "description": "Humoral immunity"},
-    "IgA": {"category": "Immunology", "normal": "70-400 mg/dL", "description": "Mucosal immunity"},
-    "IgM": {"category": "Immunology", "normal": "40-230 mg/dL", "description": "Acute infection"},
-    "IgE": {"category": "Immunology", "normal": "0-100 IU/mL", "description": "Allergy/parasites"},
+    "Urine pH": {"category": "Urinalysis", "normal": "4.5-8.0", "description": "Acid-base balance"},
+    "Urine Protein": {"category": "Urinalysis", "normal": "Negative", "description": "Kidney damage"},
+    "Urine Glucose": {"category": "Urinalysis", "normal": "Negative", "description": "Diabetes"},
+    "Urine WBC": {"category": "Urinalysis", "normal": "0-5/HPF", "description": "Infection"},
+    "Urine RBC": {"category": "Urinalysis", "normal": "0-3/HPF", "description": "Bleeding"},
 }
 
-# ================================
-# DRUG DATABASE (100+ drugs)
-# ================================
 DRUG_DATABASE = {
     "Cardiovascular": {
-        "Lisinopril": {"class": "ACE Inhibitor", "dose": "10-40mg daily", "indications": "Hypertension, HF", "side_effects": "Cough, angioedema, hyperkalemia"},
-        "Enalapril": {"class": "ACE Inhibitor", "dose": "5-40mg daily", "indications": "Hypertension, HF", "side_effects": "Cough, hypotension, rash"},
-        "Captopril": {"class": "ACE Inhibitor", "dose": "25-150mg TID", "indications": "Hypertension, diabetic nephropathy", "side_effects": "Cough, taste disturbance"},
-        "Losartan": {"class": "ARB", "dose": "50-100mg daily", "indications": "Hypertension, HF, nephropathy", "side_effects": "Dizziness, hyperkalemia"},
-        "Valsartan": {"class": "ARB", "dose": "80-320mg daily", "indications": "Hypertension, HF", "side_effects": "Headache, dizziness, fatigue"},
-        "Amlodipine": {"class": "CCB", "dose": "5-10mg daily", "indications": "Hypertension, angina", "side_effects": "Edema, flushing, headache"},
-        "Nifedipine": {"class": "CCB", "dose": "30-90mg daily", "indications": "Hypertension, angina", "side_effects": "Headache, edema, constipation"},
-        "Metoprolol": {"class": "Beta Blocker", "dose": "25-200mg daily", "indications": "Hypertension, angina, HF", "side_effects": "Bradycardia, fatigue, cold extremities"},
-        "Atenolol": {"class": "Beta Blocker", "dose": "25-100mg daily", "indications": "Hypertension, angina", "side_effects": "Bradycardia, fatigue, depression"},
-        "Carvedilol": {"class": "Alpha/Beta Blocker", "dose": "6.25-50mg BID", "indications": "HF, hypertension", "side_effects": "Dizziness, fatigue, bradycardia"},
-        "Hydrochlorothiazide": {"class": "Thiazide Diuretic", "dose": "12.5-50mg daily", "indications": "Hypertension, edema", "side_effects": "Hypokalemia, hyperuricemia"},
-        "Furosemide": {"class": "Loop Diuretic", "dose": "20-80mg daily", "indications": "Edema, HF, hypertension", "side_effects": "Hypokalemia, dehydration, ototoxicity"},
-        "Spironolactone": {"class": "Aldosterone Antagonist", "dose": "25-100mg daily", "indications": "HF, ascites, hypertension", "side_effects": "Hyperkalemia, gynecomastia"},
-        "Atorvastatin": {"class": "Statin", "dose": "10-80mg daily", "indications": "Hyperlipidemia, CVD prevention", "side_effects": "Myalgia, elevated LFTs, rhabdomyolysis"},
-        "Rosuvastatin": {"class": "Statin", "dose": "5-40mg daily", "indications": "Hyperlipidemia", "side_effects": "Myalgia, headache, diabetes risk"},
-        "Clopidogrel": {"class": "Antiplatelet", "dose": "75mg daily", "indications": "ACS, stroke prevention", "side_effects": "Bleeding, bruising, TTP"},
-        "Aspirin": {"class": "Antiplatelet", "dose": "75-325mg daily", "indications": "CVD prevention, pain", "side_effects": "GI bleeding, tinnitus, Reye's"},
-        "Warfarin": {"class": "Anticoagulant", "dose": "2-10mg daily (INR-guided)", "indications": "DVT, PE, AF", "side_effects": "Bleeding, skin necrosis, teratogenic"},
-        "Rivaroxaban": {"class": "DOAC", "dose": "10-20mg daily", "indications": "DVT, PE, AF", "side_effects": "Bleeding, anemia, elevated LFTs"},
-        "Apixaban": {"class": "DOAC", "dose": "2.5-5mg BID", "indications": "AF, DVT prevention", "side_effects": "Bleeding, nausea, anemia"},
-        "Digoxin": {"class": "Cardiac Glycoside", "dose": "0.125-0.25mg daily", "indications": "HF, AF rate control", "side_effects": "Nausea, visual changes, arrhythmias"},
-        "Amiodarone": {"class": "Class III Antiarrhythmic", "dose": "200-400mg daily", "indications": "Arrhythmias", "side_effects": "Pulmonary fibrosis, thyroid dysfunction, hepatotoxicity"},
-        "Nitroglycerin": {"class": "Nitrate", "dose": "0.3-0.6mg SL PRN", "indications": "Acute angina", "side_effects": "Headache, hypotension, reflex tachycardia"}
+        "Lisinopril": {"class": "ACE Inhibitor", "dose": "10-40mg daily", "indications": "Hypertension, HF", "side_effects": "Cough, angioedema"},
+        "Losartan": {"class": "ARB", "dose": "50-100mg daily", "indications": "Hypertension, HF", "side_effects": "Dizziness, hyperkalemia"},
+        "Amlodipine": {"class": "CCB", "dose": "5-10mg daily", "indications": "Hypertension, angina", "side_effects": "Edema, flushing"},
+        "Metoprolol": {"class": "Beta Blocker", "dose": "25-200mg daily", "indications": "Hypertension, angina", "side_effects": "Bradycardia, fatigue"},
+        "Hydrochlorothiazide": {"class": "Thiazide Diuretic", "dose": "12.5-50mg daily", "indications": "Hypertension, edema", "side_effects": "Hypokalemia"},
+        "Furosemide": {"class": "Loop Diuretic", "dose": "20-80mg daily", "indications": "Edema, HF", "side_effects": "Hypokalemia, dehydration"},
+        "Atorvastatin": {"class": "Statin", "dose": "10-80mg daily", "indications": "Hyperlipidemia", "side_effects": "Myalgia, elevated LFTs"},
+        "Clopidogrel": {"class": "Antiplatelet", "dose": "75mg daily", "indications": "ACS, stroke prevention", "side_effects": "Bleeding"},
+        "Aspirin": {"class": "Antiplatelet", "dose": "75-325mg daily", "indications": "CVD prevention", "side_effects": "GI bleeding"},
+        "Warfarin": {"class": "Anticoagulant", "dose": "2-10mg daily", "indications": "DVT, PE, AF", "side_effects": "Bleeding"},
+        "Rivaroxaban": {"class": "DOAC", "dose": "10-20mg daily", "indications": "DVT, PE, AF", "side_effects": "Bleeding"},
+        "Apixaban": {"class": "DOAC", "dose": "2.5-5mg BID", "indications": "AF, DVT prevention", "side_effects": "Bleeding"},
+        "Digoxin": {"class": "Cardiac Glycoside", "dose": "0.125-0.25mg daily", "indications": "HF, AF", "side_effects": "Nausea, visual changes"},
+        "Amiodarone": {"class": "Antiarrhythmic", "dose": "200-400mg daily", "indications": "Arrhythmias", "side_effects": "Pulmonary fibrosis"},
+        "Nitroglycerin": {"class": "Nitrate", "dose": "0.3-0.6mg SL PRN", "indications": "Acute angina", "side_effects": "Headache, hypotension"}
     },
     "Endocrinology": {
-        "Metformin": {"class": "Biguanide", "dose": "500-2000mg daily", "indications": "Type 2 DM, PCOS", "side_effects": "GI upset, lactic acidosis, B12 deficiency"},
-        "Glipizide": {"class": "Sulfonylurea", "dose": "5-20mg daily", "indications": "Type 2 DM", "side_effects": "Hypoglycemia, weight gain, rash"},
-        "Pioglitazone": {"class": "TZD", "dose": "15-45mg daily", "indications": "Type 2 DM", "side_effects": "Edema, weight gain, fractures, bladder cancer risk"},
-        "Sitagliptin": {"class": "DPP-4 Inhibitor", "dose": "100mg daily", "indications": "Type 2 DM", "side_effects": "Headache, pancreatitis, arthralgia"},
-        "Empagliflozin": {"class": "SGLT2 Inhibitor", "dose": "10-25mg daily", "indications": "Type 2 DM, HF, CKD", "side_effects": "UTI, genital infections, DKA, dehydration"},
-        "Dapagliflozin": {"class": "SGLT2 Inhibitor", "dose": "5-10mg daily", "indications": "Type 2 DM, HF, CKD", "side_effects": "UTI, genital infections, Fournier's gangrene"},
-        "Insulin Glargine": {"class": "Long-acting Insulin", "dose": "Individualized", "indications": "Type 1 & 2 DM", "side_effects": "Hypoglycemia, weight gain, lipodystrophy"},
-        "Insulin Aspart": {"class": "Rapid-acting Insulin", "dose": "Individualized", "indications": "Type 1 & 2 DM", "side_effects": "Hypoglycemia, weight gain"},
-        "Levothyroxine": {"class": "Thyroid Hormone", "dose": "25-200mcg daily", "indications": "Hypothyroidism", "side_effects": "Palpitations, insomnia, osteoporosis"},
-        "Methimazole": {"class": "Antithyroid", "dose": "5-30mg daily", "indications": "Hyperthyroidism", "side_effects": "Agranulocytosis, hepatotoxicity, rash"},
-        "Prednisone": {"class": "Corticosteroid", "dose": "5-60mg daily", "indications": "Inflammation, autoimmune", "side_effects": "Weight gain, osteoporosis, hyperglycemia, immunosuppression"},
-        "Hydrocortisone": {"class": "Corticosteroid", "dose": "20-240mg daily", "indications": "Adrenal insufficiency", "side_effects": "Fluid retention, hypertension, mood changes"},
-        "Alendronate": {"class": "Bisphosphonate", "dose": "70mg weekly", "indications": "Osteoporosis", "side_effects": "Esophagitis, jaw osteonecrosis, atypical fractures"}
+        "Metformin": {"class": "Biguanide", "dose": "500-2000mg daily", "indications": "Type 2 DM", "side_effects": "GI upset, lactic acidosis"},
+        "Glipizide": {"class": "Sulfonylurea", "dose": "5-20mg daily", "indications": "Type 2 DM", "side_effects": "Hypoglycemia, weight gain"},
+        "Sitagliptin": {"class": "DPP-4 Inhibitor", "dose": "100mg daily", "indications": "Type 2 DM", "side_effects": "Headache, pancreatitis"},
+        "Empagliflozin": {"class": "SGLT2 Inhibitor", "dose": "10-25mg daily", "indications": "Type 2 DM, HF", "side_effects": "UTI, DKA"},
+        "Insulin Glargine": {"class": "Long-acting Insulin", "dose": "Individualized", "indications": "Type 1 & 2 DM", "side_effects": "Hypoglycemia"},
+        "Levothyroxine": {"class": "Thyroid Hormone", "dose": "25-200mcg daily", "indications": "Hypothyroidism", "side_effects": "Palpitations"},
+        "Methimazole": {"class": "Antithyroid", "dose": "5-30mg daily", "indications": "Hyperthyroidism", "side_effects": "Agranulocytosis"},
+        "Prednisone": {"class": "Corticosteroid", "dose": "5-60mg daily", "indications": "Inflammation", "side_effects": "Weight gain, osteoporosis"}
     },
     "Antibiotics": {
-        "Amoxicillin": {"class": "Penicillin", "dose": "500-875mg BID", "indications": "Respiratory, UTI, H. pylori", "side_effects": "Diarrhea, rash, anaphylaxis"},
-        "Amoxicillin-Clavulanate": {"class": "Penicillin + BLI", "dose": "500/125mg TID", "indications": "Respiratory, skin infections", "side_effects": "Diarrhea, GI upset, cholestatic hepatitis"},
-        "Cephalexin": {"class": "1st Gen Cephalosporin", "dose": "250-500mg QID", "indications": "Skin, UTI", "side_effects": "GI upset, rash, C. diff"},
-        "Ceftriaxone": {"class": "3rd Gen Cephalosporin", "dose": "1-2g IV/IM daily", "indications": "Meningitis, pneumonia, gonorrhea", "side_effects": "Diarrhea, biliary sludging, hemolysis"},
-        "Azithromycin": {"class": "Macrolide", "dose": "250-500mg daily", "indications": "Respiratory, STI", "side_effects": "GI upset, QT prolongation, hearing loss"},
-        "Clarithromycin": {"class": "Macrolide", "dose": "250-500mg BID", "indications": "H. pylori, respiratory", "side_effects": "GI upset, metallic taste, CYP3A4 inhibitor"},
-        "Doxycycline": {"class": "Tetracycline", "dose": "100mg BID", "indications": "Acne, Lyme, malaria prophylaxis", "side_effects": "Photosensitivity, esophagitis, teeth discoloration"},
-        "Ciprofloxacin": {"class": "Fluoroquinolone", "dose": "250-750mg BID", "indications": "UTI, GI infections", "side_effects": "Tendonitis, neuropathy, QT prolongation, C. diff"},
-        "Levofloxacin": {"class": "Fluoroquinolone", "dose": "500-750mg daily", "indications": "Respiratory, UTI", "side_effects": "Tendon rupture, CNS effects, dysglycemia"},
-        "Metronidazole": {"class": "Nitroimidazole", "dose": "500mg TID", "indications": "Anaerobic infections, C. diff, trichomoniasis", "side_effects": "Metallic taste, neuropathy, disulfiram reaction"},
-        "Clindamycin": {"class": "Lincosamide", "dose": "150-450mg QID", "indications": "Anaerobic infections, acne, MRSA", "side_effects": "C. diff colitis, rash, hepatotoxicity"},
-        "Vancomycin": {"class": "Glycopeptide", "dose": "IV: trough-guided", "indications": "MRSA, C. diff (oral)", "side_effects": "Red man syndrome, nephrotoxicity, ototoxicity"},
-        "TMP-SMX": {"class": "Sulfonamide", "dose": "160/800mg BID", "indications": "UTI, PCP, Nocardia", "side_effects": "Rash, hyperkalemia, SJS, bone marrow suppression"},
-        "Nitrofurantoin": {"class": "Nitrofuran", "dose": "100mg BID", "indications": "UTI prophylaxis", "side_effects": "Pulmonary fibrosis, neuropathy, hepatotoxicity"},
-        "Linezolid": {"class": "Oxazolidinone", "dose": "600mg BID", "indications": "VRE, MRSA", "side_effects": "Myelosuppression, serotonin syndrome, neuropathy"}
+        "Amoxicillin": {"class": "Penicillin", "dose": "500-875mg BID", "indications": "Respiratory, UTI", "side_effects": "Diarrhea, rash"},
+        "Ceftriaxone": {"class": "3rd Gen Cephalosporin", "dose": "1-2g IV daily", "indications": "Serious infections", "side_effects": "Diarrhea"},
+        "Azithromycin": {"class": "Macrolide", "dose": "250-500mg daily", "indications": "Respiratory infections", "side_effects": "GI upset"},
+        "Doxycycline": {"class": "Tetracycline", "dose": "100mg BID", "indications": "Acne, Lyme", "side_effects": "Photosensitivity"},
+        "Ciprofloxacin": {"class": "Fluoroquinolone", "dose": "250-750mg BID", "indications": "UTI, GI", "side_effects": "Tendonitis"},
+        "Metronidazole": {"class": "Nitroimidazole", "dose": "500mg TID", "indications": "Anaerobic infections", "side_effects": "Metallic taste"},
+        "Vancomycin": {"class": "Glycopeptide", "dose": "IV trough-guided", "indications": "MRSA", "side_effects": "Red man syndrome"},
+        "TMP-SMX": {"class": "Sulfonamide", "dose": "160/800mg BID", "indications": "UTI, PCP", "side_effects": "Rash, hyperkalemia"}
     },
-    "Neurology & Psychiatry": {
-        "Sertraline": {"class": "SSRI", "dose": "50-200mg daily", "indications": "Depression, anxiety, PTSD, OCD", "side_effects": "GI upset, sexual dysfunction, insomnia, hyponatremia"},
-        "Fluoxetine": {"class": "SSRI", "dose": "20-80mg daily", "indications": "Depression, OCD, bulimia", "side_effects": "Insomnia, weight loss, sexual dysfunction, long half-life"},
-        "Escitalopram": {"class": "SSRI", "dose": "10-20mg daily", "indications": "Depression, GAD", "side_effects": "Nausea, fatigue, sexual dysfunction, QT prolongation"},
-        "Venlafaxine": {"class": "SNRI", "dose": "75-375mg daily", "indications": "Depression, anxiety, neuropathic pain", "side_effects": "Hypertension, sweating, nausea, withdrawal syndrome"},
-        "Duloxetine": {"class": "SNRI", "dose": "30-120mg daily", "indications": "Depression, fibromyalgia, neuropathic pain", "side_effects": "Nausea, dry mouth, hepatotoxicity"},
-        "Amitriptyline": {"class": "TCA", "dose": "25-150mg nightly", "indications": "Depression, neuropathic pain, migraine prophylaxis", "side_effects": "Sedation, anticholinergic, weight gain, cardiotoxic"},
-        "Quetiapine": {"class": "Atypical Antipsychotic", "dose": "25-800mg daily", "indications": "Schizophrenia, bipolar, insomnia", "side_effects": "Weight gain, metabolic syndrome, sedation, EPS"},
-        "Risperidone": {"class": "Atypical Antipsychotic", "dose": "1-6mg daily", "indications": "Schizophrenia, bipolar, autism irritability", "side_effects": "Hyperprolactinemia, EPS, weight gain"},
-        "Olanzapine": {"class": "Atypical Antipsychotic", "dose": "5-20mg daily", "indications": "Schizophrenia, bipolar", "side_effects": "Weight gain, diabetes, dyslipidemia, sedation"},
-        "Lithium": {"class": "Mood Stabilizer", "dose": "300-1800mg daily (level-guided)", "indications": "Bipolar disorder", "side_effects": "Tremor, hypothyroidism, nephrotoxicity, teratogenic"},
-        "Valproic Acid": {"class": "Mood Stabilizer/AED", "dose": "250-3000mg daily", "indications": "Bipolar, epilepsy, migraine", "side_effects": "Weight gain, hepatotoxicity, pancreatitis, teratogenic"},
-        "Carbamazepine": {"class": "AED", "dose": "200-1600mg daily", "indications": "Epilepsy, trigeminal neuralgia, bipolar", "side_effects": "Hyponatremia, aplastic anemia, SJS, CYP inducer"},
-        "Gabapentin": {"class": "Gabapentinoid", "dose": "300-3600mg daily", "indications": "Neuropathic pain, epilepsy, RLS", "side_effects": "Sedation, dizziness, weight gain, abuse potential"},
-        "Pregabalin": {"class": "Gabapentinoid", "dose": "75-600mg daily", "indications": "Neuropathic pain, fibromyalgia, GAD", "side_effects": "Dizziness, edema, weight gain, dependence"},
-        "Levetiracetam": {"class": "AED", "dose": "500-3000mg daily", "indications": "Epilepsy", "side_effects": "Behavioral changes, sedation, leukopenia"},
-        "Donepezil": {"class": "Cholinesterase Inhibitor", "dose": "5-10mg daily", "indications": "Alzheimer's disease", "side_effects": "GI upset, bradycardia, syncope, nightmares"},
-        "Sumatriptan": {"class": "Triptan", "dose": "50-100mg PRN", "indications": "Acute migraine", "side_effects": "Chest tightness, paresthesia, serotonin syndrome"},
-        "Levodopa/Carbidopa": {"class": "Dopamine Precursor", "dose": "100/25mg TID", "indications": "Parkinson's disease", "side_effects": "Dyskinesia, nausea, hypotension, hallucinations"}
+    "Neurology/Psychiatry": {
+        "Sertraline": {"class": "SSRI", "dose": "50-200mg daily", "indications": "Depression, anxiety", "side_effects": "Sexual dysfunction"},
+        "Fluoxetine": {"class": "SSRI", "dose": "20-80mg daily", "indications": "Depression, OCD", "side_effects": "Insomnia, weight loss"},
+        "Venlafaxine": {"class": "SNRI", "dose": "75-375mg daily", "indications": "Depression, anxiety", "side_effects": "Hypertension"},
+        "Quetiapine": {"class": "Atypical Antipsychotic", "dose": "25-800mg daily", "indications": "Schizophrenia, bipolar", "side_effects": "Weight gain"},
+        "Lithium": {"class": "Mood Stabilizer", "dose": "300-1800mg daily", "indications": "Bipolar disorder", "side_effects": "Tremor, nephrotoxicity"},
+        "Gabapentin": {"class": "Gabapentinoid", "dose": "300-3600mg daily", "indications": "Neuropathic pain", "side_effects": "Sedation, dizziness"},
+        "Pregabalin": {"class": "Gabapentinoid", "dose": "75-600mg daily", "indications": "Neuropathic pain", "side_effects": "Dizziness, edema"},
+        "Levetiracetam": {"class": "AED", "dose": "500-3000mg daily", "indications": "Epilepsy", "side_effects": "Behavioral changes"},
+        "Donepezil": {"class": "Cholinesterase Inhibitor", "dose": "5-10mg daily", "indications": "Alzheimer's", "side_effects": "Bradycardia"},
+        "Sumatriptan": {"class": "Triptan", "dose": "50-100mg PRN", "indications": "Acute migraine", "side_effects": "Chest tightness"}
     },
     "Gastroenterology": {
-        "Omeprazole": {"class": "PPI", "dose": "20-40mg daily", "indications": "GERD, PUD, H. pylori", "side_effects": "Headache, GI upset, B12 deficiency, C. diff, fractures"},
-        "Pantoprazole": {"class": "PPI", "dose": "40mg daily", "indications": "GERD, erosive esophagitis", "side_effects": "Headache, diarrhea, hypomagnesemia"},
-        "Famotidine": {"class": "H2 Antagonist", "dose": "20-40mg BID", "indications": "GERD, PUD", "side_effects": "Constipation, diarrhea, headache"},
-        "Ondansetron": {"class": "5-HT3 Antagonist", "dose": "4-8mg PRN", "indications": "Nausea, vomiting", "side_effects": "Headache, constipation, QT prolongation"},
-        "Metoclopramide": {"class": "Dopamine Antagonist", "dose": "10mg TID", "indications": "Gastroparesis, nausea", "side_effects": "EPS, tardive dyskinesia, galactorrhea"},
-        "Loperamide": {"class": "Opioid Agonist", "dose": "2-4mg PRN (max 16mg)", "indications": "Acute diarrhea", "side_effects": "Constipation, abdominal cramps, toxic megacolon"},
-        "Mesalamine": {"class": "5-ASA", "dose": "2.4-4.8g daily", "indications": "Ulcerative colitis, Crohn's", "side_effects": "Headache, GI upset, nephritis"},
-        "Lactulose": {"class": "Osmotic Laxative", "dose": "15-30mL daily", "indications": "Constipation, hepatic encephalopathy", "side_effects": "Bloating, flatulence, diarrhea"},
-        "Ursodeoxycholic Acid": {"class": "Bile Acid", "dose": "10-15mg/kg daily", "indications": "PBC, gallstone dissolution", "side_effects": "Diarrhea, nausea, pruritus"}
+        "Omeprazole": {"class": "PPI", "dose": "20-40mg daily", "indications": "GERD, PUD", "side_effects": "B12 deficiency"},
+        "Famotidine": {"class": "H2 Antagonist", "dose": "20-40mg BID", "indications": "GERD", "side_effects": "Constipation"},
+        "Ondansetron": {"class": "5-HT3 Antagonist", "dose": "4-8mg PRN", "indications": "Nausea/vomiting", "side_effects": "Headache"},
+        "Loperamide": {"class": "Opioid Agonist", "dose": "2-4mg PRN", "indications": "Diarrhea", "side_effects": "Constipation"},
+        "Lactulose": {"class": "Osmotic Laxative", "dose": "15-30mL daily", "indications": "Constipation", "side_effects": "Bloating"}
     },
     "Respiratory": {
-        "Albuterol": {"class": "SABA", "dose": "2 puffs Q4-6H PRN", "indications": "Asthma, COPD exacerbation", "side_effects": "Tremor, tachycardia, hypokalemia"},
-        "Salmeterol": {"class": "LABA", "dose": "50mcg BID", "indications": "Asthma, COPD maintenance", "side_effects": "Tremor, palpitations, must combine with ICS"},
-        "Fluticasone": {"class": "ICS", "dose": "100-500mcg BID", "indications": "Asthma maintenance", "side_effects": "Oral thrush, dysphonia, adrenal suppression"},
-        "Budesonide": {"class": "ICS", "dose": "200-800mcg BID", "indications": "Asthma, COPD", "side_effects": "Cough, oral candidiasis, growth suppression in children"},
-        "Montelukast": {"class": "Leukotriene Antagonist", "dose": "10mg daily", "indications": "Asthma, allergic rhinitis", "side_effects": "Headache, behavioral changes, Churg-Strauss"},
-        "Tiotropium": {"class": "LAMA", "dose": "18mcg daily", "indications": "COPD", "side_effects": "Dry mouth, constipation, urinary retention"},
-        "Ipratropium": {"class": "SAMA", "dose": "2-4 puffs QID", "indications": "COPD, asthma", "side_effects": "Dry mouth, blurred vision, glaucoma"},
-        "Theophylline": {"class": "Methylxanthine", "dose": "200-600mg daily (level-guided)", "indications": "Refractory asthma/COPD", "side_effects": "Nausea, seizures, arrhythmias, narrow therapeutic index"},
-        "Roflumilast": {"class": "PDE-4 Inhibitor", "dose": "500mcg daily", "indications": "Severe COPD", "side_effects": "Diarrhea, weight loss, psychiatric effects"}
+        "Albuterol": {"class": "SABA", "dose": "2 puffs Q4-6H PRN", "indications": "Asthma", "side_effects": "Tremor, tachycardia"},
+        "Fluticasone": {"class": "ICS", "dose": "100-500mcg BID", "indications": "Asthma maintenance", "side_effects": "Oral thrush"},
+        "Montelukast": {"class": "Leukotriene Antagonist", "dose": "10mg daily", "indications": "Asthma, allergies", "side_effects": "Headache"},
+        "Tiotropium": {"class": "LAMA", "dose": "18mcg daily", "indications": "COPD", "side_effects": "Dry mouth"}
     },
     "Analgesics": {
-        "Ibuprofen": {"class": "NSAID", "dose": "200-800mg TID", "indications": "Pain, inflammation, fever", "side_effects": "GI ulcer, renal impairment, cardiovascular risk"},
-        "Naproxen": {"class": "NSAID", "dose": "250-500mg BID", "indications": "Pain, inflammation", "side_effects": "GI upset, edema, hypertension"},
-        "Celecoxib": {"class": "COX-2 Inhibitor", "dose": "100-200mg BID", "indications": "Osteoarthritis, RA", "side_effects": "Cardiovascular risk, GI upset, sulfa allergy"},
-        "Acetaminophen": {"class": "Analgesic/Antipyretic", "dose": "500-1000mg Q6H (max 4g)", "indications": "Pain, fever", "side_effects": "Hepatotoxicity (overdose), avoid in liver disease"},
-        "Tramadol": {"class": "Weak Opioid + SNRI", "dose": "50-100mg Q6H", "indications": "Moderate pain", "side_effects": "Nausea, seizures, serotonin syndrome, dependence"},
-        "Morphine": {"class": "Opioid Agonist", "dose": "5-30mg Q4H", "indications": "Severe acute/chronic pain", "side_effects": "Respiratory depression, constipation, dependence, nausea"},
-        "Oxycodone": {"class": "Opioid Agonist", "dose": "5-30mg Q4-6H", "indications": "Severe pain", "side_effects": "Respiratory depression, constipation, abuse potential"},
-        "Fentanyl Patch": {"class": "Opioid Agonist", "dose": "12-100mcg/hr q72h", "indications": "Chronic severe pain", "side_effects": "Respiratory depression, tolerance, accidental exposure risk"},
-        "Gabapentin": {"class": "Gabapentinoid", "dose": "300-3600mg daily", "indications": "Neuropathic pain, epilepsy", "side_effects": "Sedation, dizziness, weight gain, abuse potential"},
-        "Lidocaine Patch": {"class": "Local Anesthetic", "dose": "5% patch 12h on/off", "indications": "Post-herpetic neuralgia", "side_effects": "Local irritation, burning"}
+        "Ibuprofen": {"class": "NSAID", "dose": "200-800mg TID", "indications": "Pain, inflammation", "side_effects": "GI ulcer"},
+        "Naproxen": {"class": "NSAID", "dose": "250-500mg BID", "indications": "Pain, inflammation", "side_effects": "GI upset"},
+        "Acetaminophen": {"class": "Analgesic", "dose": "500-1000mg Q6H", "indications": "Pain, fever", "side_effects": "Hepatotoxicity"},
+        "Tramadol": {"class": "Weak Opioid", "dose": "50-100mg Q6H", "indications": "Moderate pain", "side_effects": "Nausea, seizures"},
+        "Morphine": {"class": "Opioid Agonist", "dose": "5-30mg Q4H", "indications": "Severe pain", "side_effects": "Respiratory depression"},
+        "Oxycodone": {"class": "Opioid Agonist", "dose": "5-30mg Q4-6H", "indications": "Severe pain", "side_effects": "Respiratory depression"}
     }
 }
 
@@ -882,6 +639,21 @@ def load_css():
             border-right: 2px solid rgba(99,102,241,0.2) !important;
         }
         
+        [data-testid="stSidebar"] .stButton > button {
+            background: rgba(99,102,241,0.1) !important;
+            border: 1px solid rgba(99,102,241,0.2) !important;
+            color: white !important;
+            text-align: left !important;
+            padding: 0.5rem 1rem !important;
+            margin: 2px 0 !important;
+        }
+        
+        [data-testid="stSidebar"] .stButton > button:hover {
+            background: rgba(99,102,241,0.2) !important;
+            border-color: rgba(139,92,246,0.4) !important;
+            transform: translateX(5px) !important;
+        }
+        
         h1 {
             background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
             -webkit-background-clip: text;
@@ -892,36 +664,48 @@ def load_css():
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
     </style>
     """, unsafe_allow_html=True)
 
 load_css()
 
 # ================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE INITIALIZATION (ALL VARIABLES DEFINED)
 # ================================
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'username' not in st.session_state:
-    st.session_state.username = ""
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = None
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "Dashboard"
-if 'flashcard_flipped' not in st.session_state:
-    st.session_state.flashcard_flipped = False
-if 'comprehensive_exam' not in st.session_state:
-    st.session_state.comprehensive_exam = None
-if 'comprehensive_answers' not in st.session_state:
-    st.session_state.comprehensive_answers = {}
-if 'comprehensive_submitted' not in st.session_state:
-    st.session_state.comprehensive_submitted = False
-if 'current_room_id' not in st.session_state:
-    st.session_state.current_room_id = None
-if 'editing_drug' not in st.session_state:
-    st.session_state.editing_drug = None
-if 'editing_lab' not in st.session_state:
-    st.session_state.editing_lab = None
+def init_session_state():
+    """Initialize all session state variables with defaults"""
+    defaults = {
+        'logged_in': False,
+        'username': "",
+        'user_data': None,
+        'xp_points': 0,
+        'quiz_score': 0,
+        'total_cases': 0,
+        'correct_diagnoses': 0,
+        'streak': 0,  # THIS WAS MISSING
+        'current_page': "Dashboard",
+        'flashcard_flipped': False,
+        'comprehensive_exam': None,
+        'comprehensive_answers': {},
+        'comprehensive_submitted': False,
+        'comprehensive_score': 0,
+        'current_room_id': None,
+        'editing_drug': None,
+        'editing_lab': None,
+        'current_case': None,
+        'achievements': [],
+    }
+    
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+init_session_state()
 
 # ================================
 # INITIALIZE DATABASE
@@ -936,7 +720,7 @@ if not st.session_state.logged_in:
     with col2:
         st.markdown("""
         <div style="text-align: center; padding: 3rem 0;">
-            <div style="font-size: 5rem; filter: drop-shadow(0 0 30px rgba(99,102,241,0.5)); animation: float 3s ease-in-out infinite;">🩺</div>
+            <div style="font-size: 5rem; animation: float 3s ease-in-out infinite;">🩺</div>
             <h1 style="font-size: 3rem;">Dr.Danyal</h1>
             <p style="color: rgba(255,255,255,0.6); font-size: 1.1rem;">Advanced Medical Training Platform</p>
         </div>
@@ -960,8 +744,7 @@ if not st.session_state.logged_in:
                         st.session_state.quiz_score = user_data['quiz_score']
                         st.session_state.total_cases = user_data['total_cases']
                         st.session_state.correct_diagnoses = user_data['correct_diagnoses']
-                        update_user_streak(username)
-                        st.session_state.streak = user_data.get('daily_streak', 0)
+                        st.session_state.streak = update_user_streak(username)
                         st.rerun()
                     else:
                         st.error(f"❌ {message}")
@@ -1026,25 +809,25 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Navigation
-    pages = {
-        "📊 Dashboard": "Dashboard",
-        "📚 Diseases": "Diseases",
-        "🩺 Case Analysis": "Case Analysis",
-        "📝 Quiz": "Quiz",
-        "📋 Comprehensive Exam": "Comprehensive Exam",
-        "🔄 Spaced Repetition": "Spaced Repetition",
-        "🔬 Lab Tests": "Lab Tests",
-        "💊 Pharmacology": "Pharmacology",
-        "⚠️ Drug Interactions": "Drug Interactions",
-        "🏆 Leaderboard": "Leaderboard",
-        "📰 Medical News": "Medical News",
-        "🧠 AI Assistant": "AI Assistant",
-        "📝 Clinical Notes": "Clinical Notes",
-        "🏆 Achievements": "Achievements"
-    }
+    # Navigation buttons
+    pages = [
+        ("📊 Dashboard", "Dashboard"),
+        ("📚 Diseases", "Diseases"),
+        ("🩺 Case Analysis", "Case Analysis"),
+        ("📝 Quiz", "Quiz"),
+        ("📋 Comprehensive Exam", "Comprehensive Exam"),
+        ("🔄 Spaced Repetition", "Spaced Repetition"),
+        ("🔬 Lab Tests", "Lab Tests"),
+        ("💊 Pharmacology", "Pharmacology"),
+        ("⚠️ Drug Interactions", "Drug Interactions"),
+        ("🏆 Leaderboard", "Leaderboard"),
+        ("📰 Medical News", "Medical News"),
+        ("🧠 AI Assistant", "AI Assistant"),
+        ("📝 Clinical Notes", "Clinical Notes"),
+        ("🏆 Achievements", "Achievements"),
+    ]
     
-    for label, page_name in pages.items():
+    for label, page_name in pages:
         if st.button(label, use_container_width=True, key=f"nav_{page_name}"):
             st.session_state.current_page = page_name
             st.rerun()
@@ -1074,7 +857,7 @@ if page == "Dashboard":
     metrics = [
         ("📚 Diseases", len(DISEASE_DATABASE)),
         ("💊 Drugs", sum(len(d) for d in DRUG_DATABASE.values())),
-        ("🔬 Lab Tests", len(LAB_TESTS)),
+        ("🔬 Tests", len(LAB_TESTS)),
         ("⭐ XP", st.session_state.xp_points),
         ("🔥 Streak", st.session_state.streak)
     ]
@@ -1099,9 +882,9 @@ if page == "Dashboard":
         <div class="glass-card">
             <h3>Platform Stats</h3>
             <p>Total Users: {get_user_count()}</p>
-            <p>Total Diseases: {len(DISEASE_DATABASE)}</p>
-            <p>Total Drugs: {sum(len(d) for d in DRUG_DATABASE.values())}</p>
-            <p>Total Lab Tests: {len(LAB_TESTS)}</p>
+            <p>Diseases: {len(DISEASE_DATABASE)}</p>
+            <p>Drugs: {sum(len(d) for d in DRUG_DATABASE.values())}</p>
+            <p>Lab Tests: {len(LAB_TESTS)}</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1123,7 +906,6 @@ elif page == "Diseases":
             with st.expander(f"🩺 {disease}"):
                 risk_color = {"Critical": "#ef4444", "High": "#f59e0b", "Moderate": "#06b6d4", "Low": "#10b981"}
                 st.markdown(f"**Risk:** <span style='color:{risk_color.get(info.get('risk_level', 'Low'))}'>{info.get('risk_level')}</span>", unsafe_allow_html=True)
-                st.markdown(f"**Category:** {info.get('category', 'General')}")
                 st.markdown(f"**Symptoms:** {', '.join(info.get('symptoms', [])[:5])}")
                 st.markdown(f"**Treatment:** {', '.join(info.get('treatment', [])[:3])}")
 
@@ -1143,7 +925,7 @@ elif page == "Case Analysis":
         }
         st.rerun()
     
-    if st.session_state.get("current_case"):
+    if st.session_state.current_case:
         case = st.session_state.current_case
         st.markdown(f"""
         <div class="glass-card">
@@ -1163,12 +945,11 @@ elif page == "Case Analysis":
                 st.success(f"🎉 Correct! It's {case['diagnosis']}")
             else:
                 st.error(f"❌ Wrong. Correct: {case['diagnosis']}")
-            # Update database
+            
             conn = get_db_connection()
             conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?",
                         (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username))
             conn.commit()
-            conn.close()
 
 elif page == "Quiz":
     st.markdown('<h2>📝 Medical Quiz</h2>', unsafe_allow_html=True)
@@ -1193,29 +974,33 @@ elif page == "Quiz":
                 st.success(f"🎉 Correct! {correct}")
             else:
                 st.error(f"❌ Wrong. Answer: {correct}")
-            # Update database
+            
             conn = get_db_connection()
             conn.execute("UPDATE users SET quiz_score = ? WHERE username = ?",
                         (st.session_state.quiz_score, st.session_state.username))
             conn.commit()
-            conn.close()
             st.rerun()
 
 elif page == "Comprehensive Exam":
     st.markdown('<h2>📋 Comprehensive Exam</h2>', unsafe_allow_html=True)
     
     if st.session_state.comprehensive_exam is None:
-        if st.button("🚀 Start 100-Question Exam", type="primary", use_container_width=True):
+        if st.button("🚀 Start Exam", type="primary", use_container_width=True):
             questions = []
             for disease, info in DISEASE_DATABASE.items():
                 if info["symptoms"]:
                     correct = random.choice(info["symptoms"])
-                    wrong_opts = random.sample([s for d in DISEASE_DATABASE for s in DISEASE_DATABASE[d]["symptoms"] if s != correct], min(3, sum(1 for d in DISEASE_DATABASE for s in DISEASE_DATABASE[d]["symptoms"])))
+                    all_symptoms = [s for d in DISEASE_DATABASE for s in DISEASE_DATABASE[d]["symptoms"] if s != correct]
+                    wrong_opts = random.sample(all_symptoms, min(3, len(all_symptoms)))
                     opts = [correct] + wrong_opts[:3]
                     random.shuffle(opts)
-                    questions.append({"question": f"Symptom of {disease}?", "options": opts, "correct": opts.index(correct)})
+                    questions.append({
+                        "question": f"Symptom of {disease}?",
+                        "options": opts,
+                        "correct": opts.index(correct)
+                    })
             
-            st.session_state.comprehensive_exam = random.sample(questions, min(100, len(questions)))
+            st.session_state.comprehensive_exam = random.sample(questions, min(len(DISEASE_DATABASE), len(questions)))
             st.session_state.comprehensive_answers = {}
             st.session_state.comprehensive_submitted = False
             st.rerun()
@@ -1289,9 +1074,9 @@ elif page == "Lab Tests":
                and (category == "All" or v["category"] == category)}
     
     if filtered:
+        import pandas as pd
         df_data = [{"Test": k, "Category": v["category"], "Normal Range": v["normal"], "Description": v["description"]} 
                   for k, v in filtered.items()]
-        import pandas as pd
         st.dataframe(pd.DataFrame(df_data), use_container_width=True, height=400)
     else:
         st.info("No tests found")
@@ -1322,7 +1107,7 @@ elif page == "Drug Interactions":
     selected = st.multiselect("Select drugs:", all_drugs)
     
     if len(selected) >= 2:
-        st.info("Interaction checking active. Select drugs to analyze.")
+        st.info(f"Selected {len(selected)} drugs. Interaction analysis ready.")
     else:
         st.info("Select 2 or more drugs to check interactions")
 
@@ -1331,8 +1116,8 @@ elif page == "Leaderboard":
     
     df = get_leaderboard_data()
     if not df.empty:
-        for i, row in df.iterrows():
-            medal = "🥇" if i+1 == 1 else "🥈" if i+1 == 2 else "🥉" if i+1 == 3 else f"#{i+1}"
+        for i, (_, row) in enumerate(df.iterrows()):
+            medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"#{i+1}"
             st.markdown(f"""
             <div class="glass-card">
                 <h3>{medal} {row['username']}</h3>
@@ -1398,14 +1183,12 @@ elif page == "Clinical Notes":
             conn.execute("INSERT INTO clinical_notes (username, patient_info, note) VALUES (?, ?, ?)",
                         (st.session_state.username, patient, note))
             conn.commit()
-            conn.close()
             st.success("✅ Note saved!")
             st.rerun()
     
     conn = get_db_connection()
     notes = conn.execute("SELECT * FROM clinical_notes WHERE username = ? ORDER BY created_at DESC LIMIT 20",
                         (st.session_state.username,)).fetchall()
-    conn.close()
     
     for note in notes:
         st.markdown(f"""
@@ -1424,12 +1207,10 @@ elif page == "Achievements":
         ("Case Master", "🏆", st.session_state.total_cases >= 20),
         ("Quiz Beginner", "📝", st.session_state.quiz_score >= 10),
         ("Quiz Expert", "🎓", st.session_state.quiz_score >= 50),
-        ("Quiz Legend", "👑", st.session_state.quiz_score >= 100),
         ("Streak Master", "🔥", st.session_state.streak >= 7),
         ("XP Hunter", "⭐", st.session_state.xp_points >= 100),
         ("XP Champion", "💎", st.session_state.xp_points >= 500),
         ("Diagnostician", "🔍", st.session_state.correct_diagnoses >= 5),
-        ("Dedicated", "💪", st.session_state.streak >= 30)
     ]
     
     cols = st.columns(3)
