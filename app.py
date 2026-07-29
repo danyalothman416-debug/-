@@ -127,6 +127,7 @@ TRANSLATIONS = {
         "enter_symptoms": "Enter symptoms (comma-separated):",
         "analyze": "Analyze",
         "match": "Match",
+        "results": "Results",
         "clinical_notes_title": "Clinical Notes",
         "patient_info": "Patient Info",
         "clinical_note": "Clinical Note",
@@ -243,6 +244,7 @@ TRANSLATIONS = {
         "enter_symptoms": "نیشانەکان بنووسە (بە بچووکەوە جیاکراوە):",
         "analyze": "شیکردنەوە",
         "match": "ڕێژەی گونجان",
+        "results": "ئەنجامەکان",
         "clinical_notes_title": "تێبینییە کلینیکییەکان",
         "patient_info": "زانیاری نەخۆش",
         "clinical_note": "تێبینی کلینیکی",
@@ -359,6 +361,7 @@ TRANSLATIONS = {
         "enter_symptoms": "أدخل الأعراض (مفصولة بفواصل):",
         "analyze": "تحليل",
         "match": "نسبة التطابق",
+        "results": "النتائج",
         "clinical_notes_title": "الملاحظات السريرية",
         "patient_info": "معلومات المريض",
         "clinical_note": "ملاحظة سريرية",
@@ -1364,7 +1367,6 @@ QUIZ_QUESTIONS = [
     {"question_en": "Which electrolyte abnormality is caused by Furosemide?", "question_ku": "کام ناڕێکی ئەلیکترۆلیتی بەهۆی فورۆسیمایدەوە دروست دەبێت؟", "question_ar": "أي اضطراب في الكهارل يسببه فوروسيميد؟",
      "options_en": ["Hypokalemia", "Hyperkalemia", "Hyponatremia", "Hypercalcemia"], "options_ku": ["کەمی پۆتاسیۆم", "زۆری پۆتاسیۆم", "کەمی سۆدیۆم", "زۆری کالسیۆم"], "options_ar": ["نقص بوتاسيوم الدم", "فرط بوتاسيوم الدم", "نقص صوديوم الدم", "فرط كالسيوم الدم"],
      "correct": 0},
-    # Generate 90 more questions programmatically
 ]
 
 # Generate additional 90 questions
@@ -1430,7 +1432,6 @@ MEDICAL_NEWS = [
     {"title": "Global Antibiotic Resistance Crisis", "summary": "WHO reports alarming increase in multidrug-resistant bacterial infections worldwide.", "source": "WHO", "date": "2024-01-16"},
 ]
 
-# Generate 95 more news items
 topics = [
     ("New Vaccine Development", "Researchers announce progress in universal flu vaccine"),
     ("Gene Therapy Advances", "CRISPR technology shows promise in treating genetic disorders"),
@@ -1452,80 +1453,6 @@ topics = [
     ("Hematology", "CAR-T therapy achieves remission in refractory leukemia"),
     ("Emergency Medicine", "Point-of-care ultrasound improves emergency diagnosis"),
     ("Anesthesiology", "New regional anesthesia techniques reduce opioid use"),
-    ("Radiology", "AI improves mammography interpretation accuracy"),
-    ("Pathology", "Digital pathology enables remote diagnosis"),
-    ("Obstetrics", "Non-invasive prenatal testing expands capabilities"),
-    ("Gynecology", "New endometriosis treatment shows efficacy"),
-    ("Urology", "Focal therapy for prostate cancer preserves quality of life"),
-    ("Orthopedics", "3D-printed implants revolutionize joint replacement"),
-    ("Neurosurgery", "Focused ultrasound treats essential tremor"),
-    ("Plastic Surgery", "Fat grafting techniques improve reconstruction outcomes"),
-    ("Sports Medicine", "PRP therapy shows benefits in tendon injuries"),
-    ("Pain Management", "Virtual reality reduces chronic pain"),
-    ("Sleep Medicine", "New orexin antagonist approved for insomnia"),
-    ("Allergy/Immunology", "Oral immunotherapy shows promise for food allergies"),
-    ("Genetics", "Whole genome sequencing becomes standard of care"),
-    ("Regenerative Medicine", "Stem cell therapy repairs damaged heart tissue"),
-    ("Precision Medicine", "Pharmacogenomics guides personalized treatment"),
-    ("Telemedicine", "Remote monitoring improves chronic disease management"),
-    ("Medical Education", "Virtual reality enhances surgical training"),
-    ("Healthcare Policy", "Universal health coverage expands globally"),
-    ("Medical Devices", "Wearable technology detects atrial fibrillation"),
-    ("Nutrition", "Intermittent fasting shows metabolic benefits"),
-    ("Exercise Medicine", "High-intensity interval training benefits cardiovascular health"),
-    ("Environmental Health", "Air pollution linked to increased dementia risk"),
-    ("Occupational Medicine", "Ergonomic interventions reduce workplace injuries"),
-    ("Geriatrics", "Multidomain intervention prevents cognitive decline"),
-    ("Palliative Care", "Early palliative care improves quality of life in cancer"),
-    ("Medical Ethics", "AI in healthcare raises ethical considerations"),
-    ("Health Economics", "Value-based care models show cost savings"),
-    ("Global Health", "Malaria vaccine rollout begins in Africa"),
-    ("Women's Health", "New guidelines for menopause management"),
-    ("Men's Health", "PSA screening guidelines updated"),
-    ("Adolescent Health", "Social media impact on teen mental health studied"),
-    ("Addiction Medicine", "New treatments for opioid use disorder"),
-    ("Trauma Care", "Damage control resuscitation improves survival"),
-    ("Burn Care", "Spray-on skin technology advances wound healing"),
-    ("Transplant Medicine", "Xenotransplantation moves closer to reality"),
-    ("Military Medicine", "Tourniquet use saves lives in combat"),
-    ("Disaster Medicine", "Portable ventilators improve emergency response"),
-    ("Tropical Medicine", "New treatment for neglected tropical diseases"),
-    ("Aviation Medicine", "Cabin pressure effects on health studied"),
-    ("Space Medicine", "Bone loss in microgravity addressed with new therapy"),
-    ("Sports Cardiology", "Pre-participation screening reduces sudden cardiac death"),
-    ("Interventional Cardiology", "TAVR expands to lower-risk patients"),
-    ("Electrophysiology", "Leadless pacemakers show long-term safety"),
-    ("Heart Failure", "New quadruple therapy improves outcomes in HFrEF"),
-    ("Hypertension", "Renal denervation shows sustained BP reduction"),
-    ("Lipidology", "PCSK9 inhibitors reduce cardiovascular events"),
-    ("Thrombosis", "Direct oral anticoagulants preferred over warfarin"),
-    ("Arrhythmia", "Cryoballoon ablation effective for atrial fibrillation"),
-    ("Congenital Heart Disease", "Adult congenital heart disease care improves"),
-    ("Preventive Cardiology", "Coronary calcium scoring guides statin therapy"),
-    ("Cardiac Imaging", "AI enhances echocardiography interpretation"),
-    ("Cardiac Surgery", "Minimally invasive valve surgery reduces complications"),
-    ("Vascular Medicine", "Drug-coated balloons improve peripheral artery disease"),
-    ("Cardio-Oncology", "Monitoring prevents chemotherapy cardiotoxicity"),
-    ("Cardiac Rehabilitation", "Home-based rehab programs show effectiveness"),
-    ("Pediatric Cardiology", "Fetal echocardiography improves outcomes"),
-    ("Cardiogenetics", "Genetic testing identifies inherited cardiac conditions"),
-    ("Cardiac Pharmacology", "Novel antiarrhythmic drug shows promise"),
-    ("Cardiovascular Prevention", "Polypill strategy improves adherence"),
-    ("Cardiac Biomarkers", "New biomarkers predict heart failure"),
-    ("Cardiac Devices", "Subcutaneous ICD reduces lead complications"),
-    ("Cardiac Monitoring", "Smartwatch detects asymptomatic AF"),
-    ("Cardiac Resynchronization", "His bundle pacing improves outcomes"),
-    ("Cardiac Transplantation", "Organ preservation techniques extend viability"),
-    ("Cardiac Regeneration", "Cardiac patches repair damaged myocardium"),
-    ("Cardiac Electrophysiology Mapping", "High-density mapping improves ablation success"),
-    ("Cardiac CT", "Fractional flow reserve CT guides revascularization"),
-    ("Cardiac MRI", "T1 mapping detects early myocardial disease"),
-    ("Nuclear Cardiology", "PET improves cardiac sarcoidosis diagnosis"),
-    ("Cardiac Anesthesia", "Enhanced recovery protocols reduce complications"),
-    ("Cardiac ICU", "Mechanical circulatory support advances"),
-    ("Cardiac Nursing", "Nurse-led clinics improve heart failure outcomes"),
-    ("Cardiac Psychology", "Depression screening improves cardiac outcomes"),
-    ("Cardiac Epidemiology", "Global burden of cardiovascular disease assessed"),
 ]
 
 for i in range(95):
@@ -1580,20 +1507,61 @@ def get_user_count() -> int:
     return result['count'] if result else 0
 
 # ================================
-# CSS STYLING
+# CSS STYLING - FIXED SIDEBAR FOR RTL
 # ================================
 def load_css(lang: str = 'en'):
-    rtl_styles = ""
+    # RTL styles that fix the sidebar position
+    rtl_sidebar_fix = ""
     if lang in ['ku', 'ar']:
-        rtl_styles = """
-            body { direction: rtl; text-align: right; }
-            .stApp { direction: rtl; }
-            [data-testid="stSidebar"] { direction: rtl; text-align: right; }
-            [data-testid="stSidebar"] .stButton > button { text-align: right !important; }
-            .stMarkdown, .stText, p, h1, h2, h3, h4 { text-align: right; }
-            .stRadio label { text-align: right; }
-            .stSelectbox { direction: rtl; }
-            input { text-align: right; }
+        rtl_sidebar_fix = """
+            /* Move sidebar to the right for RTL languages */
+            [data-testid="stSidebar"] {
+                right: 0 !important;
+                left: auto !important;
+                border-right: none !important;
+                border-left: 2px solid rgba(99, 102, 241, 0.2) !important;
+            }
+            
+            /* Adjust main content to be on the left */
+            .main {
+                padding-left: 1rem !important;
+                padding-right: calc(var(--sidebar-width) + 2rem) !important;
+            }
+            
+            /* RTL text alignment */
+            body {
+                direction: rtl;
+                text-align: right;
+            }
+            
+            .stApp {
+                direction: rtl;
+            }
+            
+            [data-testid="stSidebar"] {
+                direction: rtl;
+                text-align: right;
+            }
+            
+            [data-testid="stSidebar"] .stButton > button {
+                text-align: right !important;
+            }
+            
+            .stMarkdown, .stText, p, h1, h2, h3, h4 {
+                text-align: right;
+            }
+            
+            .stRadio label {
+                text-align: right;
+            }
+            
+            .stSelectbox {
+                direction: rtl;
+            }
+            
+            input {
+                text-align: right;
+            }
         """
     
     st.markdown(f"""
@@ -1622,7 +1590,7 @@ def load_css(lang: str = 'en'):
         ::-webkit-scrollbar-thumb {{ background: linear-gradient(180deg, #6366f1, #8b5cf6); border-radius: 10px; }}
         @keyframes float {{ 0%, 100% {{ transform: translateY(0px); }} 50% {{ transform: translateY(-10px); }} }}
         .language-switcher {{ display: flex; gap: 0.5rem; justify-content: center; padding: 0.5rem; }}
-        {rtl_styles}
+        {rtl_sidebar_fix}
     </style>
     """, unsafe_allow_html=True)
 
