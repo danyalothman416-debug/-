@@ -1,8 +1,7 @@
 # ================================
 # MEDICAL TRAINING PLATFORM v12.0
 # Dr.Danyal - Complete Edition
-# 200 Medications | 200 Tests | 100 Quizzes | 100 News Items
-# Full Multilingual Support (EN/KU/AR) with RTL Sidebar Fix
+# Fixed get_user_count() and RTL Sidebar
 # ================================
 
 import streamlit as st
@@ -1116,7 +1115,7 @@ for name, info in ophth_drugs.items():
     DRUG_DATABASE["Ophthalmology"][name] = {"class": parts[0], "dose": parts[1], "indications_en": parts[2], "indications_ku": parts[2], "indications_ar": parts[2], "side_effects_en": parts[3], "side_effects_ku": parts[3], "side_effects_ar": parts[3]}
 
 # ================================
-# DISEASE DATABASE (10 diseases)
+# DISEASE DATABASE
 # ================================
 DISEASE_DATABASE = {
     "Diabetes Mellitus Type 1": {"symptoms_en": ["Polyuria", "Polydipsia", "Weight loss", "Fatigue", "Blurred vision", "Ketoacidosis"], "symptoms_ku": ["میزی زۆر", "تینوویەتی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "کیتۆئەسیدۆز"], "symptoms_ar": ["كثرة التبول", "العطش الشديد", "فقدان الوزن", "التعب", "عدم وضوح الرؤية", "الحماض الكيتوني"], "treatment_en": ["Insulin therapy", "Carbohydrate counting", "Regular exercise"], "treatment_ku": ["چارەسەری ئەنسولین", "ژمێریاری کاربۆهیدرات", "وەرزشی ڕێک"], "treatment_ar": ["العلاج بالأنسولين", "حساب الكربوهيدرات", "التمارين المنتظمة"], "risk_level": "High"},
@@ -1226,7 +1225,8 @@ def get_user_count() -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) as count FROM users")
-    return cursor.fetchone()['count'] if cursor.fetchone() else 0
+    result = cursor.fetchone()
+    return result['count'] if result else 0
 
 # ================================
 # CSS STYLING
@@ -1242,7 +1242,6 @@ def load_css(lang: str = 'en'):
             .stRadio label { text-align: right !important; }
             .stSelectbox { direction: rtl !important; }
             input, textarea { text-align: right !important; direction: rtl !important; }
-            [data-testid="stSidebar"] .stButton > button { text-align: right !important; }
         """
     
     st.markdown(f"""
@@ -1341,19 +1340,6 @@ if lang in ['ku', 'ar']:
     col_sidebar, col_main = st.columns([1, 4])
     
     with col_sidebar:
-        # Custom right sidebar content
-        st.markdown("""
-        <style>
-            /* Style the custom sidebar to look like Streamlit's sidebar */
-            [data-testid="column"]:first-child {
-                background: linear-gradient(180deg, #0a0a1a, #1a1a3e, #0a0a1a) !important;
-                border-left: 2px solid rgba(99, 102, 241, 0.2) !important;
-                min-height: 100vh;
-                padding: 1rem;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-        
         # Language switcher
         st.markdown('<div class="language-switcher">', unsafe_allow_html=True)
         cols_inner = st.columns(3)
@@ -1367,17 +1353,12 @@ if lang in ['ku', 'ar']:
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # User profile
         level = get_user_level(st.session_state.xp_points)
         level_info = LEVELS[level]
         progress = get_level_progress(st.session_state.xp_points)
         
         st.markdown(f"""
-        <div style="text-align: center; padding: 1rem 0;">
-            <div style="font-size: 3rem;">{level_info['icon']}</div>
-            <div style="font-weight: 700; color: #a78bfa;">{st.session_state.username}</div>
-            <span class="badge badge-primary">{get_level_name(level, lang)}</span>
-        </div>
+        <div style="text-align: center; padding: 1rem 0;"><div style="font-size: 3rem;">{level_info['icon']}</div><div style="font-weight: 700; color: #a78bfa;">{st.session_state.username}</div><span class="badge badge-primary">{get_level_name(level, lang)}</span></div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0;">
             <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">⭐ {st.session_state.xp_points}</div><div style="font-size: 0.65rem; color: #888;">{t('xp', lang)}</div></div>
             <div style="background: rgba(99,102,241,0.1); padding: 0.5rem; border-radius: 10px; text-align: center;"><div style="font-weight: 700; color: #a78bfa;">📊 {st.session_state.quiz_score}</div><div style="font-size: 0.65rem; color: #888;">{t('quiz_score', lang)}</div></div>
@@ -1389,19 +1370,13 @@ if lang in ['ku', 'ar']:
         """, unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        # Navigation
         pages = [("dashboard", "Dashboard"), ("diseases", "Diseases"), ("case_analysis", "Case Analysis"), ("quiz", "Quiz"), ("comprehensive_exam", "Comprehensive Exam"), ("spaced_repetition", "Spaced Repetition"), ("lab_tests", "Lab Tests"), ("pharmacology", "Pharmacology"), ("drug_interactions", "Drug Interactions"), ("leaderboard", "Leaderboard"), ("medical_news", "Medical News"), ("ai_assistant", "AI Assistant"), ("clinical_notes", "Clinical Notes"), ("achievements", "Achievements")]
         for key, page_name in pages:
             if st.button(t(key, lang), use_container_width=True, key=f"rtl_nav_{page_name}"):
                 st.session_state.current_page = page_name
                 st.rerun()
-        
         st.markdown("---")
-        if st.button(t('logout', lang), use_container_width=True, key="rtl_logout"):
-            st.session_state.logged_in = False
-            st.rerun()
-        
+        if st.button(t('logout', lang), use_container_width=True, key="rtl_logout"): st.session_state.logged_in = False; st.rerun()
         st.markdown(f'<div style="text-align: center; padding: 0.5rem; font-size: 0.7rem; color: #666;"><span class="badge badge-primary">{t("version", lang)}</span><p>© 2024 Dr.Danyal</p></div>', unsafe_allow_html=True)
     
     with col_main:
@@ -1450,17 +1425,14 @@ if lang in ['ku', 'ar']:
                 diagnosis = st.selectbox(t("your_diagnosis", lang), list(DISEASE_DATABASE.keys()))
                 if st.button(t("submit", lang), type="primary"):
                     st.session_state.total_cases += 1
-                    if diagnosis == case["diagnosis"]:
-                        st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20)
-                        st.success(f"🎉 {t('correct', lang)}!")
+                    if diagnosis == case["diagnosis"]: st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20); st.success(f"🎉 {t('correct', lang)}!")
                     else: st.error(f"❌ {t('incorrect', lang)}.")
                     conn = get_db_connection(); conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?", (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username)); conn.commit()
         
         elif page == "Quiz":
             st.markdown(f'<h2>{t("medical_quiz", lang)}</h2>', unsafe_allow_html=True)
             q = random.choice(QUIZ_QUESTIONS)
-            question = q.get(f"question_{lang}", q["question_en"])
-            options = q.get(f"options_{lang}", q["options_en"])
+            question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
             st.markdown(f'<div class="glass-card"><h3>{question}</h3></div>', unsafe_allow_html=True)
             answer = st.radio(t("select_answer", lang), options, key="rtl_quiz_ans")
             if st.button(t("submit_answer", lang), type="primary"):
@@ -1475,8 +1447,7 @@ if lang in ['ku', 'ar']:
             elif not st.session_state.comprehensive_submitted:
                 for i, q in enumerate(st.session_state.comprehensive_exam):
                     question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
-                    st.markdown(f"**{i+1}. {question}**")
-                    ans = st.radio(f"Q{i}", options, key=f"rtl_exam_{i}", label_visibility="collapsed")
+                    st.markdown(f"**{i+1}. {question}**"); ans = st.radio(f"Q{i}", options, key=f"rtl_exam_{i}", label_visibility="collapsed")
                     st.session_state.comprehensive_answers[i] = options.index(ans) if ans else -1
                 if st.button(t("submit_exam", lang), type="primary"):
                     score = sum(1 for i, q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i) == q["correct"])
@@ -1539,8 +1510,7 @@ if lang in ['ku', 'ar']:
         
         elif page == "Medical News":
             st.markdown(f'<h2>{t("medical_news", lang)} ({len(MEDICAL_NEWS)} items)</h2>', unsafe_allow_html=True)
-            for item in MEDICAL_NEWS[:20]:
-                st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
+            for item in MEDICAL_NEWS[:20]: st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
         
         elif page == "AI Assistant":
             st.markdown(f'<h2>{t("ai_assistant_title", lang)}</h2>', unsafe_allow_html=True)
@@ -1662,17 +1632,14 @@ else:
             diagnosis = st.selectbox(t("your_diagnosis", lang), list(DISEASE_DATABASE.keys()))
             if st.button(t("submit", lang), type="primary"):
                 st.session_state.total_cases += 1
-                if diagnosis == case["diagnosis"]:
-                    st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20)
-                    st.success(f"🎉 {t('correct', lang)}!")
+                if diagnosis == case["diagnosis"]: st.session_state.correct_diagnoses += 1; add_xp(st.session_state.username, 20); st.success(f"🎉 {t('correct', lang)}!")
                 else: st.error(f"❌ {t('incorrect', lang)}.")
                 conn = get_db_connection(); conn.execute("UPDATE users SET total_cases = ?, correct_diagnoses = ? WHERE username = ?", (st.session_state.total_cases, st.session_state.correct_diagnoses, st.session_state.username)); conn.commit()
     
     elif page == "Quiz":
         st.markdown(f'<h2>{t("medical_quiz", lang)}</h2>', unsafe_allow_html=True)
         q = random.choice(QUIZ_QUESTIONS)
-        question = q.get(f"question_{lang}", q["question_en"])
-        options = q.get(f"options_{lang}", q["options_en"])
+        question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
         st.markdown(f'<div class="glass-card"><h3>{question}</h3></div>', unsafe_allow_html=True)
         answer = st.radio(t("select_answer", lang), options, key="ltr_quiz_ans")
         if st.button(t("submit_answer", lang), type="primary"):
@@ -1687,8 +1654,7 @@ else:
         elif not st.session_state.comprehensive_submitted:
             for i, q in enumerate(st.session_state.comprehensive_exam):
                 question = q.get(f"question_{lang}", q["question_en"]); options = q.get(f"options_{lang}", q["options_en"])
-                st.markdown(f"**{i+1}. {question}**")
-                ans = st.radio(f"Q{i}", options, key=f"ltr_exam_{i}", label_visibility="collapsed")
+                st.markdown(f"**{i+1}. {question}**"); ans = st.radio(f"Q{i}", options, key=f"ltr_exam_{i}", label_visibility="collapsed")
                 st.session_state.comprehensive_answers[i] = options.index(ans) if ans else -1
             if st.button(t("submit_exam", lang), type="primary"):
                 score = sum(1 for i, q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i) == q["correct"])
@@ -1751,8 +1717,7 @@ else:
     
     elif page == "Medical News":
         st.markdown(f'<h2>{t("medical_news", lang)} ({len(MEDICAL_NEWS)} items)</h2>', unsafe_allow_html=True)
-        for item in MEDICAL_NEWS[:20]:
-            st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
+        for item in MEDICAL_NEWS[:20]: st.markdown(f"""<div class="glass-card"><h4>📰 {item['title']}</h4><p>{item['summary']}</p><p style="color: #888;">📅 {item['date']} | 📚 {item['source']}</p></div>""", unsafe_allow_html=True)
     
     elif page == "AI Assistant":
         st.markdown(f'<h2>{t("ai_assistant_title", lang)}</h2>', unsafe_allow_html=True)
