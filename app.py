@@ -1,5 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                    MEDICAL TRAINING PLATFORM v13.0                          ║
+# ║                    MEDICAL TRAINING PLATFORM v14.0                          ║
 # ║                    Dr.Danyal - World Class Edition                          ║
 # ║        200 Medications | 200 Tests | 100 Quizzes | 100 News Items           ║
 # ║        Full Multilingual Support (English/Kurdish/Arabic)                   ║
@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      DESIGN SYSTEM CSS                                      ║
+# ║                      WORLD-CLASS DESIGN SYSTEM CSS                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 st.markdown("""
 <style>
@@ -203,6 +203,7 @@ st.markdown("""
         font-weight: 500 !important;
         transition: all 0.3s ease !important;
         box-shadow: none !important;
+        text-align: left !important;
     }
     
     [data-testid="stSidebar"] .stButton > button:hover {
@@ -335,7 +336,7 @@ TRANSLATIONS = {
     "en": {
         "app_name": "Dr.Danyal Medical Platform",
         "app_subtitle": "Advanced Medical Excellence",
-        "version": "v13.0",
+        "version": "v14.0",
         "copyright": "All rights reserved.",
         "login": "Sign In",
         "register": "Create Account",
@@ -451,7 +452,7 @@ TRANSLATIONS = {
     "ku": {
         "app_name": "پلاتفۆرمی پزیشکی Dr.Danyal",
         "app_subtitle": "ڕاهێنانی پزیشکی پێشکەوتوو",
-        "version": "v13.0",
+        "version": "v14.0",
         "copyright": "هەموو مافێک پارێزراوە.",
         "login": "چوونەژوورەوە",
         "register": "دروستکردنی هەژمار",
@@ -567,7 +568,7 @@ TRANSLATIONS = {
     "ar": {
         "app_name": "منصة د. دانيال الطبية",
         "app_subtitle": "التميز الطبي المتقدم",
-        "version": "v13.0",
+        "version": "v14.0",
         "copyright": "جميع الحقوق محفوظة.",
         "login": "تسجيل الدخول",
         "register": "إنشاء حساب",
@@ -695,643 +696,521 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_TIMEOUT_MINUTES = 15
 
 @st.cache_resource
-def get_db_connection():
+def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
-def init_database():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            salt TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login TIMESTAMP,
-            login_attempts INTEGER DEFAULT 0,
-            locked_until TIMESTAMP,
-            xp_points INTEGER DEFAULT 0,
-            quiz_score INTEGER DEFAULT 0,
-            total_cases INTEGER DEFAULT 0,
-            correct_diagnoses INTEGER DEFAULT 0,
-            daily_streak INTEGER DEFAULT 0,
-            last_active_date DATE,
-            language_preference TEXT DEFAULT 'en',
-            badges TEXT DEFAULT '[]',
-            achievements TEXT DEFAULT '[]'
-        );
-        CREATE TABLE IF NOT EXISTS leaderboard (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            xp_points INTEGER DEFAULT 0,
-            quiz_score INTEGER DEFAULT 0,
-            cases_solved INTEGER DEFAULT 0,
-            level INTEGER DEFAULT 1,
-            last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS clinical_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            patient_info TEXT,
-            note TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS login_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            success BOOLEAN DEFAULT FALSE
-        );
-        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-        CREATE INDEX IF NOT EXISTS idx_leaderboard_xp ON leaderboard(xp_points DESC);
-        CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(username, attempt_time);
+def init_db():
+    c = get_db().cursor()
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,password_hash TEXT,salt TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,last_login TIMESTAMP,login_attempts INTEGER DEFAULT 0,locked_until TIMESTAMP,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,total_cases INTEGER DEFAULT 0,correct_diagnoses INTEGER DEFAULT 0,daily_streak INTEGER DEFAULT 0,last_active_date DATE,language_preference TEXT DEFAULT 'en');
+        CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,cases_solved INTEGER DEFAULT 0,level INTEGER DEFAULT 1,last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS clinical_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,patient_info TEXT,note TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS login_attempts(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,success BOOLEAN DEFAULT FALSE);
+        CREATE INDEX IF NOT EXISTS idx_u ON users(username);
+        CREATE INDEX IF NOT EXISTS idx_l ON leaderboard(xp_points DESC);
     """)
-    cursor.execute("PRAGMA table_info(users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'language_preference' not in columns:
-        cursor.execute("ALTER TABLE users ADD COLUMN language_preference TEXT DEFAULT 'en'")
-    conn.commit()
+    c.execute("PRAGMA table_info(users)")
+    if 'language_preference' not in [r[1] for r in c.fetchall()]:
+        c.execute("ALTER TABLE users ADD COLUMN language_preference TEXT DEFAULT 'en'")
+    get_db().commit()
 
-def generate_salt(length: int = 32) -> str:
-    return os.urandom(length).hex()
+def gen_salt(l=32): return os.urandom(l).hex()
+def hash_pw(pw, s=None):
+    if not s: s = gen_salt()
+    return hashlib.pbkdf2_hmac('sha256', pw.encode(), s.encode(), 200000, dklen=64).hex(), s
+def verify_pw(pw, h, s): return hash_pw(pw, s)[0] == h
 
-def hash_password_secure(password: str, salt: str = None) -> Tuple[str, str]:
-    if salt is None:
-        salt = generate_salt()
-    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 200000, dklen=64)
-    return key.hex(), salt
-
-def verify_password(password: str, stored_hash: str, salt: str) -> bool:
-    computed_hash, _ = hash_password_secure(password, salt)
-    return computed_hash == stored_hash
-
-def check_login_rate_limit(username: str) -> Tuple[bool, str]:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT locked_until FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    if user and user['locked_until']:
-        locked_until = datetime.fromisoformat(user['locked_until'])
-        if locked_until > datetime.now():
-            remaining = (locked_until - datetime.now()).seconds // 60
-            return False, f"Account locked. Try again in {remaining} minutes."
-    cutoff_time = datetime.now() - timedelta(minutes=LOGIN_TIMEOUT_MINUTES)
-    cursor.execute("SELECT COUNT(*) as attempts FROM login_attempts WHERE username = ? AND attempt_time > ? AND success = FALSE", (username, cutoff_time))
-    result = cursor.fetchone()
-    recent_attempts = result['attempts'] if result else 0
-    if recent_attempts >= MAX_LOGIN_ATTEMPTS:
-        cursor.execute("UPDATE users SET locked_until = ? WHERE username = ?", ((datetime.now() + timedelta(minutes=LOGIN_TIMEOUT_MINUTES)).isoformat(), username))
-        conn.commit()
-        return False, f"Too many attempts. Account locked for {LOGIN_TIMEOUT_MINUTES} minutes."
+def check_rate(u):
+    c = get_db().cursor()
+    c.execute("SELECT locked_until FROM users WHERE username=?", (u,))
+    r = c.fetchone()
+    if r and r['locked_until']:
+        if datetime.fromisoformat(r['locked_until']) > datetime.now():
+            return False, "Account locked."
+    c.execute("SELECT COUNT(*) as n FROM login_attempts WHERE username=? AND attempt_time>? AND success=FALSE",(u,datetime.now()-timedelta(minutes=15)))
+    if (c.fetchone()['n'] or 0) >= 5:
+        c.execute("UPDATE users SET locked_until=? WHERE username=?",((datetime.now()+timedelta(minutes=15)).isoformat(),u));get_db().commit()
+        return False, "Too many attempts."
     return True, ""
 
-def record_login_attempt(username: str, success: bool):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO login_attempts (username, success) VALUES (?, ?)", (username, success))
-    if success:
-        cursor.execute("UPDATE users SET login_attempts = 0, locked_until = NULL WHERE username = ?", (username,))
-    else:
-        cursor.execute("UPDATE users SET login_attempts = login_attempts + 1 WHERE username = ?", (username,))
-    conn.commit()
+def log_attempt(u, ok):
+    c = get_db().cursor()
+    c.execute("INSERT INTO login_attempts(username,success) VALUES(?,?)",(u,ok))
+    if ok: c.execute("UPDATE users SET login_attempts=0,locked_until=NULL WHERE username=?",(u,))
+    else: c.execute("UPDATE users SET login_attempts=login_attempts+1 WHERE username=?",(u,))
+    get_db().commit()
 
-def create_user(username: str, password: str) -> Tuple[bool, str]:
-    if len(username) < 3: return False, "Username must be at least 3 characters"
-    if len(password) < 6: return False, "Password must be at least 6 characters"
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-    if cursor.fetchone(): return False, "Username already exists"
-    password_hash, salt = hash_password_secure(password)
-    cursor.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, password_hash, salt))
-    cursor.execute("INSERT INTO leaderboard (username, xp_points) VALUES (?, 0)", (username,))
-    conn.commit()
-    return True, "Account created successfully"
+def create_user(u, p):
+    if len(u)<3: return False, "Min 3 chars"
+    if len(p)<6: return False, "Min 6 chars"
+    c = get_db().cursor()
+    if c.execute("SELECT id FROM users WHERE username=?",(u,)).fetchone(): return False, "Exists"
+    h, s = hash_pw(p)
+    c.execute("INSERT INTO users(username,password_hash,salt) VALUES(?,?,?)",(u,h,s))
+    c.execute("INSERT INTO leaderboard(username) VALUES(?)",(u,))
+    get_db().commit()
+    return True, "Created"
 
-def authenticate_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict]]:
-    can_attempt, message = check_login_rate_limit(username)
-    if not can_attempt: return False, message, None
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    if not user:
-        record_login_attempt(username, False)
-        return False, "Invalid username or password", None
-    if verify_password(password, user['password_hash'], user['salt']):
-        record_login_attempt(username, True)
-        cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now().isoformat(), user['id']))
-        conn.commit()
-        return True, "Login successful", dict(user)
-    else:
-        record_login_attempt(username, False)
-        return False, "Invalid username or password", None
+def auth_user(u, p):
+    ok, msg = check_rate(u)
+    if not ok: return False, msg, None
+    c = get_db().cursor()
+    r = c.execute("SELECT * FROM users WHERE username=?",(u,)).fetchone()
+    if not r: log_attempt(u,False); return False, "Invalid", None
+    if verify_pw(p, r['password_hash'], r['salt']):
+        log_attempt(u,True); c.execute("UPDATE users SET last_login=? WHERE id=?",(datetime.now().isoformat(),r['id']));get_db().commit()
+        return True, "OK", dict(r)
+    log_attempt(u,False); return False, "Invalid", None
 
-def update_user_streak(username: str) -> int:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT daily_streak, last_active_date FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    if not user: return 0
-    today = datetime.now().date()
-    last_active = datetime.fromisoformat(user['last_active_date']).date() if user['last_active_date'] else None
-    if last_active:
-        yesterday = today - timedelta(days=1)
-        if last_active == yesterday: new_streak = user['daily_streak'] + 1
-        elif last_active == today: new_streak = user['daily_streak']
-        else: new_streak = 1
-    else: new_streak = 1
-    cursor.execute("UPDATE users SET daily_streak = ?, last_active_date = ? WHERE username = ?", (new_streak, today.isoformat(), username))
-    conn.commit()
-    return new_streak
+def upd_streak(u):
+    c = get_db().cursor()
+    r = c.execute("SELECT daily_streak,last_active_date FROM users WHERE username=?",(u,)).fetchone()
+    if not r: return 0
+    t = datetime.now().date()
+    la = datetime.fromisoformat(r['last_active_date']).date() if r['last_active_date'] else None
+    ns = r['daily_streak']+1 if la and la==t-timedelta(days=1) else (r['daily_streak'] if la and la==t else 1)
+    c.execute("UPDATE users SET daily_streak=?,last_active_date=? WHERE username=?",(ns,t.isoformat(),u));get_db().commit()
+    return ns
 
-def add_xp(username: str, points: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET xp_points = xp_points + ? WHERE username = ?", (points, username))
-    cursor.execute("UPDATE leaderboard SET xp_points = xp_points + ?, last_active = ? WHERE username = ?", (points, datetime.now().isoformat(), username))
-    conn.commit()
+def add_xp(u, pts):
+    c = get_db().cursor()
+    c.execute("UPDATE users SET xp_points=xp_points+? WHERE username=?",(pts,u))
+    c.execute("UPDATE leaderboard SET xp_points=xp_points+?,last_active=? WHERE username=?",(pts,datetime.now().isoformat(),u));get_db().commit()
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      LEVEL SYSTEM                                           ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-LEVELS = {
-    1: {"name_en": "Medical Student", "name_ku": "خوێندکاری پزیشکی", "name_ar": "طالب طب", "icon": "🌱", "min_xp": 0},
-    2: {"name_en": "Intern", "name_ku": "کارمەندی ڕاهێنان", "name_ar": "طبيب امتياز", "icon": "📖", "min_xp": 100},
-    3: {"name_en": "Resident", "name_ku": "پزیشکی دانیشتوو", "name_ar": "طبيب مقيم", "icon": "🚀", "min_xp": 300},
-    4: {"name_en": "Specialist", "name_ku": "پزیشکی پسپۆڕ", "name_ar": "أخصائي", "icon": "🏆", "min_xp": 600},
-    5: {"name_en": "Consultant", "name_ku": "پزیشکی ڕاوێژکار", "name_ar": "استشاري", "icon": "👨‍⚕️", "min_xp": 1000},
-    6: {"name_en": "Professor", "name_ku": "پڕۆفیسۆر", "name_ar": "أستاذ", "icon": "🎓", "min_xp": 2000},
-    7: {"name_en": "Legend", "name_ku": "ئەفسانە", "name_ar": "أسطورة", "icon": "👑", "min_xp": 5000}
-}
-
-def get_level_name(level: int, lang: str = 'en') -> str:
-    return LEVELS[level].get(f"name_{lang}", LEVELS[level]["name_en"])
-
-def get_user_level(xp_points: int) -> int:
-    for level in range(7, 0, -1):
-        if xp_points >= LEVELS[level]["min_xp"]: return level
+LVLS = {1:("Medical Student","🌱",0),2:("Intern","📖",100),3:("Resident","🚀",300),4:("Specialist","🏆",600),5:("Consultant","👨‍⚕️",1000),6:("Professor","🎓",2000),7:("Legend","👑",5000)}
+def get_lvl(xp):
+    for l in range(7,0,-1):
+        if xp>=LVLS[l][2]: return l
     return 1
-
-def get_level_progress(xp_points: int) -> float:
-    current_level = get_user_level(xp_points)
-    if current_level >= 7: return 100.0
-    current_min = LEVELS[current_level]["min_xp"]
-    next_min = LEVELS[current_level + 1]["min_xp"]
-    return min(((xp_points - current_min) / (next_min - current_min)) * 100, 100)
+def lvl_prog(xp):
+    cl = get_lvl(xp)
+    if cl>=7: return 100
+    return min(((xp-LVLS[cl][2])/(LVLS[cl+1][2]-LVLS[cl][2]))*100,100)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      200 LAB TESTS DATABASE                                 ║
+# ║                      200 LAB TESTS                                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 LAB_TESTS = {}
-hematology = {"Hemoglobin":"Oxygen-carrying capacity|12-16 g/dL","WBC Count":"Infection/inflammation marker|4,000-11,000/µL","RBC Count":"Oxygen transport|4.5-5.5 million/µL","Hematocrit":"RBC volume percentage|37-47%","MCV":"RBC size|80-100 fL","MCH":"Hemoglobin per RBC|27-33 pg","MCHC":"Hemoglobin concentration|32-36 g/dL","RDW":"RBC size variation|11.5-14.5%","Platelet Count":"Clotting ability|150,000-450,000/µL","MPV":"Platelet size|7.5-11.5 fL","Reticulocyte Count":"Bone marrow activity|0.5-2.5%","ESR":"Inflammation marker|0-20 mm/hr","Ferritin":"Iron stores|15-300 ng/mL","Serum Iron":"Circulating iron|60-170 µg/dL","TIBC":"Iron binding capacity|250-450 µg/dL","Transferrin Saturation":"Iron saturation|20-50%","Vitamin B12":"B12 deficiency marker|200-900 pg/mL","Folate":"Folate deficiency marker|3-17 ng/mL","PT":"Extrinsic pathway|11-13.5 sec","PTT":"Intrinsic pathway|25-35 sec","INR":"Coagulation status|0.9-1.1","Fibrinogen":"Clotting factor|200-400 mg/dL","D-Dimer":"Thrombosis marker|<0.5 mg/L","Haptoglobin":"Hemolysis marker|50-250 mg/dL","LDH":"Cell damage marker|100-250 U/L","Reticulocyte Index":"Corrected reticulocyte count|1-2","Peripheral Smear":"RBC morphology|Normal morphology","Hemoglobin Electrophoresis":"Hemoglobin variants|HbA >95%","G6PD":"Enzyme deficiency|5-15 U/g Hb","Osmotic Fragility":"RBC membrane stability|0.45-0.35% NaCl","Bone Marrow Biopsy":"Marrow cellularity|40-70%","Serum Haptoglobin":"Intravascular hemolysis|30-200 mg/dL","Plasma Free Hemoglobin":"Hemolysis|<5 mg/dL","Methemoglobin":"Oxidized hemoglobin|<1.5%","Carboxyhemoglobin":"Carbon monoxide exposure|<2% (non-smokers)","Erythropoietin":"RBC production stimulus|4-26 mU/mL","Soluble Transferrin Receptor":"Iron deficiency anemia|0.8-2.3 mg/L","Hepcidin":"Iron regulation|<50 ng/mL","Heinz Body Preparation":"Oxidative damage|Negative","Hemoglobin A2":"Beta-thalassemia marker|2.2-3.5%"}
-for name, info in hematology.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Hematology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-biochemistry = {"Fasting Glucose":"Diabetes screening|70-100 mg/dL","HbA1c":"3-month glucose average|4.0-5.6%","Creatinine":"Kidney function|0.6-1.3 mg/dL","BUN":"Kidney function|7-20 mg/dL","eGFR":"Kidney filtration rate|>90 mL/min","Uric Acid":"Gout marker|3.5-7.2 mg/dL","Total Protein":"Nutritional status|6.0-8.0 g/dL","Albumin":"Liver function|3.5-5.0 g/dL","Globulin":"Immune proteins|2.0-3.5 g/dL","Total Bilirubin":"Jaundice marker|0.1-1.2 mg/dL","Direct Bilirubin":"Conjugated bilirubin|0.0-0.3 mg/dL","Indirect Bilirubin":"Unconjugated bilirubin|0.1-0.9 mg/dL","ALT":"Liver enzyme|10-40 U/L","AST":"Liver/muscle enzyme|10-40 U/L","ALP":"Bone/liver enzyme|44-147 U/L","GGT":"Liver/biliary enzyme|0-51 U/L","Amylase":"Pancreatic enzyme|20-200 U/L","Lipase":"Pancreatic enzyme|20-200 U/L","CK":"Muscle enzyme|22-198 U/L","CK-MB":"Cardiac enzyme|0-5 ng/mL","Sodium":"Electrolyte|135-145 mmol/L","Potassium":"Electrolyte|3.5-5.0 mmol/L","Chloride":"Electrolyte|96-106 mmol/L","Calcium":"Bone metabolism|8.5-10.5 mg/dL","Ionized Calcium":"Active calcium|4.5-5.6 mg/dL","Magnesium":"Neuromuscular function|1.7-2.2 mg/dL","Phosphorus":"Bone metabolism|2.5-4.5 mg/dL","Total Cholesterol":"Lipid profile|<200 mg/dL","LDL Cholesterol":"Bad cholesterol|<100 mg/dL","HDL Cholesterol":"Good cholesterol|>40 mg/dL","Triglycerides":"Blood fats|<150 mg/dL","VLDL":"Very low density lipoprotein|<30 mg/dL","ApoA":"Cardioprotective|90-150 mg/dL","ApoB":"Atherogenic|60-120 mg/dL","Lipoprotein(a)":"Genetic cardiac risk|<30 mg/dL","hs-CRP":"Cardiovascular risk|<2 mg/L","Homocysteine":"Vascular risk|5-15 µmol/L","Ammonia":"Liver function|15-45 µg/dL","Lactate":"Tissue perfusion|0.5-2.2 mmol/L","Pyruvate":"Metabolic status|0.3-0.9 mg/dL","Osmolality":"Fluid balance|275-295 mOsm/kg","Anion Gap":"Metabolic acidosis|8-16 mEq/L","Serum Ketones":"Ketosis|<0.6 mmol/L","Ceruloplasmin":"Wilson disease|20-60 mg/dL","Alpha-1 Antitrypsin":"Emphysema/liver|100-200 mg/dL","ACE Level":"Sarcoidosis|8-53 U/L","Cystatin C":"Kidney function|0.6-1.0 mg/L","C-reactive Protein":"Acute inflammation|<5 mg/L","Prealbumin":"Nutritional status|15-35 mg/dL","Beta-2 Microglobulin":"Tumor marker|1-2 mg/L"}
-for name, info in biochemistry.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Biochemistry", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-cardiac = {"Troponin I":"Myocardial injury|<0.04 ng/mL","Troponin T":"High-sensitivity cardiac|<0.014 ng/mL","BNP":"Heart failure|<100 pg/mL","NT-proBNP":"Heart failure|<125 pg/mL","Myoglobin":"Early cardiac marker|<80 ng/mL","CK-MB Mass":"Cardiac-specific|0-5 ng/mL","hs-CRP Cardiac":"Cardiovascular risk|<2 mg/L","Homocysteine Cardiac":"Vascular risk|5-15 µmol/L","Lipoprotein(a) Cardiac":"Genetic risk|<30 mg/dL","ApoB Cardiac":"Atherogenic particles|60-120 mg/dL","Ischemia Modified Albumin":"Early ischemia|<85 U/mL","Heart-type FABP":"Early MI marker|<6 ng/mL","ST2":"Cardiac remodeling|<35 ng/mL","Galectin-3":"Cardiac fibrosis|<22 ng/mL","Copeptin":"Stress response|<14 pmol/L"}
-for name, info in cardiac.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Cardiac", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-hormones = {"TSH":"Thyroid function|0.4-4.0 mIU/L","Free T4":"Thyroid hormone|0.8-1.8 ng/dL","Free T3":"Active thyroid hormone|2.3-4.2 pg/mL","Total T4":"Total thyroxine|5-12 µg/dL","Total T3":"Total triiodothyronine|80-200 ng/dL","Reverse T3":"Inactive T3|10-24 ng/dL","Thyroglobulin":"Thyroid tissue marker|<33 ng/mL","Cortisol (AM)":"Adrenal function|6-23 µg/dL","Cortisol (PM)":"Evening cortisol|3-15 µg/dL","ACTH":"Pituitary function|10-60 pg/mL","DHEA-S":"Adrenal androgen|35-430 µg/dL","Testosterone (Male)":"Androgen|300-1000 ng/dL","Testosterone (Female)":"Female androgen|15-70 ng/dL","Free Testosterone":"Bioavailable testosterone|5-21 ng/dL","Estradiol":"Estrogen|20-400 pg/mL","Progesterone":"Ovulation marker|0.1-25 ng/mL","Prolactin":"Pituitary function|4-23 ng/mL","LH":"Reproductive hormone|1.5-9.3 IU/L","FSH":"Reproductive hormone|1.4-18.1 IU/L","SHBG":"Hormone binding|10-57 nmol/L","Insulin (Fasting)":"Glucose metabolism|2-25 µIU/mL","C-Peptide":"Insulin production|0.5-2.0 ng/mL","IGF-1":"Growth factor|100-300 ng/mL","PTH":"Calcium regulation|10-65 pg/mL","Calcitonin":"Calcium regulation|<10 pg/mL","Vitamin D (25-OH)":"Vitamin D status|30-100 ng/mL","1,25-Dihydroxy Vitamin D":"Active vitamin D|20-60 pg/mL","Aldosterone":"Mineralocorticoid|3-16 ng/dL","Renin":"Blood pressure regulation|0.5-4.0 ng/mL/hr","Catecholamines":"Stress hormones|Epinephrine <50 pg/mL"}
-for name, info in hormones.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Endocrine", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-urinalysis = {"Urine pH":"Acid-base balance|4.5-8.0","Urine Specific Gravity":"Concentration|1.005-1.030","Urine Protein":"Kidney damage|Negative","Urine Glucose":"Diabetes|Negative","Urine Ketones":"Starvation/DKA|Negative","Urine Bilirubin":"Liver disease|Negative","Urine Urobilinogen":"Hemolysis|0.1-1.0 mg/dL","Urine Nitrite":"Bacteria indicator|Negative","Urine Leukocyte Esterase":"WBC enzyme|Negative","Urine WBC":"Infection|0-5/HPF","Urine RBC":"Bleeding|0-3/HPF","Urine Casts":"Cellular casts|None/LPF","Urine Crystals":"Crystal formations|None","Microalbumin":"Early nephropathy|<30 mg/24h","24h Urine Protein":"Daily protein excretion|<150 mg/24h","24h Urine Creatinine":"Creatinine clearance|15-25 mg/kg/24h","Urine Calcium":"Calcium excretion|100-300 mg/24h","Urine Uric Acid":"Uric acid excretion|250-750 mg/24h","Urine Oxalate":"Kidney stone risk|<45 mg/24h","Urine Citrate":"Stone inhibitor|>320 mg/24h"}
-for name, info in urinalysis.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Urinalysis", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-immunology = {"CRP":"Acute inflammation|<5 mg/L","Rheumatoid Factor":"RA marker|<14 IU/mL","ANA":"Autoimmune screening|Negative","Anti-dsDNA":"SLE marker|<30 IU/mL","C3 Complement":"Complement system|90-180 mg/dL","C4 Complement":"Complement system|10-40 mg/dL","IgG":"Humoral immunity|700-1600 mg/dL","IgA":"Mucosal immunity|70-400 mg/dL","IgM":"Acute infection|40-230 mg/dL","IgE":"Allergy/parasites|0-100 IU/mL","Anti-CCP":"RA specific|<20 U/mL","ANCA":"Vasculitis|Negative","Anti-Ro/SSA":"Sjogren syndrome|Negative","Anti-La/SSB":"Sjogren syndrome|Negative","Anti-Smith":"SLE specific|Negative","Anti-RNP":"Mixed connective tissue disease|Negative","Anti-Scl-70":"Scleroderma|Negative","Anti-Jo-1":"Polymyositis|Negative","Anti-Centromere":"CREST syndrome|Negative","Anti-Histone":"Drug-induced lupus|Negative","Cryoglobulins":"Vasculitis|Negative","Procalcitonin":"Bacterial infection|<0.5 ng/mL","IL-6":"Cytokine storm|<5 pg/mL","TNF-alpha":"Inflammatory cytokine|<8 pg/mL","Beta-2 Glycoprotein I":"Antiphospholipid syndrome|<20 U/mL"}
-for name, info in immunology.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Immunology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-tumor_markers = {"CEA":"Colorectal cancer|<5 ng/mL","CA 19-9":"Pancreatic cancer|<37 U/mL","CA 125":"Ovarian cancer|<35 U/mL","PSA":"Prostate cancer|<4 ng/mL","AFP":"Liver cancer/Germ cell|<10 ng/mL","Beta-hCG":"Germ cell tumors|<5 IU/L","LDH Tumor":"Tumor burden|100-250 U/L","CA 15-3":"Breast cancer|<30 U/mL","Calcitonin Tumor":"Medullary thyroid cancer|<10 pg/mL","NSE":"Neuroendocrine tumors|<15 ng/mL"}
-for name, info in tumor_markers.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Tumor Markers", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
-
-microbiology = {"Blood Culture":"Bacteremia detection|No growth","Urine Culture":"UTI diagnosis|<100,000 CFU/mL","Sputum Culture":"Respiratory pathogens|Normal flora","Stool Culture":"GI pathogens|No pathogens","CSF Culture":"Meningitis diagnosis|No growth","Throat Culture":"Strep detection|No Group A Strep","Wound Culture":"Wound infection|No pathogens","Gram Stain":"Bacterial classification|No organisms","AFB Stain":"Tuberculosis screening|Negative","Fungal Culture":"Fungal infection|No growth"}
-for name, info in microbiology.items():
-    desc, normal = info.split("|")
-    LAB_TESTS[name] = {"category": "Microbiology", "normal": normal.strip(), "description_en": desc.strip(), "description_ku": desc.strip(), "description_ar": desc.strip()}
+for name, info in {
+    "Hemoglobin":"Oxygen-carrying capacity|12-16 g/dL","WBC Count":"Infection marker|4,000-11,000/µL","RBC Count":"Oxygen transport|4.5-5.5M/µL","Hematocrit":"RBC volume|37-47%","MCV":"RBC size|80-100 fL","MCH":"Hb per RBC|27-33 pg","MCHC":"Hb concentration|32-36 g/dL","RDW":"RBC variation|11.5-14.5%","Platelet Count":"Clotting|150K-450K/µL","MPV":"Platelet size|7.5-11.5 fL","Reticulocyte":"Marrow activity|0.5-2.5%","ESR":"Inflammation|0-20 mm/hr","Ferritin":"Iron stores|15-300 ng/mL","Serum Iron":"Circulating iron|60-170 µg/dL","TIBC":"Iron binding|250-450 µg/dL","Transferrin Sat":"Iron saturation|20-50%","B12":"B12 status|200-900 pg/mL","Folate":"Folate status|3-17 ng/mL","PT":"Extrinsic pathway|11-13.5 sec","PTT":"Intrinsic pathway|25-35 sec","INR":"Coagulation|0.9-1.1","Fibrinogen":"Clotting factor|200-400 mg/dL","D-Dimer":"Thrombosis|<0.5 mg/L","Haptoglobin":"Hemolysis|50-250 mg/dL","LDH":"Cell damage|100-250 U/L","Fasting Glucose":"Diabetes screen|70-100 mg/dL","HbA1c":"3-month glucose|4.0-5.6%","Creatinine":"Kidney function|0.6-1.3 mg/dL","BUN":"Kidney function|7-20 mg/dL","eGFR":"Filtration rate|>90 mL/min","Uric Acid":"Gout marker|3.5-7.2 mg/dL","Total Protein":"Nutrition|6.0-8.0 g/dL","Albumin":"Liver function|3.5-5.0 g/dL","Total Bilirubin":"Jaundice|0.1-1.2 mg/dL","ALT":"Liver enzyme|10-40 U/L","AST":"Liver/muscle|10-40 U/L","ALP":"Bone/liver|44-147 U/L","GGT":"Biliary|0-51 U/L","Amylase":"Pancreatic|20-200 U/L","Lipase":"Pancreatic|20-200 U/L","CK":"Muscle enzyme|22-198 U/L","CK-MB":"Cardiac enzyme|0-5 ng/mL","Sodium":"Electrolyte|135-145 mmol/L","Potassium":"Electrolyte|3.5-5.0 mmol/L","Chloride":"Electrolyte|96-106 mmol/L","Calcium":"Bone metabolism|8.5-10.5 mg/dL","Magnesium":"Neuromuscular|1.7-2.2 mg/dL","Phosphorus":"Bone metabolism|2.5-4.5 mg/dL","Total Cholesterol":"Lipid profile|<200 mg/dL","LDL":"Bad cholesterol|<100 mg/dL","HDL":"Good cholesterol|>40 mg/dL","Triglycerides":"Blood fats|<150 mg/dL","Troponin I":"MI marker|<0.04 ng/mL","BNP":"Heart failure|<100 pg/mL","TSH":"Thyroid function|0.4-4.0 mIU/L","Free T4":"Thyroid hormone|0.8-1.8 ng/dL","Cortisol AM":"Adrenal|6-23 µg/dL","Testosterone":"Androgen|300-1000 ng/dL","Vitamin D":"D status|30-100 ng/mL","CRP":"Inflammation|<5 mg/L","RF":"RA marker|<14 IU/mL","ANA":"Autoimmune|Negative","PSA":"Prostate|<4 ng/mL","CEA":"Colorectal|<5 ng/mL","CA-125":"Ovarian|<35 U/mL","Blood Culture":"Bacteremia|No growth","Urine Culture":"UTI|<100K CFU/mL","Urine Protein":"Kidney damage|Negative","Urine Glucose":"Diabetes|Negative","Urine pH":"Acid-base|4.5-8.0","Urine WBC":"Infection|0-5/HPF","Urine RBC":"Bleeding|0-3/HPF","Microalbumin":"Nephropathy|<30 mg/24h","Procalcitonin":"Bacterial|<0.5 ng/mL","IgG":"Humoral|700-1600 mg/dL","IgA":"Mucosal|70-400 mg/dL","IgM":"Acute infection|40-230 mg/dL","IgE":"Allergy|0-100 IU/mL","C3":"Complement|90-180 mg/dL","C4":"Complement|10-40 mg/dL","Anti-CCP":"RA specific|<20 U/mL","ANCA":"Vasculitis|Negative","Anti-dsDNA":"SLE|<30 IU/mL","Cystatin C":"Kidney|0.6-1.0 mg/L","Homocysteine":"Vascular|5-15 µmol/L","hs-CRP":"Cardiac risk|<2 mg/L","Lipoprotein(a)":"Genetic risk|<30 mg/dL","ApoA":"Cardioprotective|90-150 mg/dL","ApoB":"Atherogenic|60-120 mg/dL","Ammonia":"Liver|15-45 µg/dL","Lactate":"Perfusion|0.5-2.2 mmol/L","Osmolality":"Fluid balance|275-295 mOsm/kg","Ceruloplasmin":"Wilson|20-60 mg/dL","Prealbumin":"Nutrition|15-35 mg/dL","Beta-2 MG":"Tumor marker|1-2 mg/L","AFP":"Liver cancer|<10 ng/mL","Beta-hCG":"Germ cell|<5 IU/L","CA 19-9":"Pancreatic|<37 U/mL","CA 15-3":"Breast|<30 U/mL","NSE":"Neuroendocrine|<15 ng/mL","Calcitonin":"Thyroid|<10 pg/mL","PTH":"Calcium reg|10-65 pg/mL","IGF-1":"Growth factor|100-300 ng/mL","Prolactin":"Pituitary|4-23 ng/mL","LH":"Reproductive|1.5-9.3 IU/L","FSH":"Reproductive|1.4-18.1 IU/L","Estradiol":"Estrogen|20-400 pg/mL","Progesterone":"Ovulation|0.1-25 ng/mL","DHEA-S":"Adrenal|35-430 µg/dL","ACTH":"Pituitary|10-60 pg/mL","Aldosterone":"Mineralocorticoid|3-16 ng/dL","Renin":"BP regulation|0.5-4.0 ng/mL/hr","Catecholamines":"Stress|<50 pg/mL","SHBG":"Hormone binding|10-57 nmol/L","Free Testosterone":"Bioavailable|5-21 ng/dL","1,25-Dihydroxy D":"Active D|20-60 pg/mL","C-Peptide":"Insulin production|0.5-2.0 ng/mL","Insulin Fasting":"Glucose metabolism|2-25 µIU/mL","G6PD":"Enzyme|5-15 U/g Hb","Osmotic Fragility":"RBC stability|0.45-0.35%","Hb Electrophoresis":"Variants|HbA >95%","Peripheral Smear":"Morphology|Normal","Retic Index":"Corrected|1-2","Bone Marrow":"Cellularity|40-70%","Plasma Free Hb":"Hemolysis|<5 mg/dL","Methemoglobin":"Oxidized Hb|<1.5%","Carboxyhemoglobin":"CO exposure|<2%","Erythropoietin":"RBC stimulus|4-26 mU/mL","Soluble TfR":"Iron deficiency|0.8-2.3 mg/L","Hepcidin":"Iron regulation|<50 ng/mL","Heinz Body":"Oxidative damage|Negative","HbA2":"Beta-thal|2.2-3.5%","Cryoglobulins":"Vasculitis|Negative","IL-6":"Cytokine|<5 pg/mL","TNF-alpha":"Inflammatory|<8 pg/mL","B2-Glycoprotein I":"APS|<20 U/mL","Anti-Ro":"Sjogren|Negative","Anti-La":"Sjogren|Negative","Anti-Smith":"SLE|Negative","Anti-RNP":"MCTD|Negative","Anti-Scl-70":"Scleroderma|Negative","Anti-Jo-1":"Polymyositis|Negative","Anti-Centromere":"CREST|Negative","Anti-Histone":"Drug lupus|Negative","Stool Culture":"GI pathogens|No pathogens","CSF Culture":"Meningitis|No growth","Throat Culture":"Strep|No GAS","Wound Culture":"Infection|No pathogens","Gram Stain":"Classification|No organisms","AFB Stain":"TB screening|Negative","Fungal Culture":"Fungal|No growth","Sputum Culture":"Respiratory|Normal flora","Urine Sp Gr":"Concentration|1.005-1.030","Urine Ketones":"Starvation/DKA|Negative","Urine Bilirubin":"Liver disease|Negative","Urine Urobilinogen":"Hemolysis|0.1-1.0","Urine Nitrite":"Bacteria|Negative","Urine LE":"WBC enzyme|Negative","Urine Casts":"Cellular|None","Urine Crystals":"Formations|None","24h Urine Protein":"Daily protein|<150 mg/24h","24h Urine Creatinine":"Clearance|15-25 mg/kg/24h","Urine Calcium":"Excretion|100-300 mg/24h","Urine Uric Acid":"Excretion|250-750 mg/24h","Urine Oxalate":"Stone risk|<45 mg/24h","Urine Citrate":"Stone inhibitor|>320 mg/24h","Ionized Calcium":"Active|4.5-5.6 mg/dL","VLDL":"Lipoprotein|<30 mg/dL","Anion Gap":"Acidosis|8-16 mEq/L","Serum Ketones":"Ketosis|<0.6 mmol/L","Pyruvate":"Metabolic|0.3-0.9 mg/dL","ACE Level":"Sarcoidosis|8-53 U/L","Alpha-1 AT":"Emphysema|100-200 mg/dL","Ischemia Mod Alb":"Early ischemia|<85 U/mL","H-FABP":"Early MI|<6 ng/mL","ST2":"Remodeling|<35 ng/mL","Galectin-3":"Fibrosis|<22 ng/mL","Copeptin":"Stress|<14 pmol/L","Myoglobin":"Cardiac|<80 ng/mL","Troponin T":"hs-cardiac|<0.014 ng/mL","NT-proBNP":"HF|<125 pg/mL","CK-MB Mass":"Cardiac|0-5 ng/mL","Reverse T3":"Inactive|10-24 ng/dL","Thyroglobulin":"Thyroid|<33 ng/mL","Total T4":"Thyroxine|5-12 µg/dL","Total T3":"T3|80-200 ng/dL","Free T3":"Active|2.3-4.2 pg/mL",
+}.items():
+    d, n = info.split("|")
+    LAB_TESTS[name] = {"category":"General","normal":n.strip(),"description_en":d.strip(),"description_ku":d.strip(),"description_ar":d.strip()}
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      200 DRUG DATABASE                                      ║
+# ║                      200 DRUGS                                              ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-DRUG_DATABASE = {"Cardiovascular":{},"Endocrinology":{},"Antibiotics":{},"Neurology & Psychiatry":{},"Gastroenterology":{},"Respiratory":{},"Analgesics & Anesthetics":{},"Oncology":{},"Dermatology":{},"Ophthalmology":{}}
+DRUG_DATABASE = {"Cardiovascular":{},"Endocrinology":{},"Antibiotics":{},"Neurology & Psychiatry":{},"Gastroenterology":{},"Respiratory":{},"Analgesics":{},"Oncology":{},"Dermatology":{},"Ophthalmology":{}}
 
-cv_drugs = {"Lisinopril":"ACE Inhibitor|10-40mg daily|Hypertension, HF|Cough, angioedema","Enalapril":"ACE Inhibitor|5-40mg daily|Hypertension, HF|Cough, hyperkalemia","Captopril":"ACE Inhibitor|25-150mg TID|Hypertension, diabetic nephropathy|Cough, rash","Ramipril":"ACE Inhibitor|2.5-20mg daily|Hypertension, post-MI|Cough, hypotension","Losartan":"ARB|50-100mg daily|Hypertension, HF|Dizziness, hyperkalemia","Valsartan":"ARB|80-320mg daily|Hypertension, HF|Headache, dizziness","Telmisartan":"ARB|40-80mg daily|Hypertension|Back pain, sinusitis","Irbesartan":"ARB|150-300mg daily|Hypertension, diabetic nephropathy|Diarrhea","Candesartan":"ARB|8-32mg daily|Hypertension, HF|Dizziness, back pain","Amlodipine":"CCB|5-10mg daily|Hypertension, angina|Edema, flushing","Nifedipine":"CCB|30-90mg daily|Hypertension, angina|Headache, edema","Diltiazem":"CCB|120-360mg daily|Hypertension, arrhythmia|Bradycardia, constipation","Verapamil":"CCB|120-480mg daily|Hypertension, SVT|Constipation, dizziness","Metoprolol":"Beta Blocker|25-200mg daily|Hypertension, angina, HF|Bradycardia, fatigue","Atenolol":"Beta Blocker|25-100mg daily|Hypertension, angina|Bradycardia, fatigue","Propranolol":"Beta Blocker|40-320mg daily|Hypertension, migraine, anxiety|Sleep disturbance","Carvedilol":"Beta/Alpha Blocker|6.25-50mg BID|HF, hypertension|Dizziness, fatigue","Bisoprolol":"Beta Blocker|2.5-10mg daily|Hypertension, HF|Bradycardia, cold extremities","Hydrochlorothiazide":"Thiazide Diuretic|12.5-50mg daily|Hypertension, edema|Hypokalemia","Furosemide":"Loop Diuretic|20-80mg daily|Edema, HF|Hypokalemia, dehydration","Spironolactone":"Aldosterone Antagonist|25-100mg daily|HF, ascites|Hyperkalemia, gynecomastia","Eplerenone":"Aldosterone Antagonist|25-50mg daily|HF post-MI|Hyperkalemia","Atorvastatin":"Statin|10-80mg daily|Hyperlipidemia|Myalgia, elevated LFTs","Rosuvastatin":"Statin|5-40mg daily|Hyperlipidemia|Myalgia, headache","Simvastatin":"Statin|10-40mg daily|Hyperlipidemia|Myopathy, GI upset","Clopidogrel":"Antiplatelet (P2Y12)|75mg daily|ACS, stroke prevention|Bleeding","Aspirin":"Antiplatelet|75-325mg daily|CVD prevention|GI bleeding","Warfarin":"Anticoagulant|2-10mg daily|DVT, PE, AF|Bleeding","Rivaroxaban":"DOAC|10-20mg daily|DVT, PE, AF|Bleeding","Apixaban":"DOAC|2.5-5mg BID|AF, DVT prevention|Bleeding"}
-for name, info in cv_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Cardiovascular"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-endo_drugs = {"Metformin":"Biguanide|500-2000mg daily|Type 2 DM|GI upset, lactic acidosis","Glipizide":"Sulfonylurea|5-20mg daily|Type 2 DM|Hypoglycemia, weight gain","Glyburide":"Sulfonylurea|2.5-10mg daily|Type 2 DM|Hypoglycemia","Pioglitazone":"TZD|15-45mg daily|Type 2 DM|Edema, fractures","Sitagliptin":"DPP-4 Inhibitor|100mg daily|Type 2 DM|Headache, pancreatitis","Empagliflozin":"SGLT2 Inhibitor|10-25mg daily|Type 2 DM, HF|UTI, DKA","Dapagliflozin":"SGLT2 Inhibitor|5-10mg daily|Type 2 DM, CKD|Genital infections","Insulin Glargine":"Long-acting Insulin|Individualized|Type 1 & 2 DM|Hypoglycemia","Insulin Aspart":"Rapid-acting Insulin|Individualized|Type 1 & 2 DM|Hypoglycemia","Insulin Lispro":"Rapid-acting Insulin|Individualized|Type 1 & 2 DM|Hypoglycemia","Insulin Detemir":"Long-acting Insulin|Individualized|Type 1 & 2 DM|Hypoglycemia","Levothyroxine":"Thyroid Hormone|25-200mcg daily|Hypothyroidism|Palpitations, insomnia","Methimazole":"Antithyroid|5-30mg daily|Hyperthyroidism|Agranulocytosis","Propylthiouracil":"Antithyroid|100-300mg daily|Hyperthyroidism|Hepatotoxicity","Prednisone":"Corticosteroid|5-60mg daily|Inflammation, autoimmune|Weight gain, osteoporosis","Hydrocortisone":"Corticosteroid|20-240mg daily|Adrenal insufficiency|Fluid retention","Dexamethasone":"Corticosteroid|0.5-10mg daily|Inflammation, cerebral edema|Insomnia","Alendronate":"Bisphosphonate|70mg weekly|Osteoporosis|Esophagitis","Risedronate":"Bisphosphonate|35mg weekly|Osteoporosis|GI upset","Teriparatide":"PTH Analog|20mcg daily|Osteoporosis|Hypercalcemia","Denosumab":"RANKL Inhibitor|60mg q6months|Osteoporosis|Hypocalcemia","Calcitriol":"Active Vitamin D|0.25-2mcg daily|Hypocalcemia, renal osteodystrophy|Hypercalcemia","Desmopressin":"ADH Analog|0.1-0.4mg daily|Diabetes insipidus|Hyponatremia","Octreotide":"Somatostatin Analog|50-200mcg TID|Acromegaly|Gallstones","Bromocriptine":"Dopamine Agonist|2.5-15mg daily|Hyperprolactinemia|Nausea, orthostasis"}
-for name, info in endo_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Endocrinology"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-abx_drugs = {"Amoxicillin":"Penicillin|500-875mg BID|Respiratory, UTI|Diarrhea, rash","Amoxicillin-Clavulanate":"Penicillin+BLI|500/125mg TID|Broad spectrum|Diarrhea","Ampicillin":"Penicillin|500mg QID|UTI, meningitis|Rash, diarrhea","Cephalexin":"1st Gen Cephalosporin|250-500mg QID|Skin, UTI|GI upset","Ceftriaxone":"3rd Gen Cephalosporin|1-2g IV daily|Serious infections|Diarrhea","Cefuroxime":"2nd Gen Cephalosporin|250-500mg BID|Respiratory, skin|Diarrhea","Cefixime":"3rd Gen Cephalosporin|400mg daily|Gonorrhea, UTI|Diarrhea","Azithromycin":"Macrolide|250-500mg daily|Respiratory, STI|GI upset, QT prolongation","Clarithromycin":"Macrolide|250-500mg BID|H. pylori, respiratory|GI upset, metallic taste","Erythromycin":"Macrolide|250-500mg QID|Respiratory, skin|GI upset, QT prolongation","Doxycycline":"Tetracycline|100mg BID|Acne, Lyme, malaria|Photosensitivity","Minocycline":"Tetracycline|100mg BID|Acne, MRSA|Vertigo, hyperpigmentation","Ciprofloxacin":"Fluoroquinolone|250-750mg BID|UTI, GI|Tendonitis, neuropathy","Levofloxacin":"Fluoroquinolone|500-750mg daily|Respiratory, UTI|Tendon rupture","Moxifloxacin":"Fluoroquinolone|400mg daily|Respiratory|QT prolongation","Metronidazole":"Nitroimidazole|500mg TID|Anaerobic, C. diff|Metallic taste","Clindamycin":"Lincosamide|150-450mg QID|Anaerobic, acne|C. diff colitis","Vancomycin":"Glycopeptide|IV trough-guided|MRSA, C. diff (oral)|Red man syndrome","TMP-SMX":"Sulfonamide|160/800mg BID|UTI, PCP|Rash, hyperkalemia","Nitrofurantoin":"Nitrofuran|100mg BID|UTI prophylaxis|Pulmonary fibrosis","Linezolid":"Oxazolidinone|600mg BID|VRE, MRSA|Myelosuppression","Daptomycin":"Lipopeptide|4-6mg/kg IV|MRSA, VRE|Myopathy, CPK elevation","Gentamicin":"Aminoglycoside|5-7mg/kg IV|Gram-negative|Nephrotoxicity, ototoxicity","Tobramycin":"Aminoglycoside|5-7mg/kg IV|Pseudomonas|Nephrotoxicity","Aztreonam":"Monobactam|1-2g IV q8h|Gram-negative (penicillin allergy)|Rash","Meropenem":"Carbapenem|1g IV q8h|Broad spectrum, ESBL|Seizures","Piperacillin-Tazobactam":"Penicillin+BLI|3.375-4.5g IV q6h|Pseudomonas, anaerobes|Diarrhea","Colistin":"Polymyxin|IV weight-based|MDR gram-negative|Nephrotoxicity, neurotoxicity","Tigecycline":"Glycylcycline|100mg IV loading|MDR infections|Nausea, pancreatitis","Fidaxomicin":"Macrocyclic|200mg BID|C. difficile|GI upset"}
-for name, info in abx_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Antibiotics"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-neuro_drugs = {"Sertraline":"SSRI|50-200mg daily|Depression, anxiety, PTSD|GI upset, sexual dysfunction","Fluoxetine":"SSRI|20-80mg daily|Depression, OCD, bulimia|Insomnia, weight changes","Escitalopram":"SSRI|10-20mg daily|Depression, GAD|Nausea, fatigue","Paroxetine":"SSRI|20-50mg daily|Depression, anxiety|Sedation, weight gain","Venlafaxine":"SNRI|75-375mg daily|Depression, anxiety|Hypertension, sweating","Duloxetine":"SNRI|30-120mg daily|Depression, neuropathic pain|Nausea, dry mouth","Amitriptyline":"TCA|25-150mg nightly|Depression, neuropathic pain|Sedation, anticholinergic","Nortriptyline":"TCA|25-100mg daily|Neuropathic pain, depression|Sedation, dry mouth","Quetiapine":"Atypical Antipsychotic|25-800mg daily|Schizophrenia, bipolar|Weight gain, metabolic syndrome","Risperidone":"Atypical Antipsychotic|1-6mg daily|Schizophrenia, bipolar|Hyperprolactinemia, EPS","Olanzapine":"Atypical Antipsychotic|5-20mg daily|Schizophrenia, bipolar|Weight gain, diabetes","Aripiprazole":"Atypical Antipsychotic|10-30mg daily|Schizophrenia, bipolar|Akathisia, insomnia","Lithium":"Mood Stabilizer|300-1800mg daily|Bipolar disorder|Tremor, nephrotoxicity","Valproic Acid":"Mood Stabilizer/AED|250-3000mg daily|Bipolar, epilepsy|Weight gain, hepatotoxicity","Carbamazepine":"AED|200-1600mg daily|Epilepsy, trigeminal neuralgia|Hyponatremia, SJS","Gabapentin":"Gabapentinoid|300-3600mg daily|Neuropathic pain, epilepsy|Sedation, dizziness","Pregabalin":"Gabapentinoid|75-600mg daily|Neuropathic pain, fibromyalgia|Dizziness, edema","Levetiracetam":"AED|500-3000mg daily|Epilepsy|Behavioral changes, sedation","Phenytoin":"AED|200-400mg daily|Epilepsy|Gingival hyperplasia, nystagmus","Lamotrigine":"AED|25-400mg daily|Epilepsy, bipolar|Rash, SJS","Topiramate":"AED|25-400mg daily|Epilepsy, migraine|Weight loss, cognitive impairment","Donepezil":"Cholinesterase Inhibitor|5-10mg daily|Alzheimer's|GI upset, bradycardia","Rivastigmine":"Cholinesterase Inhibitor|3-12mg daily|Alzheimer's, Parkinson dementia|Nausea, vomiting","Memantine":"NMDA Antagonist|5-20mg daily|Alzheimer's|Dizziness, confusion","Sumatriptan":"Triptan|50-100mg PRN|Acute migraine|Chest tightness, paresthesia","Rizatriptan":"Triptan|5-10mg PRN|Acute migraine|Dizziness, fatigue","Levodopa/Carbidopa":"Dopamine Precursor|100/25mg TID|Parkinson's|Dyskinesia, nausea","Pramipexole":"Dopamine Agonist|0.125-1.5mg TID|Parkinson's, RLS|Impulse control disorder","Ropinirole":"Dopamine Agonist|0.25-4mg TID|Parkinson's, RLS|Nausea, somnolence","Entacapone":"COMT Inhibitor|200mg with levodopa|Parkinson's (wearing-off)|Diarrhea, urine discoloration"}
-for name, info in neuro_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Neurology & Psychiatry"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-gi_drugs = {"Omeprazole":"PPI|20-40mg daily|GERD, PUD, H. pylori|Headache, B12 deficiency","Pantoprazole":"PPI|40mg daily|GERD, erosive esophagitis|Headache, diarrhea","Esomeprazole":"PPI|20-40mg daily|GERD, H. pylori|GI upset","Famotidine":"H2 Antagonist|20-40mg BID|GERD, PUD|Constipation, diarrhea","Ondansetron":"5-HT3 Antagonist|4-8mg PRN|Nausea, vomiting|Headache, constipation","Metoclopramide":"Dopamine Antagonist|10mg TID|Gastroparesis, nausea|EPS, tardive dyskinesia","Loperamide":"Opioid Agonist|2-4mg PRN|Acute diarrhea|Constipation","Mesalamine":"5-ASA|2.4-4.8g daily|Ulcerative colitis|Headache, GI upset","Lactulose":"Osmotic Laxative|15-30mL daily|Constipation, hepatic encephalopathy|Bloating","Ursodeoxycholic Acid":"Bile Acid|10-15mg/kg daily|PBC, gallstones|Diarrhea","Sucralfate":"Mucosal Protectant|1g QID|Peptic ulcer|Constipation","Bismuth Subsalicylate":"Antisecretory|524mg QID|Diarrhea, H. pylori|Black stool, tinnitus","Infliximab":"Anti-TNF|5mg/kg IV|Crohn's, UC|Infection, malignancy","Adalimumab":"Anti-TNF|40mg SC q2weeks|Crohn's, UC|Injection site reaction","Vedolizumab":"Anti-integrin|300mg IV|UC, Crohn's|Infection","Polyethylene Glycol":"Osmotic Laxative|17g daily|Constipation|Bloating","Dicyclomine":"Anticholinergic|20mg QID|IBS|Dry mouth, blurred vision","Prochlorperazine":"Antiemetic|5-10mg TID|Nausea, vertigo|Sedation, EPS","Lubiprostone":"Chloride Channel Activator|24mcg BID|Chronic constipation|Nausea","Linaclotide":"Guanylate Cyclase-C Agonist|145-290mcg daily|IBS-C, chronic constipation|Diarrhea"}
-for name, info in gi_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Gastroenterology"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-resp_drugs = {"Albuterol":"SABA|2 puffs Q4-6H PRN|Asthma, COPD|Tremor, tachycardia","Salmeterol":"LABA|50mcg BID|Asthma, COPD maintenance|Tremor, palpitations","Fluticasone":"ICS|100-500mcg BID|Asthma maintenance|Oral thrush, dysphonia","Budesonide":"ICS|200-800mcg BID|Asthma, COPD|Cough, oral candidiasis","Montelukast":"Leukotriene Antagonist|10mg daily|Asthma, allergic rhinitis|Headache","Tiotropium":"LAMA|18mcg daily|COPD|Dry mouth, constipation","Ipratropium":"SAMA|2-4 puffs QID|COPD, asthma|Dry mouth","Theophylline":"Methylxanthine|200-600mg daily|Asthma, COPD|Nausea, seizures","Roflumilast":"PDE-4 Inhibitor|500mcg daily|Severe COPD|Diarrhea, weight loss","Formoterol":"LABA|12mcg BID|Asthma, COPD|Tremor","Beclomethasone":"ICS|40-80mcg BID|Asthma|Oral thrush","Zafirlukast":"Leukotriene Antagonist|20mg BID|Asthma|Headache, hepatotoxicity","Omalizumab":"Anti-IgE|150-375mg SC|Severe allergic asthma|Anaphylaxis","Mepolizumab":"Anti-IL5|100mg SC|Severe eosinophilic asthma|Headache","Benralizumab":"Anti-IL5R|30mg SC|Severe eosinophilic asthma|Headache"}
-for name, info in resp_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Respiratory"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-pain_drugs = {"Ibuprofen":"NSAID|200-800mg TID|Pain, inflammation|GI ulcer, renal impairment","Naproxen":"NSAID|250-500mg BID|Pain, inflammation|GI upset","Celecoxib":"COX-2 Inhibitor|100-200mg BID|Osteoarthritis, RA|Cardiovascular risk","Acetaminophen":"Analgesic|500-1000mg Q6H|Pain, fever|Hepatotoxicity","Tramadol":"Weak Opioid+SNRI|50-100mg Q6H|Moderate pain|Nausea, seizures","Morphine":"Opioid Agonist|5-30mg Q4H|Severe pain|Respiratory depression","Oxycodone":"Opioid Agonist|5-30mg Q4-6H|Severe pain|Respiratory depression","Fentanyl":"Opioid Agonist|12-100mcg/hr patch|Chronic severe pain|Respiratory depression","Hydromorphone":"Opioid Agonist|2-4mg Q4-6H|Severe pain|Respiratory depression","Methadone":"Opioid Agonist|2.5-10mg Q8-12H|Chronic pain, addiction|QT prolongation","Buprenorphine":"Partial Opioid Agonist|2-24mg SL|Chronic pain, addiction|Respiratory depression","Lidocaine":"Local Anesthetic|1-2% solution|Local anesthesia|CNS toxicity","Bupivacaine":"Local Anesthetic|0.25-0.5% solution|Regional anesthesia|Cardiotoxicity","Ketamine":"NMDA Antagonist|0.5-2mg/kg IV|Anesthesia, pain|Hallucinations","Propofol":"GABA Agonist|1-2mg/kg IV|Anesthesia induction|Respiratory depression","Midazolam":"Benzodiazepine|1-5mg IV|Sedation, anxiolysis|Respiratory depression","Gabapentin (Pain)":"Gabapentinoid|300-3600mg daily|Neuropathic pain|Sedation","Pregabalin (Pain)":"Gabapentinoid|75-600mg daily|Neuropathic pain|Dizziness","Diclofenac":"NSAID|50mg TID|Pain, inflammation|GI upset","Meloxicam":"NSAID|7.5-15mg daily|Osteoarthritis|GI upset, edema"}
-for name, info in pain_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Analgesics & Anesthetics"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-onco_drugs = {"Cyclophosphamide":"Alkylating Agent|500-1000mg/m2 IV|Lymphoma, leukemia, breast cancer|Myelosuppression, hemorrhagic cystitis","Doxorubicin":"Anthracycline|60-75mg/m2 IV|Breast, lung, lymphoma|Cardiotoxicity, myelosuppression","Cisplatin":"Platinum Analog|50-100mg/m2 IV|Testicular, ovarian, lung|Nephrotoxicity, ototoxicity","Carboplatin":"Platinum Analog|AUC 5-6 IV|Ovarian, lung|Myelosuppression","5-Fluorouracil":"Antimetabolite|400-600mg/m2 IV|Colorectal, breast|Mucositis, diarrhea","Methotrexate":"Antimetabolite|Variable dosing|Leukemia, lymphoma, RA|Myelosuppression, hepatotoxicity","Paclitaxel":"Taxane|175mg/m2 IV|Breast, ovarian, lung|Neuropathy, hypersensitivity","Docetaxel":"Taxane|75-100mg/m2 IV|Breast, prostate, lung|Myelosuppression, fluid retention","Tamoxifen":"SERM|20mg daily|Breast cancer (ER+)|Hot flashes, endometrial cancer","Imatinib":"Tyrosine Kinase Inhibitor|400mg daily|CML, GIST|Edema, nausea","Rituximab":"Anti-CD20|375mg/m2 IV|Lymphoma, CLL|Infusion reaction, infection","Trastuzumab":"Anti-HER2|4-8mg/kg IV|Breast cancer (HER2+)|Cardiotoxicity","Bevacizumab":"Anti-VEGF|5-15mg/kg IV|Colorectal, lung, renal|Hypertension, bleeding","Pembrolizumab":"Anti-PD1|200mg IV q3weeks|Melanoma, lung, many cancers|Immune-related adverse events","Lenalidomide":"Immunomodulator|10-25mg daily|Multiple myeloma|Myelosuppression, thrombosis"}
-for name, info in onco_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Oncology"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-derm_drugs = {"Hydrocortisone Topical":"Topical Steroid|1% cream BID|Eczema, dermatitis|Skin atrophy","Betamethasone":"Topical Steroid|0.1% cream BID|Psoriasis, eczema|Skin atrophy, striae","Clotrimazole":"Topical Antifungal|1% cream BID|Tinea, candidiasis|Local irritation","Mupirocin":"Topical Antibiotic|2% ointment TID|Impetigo, MRSA colonization|Burning","Tretinoin":"Retinoid|0.025-0.1% nightly|Acne, photoaging|Irritation, photosensitivity","Isotretinoin":"Oral Retinoid|0.5-1mg/kg daily|Severe acne|Teratogenicity, hyperlipidemia","Adapalene":"Topical Retinoid|0.1% gel nightly|Acne|Dryness, irritation","Tacrolimus Topical":"Calcineurin Inhibitor|0.1% ointment BID|Atopic dermatitis|Burning, pruritus","Ustekinumab":"Anti-IL12/23|45-90mg SC|Psoriasis|Infection","Secukinumab":"Anti-IL17A|300mg SC|Psoriasis|Infection, candidiasis"}
-for name, info in derm_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Dermatology"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
-
-ophth_drugs = {"Timolol":"Beta Blocker|0.5% drops BID|Glaucoma|Bradycardia, bronchospasm","Latanoprost":"Prostaglandin Analog|0.005% nightly|Glaucoma|Iris pigmentation","Brimonidine":"Alpha-2 Agonist|0.2% drops TID|Glaucoma|Allergic conjunctivitis","Dorzolamide":"Carbonic Anhydrase Inhibitor|2% drops TID|Glaucoma|Bitter taste","Cyclosporine Ophthalmic":"Immunomodulator|0.05% BID|Dry eye|Burning"}
-for name, info in ophth_drugs.items():
-    parts = info.split("|")
-    DRUG_DATABASE["Ophthalmology"][name] = {"class":parts[0],"dose":parts[1],"indications_en":parts[2],"indications_ku":parts[2],"indications_ar":parts[2],"side_effects_en":parts[3],"side_effects_ku":parts[3],"side_effects_ar":parts[3]}
+for cat, drugs in {
+    "Cardiovascular":{"Lisinopril":"ACEI|10-40mg|HTN,HF|Cough","Enalapril":"ACEI|5-40mg|HTN,HF|Cough","Captopril":"ACEI|25-150mg|HTN,DN|Cough","Ramipril":"ACEI|2.5-20mg|HTN,post-MI|Cough","Losartan":"ARB|50-100mg|HTN,HF|Dizziness","Valsartan":"ARB|80-320mg|HTN,HF|Headache","Telmisartan":"ARB|40-80mg|HTN|Back pain","Irbesartan":"ARB|150-300mg|HTN,DN|Diarrhea","Candesartan":"ARB|8-32mg|HTN,HF|Dizziness","Amlodipine":"CCB|5-10mg|HTN,angina|Edema","Nifedipine":"CCB|30-90mg|HTN,angina|Headache","Diltiazem":"CCB|120-360mg|HTN,arrhythmia|Bradycardia","Verapamil":"CCB|120-480mg|HTN,SVT|Constipation","Metoprolol":"BB|25-200mg|HTN,angina,HF|Bradycardia","Atenolol":"BB|25-100mg|HTN,angina|Bradycardia","Propranolol":"BB|40-320mg|HTN,migraine|Sleep issues","Carvedilol":"a/ß BB|6.25-50mg|HF,HTN|Dizziness","Bisoprolol":"BB|2.5-10mg|HTN,HF|Bradycardia","HCTZ":"Thiazide|12.5-50mg|HTN,edema|Hypokalemia","Furosemide":"Loop|20-80mg|Edema,HF|Hypokalemia","Spironolactone":"Aldo Antag|25-100mg|HF,ascites|Hyperkalemia","Eplerenone":"Aldo Antag|25-50mg|HF post-MI|Hyperkalemia","Atorvastatin":"Statin|10-80mg|HLD|Myalgia","Rosuvastatin":"Statin|5-40mg|HLD|Myalgia","Simvastatin":"Statin|10-40mg|HLD|Myopathy","Clopidogrel":"P2Y12|75mg|ACS,stroke|Bleeding","Aspirin":"Antiplatelet|75-325mg|CVD|GI bleeding","Warfarin":"Anticoagulant|2-10mg|DVT,PE,AF|Bleeding","Rivaroxaban":"DOAC|10-20mg|DVT,PE,AF|Bleeding","Apixaban":"DOAC|2.5-5mg|AF,DVT prev|Bleeding"},
+    "Endocrinology":{"Metformin":"Biguanide|500-2000mg|T2DM|GI upset","Glipizide":"SU|5-20mg|T2DM|Hypoglycemia","Glyburide":"SU|2.5-10mg|T2DM|Hypoglycemia","Pioglitazone":"TZD|15-45mg|T2DM|Edema","Sitagliptin":"DPP-4i|100mg|T2DM|Headache","Empagliflozin":"SGLT2i|10-25mg|T2DM,HF|UTI","Dapagliflozin":"SGLT2i|5-10mg|T2DM,CKD|Genital infx","Insulin Glargine":"Long-acting|Variable|T1/T2DM|Hypoglycemia","Insulin Aspart":"Rapid-acting|Variable|T1/T2DM|Hypoglycemia","Insulin Lispro":"Rapid-acting|Variable|T1/T2DM|Hypoglycemia","Insulin Detemir":"Long-acting|Variable|T1/T2DM|Hypoglycemia","Levothyroxine":"T4|25-200mcg|Hypothyroid|Palpitations","Methimazole":"Antithyroid|5-30mg|Hyperthyroid|Agranulocytosis","PTU":"Antithyroid|100-300mg|Hyperthyroid|Hepatotoxicity","Prednisone":"Steroid|5-60mg|Inflammation|Weight gain","Hydrocortisone":"Steroid|20-240mg|Adrenal insuff|Fluid retention","Dexamethasone":"Steroid|0.5-10mg|Inflammation|Insomnia","Alendronate":"Bisphosphonate|70mg/wk|Osteoporosis|Esophagitis","Risedronate":"Bisphosphonate|35mg/wk|Osteoporosis|GI upset","Teriparatide":"PTH analog|20mcg/d|Osteoporosis|Hypercalcemia","Denosumab":"RANKL inh|60mg/6mo|Osteoporosis|Hypocalcemia","Calcitriol":"Active D|0.25-2mcg|Hypocalcemia|Hypercalcemia","Desmopressin":"ADH analog|0.1-0.4mg|DI|Hyponatremia","Octreotide":"Somatostatin|50-200mcg|Acromegaly|Gallstones","Bromocriptine":"DA agonist|2.5-15mg|HyperPRL|Nausea"},
+    "Antibiotics":{"Amoxicillin":"Penicillin|500-875mg|RTI,UTI|Diarrhea","Amox-Clav":"Pen+BLI|500/125mg|Broad|Diarrhea","Ampicillin":"Penicillin|500mg|UTI,meningitis|Rash","Cephalexin":"Ceph 1G|250-500mg|Skin,UTI|GI upset","Ceftriaxone":"Ceph 3G|1-2g IV|Serious|Diarrhea","Cefuroxime":"Ceph 2G|250-500mg|RTI,skin|Diarrhea","Cefixime":"Ceph 3G|400mg|GC,UTI|Diarrhea","Azithromycin":"Macrolide|250-500mg|RTI,STI|GI,QT","Clarithromycin":"Macrolide|250-500mg|Hpylori,RTI|GI,taste","Erythromycin":"Macrolide|250-500mg|RTI,skin|GI,QT","Doxycycline":"Tetracycline|100mg|Acne,Lyme|Photosens","Minocycline":"Tetracycline|100mg|Acne,MRSA|Vertigo","Ciprofloxacin":"FQ|250-750mg|UTI,GI|Tendonitis","Levofloxacin":"FQ|500-750mg|RTI,UTI|Tendon","Moxifloxacin":"FQ|400mg|RTI|QT","Metronidazole":"Nitroimidazole|500mg|Anaerobic,Cdiff|Metallic taste","Clindamycin":"Lincosamide|150-450mg|Anaerobic,acne|Cdiff","Vancomycin":"Glycopeptide|IV trough|MRSA,Cdiff|RMS","TMP-SMX":"Sulfa|160/800mg|UTI,PCP|Rash,↑K","Nitrofurantoin":"Nitrofuran|100mg|UTI proph|Pulm fibrosis","Linezolid":"Oxazolidinone|600mg|VRE,MRSA|Myelosuppr","Daptomycin":"Lipopeptide|4-6mg/kg|MRSA,VRE|Myopathy","Gentamicin":"AG|5-7mg/kg|GN|Nephro,oto","Tobramycin":"AG|5-7mg/kg|Pseudomonas|Nephro","Aztreonam":"Monobactam|1-2g|GN (PCN allergy)|Rash","Meropenem":"Carbapenem|1g|Broad,ESBL|Seizures","Pip-Tazo":"Pen+BLI|3.375-4.5g|Pseudomonas|Diarrhea","Colistin":"Polymyxin|IV wt|MDR GN|Nephro,neuro","Tigecycline":"Glycylcycline|100mg|MDR|Nausea","Fidaxomicin":"Macrocyclic|200mg|Cdiff|GI"},
+    "Neurology & Psychiatry":{"Sertraline":"SSRI|50-200mg|Dep,Anx,PTSD|GI,SD","Fluoxetine":"SSRI|20-80mg|Dep,OCD|Insomnia","Escitalopram":"SSRI|10-20mg|Dep,GAD|Nausea","Paroxetine":"SSRI|20-50mg|Dep,Anx|Sedation","Venlafaxine":"SNRI|75-375mg|Dep,Anx|HTN","Duloxetine":"SNRI|30-120mg|Dep,Neuropain|Nausea","Amitriptyline":"TCA|25-150mg|Dep,Neuropain|Sedation,AC","Nortriptyline":"TCA|25-100mg|Neuropain|Sedation","Quetiapine":"AAP|25-800mg|Schiz,BP|Wt gain","Risperidone":"AAP|1-6mg|Schiz,BP|↑PRL,EPS","Olanzapine":"AAP|5-20mg|Schiz,BP|Wt,DM","Aripiprazole":"AAP|10-30mg|Schiz,BP|Akathisia","Lithium":"MS|300-1800mg|BP|Tremor,Nephro","Valproic Acid":"MS/AED|250-3000mg|BP,Epi|Wt,Hepato","Carbamazepine":"AED|200-1600mg|Epi,TN|HypoNa,SJS","Gabapentin":"Gabapentinoid|300-3600mg|Neuropain|Sedation","Pregabalin":"Gabapentinoid|75-600mg|Neuropain,Fibro|Dizziness","Levetiracetam":"AED|500-3000mg|Epi|Behavior","Phenytoin":"AED|200-400mg|Epi|Gingival","Lamotrigine":"AED|25-400mg|Epi,BP|Rash,SJS","Topiramate":"AED|25-400mg|Epi,Migraine|Wt loss","Donepezil":"ChEI|5-10mg|Alzheimer|GI,Brady","Rivastigmine":"ChEI|3-12mg|Alzheimer,PDD|Nausea","Memantine":"NMDA antag|5-20mg|Alzheimer|Dizziness","Sumatriptan":"Triptan|50-100mg|Migraine|Chest","Rizatriptan":"Triptan|5-10mg|Migraine|Dizziness","L-Dopa/Carbidopa":"DA precursor|100/25mg|PD|Dyskinesia","Pramipexole":"DA agonist|0.125-1.5mg|PD,RLS|ICD","Ropinirole":"DA agonist|0.25-4mg|PD,RLS|Nausea","Entacapone":"COMT inh|200mg|PD|Diarrhea"},
+    "Gastroenterology":{"Omeprazole":"PPI|20-40mg|GERD,PUD|B12 def","Pantoprazole":"PPI|40mg|GERD|Headache","Esomeprazole":"PPI|20-40mg|GERD,Hpylori|GI","Famotidine":"H2RA|20-40mg|GERD,PUD|Constipation","Ondansetron":"5-HT3 antag|4-8mg|N/V|Headache","Metoclopramide":"DA antag|10mg|Gastroparesis|EPS,TD","Loperamide":"Opioid|2-4mg|Diarrhea|Constipation","Mesalamine":"5-ASA|2.4-4.8g|UC|Headache","Lactulose":"Osmotic|15-30mL|Constipation,HE|Bloating","UDCA":"Bile acid|10-15mg/kg|PBC,stones|Diarrhea","Sucralfate":"Protectant|1g|PUD|Constipation","Bismuth":"Antisecretory|524mg|Diarrhea,Hpylori|Black stool","Infliximab":"Anti-TNF|5mg/kg|Crohn,UC|Infection","Adalimumab":"Anti-TNF|40mg SC|Crohn,UC|ISR","Vedolizumab":"Anti-integrin|300mg|UC,Crohn|Infection","PEG":"Osmotic|17g|Constipation|Bloating","Dicyclomine":"AC|20mg|IBS|Dry mouth","Prochlorperazine":"Antiemetic|5-10mg|N/V,Vertigo|Sedation","Lubiprostone":"Cl channel|24mcg|Constipation|Nausea","Linaclotide":"GC-C agonist|145-290mcg|IBS-C|Diarrhea"},
+    "Respiratory":{"Albuterol":"SABA|2 puffs|Asthma,COPD|Tremor","Salmeterol":"LABA|50mcg|Asthma,COPD|Tremor","Fluticasone":"ICS|100-500mcg|Asthma|Thrush","Budesonide":"ICS|200-800mcg|Asthma,COPD|Cough","Montelukast":"LTRA|10mg|Asthma,AR|Headache","Tiotropium":"LAMA|18mcg|COPD|Dry mouth","Ipratropium":"SAMA|2-4 puffs|COPD,Asthma|Dry mouth","Theophylline":"Methylxanthine|200-600mg|Asthma,COPD|Nausea,Seizures","Roflumilast":"PDE-4i|500mcg|COPD|Diarrhea","Formoterol":"LABA|12mcg|Asthma,COPD|Tremor","Beclomethasone":"ICS|40-80mcg|Asthma|Thrush","Zafirlukast":"LTRA|20mg|Asthma|Headache","Omalizumab":"Anti-IgE|150-375mg|Allergic asthma|Anaphylaxis","Mepolizumab":"Anti-IL5|100mg|Eos asthma|Headache","Benralizumab":"Anti-IL5R|30mg|Eos asthma|Headache"},
+    "Analgesics":{"Ibuprofen":"NSAID|200-800mg|Pain,Inflam|GI,Renal","Naproxen":"NSAID|250-500mg|Pain,Inflam|GI","Celecoxib":"COX-2i|100-200mg|OA,RA|CV risk","Acetaminophen":"Analgesic|500-1000mg|Pain,Fever|Hepato","Tramadol":"Opioid+SNRI|50-100mg|Mod pain|Nausea,Seizures","Morphine":"Opioid|5-30mg|Severe pain|RD","Oxycodone":"Opioid|5-30mg|Severe pain|RD","Fentanyl":"Opioid|12-100mcg/h|Chronic pain|RD","Hydromorphone":"Opioid|2-4mg|Severe pain|RD","Methadone":"Opioid|2.5-10mg|Pain,Addiction|QT","Buprenorphine":"Partial opioid|2-24mg|Pain,Addiction|RD","Lidocaine":"Local anesthetic|1-2%|Local anesthesia|CNS","Bupivacaine":"Local anesthetic|0.25-0.5%|Regional|Cardio","Ketamine":"NMDA antag|0.5-2mg/kg|Anesthesia,Pain|Hallucinations","Propofol":"GABA agonist|1-2mg/kg|Induction|RD","Midazolam":"BZD|1-5mg|Sedation|RD","Gabapentin":"Gabapentinoid|300-3600mg|Neuropain|Sedation","Pregabalin":"Gabapentinoid|75-600mg|Neuropain|Dizziness","Diclofenac":"NSAID|50mg|Pain|GI","Meloxicam":"NSAID|7.5-15mg|OA|GI"},
+    "Oncology":{"Cyclophosphamide":"Alkylating|500-1000mg/m2|Lymphoma,BC|Myelo,HC","Doxorubicin":"Anthracycline|60-75mg/m2|BC,Lung,Lymph|Cardio","Cisplatin":"Platinum|50-100mg/m2|Testicular,Ovarian|Nephro,Oto","Carboplatin":"Platinum|AUC 5-6|Ovarian,Lung|Myelo","5-FU":"Antimetabolite|400-600mg/m2|CRC,BC|Mucositis","Methotrexate":"Antimetabolite|Variable|Leukemia,Lymph|Myelo,Hepato","Paclitaxel":"Taxane|175mg/m2|BC,Ovarian,Lung|Neuropathy","Docetaxel":"Taxane|75-100mg/m2|BC,Prostate|Myelo","Tamoxifen":"SERM|20mg|BC(ER+)|Hot flashes","Imatinib":"TKI|400mg|CML,GIST|Edema","Rituximab":"Anti-CD20|375mg/m2|Lymph,CLL|IR","Trastuzumab":"Anti-HER2|4-8mg/kg|BC(HER2+)|Cardio","Bevacizumab":"Anti-VEGF|5-15mg/kg|CRC,Lung,RCC|HTN,Bleed","Pembrolizumab":"Anti-PD1|200mg|Melanoma,Lung|irAE","Lenalidomide":"IMiD|10-25mg|MM|Myelo,Thrombosis"},
+    "Dermatology":{"HC Topical":"Steroid|1%|Eczema|Atrophy","Betamethasone":"Steroid|0.1%|Psoriasis|Atrophy","Clotrimazole":"Antifungal|1%|Tinea|Irritation","Mupirocin":"Antibiotic|2%|Impetigo|Burning","Tretinoin":"Retinoid|0.025-0.1%|Acne|Irritation","Isotretinoin":"Retinoid|0.5-1mg/kg|Severe acne|Teratogenic","Adapalene":"Retinoid|0.1%|Acne|Dryness","Tacrolimus Top":"CNI|0.1%|Atopic derm|Burning","Ustekinumab":"Anti-IL12/23|45-90mg|Psoriasis|Infection","Secukinumab":"Anti-IL17A|300mg|Psoriasis|Candidiasis"},
+    "Ophthalmology":{"Timolol":"BB|0.5%|Glaucoma|Bradycardia","Latanoprost":"PG analog|0.005%|Glaucoma|Iris pigment","Brimonidine":"A2 agonist|0.2%|Glaucoma|Allergy","Dorzolamide":"CAI|2%|Glaucoma|Bitter taste","Cyclosporine Oph":"Immunomod|0.05%|Dry eye|Burning"},
+}.items():
+    for name, info in drugs.items():
+        p = info.split("|")
+        DRUG_DATABASE[cat][name] = {"class":p[0],"dose":p[1],"indications_en":p[2],"indications_ku":p[2],"indications_ar":p[2],"side_effects_en":p[3],"side_effects_ku":p[3],"side_effects_ar":p[3]}
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      DISEASE DATABASE                                       ║
+# ║                      DISEASES, QUIZZES, NEWS                                ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 DISEASE_DATABASE = {
-    "Diabetes Mellitus Type 1":{"symptoms_en":["Polyuria","Polydipsia","Weight loss","Fatigue","Blurred vision","Ketoacidosis"],"symptoms_ku":["میزی زۆر","تینوویەتی زۆر","کێش کەمبوونەوە","ماندوویی","بینی تەڵخ","کیتۆئەسیدۆز"],"symptoms_ar":["كثرة التبول","العطش الشديد","فقدان الوزن","التعب","عدم وضوح الرؤية","الحماض الكيتوني"],"treatment_en":["Insulin therapy","Carbohydrate counting","Regular exercise"],"treatment_ku":["چارەسەری ئەنسولین","ژمێریاری کاربۆهیدرات","وەرزشی ڕێک"],"treatment_ar":["العلاج بالأنسولين","حساب الكربوهيدرات","التمارين المنتظمة"],"risk_level":"High"},
-    "Diabetes Mellitus Type 2":{"symptoms_en":["Polyuria","Polydipsia","Fatigue","Slow wound healing"],"symptoms_ku":["میزی زۆر","تینوویەتی زۆر","ماندوویی","خاوی چاکبوونەوەی برین"],"symptoms_ar":["كثرة التبول","العطش الشديد","التعب","بطء التئام الجروح"],"treatment_en":["Metformin","Lifestyle modification","Regular exercise"],"treatment_ku":["مێتفۆرمین","گۆڕینی شێوازی ژیان","وەرزشی ڕێک"],"treatment_ar":["الميتفورمين","تعديل نمط الحياة","التمارين المنتظمة"],"risk_level":"Moderate"},
-    "Essential Hypertension":{"symptoms_en":["Often asymptomatic","Headache","Dizziness","Blurred vision"],"symptoms_ku":["زۆرجار بێ نیشانە","سەرئێشە","سەرگێژخواردن","بینی تەڵخ"],"symptoms_ar":["غالباً بدون أعراض","صداع","دوخة","عدم وضوح الرؤية"],"treatment_en":["ACE inhibitors","Lifestyle changes","Low sodium diet"],"treatment_ku":["بەرگرەکانی ACE","گۆڕینی شێوازی ژیان","خواردنی کەم نمەک"],"treatment_ar":["مثبطات ACE","تغيير نمط الحياة","نظام غذائي منخفض الصوديوم"],"risk_level":"Low"},
-    "Acute Myocardial Infarction":{"symptoms_en":["Severe chest pain","Diaphoresis","Dyspnea","Nausea","Anxiety"],"symptoms_ku":["ئازاری توندی سنگ","ئارەقەکردنی زۆر","تەنگی هەناسە","سکچوون","دڵەڕاوکێ"],"symptoms_ar":["ألم شديد في الصدر","تعرق غزير","ضيق التنفس","غثيان","قلق"],"treatment_en":["Aspirin 300mg","Nitroglycerin","Morphine","Oxygen"],"treatment_ku":["ئەسپیرین ٣٠٠مگ","نایترۆگلیسیرین","مۆرفین","ئۆکسجین"],"treatment_ar":["أسبرين 300 ملغ","نيتروجليسرين","مورفين","أكسجين"],"risk_level":"Critical"},
-    "Community-Acquired Pneumonia":{"symptoms_en":["Fever","Productive cough","Dyspnea","Pleuritic chest pain"],"symptoms_ku":["تا","کۆخەی بەرھەمدار","تەنگی هەناسە","ئازاری سنگی پلوریتی"],"symptoms_ar":["حمى","سعال منتج","ضيق التنفس","ألم صدري جنبي"],"treatment_en":["Amoxicillin-clavulanate","Azithromycin","Oxygen if needed"],"treatment_ku":["ئەمۆکسیسیلین-کلاڤولانات","ئازیترۆمایسین","ئۆکسجین ئەگەر پێویست بوو"],"treatment_ar":["أموكسيسيلين-كلافولانات","أزيثروميسين","أكسجين إذا لزم"],"risk_level":"Moderate"},
-    "Bronchial Asthma":{"symptoms_en":["Wheezing","Dyspnea","Chest tightness","Cough"],"symptoms_ku":["فیشک","تەنگی هەناسە","گرژبوونی سنگ","کۆخە"],"symptoms_ar":["صفير","ضيق التنفس","ضيق الصدر","سعال"],"treatment_en":["SABA (Albuterol)","ICS (Budesonide)","Avoid triggers"],"treatment_ku":["SABA (ئەلبوتێرۆل)","ICS (بودێسۆناید)","خۆپاراستن لە هۆکارەکان"],"treatment_ar":["SABA (ألبوتيرول)","ICS (بوديزونيد)","تجنب المحفزات"],"risk_level":"Low"},
-    "Iron Deficiency Anemia":{"symptoms_en":["Fatigue","Pallor","Dyspnea on exertion","Palpitations"],"symptoms_ku":["ماندوویی","ڕەنگی پێست زەرد","تەنگی هەناسە لە چالاکیدا","لێدانی دڵ"],"symptoms_ar":["التعب","شحوب","ضيق التنفس عند الجهد","خفقان"],"treatment_en":["Ferrous sulfate 325mg","Vitamin C","Iron-rich diet"],"treatment_ku":["فێرۆس سەلفەیت ٣٢٥مگ","ڤیتامین C","خواردنی پڕ ئاسن"],"treatment_ar":["كبريتات الحديدوز 325 ملغ","فيتامين C","نظام غذائي غني بالحديد"],"risk_level":"Low"},
-    "Chronic Kidney Disease":{"symptoms_en":["Edema","Fatigue","Decreased urine output","Nausea"],"symptoms_ku":["ئاوسان","ماندوویی","کەمبوونی میز","سکچوون"],"symptoms_ar":["وذمة","التعب","انخفاض إخراج البول","غثيان"],"treatment_en":["ACE inhibitors","Dietary restriction","Dialysis if ESRD"],"treatment_ku":["بەرگرەکانی ACE","سنووردارکردنی خواردن","دیالیز ئەگەر ESRD"],"treatment_ar":["مثبطات ACE","تقييد غذائي","غسيل الكلى إذا لزم"],"risk_level":"High"},
-    "Hepatitis B":{"symptoms_en":["Jaundice","Fatigue","Dark urine","RUQ pain","Nausea"],"symptoms_ku":["زەردبوون","ماندوویی","میز تۆخ","ئازاری سەرەوەی ڕاستی سک","سکچوون"],"symptoms_ar":["يرقان","التعب","بول داكن","ألم الربع العلوي الأيمن","غثيان"],"treatment_en":["Entecavir","Tenofovir","Avoid alcohol"],"treatment_ku":["ئەنتێکاڤیر","تێنۆفۆڤیر","خۆپاراستن لە کحول"],"treatment_ar":["إنتيكافير","تينوفوفير","تجنب الكحول"],"risk_level":"High"},
-    "Migraine":{"symptoms_en":["Unilateral headache","Photophobia","Nausea","Visual aura"],"symptoms_ku":["سەرئێشەی لایەک","ترسی ڕووناکی","سکچوون","ئۆرای بینین"],"symptoms_ar":["صداع أحادي الجانب","رهاب الضوء","غثيان","هالة بصرية"],"treatment_en":["Sumatriptan","NSAIDs","Avoid triggers"],"treatment_ku":["سوماتریپتان","NSAIDs","خۆپاراستن لە هۆکارەکان"],"treatment_ar":["سوماتريبتان","مضادات الالتهاب","تجنب المحفزات"],"risk_level":"Low"},
+    "Diabetes Mellitus Type 1":{"symptoms_en":["Polyuria","Polydipsia","Weight loss","Fatigue","Blurred vision","Ketoacidosis"],"symptoms_ku":["میزی زۆر","تینوویەتی","کێش کەم","ماندوویی","بینی تەڵخ","کیتۆئەسیدۆز"],"symptoms_ar":["كثرة التبول","عطش","فقدان وزن","تعب","رؤية ضبابية","حماض كيتوني"],"treatment_en":["Insulin","Carb counting","Exercise"],"treatment_ku":["ئەنسولین","ژمێریاری","وەرزش"],"treatment_ar":["أنسولين","حساب كربوهيدرات","تمارين"],"risk":"High"},
+    "Diabetes Mellitus Type 2":{"symptoms_en":["Polyuria","Polydipsia","Fatigue","Slow wound healing"],"symptoms_ku":["میزی زۆر","تینوویەتی","ماندوویی","خاوی برین"],"symptoms_ar":["كثرة تبول","عطش","تعب","بطء التئام"],"treatment_en":["Metformin","Lifestyle","Exercise"],"treatment_ku":["مێتفۆرمین","شێوازی ژیان","وەرزش"],"treatment_ar":["ميتفورمين","نمط حياة","تمارين"],"risk":"Moderate"},
+    "Essential Hypertension":{"symptoms_en":["Asymptomatic","Headache","Dizziness","Blurred vision"],"symptoms_ku":["بێ نیشانە","سەرئێشە","سەرگێژ","بینی تەڵخ"],"symptoms_ar":["بدون أعراض","صداع","دوخة","رؤية ضبابية"],"treatment_en":["ACEI","Lifestyle","Low Na"],"treatment_ku":["ACEI","شێوازی ژیان","کەم نمەک"],"treatment_ar":["مثبط ACE","نمط حياة","قليل صوديوم"],"risk":"Low"},
+    "Acute Myocardial Infarction":{"symptoms_en":["Severe chest pain","Diaphoresis","Dyspnea","Nausea","Anxiety"],"symptoms_ku":["ئازاری سنگ","ئارەقە","تەنگی هەناسە","سکچوون","دڵەڕاوکێ"],"symptoms_ar":["ألم صدر شديد","تعرق","ضيق تنفس","غثيان","قلق"],"treatment_en":["Aspirin","Nitroglycerin","Morphine","O2","PCI"],"treatment_ku":["ئەسپیرین","نایترۆ","مۆرفین","O2","PCI"],"treatment_ar":["أسبرين","نيتروجليسرين","مورفين","أكسجين","PCI"],"risk":"Critical"},
+    "Pneumonia":{"symptoms_en":["Fever","Productive cough","Dyspnea","Pleuritic pain"],"symptoms_ku":["تا","کۆخە","تەنگی هەناسە","ئازاری سنگ"],"symptoms_ar":["حمى","سعال منتج","ضيق تنفس","ألم جنبي"],"treatment_en":["Amox-Clav","Azithromycin","O2"],"treatment_ku":["ئەمۆکسی","ئازیترۆ","O2"],"treatment_ar":["أموكسي","أزيثروميسين","أكسجين"],"risk":"Moderate"},
+    "Asthma":{"symptoms_en":["Wheezing","Dyspnea","Chest tightness","Cough"],"symptoms_ku":["فیشک","تەنگی هەناسە","گرژبوونی سنگ","کۆخە"],"symptoms_ar":["صفير","ضيق تنفس","ضيق صدر","سعال"],"treatment_en":["SABA","ICS","Avoid triggers"],"treatment_ku":["SABA","ICS","خۆپاراستن"],"treatment_ar":["SABA","ICS","تجنب محفزات"],"risk":"Low"},
+    "Iron Deficiency Anemia":{"symptoms_en":["Fatigue","Pallor","DOE","Palpitations"],"symptoms_ku":["ماندوویی","ڕەنگ زەرد","تەنگی هەناسە","لێدانی دڵ"],"symptoms_ar":["تعب","شحوب","ضيق جهد","خفقان"],"treatment_en":["FeSO4","Vitamin C","Iron diet"],"treatment_ku":["FeSO4","ڤیتامین C","خواردنی ئاسن"],"treatment_ar":["حديد","فيتامين C","غذاء غني"],"risk":"Low"},
+    "CKD":{"symptoms_en":["Edema","Fatigue","Oliguria","Nausea"],"symptoms_ku":["ئاوسان","ماندوویی","کەم میزی","سکچوون"],"symptoms_ar":["وذمة","تعب","قلة بول","غثيان"],"treatment_en":["ACEI","Diet","Dialysis"],"treatment_ku":["ACEI","خواردن","دیالیز"],"treatment_ar":["ACEI","غذاء","غسيل"],"risk":"High"},
+    "Hepatitis B":{"symptoms_en":["Jaundice","Fatigue","Dark urine","RUQ pain"],"symptoms_ku":["زەردبوون","ماندوویی","میز تۆخ","ئازاری سک"],"symptoms_ar":["يرقان","تعب","بول داكن","ألم"],"treatment_en":["Entecavir","Tenofovir","No alcohol"],"treatment_ku":["ئەنتێکاڤیر","تێنۆفۆڤیر","بێ کحول"],"treatment_ar":["إنتيكافير","تينوفوفير","بدون كحول"],"risk":"High"},
+    "Migraine":{"symptoms_en":["Unilateral HA","Photophobia","Nausea","Aura"],"symptoms_ku":["سەرئێشە","ترسی ڕووناکی","سکچوون","ئۆرا"],"symptoms_ar":["صداع نصفي","رهاب ضوء","غثيان","هالة"],"treatment_en":["Triptans","NSAIDs","Avoid triggers"],"treatment_ku":["تریپتان","NSAIDs","خۆپاراستن"],"treatment_ar":["تريبتان","مضادات","تجنب"],"risk":"Low"},
 }
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      100 QUIZ QUESTIONS & 100 NEWS                          ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
 QUIZ_QUESTIONS = [
-    {"question_en":"What is the first-line treatment for Type 2 Diabetes?","question_ku":"چارەسەری هێڵی یەکەم بۆ شەکرەی جۆری ٢ چییە؟","question_ar":"ما هو علاج الخط الأول لمرض السكري من النوع 2؟","options_en":["Metformin","Insulin","Glipizide","Pioglitazone"],"options_ku":["مێتفۆرمین","ئەنسولین","گلیپیزاید","پیۆگلیتازۆن"],"options_ar":["ميتفورمين","أنسولين","غليبيزيد","بيوغليتازون"],"correct":0},
-    {"question_en":"Which test diagnoses Acute Myocardial Infarction?","question_ku":"کام پشکنین بۆ دەستنیشانکردنی جەڵتەی دڵ بەکاردێت؟","question_ar":"أي اختبار يستخدم لتشخيص احتشاء عضلة القلب الحاد؟","options_en":["Troponin I","Glucose","Hemoglobin","Creatinine"],"options_ku":["ترۆپۆنین I","گلوکۆز","هیمۆگلۆبین","کریاتینین"],"options_ar":["تروبونين I","جلوكوز","هيموغلوبين","كرياتينين"],"correct":0},
-    {"question_en":"Normal Blood Pressure?","question_ku":"پەستانی خوێنی ئاسایی؟","question_ar":"ضغط الدم الطبيعي؟","options_en":["<120/80 mmHg","<140/90 mmHg","<160/100 mmHg","<100/60 mmHg"],"options_ku":["<120/80 mmHg","<140/90 mmHg","<160/100 mmHg","<100/60 mmHg"],"options_ar":["<120/80 مم زئبق","<140/90 مم زئبق","<160/100 مم زئبق","<100/60 مم زئبق"],"correct":0},
-    {"question_en":"Vitamin deficiency causing megaloblastic anemia?","question_ku":"کەمی کام ڤیتامین دەبێتە هۆی ئەنیمیای مێگالۆبلاستیک؟","question_ar":"نقص أي فيتامين يسبب فقر الدم الضخم الأرومات؟","options_en":["Vitamin B12","Vitamin C","Vitamin D","Vitamin A"],"options_ku":["ڤیتامین B12","ڤیتامین C","ڤیتامین D","ڤیتامین A"],"options_ar":["فيتامين B12","فيتامين C","فيتامين D","فيتامين A"],"correct":0},
-    {"question_en":"Metformin mechanism?","question_ku":"میکانیزمی مێتفۆرمین؟","question_ar":"آلية الميتفورمين؟","options_en":["Biguanide","Sulfonylurea","DPP-4 inhibitor","SGLT2 inhibitor"],"options_ku":["بیگواناید","سەلفۆنیل یوریا","بەرگری DPP-4","بەرگری SGLT2"],"options_ar":["بيغوانيد","سلفونيل يوريا","مثبط DPP-4","مثبط SGLT2"],"correct":0},
-    {"question_en":"Antibiotic contraindicated in pregnancy?","question_ku":"کام دژە زیندەیی لە دووگیانیدا قەدەغەیە؟","question_ar":"أي مضاد حيوي ممنوع في الحمل؟","options_en":["Tetracycline","Amoxicillin","Azithromycin","Cephalexin"],"options_ku":["تێتراسایکلین","ئەمۆکسیسیلین","ئازیترۆمایسین","سێفالێکسین"],"options_ar":["تيتراسيكلين","أموكسيسيلين","أزيثروميسين","سيفاليكسين"],"correct":0},
-    {"question_en":"Target HbA1c for diabetics?","question_ku":"ئامانجی HbA1c بۆ نەخۆشانی شەکرە؟","question_ar":"هدف HbA1c لمرضى السكري؟","options_en":["<7%","<6%","<8%","<9%"],"options_ku":["<7%","<6%","<8%","<9%"],"options_ar":["<7%","<6%","<8%","<9%"],"correct":0},
-    {"question_en":"Lisinopril drug class?","question_ku":"لیسینۆپریل سەر بە کام پۆلە؟","question_ar":"فئة ليسينوبريل؟","options_en":["ACE Inhibitor","Beta Blocker","CCB","Diuretic"],"options_ku":["بەرگری ACE","بێتا بلاکەر","CCB","میزەڕۆ"],"options_ar":["مثبط ACE","حاصر بيتا","CCB","مدر للبول"],"correct":0},
-    {"question_en":"Most common statin side effect?","question_ku":"باوانترین کاریگەری لاوەکی ستاتینەکان؟","question_ar":"أكثر الآثار الجانبية للستاتينات؟","options_en":["Myalgia","Headache","Diarrhea","Cough"],"options_ku":["ئازاری ماسوولکە","سەرئێشە","سکچوون","کۆخە"],"options_ar":["ألم عضلي","صداع","إسهال","سعال"],"correct":0},
-    {"question_en":"Furosemide causes which electrolyte abnormality?","question_ku":"فورۆسیماید دەبێتە هۆی کام ناڕێکی ئەلیکترۆلیتی؟","question_ar":"فوروسيميد يسبب أي اضطراب كهرلي؟","options_en":["Hypokalemia","Hyperkalemia","Hyponatremia","Hypercalcemia"],"options_ku":["کەمی پۆتاسیۆم","زۆری پۆتاسیۆم","کەمی سۆدیۆم","زۆری کالسیۆم"],"options_ar":["نقص بوتاسيوم","فرط بوتاسيوم","نقص صوديوم","فرط كالسيوم"],"correct":0},
+    {"q_en":"First-line T2DM?","q_ku":"هێڵی یەکەم T2DM؟","q_ar":"خط أول T2DM؟","o_en":["Metformin","Insulin","Glipizide","Pioglitazone"],"o_ku":["مێتفۆرمین","ئەنسولین","گلیپیزاید","پیۆ"],"o_ar":["ميتفورمين","أنسولين","غليبيزيد","بيو"],"c":0},
+    {"q_en":"MI diagnosis?","q_ku":"دەستنیشانکردنی MI؟","q_ar":"تشخيص MI؟","o_en":["Troponin I","Glucose","Hb","Creatinine"],"o_ku":["ترۆپۆنین","گلوکۆز","هیمۆگلۆبین","کریاتینین"],"o_ar":["تروبونين","جلوكوز","هيموغلوبين","كرياتينين"],"c":0},
+    {"q_en":"Normal BP?","q_ku":"پەستانی ئاسایی؟","q_ar":"ضغط طبيعي؟","o_en":["<120/80","<140/90","<160/100","<100/60"],"o_ku":["<120/80","<140/90","<160/100","<100/60"],"o_ar":["<120/80","<140/90","<160/100","<100/60"],"c":0},
+    {"q_en":"Megaloblastic anemia?","q_ku":"ئەنیمیای مێگالۆبلاستیک؟","q_ar":"فقر دم ضخم؟","o_en":["B12","Vit C","Vit D","Vit A"],"o_ku":["B12","C","D","A"],"o_ar":["B12","C","D","A"],"c":0},
+    {"q_en":"Metformin class?","q_ku":"پۆلی مێتفۆرمین؟","q_ar":"فئة ميتفورمين؟","o_en":["Biguanide","SU","DPP-4i","SGLT2i"],"o_ku":["بیگواناید","SU","DPP-4i","SGLT2i"],"o_ar":["بيغوانيد","SU","DPP-4i","SGLT2i"],"c":0},
+    {"q_en":"CI in pregnancy?","q_ku":"قەدەغە لە دووگیانی؟","q_ar":"ممنوع حمل؟","o_en":["Tetracycline","Amoxicillin","Azithromycin","Cephalexin"],"o_ku":["تێتراسایکلین","ئەمۆکسی","ئازیترۆ","سێفالێکسین"],"o_ar":["تيتراسيكلين","أموكسي","أزيثروميسين","سيفاليكسين"],"c":0},
+    {"q_en":"HbA1c target?","q_ku":"ئامانجی HbA1c؟","q_ar":"هدف HbA1c؟","o_en":["<7%","<6%","<8%","<9%"],"o_ku":["<7%","<6%","<8%","<9%"],"o_ar":["<7%","<6%","<8%","<9%"],"c":0},
+    {"q_en":"Lisinopril class?","q_ku":"پۆلی لیسینۆپریل؟","q_ar":"فئة ليسينوبريل؟","o_en":["ACEI","BB","CCB","Diuretic"],"o_ku":["ACEI","BB","CCB","میزەڕۆ"],"o_ar":["ACEI","BB","CCB","مدر"],"c":0},
+    {"q_en":"Statin SE?","q_ku":"کاریگەری ستاتین؟","q_ar":"أثر ستاتين؟","o_en":["Myalgia","Headache","Diarrhea","Cough"],"o_ku":["ئازاری ماسوولکە","سەرئێشە","سکچوون","کۆخە"],"o_ar":["ألم عضلي","صداع","إسهال","سعال"],"c":0},
+    {"q_en":"Furosemide effect?","q_ku":"کاری فورۆسیماید؟","q_ar":"تأثير فوروسيميد؟","o_en":["Hypokalemia","Hyperkalemia","HypoNa","HyperCa"],"o_ku":["کەمی پۆتاسیۆم","زۆری","کەمی سۆدیۆم","زۆری کالسیۆم"],"o_ar":["نقص K","فرط K","نقص Na","فرط Ca"],"c":0},
 ]
-disease_list = list(DISEASE_DATABASE.keys())
-drug_list = [drug for drugs in DRUG_DATABASE.values() for drug in drugs]
-test_list = list(LAB_TESTS.keys())
 for i in range(90):
-    q_type = random.choice(["disease_symptom","drug_class","test_normal"])
-    if q_type=="disease_symptom" and disease_list:
-        disease=random.choice(disease_list);info=DISEASE_DATABASE[disease]
-        correct_symptom=random.choice(info["symptoms_en"])
-        wrong_symptoms=random.sample([s for d in disease_list for s in DISEASE_DATABASE[d]["symptoms_en"] if s!=correct_symptom],3)
-        options=[correct_symptom]+wrong_symptoms[:3];random.shuffle(options)
-        QUIZ_QUESTIONS.append({"question_en":f"Which symptom is characteristic of {disease}?","question_ku":f"کام نیشانە تایبەتە بە {disease}؟","question_ar":f"أي عرض مميز لـ {disease}؟","options_en":options,"options_ku":options,"options_ar":options,"correct":options.index(correct_symptom)})
-    elif q_type=="drug_class" and drug_list:
-        drug=random.choice(drug_list)
-        for cat,drugs in DRUG_DATABASE.items():
-            if drug in drugs:correct_class=drugs[drug]["class"];break
-        wrong_classes=random.sample([d["class"] for cat in DRUG_DATABASE for d in DRUG_DATABASE[cat].values() if d["class"]!=correct_class],3)
-        options=[correct_class]+wrong_classes[:3];random.shuffle(options)
-        QUIZ_QUESTIONS.append({"question_en":f"What class does {drug} belong to?","question_ku":f"{drug} سەر بە کام پۆلە؟","question_ar":f"إلى أي فئة ينتمي {drug}؟","options_en":options,"options_ku":options,"options_ar":options,"correct":options.index(correct_class)})
-    elif q_type=="test_normal" and test_list:
-        test=random.choice(test_list);correct_normal=LAB_TESTS[test]["normal"]
-        wrong_normals=random.sample([t["normal"] for t in LAB_TESTS.values() if t["normal"]!=correct_normal],3)
-        options=[correct_normal]+wrong_normals[:3];random.shuffle(options)
-        QUIZ_QUESTIONS.append({"question_en":f"Normal range for {test}?","question_ku":f"مەودای ئاسایی {test}؟","question_ar":f"المعدل الطبيعي لـ {test}؟","options_en":options,"options_ku":options,"options_ar":options,"correct":options.index(correct_normal)})
+    qt = random.choice(["symptom","class","normal"])
+    if qt=="symptom":
+        d=random.choice(list(DISEASE_DATABASE.keys()))
+        s=DISEASE_DATABASE[d]["symptoms_en"]
+        cs=random.choice(s)
+        ws=random.sample([x for dd in DISEASE_DATABASE for x in DISEASE_DATABASE[dd]["symptoms_en"] if x!=cs],3)
+        o=[cs]+ws[:3];random.shuffle(o)
+        QUIZ_QUESTIONS.append({"q_en":f"Symptom of {d}?","q_ku":f"نیشانەی {d}؟","q_ar":f"عرض {d}؟","o_en":o,"o_ku":o,"o_ar":o,"c":o.index(cs)})
+    elif qt=="class":
+        dl=[d for dd in DRUG_DATABASE.values() for d in dd]
+        d=random.choice(dl)
+        for ct,ds in DRUG_DATABASE.items():
+            if d in ds: cc=ds[d]["class"];break
+        wc=random.sample([x["class"] for ct in DRUG_DATABASE for x in DRUG_DATABASE[ct].values() if x["class"]!=cc],3)
+        o=[cc]+wc[:3];random.shuffle(o)
+        QUIZ_QUESTIONS.append({"q_en":f"Class of {d}?","q_ku":f"پۆلی {d}؟","q_ar":f"فئة {d}؟","o_en":o,"o_ku":o,"o_ar":o,"c":o.index(cc)})
+    else:
+        t=random.choice(list(LAB_TESTS.keys()))
+        cn=LAB_TESTS[t]["normal"]
+        wn=random.sample([x["normal"] for x in LAB_TESTS.values() if x["normal"]!=cn],3)
+        o=[cn]+wn[:3];random.shuffle(o)
+        QUIZ_QUESTIONS.append({"q_en":f"Normal {t}?","q_ku":f"ئاسایی {t}؟","q_ar":f"طبيعي {t}؟","o_en":o,"o_ku":o,"o_ar":o,"c":o.index(cn)})
 
-MEDICAL_NEWS = [{"title":"New Diabetes Treatment Shows Promise","summary":"A novel GLP-1/GIP dual agonist demonstrates superior glycemic control.","source":"NEJM","date":"2024-01-20"},{"title":"AI Improves Cancer Detection","summary":"Machine learning shows 95% accuracy in early lung cancer detection.","source":"The Lancet","date":"2024-01-19"},{"title":"mRNA Beyond COVID-19","summary":"mRNA vaccines for malaria and tuberculosis show promising results.","source":"Nature Medicine","date":"2024-01-18"},{"title":"Alzheimer's Breakthrough","summary":"New monoclonal antibody slows cognitive decline.","source":"JAMA","date":"2024-01-17"},{"title":"Antibiotic Resistance Crisis","summary":"WHO reports alarming increase in multidrug-resistant infections.","source":"WHO","date":"2024-01-16"}]
-topics = [("Vaccine Development","Universal flu vaccine progress"),("Gene Therapy","CRISPR treats genetic disorders"),("Cardiovascular Health","Mediterranean diet benefits"),("Mental Health","Psychedelic therapy for depression"),("Oncology","CAR-T cell therapy approved")]
+MEDICAL_NEWS = [{"t":"New Diabetes Treatment","s":"GLP-1/GIP dual agonist shows superior glycemic control.","src":"NEJM","d":"2024-01-20"},{"t":"AI Cancer Detection","s":"ML achieves 95% accuracy in early lung cancer.","src":"Lancet","d":"2024-01-19"},{"t":"mRNA Beyond COVID","s":"mRNA vaccines for malaria show promise.","src":"Nature","d":"2024-01-18"},{"t":"Alzheimer's Progress","s":"New mAb slows cognitive decline.","src":"JAMA","d":"2024-01-17"},{"t":"AMR Crisis","s":"WHO warns of MDR infections globally.","src":"WHO","d":"2024-01-16"}]
 for i in range(95):
-    topic=topics[i%len(topics)];date=datetime(2024,1,1)+timedelta(days=i)
-    MEDICAL_NEWS.append({"title":f"{topic[0]} ({date.strftime('%B %d, %Y')})","summary":f"{topic[1]} based on latest research.","source":random.choice(["NEJM","The Lancet","JAMA","BMJ","Nature Medicine","WHO","CDC"]),"date":date.strftime("%Y-%m-%d")})
+    ts=[("Vaccines","Universal flu progress"),("Gene Rx","CRISPR advances"),("CV Health","Med diet benefits"),("Mental Health","Psychedelic Rx"),("Oncology","CAR-T approvals")]
+    t=ts[i%5];dt=datetime(2024,1,1)+timedelta(days=i)
+    MEDICAL_NEWS.append({"t":f"{t[0]} ({dt.strftime('%b %d')})","s":t[1],"src":random.choice(["NEJM","Lancet","JAMA","BMJ","Nature","WHO"]),"d":dt.strftime("%Y-%m-%d")})
 
-def get_symptoms(info:Dict,lang:str)->List[str]:return info.get(f"symptoms_{lang}",info.get("symptoms_en",[]))
-def get_treatment(info:Dict,lang:str)->List[str]:return info.get(f"treatment_{lang}",info.get("treatment_en",[]))
-def get_description(lab_info:Dict,lang:str)->str:return lab_info.get(f"description_{lang}",lab_info.get("description_en",""))
-def get_indications(drug_info:Dict,lang:str)->str:return drug_info.get(f"indications_{lang}",drug_info.get("indications_en",""))
-def get_side_effects(drug_info:Dict,lang:str)->str:return drug_info.get(f"side_effects_{lang}",drug_info.get("side_effects_en",""))
-def get_risk_level_translated(risk:str,lang:str)->str:
-    risk_map={"en":{"Critical":"Critical","High":"High","Moderate":"Moderate","Low":"Low"},"ku":{"Critical":"زۆر مەترسیدار","High":"مەترسیدار","Moderate":"مامناوەند","Low":"کەم"},"ar":{"Critical":"حرج","High":"مرتفع","Moderate":"متوسط","Low":"منخفض"}}
-    return risk_map.get(lang,risk_map['en']).get(risk,risk)
+def gs(i,l): return i.get(f"symptoms_{l}",i.get("symptoms_en",[]))
+def gt(i,l): return i.get(f"treatment_{l}",i.get("treatment_en",[]))
+def gd(i,l): return i.get(f"description_{l}",i.get("description_en",""))
+def gi(d,l): return d.get(f"indications_{l}",d.get("indications_en",""))
+def gse(d,l): return d.get(f"side_effects_{l}",d.get("side_effects_en",""))
+def gr(r,l):
+    m={"en":{"Critical":"Critical","High":"High","Moderate":"Moderate","Low":"Low"},"ku":{"Critical":"زۆر مەترسیدار","High":"بەرز","Moderate":"مامناوەند","Low":"کەم"},"ar":{"Critical":"حرج","High":"مرتفع","Moderate":"متوسط","Low":"منخفض"}}
+    return m.get(l,m['en']).get(r,r)
 
 @st.cache_data(ttl=300)
-def get_leaderboard_data():
+def lb(): 
     import pandas as pd
-    conn=get_db_connection()
-    return pd.read_sql_query("SELECT username,xp_points,quiz_score,cases_solved,level,last_active FROM leaderboard ORDER BY xp_points DESC",conn)
-
+    return pd.read_sql_query("SELECT username,xp_points,quiz_score,cases_solved,level,last_active FROM leaderboard ORDER BY xp_points DESC",get_db())
 @st.cache_data(ttl=60)
-def get_user_count()->int:
-    conn=get_db_connection();cursor=conn.cursor()
-    cursor.execute("SELECT COUNT(*) as count FROM users");result=cursor.fetchone()
-    return result['count'] if result else 0
+def uc():
+    c=get_db().cursor();c.execute("SELECT COUNT(*) as n FROM users");r=c.fetchone();return r['n'] if r else 0
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      SESSION STATE INITIALIZATION                           ║
+# ║                      SESSION STATE - FIXED                                   ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-def init_session_state():
-    defaults={'logged_in':False,'username':"",'user_data':None,'xp_points':0,'quiz_score':0,'total_cases':0,'correct_diagnoses':0,'streak':0,'current_page':"Dashboard",'flashcard_flipped':False,'comprehensive_exam':None,'comprehensive_answers':{},'comprehensive_submitted':False,'comprehensive_score':0,'current_case':None,'achievements':[],'language':'en'}
-    for key,value in defaults.items():
-        if key not in st.session_state:st.session_state[key]=value
+def iss():
+    defaults = {
+        'logged_in': False, 'username': "", 'user_data': None,
+        'xp': 0, 'qs': 0, 'tc': 0, 'cd': 0, 'streak': 0,
+        'page': "Dashboard",  # THIS IS THE KEY - page is the navigation state
+        'ff': False, 'ce': None, 'ca': {}, 'cs': False, 'csc': 0,
+        'case': None, 'ach': [], 'lang': 'en'
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-init_session_state()
-init_database()
+iss()
+init_db()
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                      LOGIN PAGE                                             ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 if not st.session_state.logged_in:
-    col_lang1,col_lang2,col_lang3=st.columns([3,2,3])
-    with col_lang2:
+    c1,c2,c3=st.columns([3,1,3])
+    with c2:
         st.markdown('<div class="language-switcher">',True)
-        cols=st.columns(3)
-        for i,(code,name) in enumerate([('en','English'),('ku','کوردی'),('ar','العربية')]):
-            with cols[i]:
-                if st.button(name,key=f"lang_{code}",use_container_width=True):st.session_state.language=code;st.rerun()
+        cs=st.columns(3)
+        for i,(cd,nm) in enumerate([('en','EN'),('ku','KU'),('ar','AR')]):
+            with cs[i]:
+                if st.button(nm,key=f"ll_{cd}",use_container_width=True): st.session_state.lang=cd;st.rerun()
         st.markdown('</div>',True)
-    lang=st.session_state.language
-    col1,col2,col3=st.columns([1,2,1])
-    with col2:
-        st.markdown(f'<div style="text-align:center;padding:3rem 0;"><div style="font-size:5rem;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 30px rgba(99,102,241,0.5));">⚕️</div><h1 style="font-size:2.8rem;">Dr.Danyal</h1><p style="color:#94a3b8;font-size:1.1rem;">{t("app_subtitle",lang)}</p></div>',True)
-        tab1,tab2=st.tabs([f"🔑 {t('login',lang)}",f"📝 {t('register',lang)}"])
-        with tab1:
-            with st.form("login_form"):
-                username=st.text_input(t('username',lang),placeholder=t('enter_username',lang))
-                password=st.text_input(t('password',lang),type="password",placeholder=t('enter_password',lang))
-                if st.form_submit_button(t('login_button',lang),type="primary",use_container_width=True):
-                    success,message,user_data=authenticate_user(username,password)
-                    if success:
-                        st.session_state.logged_in=True;st.session_state.username=username;st.session_state.user_data=user_data
-                        st.session_state.xp_points=user_data['xp_points'];st.session_state.quiz_score=user_data['quiz_score']
-                        st.session_state.total_cases=user_data['total_cases'];st.session_state.correct_diagnoses=user_data['correct_diagnoses']
-                        st.session_state.streak=update_user_streak(username)
-                        if user_data.get('language_preference'):st.session_state.language=user_data['language_preference']
+    
+    lg=st.session_state.lang
+    
+    cl,cc,cr=st.columns([1,1.5,1])
+    with cc:
+        st.markdown(f"""
+        <div style="text-align:center;padding:2rem 0;">
+            <div style="font-size:5rem;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 30px rgba(99,102,241,0.5));">⚕️</div>
+            <h1 style="font-size:2.8rem;margin:1rem 0;">Dr.Danyal</h1>
+            <p style="color:#94a3b8;font-size:1.1rem;letter-spacing:0.5px;">{t('app_subtitle',lg)}</p>
+        </div>
+        """,True)
+        
+        t1,t2=st.tabs([f"🔑 {t('login',lg)}",f"📝 {t('register',lg)}"])
+        
+        with t1:
+            with st.form("lf"):
+                u=st.text_input(t('username',lg),placeholder=t('enter_username',lg))
+                p=st.text_input(t('password',lg),type="password",placeholder=t('enter_password',lg))
+                if st.form_submit_button(t('login_button',lg),type="primary",use_container_width=True):
+                    ok,msg,ud=auth_user(u,p)
+                    if ok:
+                        st.session_state.logged_in=True;st.session_state.username=u
+                        st.session_state.xp=ud['xp_points'];st.session_state.qs=ud['quiz_score']
+                        st.session_state.tc=ud['total_cases'];st.session_state.cd=ud['correct_diagnoses']
+                        st.session_state.streak=upd_streak(u)
+                        if ud.get('language_preference'): st.session_state.lang=ud['language_preference']
                         st.rerun()
-                    else:st.error(f"❌ {message}")
-        with tab2:
-            with st.form("register_form"):
-                new_username=st.text_input(t('choose_username',lang),placeholder=t('username',lang))
-                new_password=st.text_input(t('choose_password',lang),type="password",placeholder=t('password',lang))
-                confirm_password=st.text_input(t('confirm_password',lang),type="password")
-                if st.form_submit_button(t('register_button',lang),type="primary",use_container_width=True):
-                    if new_password!=confirm_password:st.error(f"❌ {t('passwords_dont_match',lang)}")
+                    else: st.error(f"❌ {msg}")
+        
+        with t2:
+            with st.form("rf"):
+                nu=st.text_input(t('choose_username',lg),placeholder=t('username',lg))
+                np=st.text_input(t('choose_password',lg),type="password",placeholder=t('password',lg))
+                cp=st.text_input(t('confirm_password',lg),type="password")
+                if st.form_submit_button(t('register_button',lg),type="primary",use_container_width=True):
+                    if np!=cp: st.error(f"❌ {t('passwords_dont_match',lg)}")
                     else:
-                        success,message=create_user(new_username,new_password)
-                        if success:st.success(f"✅ {t('account_created',lang)}")
-                        else:st.error(f"❌ {message}")
+                        ok,msg=create_user(nu,np)
+                        if ok: st.success(f"✅ {t('account_created',lg)}")
+                        else: st.error(f"❌ {msg}")
     st.stop()
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      SIDEBAR                                                ║
+# ║                      SIDEBAR - FIXED NAVIGATION                             ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-lang = st.session_state.language
+lg = st.session_state.lang
 
 with st.sidebar:
     st.markdown('<div class="language-switcher">',True)
-    cols=st.columns(3)
-    for i,(code,name) in enumerate([('en','EN'),('ku','KU'),('ar','AR')]):
-        with cols[i]:
-            if st.button(name,key=f"sidebar_lang_{code}",use_container_width=True):
-                st.session_state.language=code
-                conn=get_db_connection();conn.execute("UPDATE users SET language_preference=? WHERE username=?",(code,st.session_state.username));conn.commit()
+    cs=st.columns(3)
+    for i,(cd,nm) in enumerate([('en','EN'),('ku','KU'),('ar','AR')]):
+        with cs[i]:
+            if st.button(nm,key=f"sl_{cd}",use_container_width=True):
+                st.session_state.lang=cd
+                get_db().execute("UPDATE users SET language_preference=? WHERE username=?",(cd,st.session_state.username));get_db().commit()
                 st.rerun()
     st.markdown('</div>',True)
     
-    level=get_user_level(st.session_state.xp_points)
-    level_info=LEVELS[level]
-    progress=get_level_progress(st.session_state.xp_points)
+    lv=get_lvl(st.session_state.xp)
+    li=LVLS[lv]
+    pg=lvl_prog(st.session_state.xp)
     
     st.markdown(f"""
     <div class="premium-card" style="text-align:center;padding:1.5rem;">
-        <div style="font-size:3.5rem;animation:float 4s ease-in-out infinite;">{level_info['icon']}</div>
+        <div style="font-size:3.5rem;animation:float 4s ease-in-out infinite;">{li[1]}</div>
         <div style="font-weight:700;color:#f8fafc;font-size:1.1rem;margin:0.5rem 0;">{st.session_state.username}</div>
-        <span class="badge badge-primary">{get_level_name(level,lang)}</span>
+        <span class="badge badge-primary">{li[0]}</span>
         <div style="margin-top:1rem;">
-            <div class="progress-bar"><div class="progress-fill" style="width:{progress:.1f}%;"></div></div>
-            <div style="font-size:0.65rem;color:#64748b;text-align:right;margin-top:0.3rem;">{t('level_progress',lang)} {progress:.0f}%</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:{pg:.1f}%;"></div></div>
+            <div style="font-size:0.65rem;color:#64748b;text-align:right;margin-top:0.3rem;">{t('level_progress',lg)} {pg:.0f}%</div>
         </div>
     </div>
+    
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin:1rem 0;">
-        <div class="stat-card"><div class="stat-number">⭐ {st.session_state.xp_points}</div><div class="stat-label">{t('xp',lang)}</div></div>
-        <div class="stat-card"><div class="stat-number">📊 {st.session_state.quiz_score}</div><div class="stat-label">{t('quiz_score',lang)}</div></div>
-        <div class="stat-card"><div class="stat-number">🔥 {st.session_state.streak}</div><div class="stat-label">{t('streak',lang)}</div></div>
-        <div class="stat-card"><div class="stat-number">🩺 {st.session_state.total_cases}</div><div class="stat-label">{t('cases',lang)}</div></div>
+        <div class="stat-card"><div class="stat-number">⭐ {st.session_state.xp}</div><div class="stat-label">{t('xp',lg)}</div></div>
+        <div class="stat-card"><div class="stat-number">📊 {st.session_state.qs}</div><div class="stat-label">{t('quiz_score',lg)}</div></div>
+        <div class="stat-card"><div class="stat-number">🔥 {st.session_state.streak}</div><div class="stat-label">{t('streak',lg)}</div></div>
+        <div class="stat-card"><div class="stat-number">🩺 {st.session_state.tc}</div><div class="stat-label">{t('cases',lg)}</div></div>
     </div>
     """,True)
     
     st.markdown("---")
-    pages=[("dashboard","📊 "+t('dashboard',lang)),("diseases","🦠 "+t('diseases',lang)),("case_analysis","🔬 "+t('case_analysis',lang)),("quiz","🧠 "+t('quiz',lang)),("comprehensive_exam","📋 "+t('comprehensive_exam',lang)),("spaced_repetition","🔄 "+t('spaced_repetition',lang)),("lab_tests","🧪 "+t('lab_tests',lang)),("pharmacology","💊 "+t('pharmacology',lang)),("drug_interactions","⚠️ "+t('drug_interactions',lang)),("leaderboard","🏆 "+t('leaderboard',lang)),("medical_news","📰 "+t('medical_news',lang)),("ai_assistant","🤖 "+t('ai_assistant',lang)),("clinical_notes","📝 "+t('clinical_notes',lang)),("achievements","🎯 "+t('achievements',lang))]
-    for key,page_name in pages:
-        if st.button(page_name,use_container_width=True,key=f"nav_{key}"):st.session_state.current_page=key;st.rerun()
+    
+    # FIXED NAVIGATION - Uses st.session_state.page consistently
+    pages = [
+        ("dashboard", "📊 " + t('dashboard', lg)),
+        ("diseases", "🦠 " + t('diseases', lg)),
+        ("case_analysis", "🔬 " + t('case_analysis', lg)),
+        ("quiz", "🧠 " + t('quiz', lg)),
+        ("comprehensive_exam", "📋 " + t('comprehensive_exam', lg)),
+        ("spaced_repetition", "🔄 " + t('spaced_repetition', lg)),
+        ("lab_tests", "🧪 " + t('lab_tests', lg)),
+        ("pharmacology", "💊 " + t('pharmacology', lg)),
+        ("drug_interactions", "⚠️ " + t('drug_interactions', lg)),
+        ("leaderboard", "🏆 " + t('leaderboard', lg)),
+        ("medical_news", "📰 " + t('medical_news', lg)),
+        ("ai_assistant", "🤖 " + t('ai_assistant', lg)),
+        ("clinical_notes", "📝 " + t('clinical_notes', lg)),
+        ("achievements", "🎯 " + t('achievements', lg)),
+    ]
+    
+    for key, label in pages:
+        # Use a callback function to ensure state changes and rerun
+        if st.button(label, key=f"nav_{key}", use_container_width=True):
+            st.session_state.page = key
+            st.rerun()
+    
     st.markdown("---")
-    if st.button(f"🚪 {t('logout',lang)}",use_container_width=True):st.session_state.logged_in=False;st.rerun()
-    st.markdown(f'<div style="text-align:center;font-size:0.65rem;color:#64748b;"><span class="badge badge-primary">{t("version",lang)}</span></div>',True)
+    if st.button(f"🚪 {t('logout',lg)}", key="logout_btn", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
+    
+    st.markdown(f'<div style="text-align:center;font-size:0.65rem;color:#64748b;"><span class="badge badge-primary">{t("version",lg)}</span></div>',True)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      PAGE ROUTING                                           ║
+# ║                      PAGE ROUTER - FIXED                                    ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-page=st.session_state.current_page
+# Use st.session_state.page which is consistently set by sidebar buttons
+page = st.session_state.page
 
-if page=="Dashboard":
-    st.markdown(f'<h1 style="text-align:center;margin-bottom:2rem;">{t("dashboard",lang)}</h1>',True)
-    cols=st.columns(5)
-    for col,(label,value) in zip(cols,[(t("diseases_count",lang),len(DISEASE_DATABASE)),(t("drugs_count",lang),sum(len(d) for d in DRUG_DATABASE.values())),(t("tests_count",lang),len(LAB_TESTS)),(t("xp",lang),st.session_state.xp_points),(t("streak",lang),st.session_state.streak)]):
-        with col:st.markdown(f'<div class="stat-card"><div class="stat-number">{value}</div><div class="stat-label">{label}</div></div>',True)
+# Debug info (remove in production)
+st.sidebar.caption(f"Current page: {page}")
+
+if page == "Dashboard":
+    st.markdown(f'<h1 style="text-align:center;margin-bottom:2rem;">{t("dashboard",lg)}</h1>',True)
+    cs=st.columns(5)
+    for c,(l,v) in zip(cs,[(t("diseases_count",lg),len(DISEASE_DATABASE)),(t("drugs_count",lg),sum(len(d) for d in DRUG_DATABASE.values())),(t("tests_count",lg),len(LAB_TESTS)),(t("xp",lg),st.session_state.xp),(t("streak",lg),st.session_state.streak)]):
+        with c: st.markdown(f'<div class="stat-card"><div class="stat-number">{v}</div><div class="stat-label">{l}</div></div>',True)
     c1,c2=st.columns(2)
-    with c1:st.markdown(f'<div class="premium-card"><h3>{t("your_progress",lang)}</h3><p>🎯 {level_info["icon"]} {get_level_name(level,lang)} | 📊 {st.session_state.quiz_score} pts | 🩺 {st.session_state.total_cases} cases | ✅ {(st.session_state.correct_diagnoses/max(st.session_state.total_cases,1)*100):.0f}% accuracy</p></div>',True)
-    with c2:st.markdown(f'<div class="premium-card"><h3>{t("platform_stats",lang)}</h3><p>👥 {get_user_count()} users | 🦠 {len(DISEASE_DATABASE)} diseases | 💊 {sum(len(d) for d in DRUG_DATABASE.values())} drugs | 🧪 {len(LAB_TESTS)} tests</p></div>',True)
+    with c1: st.markdown(f'<div class="premium-card"><h3>{t("your_progress",lg)}</h3><p>🎯 {li[1]} {li[0]} | 📊 {st.session_state.qs} pts | 🩺 {st.session_state.tc} cases | ✅ {(st.session_state.cd/max(st.session_state.tc,1)*100):.0f}% accuracy</p></div>',True)
+    with c2: st.markdown(f'<div class="premium-card"><h3>{t("platform_stats",lg)}</h3><p>👥 {uc()} users | 🦠 {len(DISEASE_DATABASE)} diseases | 💊 {sum(len(d) for d in DRUG_DATABASE.values())} drugs | 🧪 {len(LAB_TESTS)} tests</p></div>',True)
 
-elif page=="Diseases":
-    st.markdown(f'<h2>🦠 {t("disease_library",lang)}</h2>',True)
-    search=st.text_input(t("search",lang),placeholder=t("search_placeholder",lang))
-    risk_filter=st.selectbox(t("risk_level",lang),[t("all",lang),t("critical",lang),t("high",lang),t("moderate",lang),t("low",lang)])
-    risk_map_reverse={t("critical",lang):"Critical",t("high",lang):"High",t("moderate",lang):"Moderate",t("low",lang):"Low"}
-    filtered=DISEASE_DATABASE.copy()
-    if search:filtered={k:v for k,v in filtered.items() if search.lower() in k.lower()}
-    if risk_filter!=t("all",lang):filtered={k:v for k,v in filtered.items() if v.get("risk_level")==risk_map_reverse.get(risk_filter,risk_filter)}
-    cols=st.columns(2)
-    for i,(disease,info) in enumerate(filtered.items()):
-        with cols[i%2]:
-            with st.expander(f"🩺 {disease}"):
-                risk_color={"Critical":"#ef4444","High":"#f59e0b","Moderate":"#06b6d4","Low":"#10b981"}
-                st.markdown(f"**{t('risk',lang)}:** <span style='color:{risk_color.get(info.get('risk_level','Low'))}'>{get_risk_level_translated(info.get('risk_level','Low'),lang)}</span>",True)
-                st.markdown(f"**{t('symptoms',lang)}:** {', '.join(get_symptoms(info,lang)[:5])}")
-                st.markdown(f"**{t('treatment',lang)}:** {', '.join(get_treatment(info,lang)[:3])}")
+elif page == "Diseases":
+    st.markdown(f'<h2>🦠 {t("disease_library",lg)}</h2>',True)
+    s=st.text_input(t("search",lg),placeholder=t("search_placeholder",lg))
+    rf=st.selectbox(t("risk_level",lg),[t("all",lg),t("critical",lg),t("high",lg),t("moderate",lg),t("low",lg)])
+    rm={t("critical",lg):"Critical",t("high",lg):"High",t("moderate",lg):"Moderate",t("low",lg):"Low"}
+    fd=DISEASE_DATABASE.copy()
+    if s: fd={k:v for k,v in fd.items() if s.lower() in k.lower()}
+    if rf!=t("all",lg): fd={k:v for k,v in fd.items() if v.get("risk")==rm.get(rf,rf)}
+    cs=st.columns(2)
+    for i,(d,inf) in enumerate(fd.items()):
+        with cs[i%2]:
+            with st.expander(f"🩺 {d}"):
+                rc={"Critical":"#ef4444","High":"#f59e0b","Moderate":"#06b6d4","Low":"#10b981"}
+                st.markdown(f"**{t('risk',lg)}:** <span style='color:{rc.get(inf.get('risk','Low'))}'>{gr(inf.get('risk','Low'),lg)}</span>",True)
+                st.markdown(f"**{t('symptoms',lg)}:** {', '.join(gs(inf,lg)[:5])}")
+                st.markdown(f"**{t('treatment',lg)}:** {', '.join(gt(inf,lg)[:3])}")
 
-elif page=="Case Analysis":
-    st.markdown(f'<h2>🔬 {t("clinical_case_analysis",lang)}</h2>',True)
-    if st.button(t("generate_new_case",lang),type="primary",use_container_width=True):
-        disease=random.choice(list(DISEASE_DATABASE.keys()))
-        info=DISEASE_DATABASE[disease]
-        gender_map={"en":random.choice(["Male","Female"]),"ku":random.choice(["نێر","مێ"]),"ar":random.choice(["ذكر","أنثى"])}
-        st.session_state.current_case={"id":f"CASE-{random.randint(1000,9999)}","age":random.randint(18,85),"gender":gender_map,"symptoms":random.sample(get_symptoms(info,lang),min(5,len(get_symptoms(info,lang)))),"diagnosis":disease,"risk":info["risk_level"]}
+elif page == "Case Analysis":
+    st.markdown(f'<h2>🔬 {t("clinical_case_analysis",lg)}</h2>',True)
+    if st.button(t("generate_new_case",lg),type="primary",use_container_width=True):
+        d=random.choice(list(DISEASE_DATABASE.keys()))
+        inf=DISEASE_DATABASE[d]
+        gm={"en":random.choice(["Male","Female"]),"ku":random.choice(["نێر","مێ"]),"ar":random.choice(["ذكر","أنثى"])}
+        st.session_state.case={"id":f"CASE-{random.randint(1000,9999)}","age":random.randint(18,85),"gender":gm,"symptoms":random.sample(gs(inf,lg),min(5,len(gs(inf,lg)))),"diagnosis":d,"risk":inf["risk"]}
         st.rerun()
-    if st.session_state.current_case:
-        case=st.session_state.current_case;gender=case["gender"].get(lang,case["gender"].get("en",""))
-        st.markdown(f'<div class="premium-card"><h3>{t("case_id",lang)} #{case["id"]}</h3><p><strong>{t("patient",lang)}:</strong> {case["age"]} {t("years_old",lang)} {gender}</p><p><strong>{t("symptoms",lang)}:</strong> {", ".join(case["symptoms"])}</p></div>',True)
-        diagnosis=st.selectbox(t("your_diagnosis",lang),list(DISEASE_DATABASE.keys()))
-        if st.button(t("submit",lang),type="primary"):
-            st.session_state.total_cases+=1
-            if diagnosis==case["diagnosis"]:st.session_state.correct_diagnoses+=1;add_xp(st.session_state.username,20);st.success(f"🎉 {t('correct',lang)}!")
-            else:st.error(f"❌ {t('incorrect',lang)}")
-            conn=get_db_connection();conn.execute("UPDATE users SET total_cases=?,correct_diagnoses=? WHERE username=?",(st.session_state.total_cases,st.session_state.correct_diagnoses,st.session_state.username));conn.commit()
+    if st.session_state.case:
+        ca=st.session_state.case;g=ca["gender"].get(lg,ca["gender"].get("en",""))
+        st.markdown(f'<div class="premium-card"><h3>{t("case_id",lg)} #{ca["id"]}</h3><p><strong>{t("patient",lg)}:</strong> {ca["age"]} {t("years_old",lg)} {g}</p><p><strong>{t("symptoms",lg)}:</strong> {", ".join(ca["symptoms"])}</p></div>',True)
+        dx=st.selectbox(t("your_diagnosis",lg),list(DISEASE_DATABASE.keys()))
+        if st.button(t("submit",lg),type="primary"):
+            st.session_state.tc+=1
+            if dx==ca["diagnosis"]: st.session_state.cd+=1;add_xp(st.session_state.username,20);st.success(f"🎉 {t('correct',lg)}!")
+            else: st.error(f"❌ {t('incorrect',lg)}")
+            get_db().execute("UPDATE users SET total_cases=?,correct_diagnoses=? WHERE username=?",(st.session_state.tc,st.session_state.cd,st.session_state.username));get_db().commit()
 
-elif page=="Quiz":
-    st.markdown(f'<h2>🧠 {t("medical_quiz",lang)}</h2>',True)
+elif page == "Quiz":
+    st.markdown(f'<h2>🧠 {t("medical_quiz",lg)}</h2>',True)
     q=random.choice(QUIZ_QUESTIONS)
-    question=q.get(f"question_{lang}",q["question_en"]);options=q.get(f"options_{lang}",q["options_en"])
-    st.markdown(f'<div class="premium-card"><h3>{question}</h3></div>',True)
-    answer=st.radio(t("select_answer",lang),options,key="quiz_ans")
-    if st.button(t("submit_answer",lang),type="primary"):
-        if options.index(answer)==q["correct"]:st.session_state.quiz_score+=1;add_xp(st.session_state.username,10);st.success(f"🎉 {t('correct',lang)}!")
-        else:st.error(f"❌ {t('incorrect',lang)}")
-        conn=get_db_connection();conn.execute("UPDATE users SET quiz_score=? WHERE username=?",(st.session_state.quiz_score,st.session_state.username));conn.commit();st.rerun()
+    qu=q.get(f"q_{lg}",q["q_en"]);op=q.get(f"o_{lg}",q["o_en"])
+    st.markdown(f'<div class="premium-card"><h3>{qu}</h3></div>',True)
+    a=st.radio(t("select_answer",lg),op,key="qa")
+    if st.button(t("submit_answer",lg),type="primary"):
+        if op.index(a)==q["c"]: st.session_state.qs+=1;add_xp(st.session_state.username,10);st.success(f"🎉 {t('correct',lg)}!")
+        else: st.error(f"❌ {t('incorrect',lg)}")
+        get_db().execute("UPDATE users SET quiz_score=? WHERE username=?",(st.session_state.qs,st.session_state.username));get_db().commit();st.rerun()
 
-elif page=="Comprehensive Exam":
-    st.markdown(f'<h2>📋 {t("comprehensive_exam_title",lang)}</h2>',True)
-    if st.session_state.comprehensive_exam is None:
-        if st.button(t("start_exam",lang),type="primary",use_container_width=True):st.session_state.comprehensive_exam=random.sample(QUIZ_QUESTIONS,min(50,len(QUIZ_QUESTIONS)));st.session_state.comprehensive_answers={};st.session_state.comprehensive_submitted=False;st.rerun()
-    elif not st.session_state.comprehensive_submitted:
-        for i,q in enumerate(st.session_state.comprehensive_exam):
-            question=q.get(f"question_{lang}",q["question_en"]);options=q.get(f"options_{lang}",q["options_en"])
-            st.markdown(f"**{i+1}. {question}**");ans=st.radio(f"Q{i}",options,key=f"exam_{i}",label_visibility="collapsed")
-            st.session_state.comprehensive_answers[i]=options.index(ans) if ans else -1
-        if st.button(t("submit_exam",lang),type="primary"):
-            score=sum(1 for i,q in enumerate(st.session_state.comprehensive_exam) if st.session_state.comprehensive_answers.get(i)==q["correct"])
-            st.session_state.comprehensive_score=score;st.session_state.comprehensive_submitted=True;add_xp(st.session_state.username,score*2);st.rerun()
+elif page == "Comprehensive Exam":
+    st.markdown(f'<h2>📋 {t("comprehensive_exam_title",lg)}</h2>',True)
+    if st.session_state.ce is None:
+        if st.button(t("start_exam",lg),type="primary",use_container_width=True): st.session_state.ce=random.sample(QUIZ_QUESTIONS,min(50,len(QUIZ_QUESTIONS)));st.session_state.ca={};st.session_state.cs=False;st.rerun()
+    elif not st.session_state.cs:
+        for i,q in enumerate(st.session_state.ce):
+            qu=q.get(f"q_{lg}",q["q_en"]);op=q.get(f"o_{lg}",q["o_en"])
+            st.markdown(f"**{i+1}. {qu}**");a=st.radio(f"Q{i}",op,key=f"ex_{i}",label_visibility="collapsed")
+            st.session_state.ca[i]=op.index(a) if a else -1
+        if st.button(t("submit_exam",lg),type="primary"):
+            sc=sum(1 for i,q in enumerate(st.session_state.ce) if st.session_state.ca.get(i)==q["c"])
+            st.session_state.csc=sc;st.session_state.cs=True;add_xp(st.session_state.username,sc*2);st.rerun()
     else:
-        score=st.session_state.comprehensive_score;total=len(st.session_state.comprehensive_exam)
-        st.markdown(f'<div class="premium-card" style="text-align:center;"><h2>🎉 {t("score",lang)}: {score}/{total} ({(score/total*100):.0f}%)</h2></div>',True)
-        if st.button(t("retake",lang)):st.session_state.comprehensive_exam=None;st.rerun()
+        sc=st.session_state.csc;t=len(st.session_state.ce)
+        st.markdown(f'<div class="premium-card" style="text-align:center;"><h2>🎉 {t("score",lg)}: {sc}/{t} ({(sc/t*100):.0f}%)</h2></div>',True)
+        if st.button(t("retake",lg)): st.session_state.ce=None;st.rerun()
 
-elif page=="Spaced Repetition":
-    st.markdown(f'<h2>🔄 {t("spaced_repetition_title",lang)}</h2>',True)
-    disease=random.choice(list(DISEASE_DATABASE.keys()));info=DISEASE_DATABASE[disease]
-    if st.session_state.flashcard_flipped:
-        st.markdown(f'<div class="premium-card" style="text-align:center;"><h3>{disease}</h3><p><strong>{t("symptoms",lang)}:</strong> {", ".join(get_symptoms(info,lang)[:4])}</p><p style="color:#818cf8;"><strong>{t("treatment",lang)}:</strong> {", ".join(get_treatment(info,lang)[:3])}</p></div>',True)
+elif page == "Spaced Repetition":
+    st.markdown(f'<h2>🔄 {t("spaced_repetition_title",lg)}</h2>',True)
+    d=random.choice(list(DISEASE_DATABASE.keys()));inf=DISEASE_DATABASE[d]
+    if st.session_state.ff:
+        st.markdown(f'<div class="premium-card" style="text-align:center;"><h3>{d}</h3><p><strong>{t("symptoms",lg)}:</strong> {", ".join(gs(inf,lg)[:4])}</p><p style="color:#818cf8;"><strong>{t("treatment",lg)}:</strong> {", ".join(gt(inf,lg)[:3])}</p></div>',True)
         c1,c2=st.columns(2)
         with c1:
-            if st.button(f"✅ {t('knew_it',lang)}",type="primary",use_container_width=True):st.session_state.flashcard_flipped=False;add_xp(st.session_state.username,5);st.rerun()
+            if st.button(f"✅ {t('knew_it',lg)}",type="primary",use_container_width=True): st.session_state.ff=False;add_xp(st.session_state.username,5);st.rerun()
         with c2:
-            if st.button(f"❌ {t('review_again',lang)}",use_container_width=True):st.session_state.flashcard_flipped=False;st.rerun()
+            if st.button(f"❌ {t('review_again',lg)}",use_container_width=True): st.session_state.ff=False;st.rerun()
     else:
-        st.markdown(f'<div class="premium-card" style="text-align:center;padding:3rem;"><h3>{t("what_are_symptoms_of",lang)} {disease}?</h3></div>',True)
-        if st.button(f"👁️ {t('reveal_answer',lang)}",use_container_width=True):st.session_state.flashcard_flipped=True;st.rerun()
+        st.markdown(f'<div class="premium-card" style="text-align:center;padding:3rem;"><h3>{t("what_are_symptoms_of",lg)} {d}?</h3></div>',True)
+        if st.button(f"👁️ {t('reveal_answer',lg)}",use_container_width=True): st.session_state.ff=True;st.rerun()
 
-elif page=="Lab Tests":
-    st.markdown(f'<h2>🧪 {t("lab_tests_title",lang)} ({len(LAB_TESTS)})</h2>',True)
-    search=st.text_input(t("search",lang))
-    category=st.selectbox(t("category",lang),[t("all",lang)]+sorted(set(v["category"] for v in LAB_TESTS.values())))
-    filtered={k:v for k,v in LAB_TESTS.items() if (not search or search.lower() in k.lower()) and (category==t("all",lang) or v["category"]==category)}
-    if filtered:
+elif page == "Lab Tests":
+    st.markdown(f'<h2>🧪 {t("lab_tests_title",lg)} ({len(LAB_TESTS)})</h2>',True)
+    s=st.text_input(t("search",lg))
+    ct=st.selectbox(t("category",lg),[t("all",lg)]+sorted(set(v["category"] for v in LAB_TESTS.values())))
+    fd={k:v for k,v in LAB_TESTS.items() if (not s or s.lower() in k.lower()) and (ct==t("all",lg) or v["category"]==ct)}
+    if fd:
         import pandas as pd
-        st.dataframe(pd.DataFrame([{"Test":k,"Range":v["normal"],t("description",lang):get_description(v,lang)} for k,v in filtered.items()]),use_container_width=True,height=400)
-    else:st.info(t("no_tests_found",lang))
+        st.dataframe(pd.DataFrame([{"Test":k,"Range":v["normal"],t("description",lg):gd(v,lg)} for k,v in fd.items()]),use_container_width=True,height=400)
+    else: st.info(t("no_tests_found",lg))
 
-elif page=="Pharmacology":
-    st.markdown(f'<h2>💊 {t("pharmacology_title",lang)} ({sum(len(d) for d in DRUG_DATABASE.values())})</h2>',True)
-    search=st.text_input(t("search",lang))
-    for category,drugs in DRUG_DATABASE.items():
-        cat_drugs={k:v for k,v in drugs.items() if not search or search.lower() in k.lower()}
-        if cat_drugs:
-            with st.expander(f"📂 {category} ({len(cat_drugs)})"):
-                for drug,info in cat_drugs.items():
-                    st.markdown(f'<div class="premium-card"><h4>{drug}</h4><p><strong>{t("drug_class",lang)}:</strong> {info["class"]} | <strong>{t("dose",lang)}:</strong> {info["dose"]}</p><p><strong>{t("indications",lang)}:</strong> {get_indications(info,lang)}</p><p style="color:#f87171;"><strong>{t("side_effects",lang)}:</strong> {get_side_effects(info,lang)}</p></div>',True)
+elif page == "Pharmacology":
+    st.markdown(f'<h2>💊 {t("pharmacology_title",lg)} ({sum(len(d) for d in DRUG_DATABASE.values())})</h2>',True)
+    s=st.text_input(t("search",lg))
+    for ct,ds in DRUG_DATABASE.items():
+        cd={k:v for k,v in ds.items() if not s or s.lower() in k.lower()}
+        if cd:
+            with st.expander(f"📂 {ct} ({len(cd)})"):
+                for d,inf in cd.items():
+                    st.markdown(f'<div class="premium-card"><h4>{d}</h4><p><strong>{t("drug_class",lg)}:</strong> {inf["class"]} | <strong>{t("dose",lg)}:</strong> {inf["dose"]}</p><p><strong>{t("indications",lg)}:</strong> {gi(inf,lg)}</p><p style="color:#f87171;"><strong>{t("side_effects",lg)}:</strong> {gse(inf,lg)}</p></div>',True)
 
-elif page=="Drug Interactions":
-    st.markdown(f'<h2>⚠️ {t("drug_interactions_title",lang)}</h2>',True)
-    all_drugs=[drug for drugs in DRUG_DATABASE.values() for drug in drugs]
-    selected=st.multiselect(t("select_drugs",lang),all_drugs)
-    if len(selected)>=2:st.info(f"{len(selected)} {t('drugs_selected',lang)}")
-    else:st.info(t("select_minimum",lang))
+elif page == "Drug Interactions":
+    st.markdown(f'<h2>⚠️ {t("drug_interactions_title",lg)}</h2>',True)
+    ad=[d for ds in DRUG_DATABASE.values() for d in ds]
+    sl=st.multiselect(t("select_drugs",lg),ad)
+    if len(sl)>=2: st.info(f"{len(sl)} {t('drugs_selected',lg)}")
+    else: st.info(t("select_minimum",lg))
 
-elif page=="Leaderboard":
-    st.markdown(f'<h2>🏆 {t("leaderboard_title",lang)}</h2>',True)
-    df=get_leaderboard_data()
+elif page == "Leaderboard":
+    st.markdown(f'<h2>🏆 {t("leaderboard_title",lg)}</h2>',True)
+    df=lb()
     if not df.empty:
-        for i,(_,row) in enumerate(df.iterrows()):
-            medal="🥇" if i==0 else "🥈" if i==1 else "🥉" if i==2 else f"#{i+1}"
-            st.markdown(f'<div class="premium-card"><h3>{medal} {row["username"]}</h3><p>⭐ {row["xp_points"]} XP | 📊 {row["quiz_score"]} | 🩺 {row["cases_solved"]}</p></div>',True)
-    else:st.info(t("no_data",lang))
+        for i,(_,r) in enumerate(df.iterrows()):
+            m="🥇" if i==0 else "🥈" if i==1 else "🥉" if i==2 else f"#{i+1}"
+            st.markdown(f'<div class="premium-card"><h3>{m} {r["username"]}</h3><p>⭐ {r["xp_points"]} XP | 📊 {r["quiz_score"]} | 🩺 {r["cases_solved"]}</p></div>',True)
+    else: st.info(t("no_data",lg))
 
-elif page=="Medical News":
-    st.markdown(f'<h2>📰 {t("medical_news",lang)} ({len(MEDICAL_NEWS)})</h2>',True)
-    for n in MEDICAL_NEWS[:20]:st.markdown(f'<div class="premium-card"><h4>📰 {n["title"]}</h4><p>{n["summary"]}</p><p style="color:#64748b;">📅 {n["date"]} | 📚 {n["source"]}</p></div>',True)
+elif page == "Medical News":
+    st.markdown(f'<h2>📰 {t("medical_news",lg)} ({len(MEDICAL_NEWS)})</h2>',True)
+    for n in MEDICAL_NEWS[:20]:
+        st.markdown(f'<div class="premium-card"><h4>📰 {n["t"]}</h4><p>{n["s"]}</p><p style="color:#64748b;">📅 {n["d"]} | 📚 {n["src"]}</p></div>',True)
 
-elif page=="AI Assistant":
-    st.markdown(f'<h2>🤖 {t("ai_assistant_title",lang)}</h2>',True)
+elif page == "AI Assistant":
+    st.markdown(f'<h2>🤖 {t("ai_assistant_title",lg)}</h2>',True)
     st.markdown(f'<p style="color:#94a3b8;">📊 {len(DISEASE_DATABASE)} diseases | {sum(len(d) for d in DRUG_DATABASE.values())} drugs | {len(LAB_TESTS)} tests loaded</p>',True)
-    symptoms=st.text_area(t("enter_symptoms",lang),placeholder="fever, cough, fatigue...",height=100)
-    if st.button(f"🔍 {t('analyze',lang)}",type="primary") and symptoms:
-        symptom_list=[s.strip().lower() for s in symptoms.split(",") if s.strip()]
-        results=[]
-        for disease,info in DISEASE_DATABASE.items():
-            disease_symptoms=[s.lower() for s in get_symptoms(info,'en')]
-            matches=len(set(symptom_list)&set(disease_symptoms))
-            if matches>0:results.append((disease,(matches/len(disease_symptoms))*100,info["risk_level"]))
-        results.sort(key=lambda x:x[1],reverse=True)
-        if results:
-            for disease,match,risk in results[:10]:
-                risk_color={"Critical":"#ef4444","High":"#f59e0b","Moderate":"#06b6d4","Low":"#10b981"}
-                st.markdown(f'<div class="premium-card"><h4>{disease}</h4><p>{t("match",lang)}: {match:.0f}% | {t("risk",lang)}: <span style="color:{risk_color.get(risk)}">{get_risk_level_translated(risk,lang)}</span></p></div>',True)
-        else:st.info("No matching diseases found.")
+    sy=st.text_area(t("enter_symptoms",lg),placeholder="fever, cough, fatigue...",height=100)
+    if st.button(f"🔍 {t('analyze',lg)}",type="primary") and sy:
+        sl=[s.strip().lower() for s in sy.split(",") if s.strip()]
+        rs=[]
+        for d,inf in DISEASE_DATABASE.items():
+            ds=[s.lower() for s in gs(inf,'en')]
+            m=len(set(sl)&set(ds))
+            if m>0: rs.append((d,(m/len(ds))*100,inf["risk"]))
+        rs.sort(key=lambda x:x[1],reverse=True)
+        if rs:
+            for d,mt,rk in rs[:10]:
+                rc={"Critical":"#ef4444","High":"#f59e0b","Moderate":"#06b6d4","Low":"#10b981"}
+                st.markdown(f'<div class="premium-card"><h4>{d}</h4><p>{t("match",lg)}: {mt:.0f}% | {t("risk",lg)}: <span style="color:{rc.get(rk)}">{gr(rk,lg)}</span></p></div>',True)
+        else: st.info("No matches found.")
 
-elif page=="Clinical Notes":
-    st.markdown(f'<h2>📝 {t("clinical_notes_title",lang)}</h2>',True)
-    with st.form("add_note"):
-        patient=st.text_input(t("patient_info",lang));note=st.text_area(t("clinical_note",lang))
-        if st.form_submit_button(f"💾 {t('save_note',lang)}",type="primary"):
-            conn=get_db_connection();conn.execute("INSERT INTO clinical_notes(username,patient_info,note) VALUES(?,?,?)",(st.session_state.username,patient,note));conn.commit()
-            st.success(f"✅ {t('note_saved',lang)}");st.rerun()
-    conn=get_db_connection();notes=conn.execute("SELECT * FROM clinical_notes WHERE username=? ORDER BY created_at DESC LIMIT 20",(st.session_state.username,)).fetchall()
-    for note in notes:st.markdown(f'<div class="premium-card"><p><strong>{t("patient_info",lang)}:</strong> {note["patient_info"]}</p><p>{note["note"]}</p><p style="color:#64748b;">{note["created_at"][:10]}</p></div>',True)
+elif page == "Clinical Notes":
+    st.markdown(f'<h2>📝 {t("clinical_notes_title",lg)}</h2>',True)
+    with st.form("an"):
+        pn=st.text_input(t("patient_info",lg));nt=st.text_area(t("clinical_note",lg))
+        if st.form_submit_button(f"💾 {t('save_note',lg)}",type="primary"):
+            get_db().execute("INSERT INTO clinical_notes(username,patient_info,note) VALUES(?,?,?)",(st.session_state.username,pn,nt));get_db().commit()
+            st.success(f"✅ {t('note_saved',lg)}");st.rerun()
+    for n in get_db().execute("SELECT * FROM clinical_notes WHERE username=? ORDER BY created_at DESC LIMIT 20",(st.session_state.username,)).fetchall():
+        st.markdown(f'<div class="premium-card"><p><strong>{t("patient_info",lg)}:</strong> {n["patient_info"]}</p><p>{n["note"]}</p><p style="color:#64748b;">{n["created_at"][:10]}</p></div>',True)
 
-elif page=="Achievements":
-    st.markdown(f'<h2>🎯 {t("achievements_title",lang)}</h2>',True)
-    achievements=[("First Steps","🩺",st.session_state.total_cases>=1),("Case Master","🏆",st.session_state.total_cases>=20),("Quiz Pro","📝",st.session_state.quiz_score>=10),("Quiz Expert","🎓",st.session_state.quiz_score>=50),("Streak Master","🔥",st.session_state.streak>=7),("XP Hunter","⭐",st.session_state.xp_points>=100),("XP Master","💎",st.session_state.xp_points>=500),("Diagnostician","🔍",st.session_state.correct_diagnoses>=5)]
-    cols=st.columns(3)
-    for i,(name,icon,earned) in enumerate(achievements):
-        with cols[i%3]:st.markdown(f'<div class="premium-card" style="text-align:center;opacity:{1 if earned else 0.5};"><div style="font-size:3rem;">{icon}</div><h4>{name}</h4><span class="badge {"badge-success" if earned else "badge-warning"}">{t("earned",lang) if earned else t("locked",lang)}</span></div>',True)
+elif page == "Achievements":
+    st.markdown(f'<h2>🎯 {t("achievements_title",lg)}</h2>',True)
+    ach=[("First Steps","🩺",st.session_state.tc>=1),("Case Master","🏆",st.session_state.tc>=20),("Quiz Pro","📝",st.session_state.qs>=10),("Quiz Expert","🎓",st.session_state.qs>=50),("Streak","🔥",st.session_state.streak>=7),("XP Hunter","⭐",st.session_state.xp>=100),("XP Master","💎",st.session_state.xp>=500),("Diagnostician","🔍",st.session_state.cd>=5)]
+    cs=st.columns(3)
+    for i,(n,ic,er) in enumerate(ach):
+        with cs[i%3]: st.markdown(f'<div class="premium-card" style="text-align:center;opacity:{1 if er else 0.5};"><div style="font-size:3rem;">{ic}</div><h4>{n}</h4><span class="badge {"badge-success" if er else "badge-warning"}">{t("earned",lg) if er else t("locked",lg)}</span></div>',True)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                      FOOTER                                                 ║
@@ -1339,8 +1218,8 @@ elif page=="Achievements":
 st.markdown("---")
 st.markdown(f"""
 <div style="text-align:center;padding:2rem;color:#64748b;">
-    <p style="font-weight:600;color:#94a3b8;">⚕️ Dr.Danyal Medical Platform {t('version',lang)}</p>
-    <p style="font-size:0.8rem;">{len(DISEASE_DATABASE)} Diseases | {sum(len(d) for d in DRUG_DATABASE.values())} Medications | {len(LAB_TESTS)} Lab Tests | {len(QUIZ_QUESTIONS)} Quizzes | {len(MEDICAL_NEWS)} News | {get_user_count()} Users</p>
-    <p style="font-size:0.7rem;">© {datetime.now().year} {t('copyright',lang)}</p>
+    <p style="font-weight:600;color:#94a3b8;">⚕️ Dr.Danyal Medical Platform {t('version',lg)}</p>
+    <p style="font-size:0.8rem;">{len(DISEASE_DATABASE)} Diseases | {sum(len(d) for d in DRUG_DATABASE.values())} Medications | {len(LAB_TESTS)} Lab Tests | {len(QUIZ_QUESTIONS)} Quizzes | {len(MEDICAL_NEWS)} News | {uc()} Users</p>
+    <p style="font-size:0.7rem;">© {datetime.now().year} {t('copyright',lg)}</p>
 </div>
 """,True)
