@@ -1,4 +1,4 @@
-# ╔══════════════════════════════════════════════════════════════════════════════╗
+ ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                    MEDICAL TRAINING PLATFORM v14.0                          ║
 # ║                    Dr.Danyal - World Class Edition                          ║
 # ║        200 Medications | 200 Tests | 100 Quizzes | 100 News Items           ║
@@ -31,201 +31,55 @@ st.set_page_config(
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap');
-    
     * { font-family: 'Inter', 'Outfit', sans-serif; }
-    
-    .stApp {
-        background: linear-gradient(135deg, #0a0a1a 0%, #0f0f2e 25%, #1a1035 50%, #0f0f2e 75%, #0a0a1a 100%);
-        background-attachment: fixed;
-    }
-    
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: 
-            radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
-            radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, 0.04) 0%, transparent 60%);
-        pointer-events: none;
-        z-index: 0;
-        animation: bgPulse 8s ease-in-out infinite;
-    }
-    
-    @keyframes bgPulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
-    
-    .premium-card {
-        background: linear-gradient(135deg, rgba(15, 15, 35, 0.9), rgba(25, 25, 60, 0.8));
-        backdrop-filter: blur(24px);
-        border-radius: 24px;
-        padding: 2rem;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative; overflow: hidden;
-    }
+    .stApp { background: linear-gradient(135deg, #0a0a1a 0%, #0f0f2e 25%, #1a1035 50%, #0f0f2e 75%, #0a0a1a 100%); background-attachment: fixed; }
+    .stApp::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 20% 20%, rgba(99,102,241,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.04) 0%, transparent 60%); pointer-events: none; z-index: 0; animation: bgPulse 8s ease-in-out infinite; }
+    @keyframes bgPulse { 0%,100%{opacity:0.8} 50%{opacity:1} }
+    .premium-card { background: linear-gradient(135deg, rgba(15,15,35,0.9), rgba(25,25,60,0.8)); backdrop-filter: blur(24px); border-radius: 24px; padding: 2rem; border: 1px solid rgba(99,102,241,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition: all 0.3s cubic-bezier(0.4,0,0.2,1); position: relative; overflow: hidden; }
     .premium-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #818cf8, #22d3ee, transparent); opacity: 0; transition: opacity 0.4s ease; }
     .premium-card:hover::before { opacity: 1; }
-    .premium-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.3); border-color: rgba(99, 102, 241, 0.4); }
-    
-    .stat-card {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.04));
-        border-radius: 16px; padding: 1.5rem; text-align: center;
-        border: 1px solid rgba(99, 102, 241, 0.1); transition: all 0.3s ease;
-    }
-    .stat-card:hover { transform: translateY(-3px); border-color: #818cf8; box-shadow: 0 0 40px rgba(99, 102, 241, 0.3); }
-    
+    .premium-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 40px rgba(99,102,241,0.3); border-color: rgba(99,102,241,0.4); }
+    .stat-card { background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.04)); border-radius: 16px; padding: 1.5rem; text-align: center; border: 1px solid rgba(99,102,241,0.1); transition: all 0.3s ease; }
+    .stat-card:hover { transform: translateY(-3px); border-color: #818cf8; box-shadow: 0 0 40px rgba(99,102,241,0.3); }
     .stat-number { font-size: 2.8rem; font-weight: 800; background: linear-gradient(135deg, #6366f1, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -1px; line-height: 1; }
     .stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-top: 0.3rem; font-weight: 500; }
-    
     .badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; transition: all 0.3s ease; }
-    .badge-primary { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
-    .badge-success { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
-    
-    .stButton > button {
-        background: linear-gradient(135deg, #6366f1, #4f46e5) !important; color: white !important;
-        border: none !important; border-radius: 12px !important; font-weight: 600 !important;
-        letter-spacing: 0.3px !important; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3) !important; position: relative !important; overflow: hidden !important;
-    }
-    .stButton > button::after { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: rgba(255, 255, 255, 0.2); border-radius: 50%; transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+    .badge-primary { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+    .badge-success { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-warning { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+    .stButton > button { background: linear-gradient(135deg, #6366f1, #4f46e5) !important; color: white !important; border: none !important; border-radius: 12px !important; font-weight: 600 !important; letter-spacing: 0.3px !important; transition: all 0.4s cubic-bezier(0.4,0,0.2,1) !important; box-shadow: 0 4px 16px rgba(99,102,241,0.3) !important; position: relative !important; overflow: hidden !important; }
+    .stButton > button::after { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: rgba(255,255,255,0.2); border-radius: 50%; transform: translate(-50%,-50%); transition: width 0.6s, height 0.6s; }
     .stButton > button:hover::after { width: 300px; height: 300px; }
-    .stButton > button:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4) !important; }
-    .stButton > button:active { transform: translateY(0) !important; }
-    
-    .stTextInput > div > div, .stTextArea > div > div { background: rgba(15, 15, 35, 0.8) !important; border: 1px solid rgba(99, 102, 241, 0.2) !important; border-radius: 12px !important; color: #f8fafc !important; transition: all 0.3s ease !important; }
-    .stTextInput > div > div:focus-within, .stTextArea > div > div:focus-within { border-color: #818cf8 !important; box-shadow: 0 0 20px rgba(99, 102, 241, 0.2) !important; }
-    
-    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0a1a, #12122e, #0a0a1a) !important; border-right: 1px solid rgba(99, 102, 241, 0.2) !important; }
-    [data-testid="stSidebar"] .stButton > button { background: rgba(99, 102, 241, 0.06) !important; border: 1px solid rgba(99, 102, 241, 0.1) !important; color: #94a3b8 !important; padding: 0.6rem 1rem !important; margin: 3px 0 !important; font-weight: 500 !important; transition: all 0.3s ease !important; box-shadow: none !important; text-align: left !important; }
-    [data-testid="stSidebar"] .stButton > button:hover { background: rgba(99, 102, 241, 0.15) !important; border-color: #818cf8 !important; color: white !important; transform: translateX(3px) !important; }
-    
+    .stButton > button:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 32px rgba(99,102,241,0.4) !important; }
+    .stTextInput > div > div, .stTextArea > div > div { background: rgba(15,15,35,0.8) !important; border: 1px solid rgba(99,102,241,0.2) !important; border-radius: 12px !important; color: #f8fafc !important; }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0a0a1a, #12122e, #0a0a1a) !important; border-right: 1px solid rgba(99,102,241,0.2) !important; }
+    [data-testid="stSidebar"] .stButton > button { background: rgba(99,102,241,0.06) !important; border: 1px solid rgba(99,102,241,0.1) !important; color: #94a3b8 !important; padding: 0.6rem 1rem !important; margin: 3px 0 !important; font-weight: 500 !important; box-shadow: none !important; text-align: left !important; }
+    [data-testid="stSidebar"] .stButton > button:hover { background: rgba(99,102,241,0.15) !important; border-color: #818cf8 !important; color: white !important; transform: translateX(3px) !important; }
     h1 { font-family: 'Outfit', sans-serif !important; font-size: 2.5rem !important; font-weight: 800 !important; background: linear-gradient(135deg, #818cf8, #22d3ee, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.5px; }
     h2 { font-family: 'Outfit', sans-serif !important; font-weight: 700 !important; color: #f8fafc !important; }
     h3 { font-weight: 600 !important; color: #f8fafc !important; }
-    
-    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: rgba(15, 15, 35, 0.5); } ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #06b6d4); border-radius: 3px; }
-    
-    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
-    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-    
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: rgba(15,15,35,0.5); } ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #6366f1, #06b6d4); border-radius: 3px; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
     .language-switcher { display: flex; gap: 0.4rem; justify-content: center; padding: 0.5rem; }
-    .progress-bar { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.06); border-radius: 10px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #6366f1, #06b6d4, #8b5cf6); background-size: 200% 100%; animation: shimmer 3s ease-in-out infinite; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-    
+    .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #6366f1, #06b6d4, #8b5cf6); background-size: 200% 100%; animation: shimmer 3s ease-in-out infinite; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
     .stTabs [data-baseweb="tab-list"] { gap: 0.5rem; background: transparent !important; }
-    .stTabs [data-baseweb="tab"] { background: rgba(99, 102, 241, 0.06) !important; border-radius: 12px !important; color: #94a3b8 !important; padding: 0.6rem 1.5rem !important; font-weight: 500 !important; border: 1px solid rgba(99, 102, 241, 0.1) !important; }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] { background: rgba(99, 102, 241, 0.2) !important; color: white !important; border-color: #818cf8 !important; }
-    .streamlit-expanderHeader { background: rgba(99, 102, 241, 0.06) !important; border-radius: 12px !important; border: 1px solid rgba(99, 102, 241, 0.1) !important; font-weight: 600 !important; }
-    [data-testid="stDataFrame"] { border-radius: 12px !important; overflow: hidden !important; }
-    
-    @media (max-width: 768px) { h1 { font-size: 1.8rem !important; } .stat-number { font-size: 2rem !important; } .premium-card { padding: 1.2rem !important; } }
+    .stTabs [data-baseweb="tab"] { background: rgba(99,102,241,0.06) !important; border-radius: 12px !important; color: #94a3b8 !important; padding: 0.6rem 1.5rem !important; font-weight: 500 !important; border: 1px solid rgba(99,102,241,0.1) !important; }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] { background: rgba(99,102,241,0.2) !important; color: white !important; border-color: #818cf8 !important; }
+    .streamlit-expanderHeader { background: rgba(99,102,241,0.06) !important; border-radius: 12px !important; border: 1px solid rgba(99,102,241,0.1) !important; font-weight: 600 !important; }
+    @media (max-width:768px){ h1{font-size:1.8rem!important} .stat-number{font-size:2rem!important} .premium-card{padding:1.2rem!important} }
 </style>
 """, unsafe_allow_html=True)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      COMPLETE TRANSLATION SYSTEM                            ║
+# ║                      TRANSLATION SYSTEM (abbreviated but complete)           ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 TRANSLATIONS = {
-    "en": {
-        "app_name": "Dr.Danyal Medical Platform", "app_subtitle": "Advanced Medical Excellence", "version": "v14.0", "copyright": "All rights reserved.",
-        "login": "Sign In", "register": "Create Account", "username": "Username", "password": "Password", "confirm_password": "Confirm Password",
-        "login_button": "Sign In", "register_button": "Create Account", "logout": "Sign Out",
-        "enter_username": "Enter your username", "enter_password": "Enter your password", "confirm_password_placeholder": "Confirm your password",
-        "choose_username": "Choose a username", "choose_password": "Choose a password",
-        "dashboard": "Dashboard", "diseases": "Diseases", "case_analysis": "Case Analysis", "quiz": "Quiz Mode",
-        "comprehensive_exam": "Comprehensive Exam", "spaced_repetition": "Spaced Repetition", "lab_tests": "Laboratory",
-        "pharmacology": "Pharmacology", "drug_interactions": "Drug Interactions", "leaderboard": "Leaderboard",
-        "medical_news": "Medical News", "ai_assistant": "AI Assistant", "clinical_notes": "Clinical Notes", "achievements": "Achievements",
-        "xp": "Experience", "quiz_score": "Quiz Score", "streak": "Day Streak", "cases": "Cases", "level": "Level", "level_progress": "Level Progress",
-        "diseases_count": "Diseases", "drugs_count": "Medications", "tests_count": "Lab Tests", "total_users": "Total Users",
-        "your_progress": "Your Progress", "platform_stats": "Platform Statistics", "accuracy": "Accuracy", "cases_solved": "Cases Solved",
-        "disease_library": "Disease Library", "search": "Search", "search_placeholder": "Search diseases...",
-        "risk_level": "Risk Level", "all": "All", "critical": "Critical", "high": "High", "moderate": "Moderate", "low": "Low",
-        "symptoms": "Symptoms", "treatment": "Treatment", "risk": "Risk", "category": "Category",
-        "clinical_case_analysis": "Clinical Case Analysis", "generate_new_case": "Generate New Case", "your_diagnosis": "Your Diagnosis",
-        "submit": "Submit", "correct": "Correct!", "incorrect": "Incorrect.", "patient": "Patient", "case_id": "Case", "years_old": "years old",
-        "medical_quiz": "Medical Quiz", "select_answer": "Select your answer", "submit_answer": "Submit Answer",
-        "comprehensive_exam_title": "Comprehensive Exam", "start_exam": "Start Exam", "submit_exam": "Submit Exam", "score": "Score", "retake": "Retake",
-        "spaced_repetition_title": "Spaced Repetition", "reveal_answer": "Reveal Answer", "knew_it": "I Knew It", "review_again": "Review Again",
-        "lab_tests_title": "Laboratory Tests", "normal_range": "Normal Range", "description": "Description", "no_tests_found": "No tests found",
-        "pharmacology_title": "Pharmacology", "drug_class": "Class", "dose": "Dose", "indications": "Indications", "side_effects": "Side Effects",
-        "drug_interactions_title": "Drug Interaction Checker", "select_drugs": "Select drugs", "select_minimum": "Select 2 or more medications",
-        "leaderboard_title": "Leaderboard", "no_data": "No data available yet",
-        "ai_assistant_title": "AI Symptom Checker", "enter_symptoms": "Enter symptoms (comma-separated):", "analyze": "Analyze", "match": "Match", "results": "Results",
-        "clinical_notes_title": "Clinical Notes", "patient_info": "Patient Info", "clinical_note": "Clinical Note", "save_note": "Save Note", "note_saved": "Note saved!",
-        "achievements_title": "Achievements", "earned": "Earned", "locked": "Locked",
-        "account_created": "Account created! Please sign in.", "invalid_credentials": "Invalid credentials",
-        "username_exists": "Username already exists", "passwords_dont_match": "Passwords don't match",
-        "what_are_symptoms_of": "What are the symptoms of", "is_characteristic_of": "is characteristic of",
-        "answer_was": "The answer was", "drugs_selected": "medications selected",
-    },
-    "ku": {
-        "app_name": "پلاتفۆرمی پزیشکی Dr.Danyal", "app_subtitle": "ڕاهێنانی پزیشکی پێشکەوتوو", "version": "v14.0", "copyright": "هەموو مافێک پارێزراوە.",
-        "login": "چوونەژوورەوە", "register": "دروستکردنی هەژمار", "username": "ناوی بەکارهێنەر", "password": "وشەی نهێنی", "confirm_password": "دووپاتکردنەوە",
-        "login_button": "چوونەژوورەوە", "register_button": "دروستکردن", "logout": "چوونەدەرەوە",
-        "enter_username": "ناوی بەکارهێنەر بنووسە", "enter_password": "وشەی نهێنی بنووسە", "confirm_password_placeholder": "دووپات بکەرەوە",
-        "choose_username": "ناوی بەکارهێنەر هەڵبژێرە", "choose_password": "وشەی نهێنی هەڵبژێرە",
-        "dashboard": "داشبۆرد", "diseases": "نەخۆشییەکان", "case_analysis": "شیکاری کەیس", "quiz": "کویز",
-        "comprehensive_exam": "تاقیکردنەوە", "spaced_repetition": "دووبارەکردنەوە", "lab_tests": "تاقیگە",
-        "pharmacology": "فارماکۆلۆجی", "drug_interactions": "کارلێکی دەرمان", "leaderboard": "ڕێزلێنان",
-        "medical_news": "هەواڵی پزیشکی", "ai_assistant": "یاریدەدەری زیرەک", "clinical_notes": "تێبینی کلینیکی", "achievements": "دەستکەوتەکان",
-        "xp": "خاڵ", "quiz_score": "کویز", "streak": "بەردەوامی", "cases": "کەیس", "level": "ئاست", "level_progress": "پێشکەوتن",
-        "diseases_count": "نەخۆشی", "drugs_count": "دەرمان", "tests_count": "پشکنین", "total_users": "بەکارهێنەر",
-        "your_progress": "پێشکەوتنەکەت", "platform_stats": "ئامارەکان", "accuracy": "ڕێژەی ڕاستی", "cases_solved": "کەیسەکان",
-        "disease_library": "کتێبخانە", "search": "گەڕان", "search_placeholder": "گەڕان...",
-        "risk_level": "ئاستی مەترسی", "all": "هەموو", "critical": "زۆر مەترسیدار", "high": "بەرز", "moderate": "مامناوەند", "low": "کەم",
-        "symptoms": "نیشانەکان", "treatment": "چارەسەر", "risk": "مەترسی", "category": "پۆلێن",
-        "clinical_case_analysis": "شیکاری کەیس", "generate_new_case": "کەیسی نوێ", "your_diagnosis": "دەستنیشانکردن",
-        "submit": "ناردن", "correct": "ڕاستە!", "incorrect": "هەڵەیە.", "patient": "نەخۆش", "case_id": "کەیس", "years_old": "ساڵ",
-        "medical_quiz": "کویزی پزیشکی", "select_answer": "وەڵام هەڵبژێرە", "submit_answer": "ناردن",
-        "comprehensive_exam_title": "تاقیکردنەوە", "start_exam": "دەستپێکردن", "submit_exam": "ناردن", "score": "نمرە", "retake": "دووبارە",
-        "spaced_repetition_title": "دووبارەکردنەوە", "reveal_answer": "ئاشکراکردن", "knew_it": "زانیم", "review_again": "دووبارە",
-        "lab_tests_title": "پشکنینەکان", "normal_range": "مەودای ئاسایی", "description": "وەسف", "no_tests_found": "نەدۆزرایەوە",
-        "pharmacology_title": "دەرمانەکان", "drug_class": "پۆلێن", "dose": "ڕێژە", "indications": "بەکارهێنان", "side_effects": "کاریگەری لاوەکی",
-        "drug_interactions_title": "کارلێکی دەرمان", "select_drugs": "دەرمان هەڵبژێرە", "select_minimum": "٢ دەرمان یان زیاتر",
-        "leaderboard_title": "ڕێزلێنان", "no_data": "داتا نییە",
-        "ai_assistant_title": "یاریدەدەری زیرەک", "enter_symptoms": "نیشانەکان بنووسە:", "analyze": "شیکردنەوە", "match": "گونجان", "results": "ئەنجامەکان",
-        "clinical_notes_title": "تێبینییەکان", "patient_info": "زانیاری نەخۆش", "clinical_note": "تێبینی", "save_note": "خەزنکردن", "note_saved": "خەزن کرا!",
-        "achievements_title": "دەستکەوتەکان", "earned": "بەدەستهێنراوە", "locked": "داخراوە",
-        "account_created": "هەژمار دروست کرا!", "invalid_credentials": "زانیاری هەڵە",
-        "username_exists": "ناو پێشتر هەیە", "passwords_dont_match": "وشەکان یەک ناگرن",
-        "what_are_symptoms_of": "نیشانەکانی", "is_characteristic_of": "تایبەتە بە", "answer_was": "وەڵامەکە", "drugs_selected": "دەرمان هەڵبژێردرا",
-    },
-    "ar": {
-        "app_name": "منصة د. دانيال الطبية", "app_subtitle": "التميز الطبي المتقدم", "version": "v14.0", "copyright": "جميع الحقوق محفوظة.",
-        "login": "تسجيل الدخول", "register": "إنشاء حساب", "username": "اسم المستخدم", "password": "كلمة المرور", "confirm_password": "تأكيد كلمة المرور",
-        "login_button": "دخول", "register_button": "إنشاء", "logout": "خروج",
-        "enter_username": "أدخل اسم المستخدم", "enter_password": "أدخل كلمة المرور", "confirm_password_placeholder": "أكد كلمة المرور",
-        "choose_username": "اختر اسماً", "choose_password": "اختر كلمة مرور",
-        "dashboard": "لوحة التحكم", "diseases": "الأمراض", "case_analysis": "تحليل حالة", "quiz": "اختبار",
-        "comprehensive_exam": "امتحان شامل", "spaced_repetition": "تكرار متباعد", "lab_tests": "المختبر",
-        "pharmacology": "الأدوية", "drug_interactions": "تداخلات دوائية", "leaderboard": "المتصدرون",
-        "medical_news": "أخبار طبية", "ai_assistant": "مساعد ذكي", "clinical_notes": "ملاحظات", "achievements": "إنجازات",
-        "xp": "خبرة", "quiz_score": "اختبار", "streak": "توالي", "cases": "حالات", "level": "مستوى", "level_progress": "تقدم",
-        "diseases_count": "مرض", "drugs_count": "دواء", "tests_count": "تحليل", "total_users": "مستخدم",
-        "your_progress": "تقدمك", "platform_stats": "إحصائيات", "accuracy": "دقة", "cases_solved": "حالات محلولة",
-        "disease_library": "مكتبة الأمراض", "search": "بحث", "search_placeholder": "ابحث...",
-        "risk_level": "مستوى الخطورة", "all": "الكل", "critical": "حرج", "high": "مرتفع", "moderate": "متوسط", "low": "منخفض",
-        "symptoms": "أعراض", "treatment": "علاج", "risk": "خطورة", "category": "فئة",
-        "clinical_case_analysis": "تحليل حالة", "generate_new_case": "حالة جديدة", "your_diagnosis": "تشخيصك",
-        "submit": "إرسال", "correct": "صحيح!", "incorrect": "خطأ.", "patient": "مريض", "case_id": "حالة", "years_old": "سنة",
-        "medical_quiz": "اختبار طبي", "select_answer": "اختر إجابة", "submit_answer": "إرسال",
-        "comprehensive_exam_title": "امتحان شامل", "start_exam": "ابدأ", "submit_exam": "تسليم", "score": "نتيجة", "retake": "إعادة",
-        "spaced_repetition_title": "تكرار متباعد", "reveal_answer": "كشف", "knew_it": "أعرفها", "review_again": "مراجعة",
-        "lab_tests_title": "تحاليل", "normal_range": "المدى الطبيعي", "description": "وصف", "no_tests_found": "لا توجد نتائج",
-        "pharmacology_title": "أدوية", "drug_class": "فئة", "dose": "جرعة", "indications": "دواعي", "side_effects": "آثار جانبية",
-        "drug_interactions_title": "تداخلات", "select_drugs": "اختر أدوية", "select_minimum": "دواءين أو أكثر",
-        "leaderboard_title": "المتصدرون", "no_data": "لا بيانات",
-        "ai_assistant_title": "مدقق أعراض", "enter_symptoms": "أدخل الأعراض:", "analyze": "تحليل", "match": "تطابق", "results": "نتائج",
-        "clinical_notes_title": "ملاحظات", "patient_info": "معلومات", "clinical_note": "ملاحظة", "save_note": "حفظ", "note_saved": "تم الحفظ!",
-        "achievements_title": "إنجازات", "earned": "مكتسب", "locked": "مقفل",
-        "account_created": "تم الإنشاء!", "invalid_credentials": "بيانات خاطئة",
-        "username_exists": "الاسم موجود", "passwords_dont_match": "كلمات غير متطابقة",
-        "what_are_symptoms_of": "أعراض", "is_characteristic_of": "مميز لـ", "answer_was": "الإجابة", "drugs_selected": "دواء مختار",
-    }
+    "en": {"app_name":"Dr.Danyal Medical Platform","app_subtitle":"Advanced Medical Excellence","version":"v14.0","copyright":"All rights reserved.","login":"Sign In","register":"Create Account","username":"Username","password":"Password","confirm_password":"Confirm Password","login_button":"Sign In","register_button":"Create Account","logout":"Sign Out","enter_username":"Enter your username","enter_password":"Enter your password","confirm_password_placeholder":"Confirm your password","choose_username":"Choose a username","choose_password":"Choose a password","dashboard":"Dashboard","diseases":"Diseases","case_analysis":"Case Analysis","quiz":"Quiz Mode","comprehensive_exam":"Comprehensive Exam","spaced_repetition":"Spaced Repetition","lab_tests":"Laboratory","pharmacology":"Pharmacology","drug_interactions":"Drug Interactions","leaderboard":"Leaderboard","medical_news":"Medical News","ai_assistant":"AI Assistant","clinical_notes":"Clinical Notes","achievements":"Achievements","xp":"Experience","quiz_score":"Quiz Score","streak":"Day Streak","cases":"Cases","level":"Level","level_progress":"Level Progress","diseases_count":"Diseases","drugs_count":"Medications","tests_count":"Lab Tests","total_users":"Total Users","your_progress":"Your Progress","platform_stats":"Platform Statistics","accuracy":"Accuracy","cases_solved":"Cases Solved","disease_library":"Disease Library","search":"Search","search_placeholder":"Search diseases...","risk_level":"Risk Level","all":"All","critical":"Critical","high":"High","moderate":"Moderate","low":"Low","symptoms":"Symptoms","treatment":"Treatment","risk":"Risk","category":"Category","clinical_case_analysis":"Clinical Case Analysis","generate_new_case":"Generate New Case","your_diagnosis":"Your Diagnosis","submit":"Submit","correct":"Correct!","incorrect":"Incorrect.","patient":"Patient","case_id":"Case","years_old":"years old","medical_quiz":"Medical Quiz","select_answer":"Select your answer","submit_answer":"Submit Answer","comprehensive_exam_title":"Comprehensive Exam","start_exam":"Start Exam","submit_exam":"Submit Exam","score":"Score","retake":"Retake","spaced_repetition_title":"Spaced Repetition","reveal_answer":"Reveal Answer","knew_it":"I Knew It","review_again":"Review Again","lab_tests_title":"Laboratory Tests","normal_range":"Normal Range","description":"Description","no_tests_found":"No tests found","pharmacology_title":"Pharmacology","drug_class":"Class","dose":"Dose","indications":"Indications","side_effects":"Side Effects","drug_interactions_title":"Drug Interaction Checker","select_drugs":"Select drugs","select_minimum":"Select 2 or more medications","leaderboard_title":"Leaderboard","no_data":"No data available yet","ai_assistant_title":"AI Symptom Checker","enter_symptoms":"Enter symptoms (comma-separated):","analyze":"Analyze","match":"Match","results":"Results","clinical_notes_title":"Clinical Notes","patient_info":"Patient Info","clinical_note":"Clinical Note","save_note":"Save Note","note_saved":"Note saved!","achievements_title":"Achievements","earned":"Earned","locked":"Locked","account_created":"Account created! Please sign in.","invalid_credentials":"Invalid credentials","username_exists":"Username already exists","passwords_dont_match":"Passwords don't match","what_are_symptoms_of":"What are the symptoms of","is_characteristic_of":"is characteristic of","answer_was":"The answer was","drugs_selected":"medications selected"},
+    "ku": {"app_name":"پلاتفۆرمی پزیشکی Dr.Danyal","app_subtitle":"ڕاهێنانی پزیشکی پێشکەوتوو","version":"v14.0","copyright":"هەموو مافێک پارێزراوە.","login":"چوونەژوورەوە","register":"دروستکردنی هەژمار","username":"ناوی بەکارهێنەر","password":"وشەی نهێنی","confirm_password":"دووپاتکردنەوە","login_button":"چوونەژوورەوە","register_button":"دروستکردن","logout":"چوونەدەرەوە","enter_username":"ناوی بەکارهێنەر بنووسە","enter_password":"وشەی نهێنی بنووسە","confirm_password_placeholder":"دووپات بکەرەوە","choose_username":"ناوی بەکارهێنەر هەڵبژێرە","choose_password":"وشەی نهێنی هەڵبژێرە","dashboard":"داشبۆرد","diseases":"نەخۆشییەکان","case_analysis":"شیکاری کەیس","quiz":"کویز","comprehensive_exam":"تاقیکردنەوە","spaced_repetition":"دووبارەکردنەوە","lab_tests":"تاقیگە","pharmacology":"فارماکۆلۆجی","drug_interactions":"کارلێکی دەرمان","leaderboard":"ڕێزلێنان","medical_news":"هەواڵی پزیشکی","ai_assistant":"یاریدەدەری زیرەک","clinical_notes":"تێبینی کلینیکی","achievements":"دەستکەوتەکان","xp":"خاڵ","quiz_score":"کویز","streak":"بەردەوامی","cases":"کەیس","level":"ئاست","level_progress":"پێشکەوتن","diseases_count":"نەخۆشی","drugs_count":"دەرمان","tests_count":"پشکنین","total_users":"بەکارهێنەر","your_progress":"پێشکەوتنەکەت","platform_stats":"ئامارەکان","accuracy":"ڕێژەی ڕاستی","cases_solved":"کەیسەکان","disease_library":"کتێبخانە","search":"گەڕان","search_placeholder":"گەڕان...","risk_level":"ئاستی مەترسی","all":"هەموو","critical":"زۆر مەترسیدار","high":"بەرز","moderate":"مامناوەند","low":"کەم","symptoms":"نیشانەکان","treatment":"چارەسەر","risk":"مەترسی","category":"پۆلێن","clinical_case_analysis":"شیکاری کەیس","generate_new_case":"کەیسی نوێ","your_diagnosis":"دەستنیشانکردن","submit":"ناردن","correct":"ڕاستە!","incorrect":"هەڵەیە.","patient":"نەخۆش","case_id":"کەیس","years_old":"ساڵ","medical_quiz":"کویزی پزیشکی","select_answer":"وەڵام هەڵبژێرە","submit_answer":"ناردن","comprehensive_exam_title":"تاقیکردنەوە","start_exam":"دەستپێکردن","submit_exam":"ناردن","score":"نمرە","retake":"دووبارە","spaced_repetition_title":"دووبارەکردنەوە","reveal_answer":"ئاشکراکردن","knew_it":"زانیم","review_again":"دووبارە","lab_tests_title":"پشکنینەکان","normal_range":"مەودای ئاسایی","description":"وەسف","no_tests_found":"نەدۆزرایەوە","pharmacology_title":"دەرمانەکان","drug_class":"پۆلێن","dose":"ڕێژە","indications":"بەکارهێنان","side_effects":"کاریگەری لاوەکی","drug_interactions_title":"کارلێکی دەرمان","select_drugs":"دەرمان هەڵبژێرە","select_minimum":"٢ دەرمان یان زیاتر","leaderboard_title":"ڕێزلێنان","no_data":"داتا نییە","ai_assistant_title":"یاریدەدەری زیرەک","enter_symptoms":"نیشانەکان بنووسە:","analyze":"شیکردنەوە","match":"گونجان","results":"ئەنجامەکان","clinical_notes_title":"تێبینییەکان","patient_info":"زانیاری نەخۆش","clinical_note":"تێبینی","save_note":"خەزنکردن","note_saved":"خەزن کرا!","achievements_title":"دەستکەوتەکان","earned":"بەدەستهێنراوە","locked":"داخراوە","account_created":"هەژمار دروست کرا!","invalid_credentials":"زانیاری هەڵە","username_exists":"ناو پێشتر هەیە","passwords_dont_match":"وشەکان یەک ناگرن","what_are_symptoms_of":"نیشانەکانی","is_characteristic_of":"تایبەتە بە","answer_was":"وەڵامەکە","drugs_selected":"دەرمان هەڵبژێردرا"},
+    "ar": {"app_name":"منصة د. دانيال الطبية","app_subtitle":"التميز الطبي المتقدم","version":"v14.0","copyright":"جميع الحقوق محفوظة.","login":"تسجيل الدخول","register":"إنشاء حساب","username":"اسم المستخدم","password":"كلمة المرور","confirm_password":"تأكيد كلمة المرور","login_button":"دخول","register_button":"إنشاء","logout":"خروج","enter_username":"أدخل اسم المستخدم","enter_password":"أدخل كلمة المرور","confirm_password_placeholder":"أكد كلمة المرور","choose_username":"اختر اسماً","choose_password":"اختر كلمة مرور","dashboard":"لوحة التحكم","diseases":"الأمراض","case_analysis":"تحليل حالة","quiz":"اختبار","comprehensive_exam":"امتحان شامل","spaced_repetition":"تكرار متباعد","lab_tests":"المختبر","pharmacology":"الأدوية","drug_interactions":"تداخلات دوائية","leaderboard":"المتصدرون","medical_news":"أخبار طبية","ai_assistant":"مساعد ذكي","clinical_notes":"ملاحظات","achievements":"إنجازات","xp":"خبرة","quiz_score":"اختبار","streak":"توالي","cases":"حالات","level":"مستوى","level_progress":"تقدم","diseases_count":"مرض","drugs_count":"دواء","tests_count":"تحليل","total_users":"مستخدم","your_progress":"تقدمك","platform_stats":"إحصائيات","accuracy":"دقة","cases_solved":"حالات محلولة","disease_library":"مكتبة الأمراض","search":"بحث","search_placeholder":"ابحث...","risk_level":"مستوى الخطورة","all":"الكل","critical":"حرج","high":"مرتفع","moderate":"متوسط","low":"منخفض","symptoms":"أعراض","treatment":"علاج","risk":"خطورة","category":"فئة","clinical_case_analysis":"تحليل حالة","generate_new_case":"حالة جديدة","your_diagnosis":"تشخيصك","submit":"إرسال","correct":"صحيح!","incorrect":"خطأ.","patient":"مريض","case_id":"حالة","years_old":"سنة","medical_quiz":"اختبار طبي","select_answer":"اختر إجابة","submit_answer":"إرسال","comprehensive_exam_title":"امتحان شامل","start_exam":"ابدأ","submit_exam":"تسليم","score":"نتيجة","retake":"إعادة","spaced_repetition_title":"تكرار متباعد","reveal_answer":"كشف","knew_it":"أعرفها","review_again":"مراجعة","lab_tests_title":"تحاليل","normal_range":"المدى الطبيعي","description":"وصف","no_tests_found":"لا توجد نتائج","pharmacology_title":"أدوية","drug_class":"فئة","dose":"جرعة","indications":"دواعي","side_effects":"آثار جانبية","drug_interactions_title":"تداخلات","select_drugs":"اختر أدوية","select_minimum":"دواءين أو أكثر","leaderboard_title":"المتصدرون","no_data":"لا بيانات","ai_assistant_title":"مدقق أعراض","enter_symptoms":"أدخل الأعراض:","analyze":"تحليل","match":"تطابق","results":"نتائج","clinical_notes_title":"ملاحظات","patient_info":"معلومات","clinical_note":"ملاحظة","save_note":"حفظ","note_saved":"تم الحفظ!","achievements_title":"إنجازات","earned":"مكتسب","locked":"مقفل","account_created":"تم الإنشاء!","invalid_credentials":"بيانات خاطئة","username_exists":"الاسم موجود","passwords_dont_match":"كلمات غير متطابقة","what_are_symptoms_of":"أعراض","is_characteristic_of":"مميز لـ","answer_was":"الإجابة","drugs_selected":"دواء مختار"},
 }
 
 def t(key: str, lang: str = None) -> str:
@@ -246,13 +100,7 @@ def get_db():
 
 def init_db():
     c = get_db().cursor()
-    c.executescript("""
-        CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,password_hash TEXT,salt TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,last_login TIMESTAMP,login_attempts INTEGER DEFAULT 0,locked_until TIMESTAMP,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,total_cases INTEGER DEFAULT 0,correct_diagnoses INTEGER DEFAULT 0,daily_streak INTEGER DEFAULT 0,last_active_date DATE,language_preference TEXT DEFAULT 'en');
-        CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,cases_solved INTEGER DEFAULT 0,level INTEGER DEFAULT 1,last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS clinical_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,patient_info TEXT,note TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS login_attempts(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,success BOOLEAN DEFAULT FALSE);
-        CREATE INDEX IF NOT EXISTS idx_u ON users(username); CREATE INDEX IF NOT EXISTS idx_l ON leaderboard(xp_points DESC);
-    """)
+    c.executescript("""CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,password_hash TEXT,salt TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,last_login TIMESTAMP,login_attempts INTEGER DEFAULT 0,locked_until TIMESTAMP,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,total_cases INTEGER DEFAULT 0,correct_diagnoses INTEGER DEFAULT 0,daily_streak INTEGER DEFAULT 0,last_active_date DATE,language_preference TEXT DEFAULT 'en');CREATE TABLE IF NOT EXISTS leaderboard(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE,xp_points INTEGER DEFAULT 0,quiz_score INTEGER DEFAULT 0,cases_solved INTEGER DEFAULT 0,level INTEGER DEFAULT 1,last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP);CREATE TABLE IF NOT EXISTS clinical_notes(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,patient_info TEXT,note TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);CREATE TABLE IF NOT EXISTS login_attempts(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,success BOOLEAN DEFAULT FALSE);CREATE INDEX IF NOT EXISTS idx_u ON users(username);CREATE INDEX IF NOT EXISTS idx_l ON leaderboard(xp_points DESC);""")
     c.execute("PRAGMA table_info(users)")
     if 'language_preference' not in [r[1] for r in c.fetchall()]: c.execute("ALTER TABLE users ADD COLUMN language_preference TEXT DEFAULT 'en'")
     get_db().commit()
@@ -317,7 +165,7 @@ def lvl_prog(xp):
     return min(((xp-LVLS[cl][2])/(LVLS[cl+1][2]-LVLS[cl][2]))*100,100)
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      200 LAB TESTS + 200 DRUGS + DISEASES + QUIZ + NEWS     ║
+# ║                      DATA: 200 TESTS, 200 DRUGS, DISEASES, QUIZ, NEWS       ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 LAB_TESTS = {}
 for name, info in {"Hemoglobin":"Oxygen-carrying capacity|12-16 g/dL","WBC Count":"Infection marker|4,000-11,000/µL","RBC Count":"Oxygen transport|4.5-5.5M/µL","Hematocrit":"RBC volume|37-47%","MCV":"RBC size|80-100 fL","MCH":"Hb per RBC|27-33 pg","MCHC":"Hb concentration|32-36 g/dL","RDW":"RBC variation|11.5-14.5%","Platelet Count":"Clotting|150K-450K/µL","MPV":"Platelet size|7.5-11.5 fL","Reticulocyte":"Marrow activity|0.5-2.5%","ESR":"Inflammation|0-20 mm/hr","Ferritin":"Iron stores|15-300 ng/mL","Serum Iron":"Circulating iron|60-170 µg/dL","TIBC":"Iron binding|250-450 µg/dL","Transferrin Sat":"Iron saturation|20-50%","B12":"B12 status|200-900 pg/mL","Folate":"Folate status|3-17 ng/mL","PT":"Extrinsic pathway|11-13.5 sec","PTT":"Intrinsic pathway|25-35 sec","INR":"Coagulation|0.9-1.1","Fibrinogen":"Clotting factor|200-400 mg/dL","D-Dimer":"Thrombosis|<0.5 mg/L","Haptoglobin":"Hemolysis|50-250 mg/dL","LDH":"Cell damage|100-250 U/L","Fasting Glucose":"Diabetes screen|70-100 mg/dL","HbA1c":"3-month glucose|4.0-5.6%","Creatinine":"Kidney function|0.6-1.3 mg/dL","BUN":"Kidney function|7-20 mg/dL","eGFR":"Filtration rate|>90 mL/min","Uric Acid":"Gout marker|3.5-7.2 mg/dL","Total Protein":"Nutrition|6.0-8.0 g/dL","Albumin":"Liver function|3.5-5.0 g/dL","Total Bilirubin":"Jaundice|0.1-1.2 mg/dL","ALT":"Liver enzyme|10-40 U/L","AST":"Liver/muscle|10-40 U/L","ALP":"Bone/liver|44-147 U/L","GGT":"Biliary|0-51 U/L","Amylase":"Pancreatic|20-200 U/L","Lipase":"Pancreatic|20-200 U/L","CK":"Muscle enzyme|22-198 U/L","CK-MB":"Cardiac enzyme|0-5 ng/mL","Sodium":"Electrolyte|135-145 mmol/L","Potassium":"Electrolyte|3.5-5.0 mmol/L","Chloride":"Electrolyte|96-106 mmol/L","Calcium":"Bone metabolism|8.5-10.5 mg/dL","Magnesium":"Neuromuscular|1.7-2.2 mg/dL","Phosphorus":"Bone metabolism|2.5-4.5 mg/dL","Total Cholesterol":"Lipid profile|<200 mg/dL","LDL":"Bad cholesterol|<100 mg/dL","HDL":"Good cholesterol|>40 mg/dL","Triglycerides":"Blood fats|<150 mg/dL","Troponin I":"MI marker|<0.04 ng/mL","BNP":"Heart failure|<100 pg/mL","TSH":"Thyroid function|0.4-4.0 mIU/L","Free T4":"Thyroid hormone|0.8-1.8 ng/dL","Cortisol AM":"Adrenal|6-23 µg/dL","Testosterone":"Androgen|300-1000 ng/dL","Vitamin D":"D status|30-100 ng/mL","CRP":"Inflammation|<5 mg/L","RF":"RA marker|<14 IU/mL","ANA":"Autoimmune|Negative","PSA":"Prostate|<4 ng/mL","CEA":"Colorectal|<5 ng/mL","CA-125":"Ovarian|<35 U/mL","Blood Culture":"Bacteremia|No growth","Urine Culture":"UTI|<100K CFU/mL","Urine Protein":"Kidney damage|Negative","Urine Glucose":"Diabetes|Negative","Urine pH":"Acid-base|4.5-8.0","Urine WBC":"Infection|0-5/HPF","Urine RBC":"Bleeding|0-3/HPF","Microalbumin":"Nephropathy|<30 mg/24h","Procalcitonin":"Bacterial|<0.5 ng/mL","IgG":"Humoral|700-1600 mg/dL","IgA":"Mucosal|70-400 mg/dL","IgM":"Acute infection|40-230 mg/dL","IgE":"Allergy|0-100 IU/mL","C3":"Complement|90-180 mg/dL","C4":"Complement|10-40 mg/dL","Anti-CCP":"RA specific|<20 U/mL","ANCA":"Vasculitis|Negative","Anti-dsDNA":"SLE|<30 IU/mL","Cystatin C":"Kidney|0.6-1.0 mg/L","Homocysteine":"Vascular|5-15 µmol/L","hs-CRP":"Cardiac risk|<2 mg/L","Lipoprotein(a)":"Genetic risk|<30 mg/dL","ApoA":"Cardioprotective|90-150 mg/dL","ApoB":"Atherogenic|60-120 mg/dL","Ammonia":"Liver|15-45 µg/dL","Lactate":"Perfusion|0.5-2.2 mmol/L","Osmolality":"Fluid balance|275-295 mOsm/kg","Ceruloplasmin":"Wilson|20-60 mg/dL","Prealbumin":"Nutrition|15-35 mg/dL","Beta-2 MG":"Tumor marker|1-2 mg/L","AFP":"Liver cancer|<10 ng/mL","Beta-hCG":"Germ cell|<5 IU/L","CA 19-9":"Pancreatic|<37 U/mL","CA 15-3":"Breast|<30 U/mL","NSE":"Neuroendocrine|<15 ng/mL","Calcitonin":"Thyroid|<10 pg/mL","PTH":"Calcium reg|10-65 pg/mL","IGF-1":"Growth factor|100-300 ng/mL","Prolactin":"Pituitary|4-23 ng/mL","LH":"Reproductive|1.5-9.3 IU/L","FSH":"Reproductive|1.4-18.1 IU/L","Estradiol":"Estrogen|20-400 pg/mL","Progesterone":"Ovulation|0.1-25 ng/mL","DHEA-S":"Adrenal|35-430 µg/dL","ACTH":"Pituitary|10-60 pg/mL","Aldosterone":"Mineralocorticoid|3-16 ng/dL","Renin":"BP regulation|0.5-4.0 ng/mL/hr","Catecholamines":"Stress|<50 pg/mL","SHBG":"Hormone binding|10-57 nmol/L","Free Testosterone":"Bioavailable|5-21 ng/dL","1,25-Dihydroxy D":"Active D|20-60 pg/mL","C-Peptide":"Insulin production|0.5-2.0 ng/mL","Insulin Fasting":"Glucose metabolism|2-25 µIU/mL","G6PD":"Enzyme|5-15 U/g Hb","Osmotic Fragility":"RBC stability|0.45-0.35%","Hb Electrophoresis":"Variants|HbA >95%","Peripheral Smear":"Morphology|Normal","Retic Index":"Corrected|1-2","Bone Marrow":"Cellularity|40-70%","Plasma Free Hb":"Hemolysis|<5 mg/dL","Methemoglobin":"Oxidized Hb|<1.5%","Carboxyhemoglobin":"CO exposure|<2%","Erythropoietin":"RBC stimulus|4-26 mU/mL","Soluble TfR":"Iron deficiency|0.8-2.3 mg/L","Hepcidin":"Iron regulation|<50 ng/mL","Heinz Body":"Oxidative damage|Negative","HbA2":"Beta-thal|2.2-3.5%","Cryoglobulins":"Vasculitis|Negative","IL-6":"Cytokine|<5 pg/mL","TNF-alpha":"Inflammatory|<8 pg/mL","B2-Glycoprotein I":"APS|<20 U/mL","Anti-Ro":"Sjogren|Negative","Anti-La":"Sjogren|Negative","Anti-Smith":"SLE|Negative","Anti-RNP":"MCTD|Negative","Anti-Scl-70":"Scleroderma|Negative","Anti-Jo-1":"Polymyositis|Negative","Anti-Centromere":"CREST|Negative","Anti-Histone":"Drug lupus|Negative","Stool Culture":"GI pathogens|No pathogens","CSF Culture":"Meningitis|No growth","Throat Culture":"Strep|No GAS","Wound Culture":"Infection|No pathogens","Gram Stain":"Classification|No organisms","AFB Stain":"TB screening|Negative","Fungal Culture":"Fungal|No growth","Sputum Culture":"Respiratory|Normal flora","Urine Sp Gr":"Concentration|1.005-1.030","Urine Ketones":"Starvation/DKA|Negative","Urine Bilirubin":"Liver disease|Negative","Urine Urobilinogen":"Hemolysis|0.1-1.0","Urine Nitrite":"Bacteria|Negative","Urine LE":"WBC enzyme|Negative","Urine Casts":"Cellular|None","Urine Crystals":"Formations|None","24h Urine Protein":"Daily protein|<150 mg/24h","24h Urine Creatinine":"Clearance|15-25 mg/kg/24h","Urine Calcium":"Excretion|100-300 mg/24h","Urine Uric Acid":"Excretion|250-750 mg/24h","Urine Oxalate":"Stone risk|<45 mg/24h","Urine Citrate":"Stone inhibitor|>320 mg/24h","Ionized Calcium":"Active|4.5-5.6 mg/dL","VLDL":"Lipoprotein|<30 mg/dL","Anion Gap":"Acidosis|8-16 mEq/L","Serum Ketones":"Ketosis|<0.6 mmol/L","Pyruvate":"Metabolic|0.3-0.9 mg/dL","ACE Level":"Sarcoidosis|8-53 U/L","Alpha-1 AT":"Emphysema|100-200 mg/dL","Ischemia Mod Alb":"Early ischemia|<85 U/mL","H-FABP":"Early MI|<6 ng/mL","ST2":"Remodeling|<35 ng/mL","Galectin-3":"Fibrosis|<22 ng/mL","Copeptin":"Stress|<14 pmol/L","Myoglobin":"Cardiac|<80 ng/mL","Troponin T":"hs-cardiac|<0.014 ng/mL","NT-proBNP":"HF|<125 pg/mL","CK-MB Mass":"Cardiac|0-5 ng/mL","Reverse T3":"Inactive|10-24 ng/dL","Thyroglobulin":"Thyroid|<33 ng/mL","Total T4":"Thyroxine|5-12 µg/dL","Total T3":"T3|80-200 ng/dL","Free T3":"Active|2.3-4.2 pg/mL"}.items():
@@ -407,9 +255,12 @@ iss()
 init_db()
 
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                      LOGIN PAGE                                             ║
+# ║                      LOGIN PAGE - lg defined FIRST                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 if not st.session_state.logged_in:
+    # Define lg immediately at the start of the login block
+    lg = st.session_state.lang
+    
     # Language selector on login page
     c1,c2,c3=st.columns([3,1,3])
     with c2:
@@ -419,8 +270,6 @@ if not st.session_state.logged_in:
             with cs[i]:
                 if st.button(nm,key=f"ll_{cd}",use_container_width=True): st.session_state.lang=cd;st.rerun()
         st.markdown('</div>',True)
-    
-    lg = st.session_state.lang  # Now lg is defined
     
     cl,cc,cr=st.columns([1,1.5,1])
     with cc:
@@ -500,7 +349,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Navigation buttons - each sets st.session_state.page and calls st.rerun()
     pages = [
         ("dashboard","📊 "+t('dashboard',lg)),("diseases","🦠 "+t('diseases',lg)),
         ("case_analysis","🔬 "+t('case_analysis',lg)),("quiz","🧠 "+t('quiz',lg)),
