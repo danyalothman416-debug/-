@@ -358,7 +358,6 @@ with st.sidebar:
     st.markdown('<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin:1rem 0;"><div class="stat-card"><div class="stat-number">⭐ '+str(st.session_state.xp)+'</div><div class="stat-label">'+t('xp',lang)+'</div></div><div class="stat-card"><div class="stat-number">📊 '+str(st.session_state.qs)+'</div><div class="stat-label">'+t('quiz_score',lang)+'</div></div><div class="stat-card"><div class="stat-number">🔥 '+str(st.session_state.streak)+'</div><div class="stat-label">'+t('streak',lang)+'</div></div><div class="stat-card"><div class="stat-number">🩺 '+str(st.session_state.tc)+'</div><div class="stat-label">'+t('cases',lang)+'</div></div></div>',True)
     
     st.markdown("---")
-    
     pages = [
         ("dashboard","📊 "+t('dashboard',lang)),("diseases","🦠 "+t('diseases',lang)),
         ("case_analysis","🔬 "+t('case_analysis',lang)),("quiz","🧠 "+t('quiz',lang)),
