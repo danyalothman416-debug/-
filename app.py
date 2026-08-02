@@ -2767,13 +2767,18 @@ DISEASE_DATABASE = {
 # =====================================================================
 # 150+ QUIZ QUESTIONS DATABASE
 # =====================================================================
+    },  # <-- This closes the last disease entry
+}  # <-- This closes the entire DISEASE_DATABASE dictionary
+
+# =====================================================================
+# 150+ QUIZ QUESTIONS DATABASE
+# =====================================================================
 QUIZ_QUESTIONS_DATABASE = [
     # Cardiovascular (20 questions)
     {"question_en": "What is the first-line treatment for Type 2 Diabetes without comorbidities?",
      "options_en": ["Metformin", "Insulin", "Glipizide", "Pioglitazone"],
      "correct": 0, "category": "Endocrinology", "difficulty": "easy",
      "explanation_en": "Metformin is the first-line agent for T2DM unless contraindicated (eGFR <30) due to efficacy, safety, weight neutrality, and low cost."},
-    
     {"question_en": "Which cardiac biomarker is most specific for myocardial infarction?",
      "options_en": ["Troponin I", "CK-MB", "Myoglobin", "LDH"],
      "correct": 0, "category": "Cardiology", "difficulty": "easy",
