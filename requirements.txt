@@ -1,6 +1,7 @@
 streamlit
 pandas
+numpy
 plotly
-qrcode
-fpdf
-openpyxl
+scikit-learn
+matplotlib
+seaborn
