@@ -1,1970 +1,2811 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from io import BytesIO
-import base64
-import qrcode
-from fpdf import FPDF
+from datetime import datetime, timedelta
+import random
 import json
-import pickle
+import time
+import hashlib
+import re
+from typing import Dict, List, Tuple, Optional
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+from sklearn.feature_extraction.text import TfidfVectorizer
 import warnings
-import os
-import tempfile
-
 warnings.filterwarnings('ignore')
+import sqlite3
+import os
+import base64
+from io import BytesIO
+import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import Counter
+import hashlib
+import uuid
 
-# ================== PAGE CONFIGURATION ==================
+# ================================
+# 1. ڕێکخستنی ڕووکاری پەڕە
+# ================================
 st.set_page_config(
-    page_title="سیستەمی بەڕێوەبردنی دوکانی مۆبایل",
-    page_icon="📱",
+    page_title="Dr.Danyal - ڕاهێنەری پزیشکی Pro Max",
+    page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ================== CUSTOM CSS ==================
-st.markdown("""
-    <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-bottom: 2rem;
-        padding: 1rem;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        color: white;
-        transition: transform 0.3s;
-    }
-    .metric-card:hover {transform: translateY(-5px);}
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-weight: bold;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 10px;
-        transition: all 0.3s;
-    }
-    .stButton > button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    }
-    .customer-card {
-        background: white;
-        padding: 1rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
-    }
-    .footer {
-        text-align: center; 
-        padding: 2rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white; 
-        border-radius: 15px; 
-        margin-top: 2rem;
-    }
-    .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: bold;
-    }
-    .status-active {background: #2ecc71; color: white;}
-    .status-pending {background: #f39c12; color: white;}
-    .status-completed {background: #3498db; color: white;}
-    .status-cancelled {background: #e74c3c; color: white;}
-    </style>
-""", unsafe_allow_html=True)
+# ================================
+# 1.5 سیستەمی لۆگین و خەزنکردنی داتا
+# ================================
+import hashlib
+import json
+import os
 
-# ================== SESSION STATE INITIALIZATION ==================
-def init_session():
-    # Sales
-    if 'sales' not in st.session_state:
-        st.session_state.sales = pd.DataFrame(columns=['ناوی بەرهەم','نرخ','کاتی فرۆشتن','ناوی کڕیار','کۆدی داشکاندن','نرخی کۆتایی','کارمەند'])
-    
-    # Inventory with barcode support
-    if 'inventory' not in st.session_state:
-        st.session_state.inventory = pd.DataFrame(columns=['ناوی کەلوپەل','ژمارەی دانەکان','نرخی کڕین','بەرواری زیادکردن','کەمترین ژمارە','بارکۆد'])
-    
-    # Warranty
-    if 'warranty' not in st.session_state:
-        st.session_state.warranty = pd.DataFrame(columns=['ناوی کڕیار','ژمارەی IMEI','بەرواری کۆتایی گەرەنتی','جۆری مۆبایل'])
-    
-    # Customers
-    if 'customers' not in st.session_state:
-        st.session_state.customers = pd.DataFrame(columns=['ناوی کڕیار','ژمارەی مۆبایل','ئیمەیڵ','ناونیشان','بەرواری زیادکردن','ڕێکەوتی لەدایکبوون','کۆی کڕین','خاڵەکان','ئاست'])
-    
-    # Discounts
-    if 'discounts' not in st.session_state:
-        st.session_state.discounts = pd.DataFrame(columns=['کۆدی داشکاندن','ڕێژە','بەرواری دەستپێک','بەرواری کۆتایی','کەمترین کڕین','ژمارەی بەکارهێنان'])
-    
-    # Employees
-    if 'employees' not in st.session_state:
-        st.session_state.employees = pd.DataFrame(columns=['ناوی کارمەند','پلە','مووچە','بەرواری دەستبەکاربوون','ژمارەی فرۆشتن','کۆی فرۆشتن','پاداشت'])
-    
-    # Repairs
-    if 'repairs' not in st.session_state:
-        st.session_state.repairs = pd.DataFrame(columns=['ID','ناوی کڕیار','جۆری مۆبایل','کێشە','بەرواری وەرگرتن','بەرواری گەڕاندنەوە','نرخی چاککردنەوە','ڕەوش'])
-    
-    # Loyalty points
-    if 'loyalty_points' not in st.session_state:
-        st.session_state.loyalty_points = {}
-    
-    # Last sale invoice
-    if 'last_sale_invoice' not in st.session_state:
-        st.session_state.last_sale_invoice = None
-    
-    # Installments
-    if 'installments' not in st.session_state:
-        st.session_state.installments = pd.DataFrame(columns=['ID','ناوی کڕیار','بەرهەم','کۆی نرخ','پارەی پێشەکی','مانگانە','ماوە','بەرواری دەستپێک','پارەی دراو','پارەی ماوە','ڕەوش','بەرواری داهاتووی قیست'])
-    
-    # Messages
-    if 'messages' not in st.session_state:
-        st.session_state.messages = pd.DataFrame(columns=['ID','ناوی کڕیار','ژمارە','پەیام','بەروار','ڕەوش'])
-    
-    # Deliveries
-    if 'deliveries' not in st.session_state:
-        st.session_state.deliveries = pd.DataFrame(columns=['ID','ناوی کڕیار','ژمارەی مۆبایل','ناونیشان','بەرهەم','بەرواری داواکاری','بەرواری گەیاندن','تێچووی گەیاندن','ڕەوش','تێبینی'])
-    
-    # Tickets
-    if 'tickets' not in st.session_state:
-        st.session_state.tickets = pd.DataFrame(columns=['ID','ناوی کڕیار','بابەت','کێشە','لەولەوەپێشی','بەرواری کردنەوە','بەرواری داخستن','ڕەوش','وەڵام'])
-    
-    # Events
-    if 'events' not in st.session_state:
-        st.session_state.events = pd.DataFrame(columns=['ناونیشان','جۆر','بەرواری دەستپێک','بەرواری کۆتایی','ڕێژەی داشکاندن','بەرهەمەکان','ڕەوش'])
-    
-    # Expenses
-    if 'expenses' not in st.session_state:
-        st.session_state.expenses = pd.DataFrame(columns=['بەروار','جۆر','بڕ','تێبینی'])
-    
-    # Suppliers
-    if 'suppliers' not in st.session_state:
-        st.session_state.suppliers = pd.DataFrame(columns=['ID','ناوی کۆمپانیا','بەرپرس','مۆبایل','ئیمەیڵ','ناونیشان','جۆری کەلوپەل'])
-    
-    # Attendance
-    if 'attendance' not in st.session_state:
-        st.session_state.attendance = pd.DataFrame(columns=['کارمەند','بەروار','کاتی هاتن','کاتی ڕۆیشتن','کاتژمێر','ڕەوش'])
-    
-    # Reviews
-    if 'reviews' not in st.session_state:
-        st.session_state.reviews = pd.DataFrame(columns=['کڕیار','بەرهەم','ئەستێرە','سەرنج','بەروار'])
-    
-    # Tasks
-    if 'tasks' not in st.session_state:
-        st.session_state.tasks = pd.DataFrame(columns=['ناونیشان','وەسف','وادە','لەولەوەپێشی','کارمەند','ڕەوش'])
-    
-    # Purchase orders
-    if 'purchase_orders' not in st.session_state:
-        st.session_state.purchase_orders = pd.DataFrame(columns=['ID','دابینکەر','کەلوپەل','دانە','نرخ','کۆی نرخ','ڕەوش'])
+# فۆڵدەری خەزنکردنی داتاکان
+DATA_DIR = "user_data"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-init_session()
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
 
-# ================== HELPER FUNCTIONS ==================
-def safe_concat(df1, df2):
-    """Safe concatenation of dataframes"""
-    try:
-        if df1.empty:
-            return df2
-        elif df2.empty:
-            return df1
-        else:
-            return pd.concat([df1, df2], ignore_index=True)
-    except:
-        return df2 if not df2.empty else df1
+def hash_password(password: str) -> str:
+    """هێشکردنی وشەی نهێنی بە شێوازی SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
-def apply_discount(price, code):
-    if code and not st.session_state.discounts.empty:
-        d = st.session_state.discounts[st.session_state.discounts['کۆدی داشکاندن'] == code]
-        if not d.empty:
-            try:
-                today = datetime.now().date()
-                start_date = pd.to_datetime(d['بەرواری دەستپێک'].iloc[0]).date() if pd.notna(d['بەرواری دەستپێک'].iloc[0]) else None
-                end_date = pd.to_datetime(d['بەرواری کۆتایی'].iloc[0]).date() if pd.notna(d['بەرواری کۆتایی'].iloc[0]) else None
-                
-                if start_date and today < start_date:
-                    return price
-                if end_date and today > end_date:
-                    return price
-                    
-                return price * (1 - d['ڕێژە'].iloc[0] / 100)
-            except:
-                pass
-    return price
+def load_users() -> Dict:
+    """بارکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
-def add_loyalty_points(customer, amount):
-    points = int(amount / 10)
-    st.session_state.loyalty_points[customer] = st.session_state.loyalty_points.get(customer, 0) + points
-    total = st.session_state.loyalty_points[customer]
-    
-    if total >= 1000:
-        level = "🏆 پلاتینیۆم"
-    elif total >= 500:
-        level = "🥇 زێڕین"
-    elif total >= 200:
-        level = "🥈 زیوین"
-    else:
-        level = "🥉 ئاسایی"
-    
-    if not st.session_state.customers.empty:
-        mask = st.session_state.customers['ناوی کڕیار'] == customer
-        if mask.any():
-            idx = st.session_state.customers[mask].index[0]
-            st.session_state.customers.at[idx, 'خاڵەکان'] = total
-            st.session_state.customers.at[idx, 'ئاست'] = level
-            current_total = st.session_state.customers.at[idx, 'کۆی کڕین']
-            if pd.isna(current_total):
-                current_total = 0
-            st.session_state.customers.at[idx, 'کۆی کڕین'] = current_total + amount
+def save_users(users: Dict):
+    """خەزنکردنی زانیاری بەکارهێنەران لە فایلی JSON"""
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=4)
 
-def update_employee_performance(emp, amount):
-    if emp and not st.session_state.employees.empty:
-        mask = st.session_state.employees['ناوی کارمەند'] == emp
-        if mask.any():
-            idx = st.session_state.employees[mask].index[0]
-            current_count = st.session_state.employees.at[idx, 'ژمارەی فرۆشتن']
-            current_total = st.session_state.employees.at[idx, 'کۆی فرۆشتن']
-            current_bonus = st.session_state.employees.at[idx, 'پاداشت']
-            
-            if pd.isna(current_count):
-                current_count = 0
-            if pd.isna(current_total):
-                current_total = 0
-            if pd.isna(current_bonus):
-                current_bonus = 0
-            
-            st.session_state.employees.at[idx, 'ژمارەی فرۆشتن'] = current_count + 1
-            st.session_state.employees.at[idx, 'کۆی فرۆشتن'] = current_total + amount
-            st.session_state.employees.at[idx, 'پاداشت'] = current_bonus + (amount * 0.02)
+def create_user(username: str, password: str) -> bool:
+    """دروستکردنی بەکارهێنەری نوێ"""
+    users = load_users()
+    if username in users:
+        return False
+    users[username] = {
+        "password": hash_password(password),
+        "created_at": datetime.now().isoformat(),
+        "custom_lab_tests": {},
+        "custom_drugs": {}
+    }
+    save_users(users)
+    return True
 
-def update_inventory(product_name, quantity_sold):
-    """Update inventory after a sale"""
-    if not st.session_state.inventory.empty:
-        mask = st.session_state.inventory['ناوی کەلوپەل'] == product_name
-        if mask.any():
-            idx = st.session_state.inventory[mask].index[0]
-            current_qty = st.session_state.inventory.at[idx, 'ژمارەی دانەکان']
-            new_qty = current_qty - quantity_sold
-            if new_qty >= 0:
-                st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] = new_qty
-                return True
+def authenticate_user(username: str, password: str) -> bool:
+    """پشتڕاستکردنەوەی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        return users[username]["password"] == hash_password(password)
     return False
 
-def add_sale(product_name, price, customer_name, discount_code="", employee="", quantity=1):
-    try:
-        if not product_name or price <= 0 or not customer_name:
-            st.error("تکایە ناوی بەرهەم، نرخ و ناوی کڕیار پڕ بکەرەوە")
-            return False
-        
-        final_price = apply_discount(price, discount_code)
-        total_amount = final_price * quantity
-        
-        for i in range(quantity):
-            new_sale = pd.DataFrame({
-                'ناوی بەرهەم': [product_name], 
-                'نرخ': [float(price)],
-                'کاتی فرۆشتن': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-                'ناوی کڕیار': [customer_name], 
-                'کۆدی داشکاندن': [discount_code],
-                'نرخی کۆتایی': [final_price], 
-                'کارمەند': [employee]
-            })
-            
-            st.session_state.sales = safe_concat(st.session_state.sales, new_sale)
-        
-        add_loyalty_points(customer_name, total_amount)
-        update_inventory(product_name, quantity)
-        
-        if employee: 
-            update_employee_performance(employee, total_amount)
-        
-        # Auto-add customer if not exists
-        if not st.session_state.customers.empty:
-            if customer_name not in st.session_state.customers['ناوی کڕیار'].values:
-                new_customer = pd.DataFrame({
-                    'ناوی کڕیار': [customer_name],
-                    'ژمارەی مۆبایل': [''],
-                    'ئیمەیڵ': [''],
-                    'ناونیشان': [''],
-                    'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
-                    'ڕێکەوتی لەدایکبوون': [''],
-                    'کۆی کڕین': [0],
-                    'خاڵەکان': [0],
-                    'ئاست': ['🥉 ئاسایی']
-                })
-                st.session_state.customers = safe_concat(st.session_state.customers, new_customer)
-        
-        st.session_state.last_sale_invoice = generate_invoice({
-            'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'customer': customer_name, 
-            'product': product_name,
-            'quantity': quantity,
-            'price': price, 
-            'discount_code': discount_code,
-            'final_price': total_amount
-        })
-        return True
-    except Exception as e:
-        st.error(f"هەڵە لە تۆمارکردنی فرۆشتن: {str(e)}")
-        return False
+def load_user_data(username: str) -> Dict:
+    """بارکردنی داتای تایبەتی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        return users[username]
+    return {}
 
-def generate_invoice(data):
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
-            pdf = FPDF()
-            pdf.add_page()
-            
-            pdf.set_font("Arial", "B", 24)
-            pdf.cell(0, 15, "MOBILE SHOP", ln=True, align="C")
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 8, "INVOICE", ln=True, align="C")
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(10)
-            
-            pdf.set_font("Arial", "", 10)
-            pdf.cell(0, 6, f"Date: {data.get('date', '')}", ln=True)
-            pdf.cell(0, 6, f"Customer: {data.get('customer', '')}", ln=True)
-            pdf.ln(5)
-            
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(80, 8, "Product", 1)
-            pdf.cell(25, 8, "Qty", 1, align="C")
-            pdf.cell(35, 8, "Price", 1, align="R")
-            pdf.cell(35, 8, "Total", 1, align="R")
-            pdf.ln()
-            
-            pdf.set_font("Arial", "", 10)
-            pdf.cell(80, 8, data.get('product', ''), 1)
-            pdf.cell(25, 8, str(data.get('quantity', 1)), 1, align="C")
-            pdf.cell(35, 8, f"${data.get('price', 0):.2f}", 1, align="R")
-            pdf.cell(35, 8, f"${data.get('final_price', 0):.2f}", 1, align="R")
-            pdf.ln()
-            
-            if data.get('discount_code'):
-                pdf.cell(0, 8, f"Discount Code: {data['discount_code']}", ln=True)
-            
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, f"Total Amount: ${data.get('final_price', 0):.2f}", ln=True, align="R")
-            
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_qr:
-                    qr = qrcode.make(f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}")
-                    qr.save(tmp_qr.name)
-                    pdf.image(tmp_qr.name, x=150, y=30, w=40)
-                    os.unlink(tmp_qr.name)
-            except:
-                pass
-            
-            pdf.ln(20)
-            pdf.set_font("Arial", "I", 8)
-            pdf.cell(0, 5, "Thank you for your purchase!", ln=True, align="C")
-            
-            pdf.output(tmp_pdf.name)
-            with open(tmp_pdf.name, "rb") as f:
-                result = f.read()
-            os.unlink(tmp_pdf.name)
-            return result
-    except Exception as e:
-        return None
+def save_user_data(username: str, data: Dict):
+    """خەزنکردنی داتای تایبەتی بەکارهێنەر"""
+    users = load_users()
+    if username in users:
+        users[username].update(data)
+        save_users(users)
 
-def check_low_stock():
-    if not st.session_state.inventory.empty and 'ژمارەی دانەکان' in st.session_state.inventory.columns and 'کەمترین ژمارە' in st.session_state.inventory.columns:
-        try:
-            return st.session_state.inventory[st.session_state.inventory['ژمارەی دانەکان'] < st.session_state.inventory['کەمترین ژمارە']]
-        except:
-            return pd.DataFrame()
-    return pd.DataFrame()
+# دەستپێکردنی ستەیتی لۆگین
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+if 'custom_lab_tests' not in st.session_state:
+    st.session_state.custom_lab_tests = {}
+if 'custom_drugs' not in st.session_state:
+    st.session_state.custom_drugs = {}
 
-def check_expiring_warranty():
-    if not st.session_state.warranty.empty and 'بەرواری کۆتایی گەرەنتی' in st.session_state.warranty.columns:
-        try:
-            today = datetime.now().date()
-            st.session_state.warranty['بەرواری کۆتایی گەرەنتی'] = pd.to_datetime(st.session_state.warranty['بەرواری کۆتایی گەرەنتی'], errors='coerce').dt.date
-            valid_warranties = st.session_state.warranty.dropna(subset=['بەرواری کۆتایی گەرەنتی'])
-            if not valid_warranties.empty:
-                days_diff = (valid_warranties['بەرواری کۆتایی گەرەنتی'] - today).dt.days
-                return valid_warranties[(days_diff <= 30) & (days_diff >= 0)]
-        except:
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-def check_upcoming_installments():
-    if not st.session_state.installments.empty and 'بەرواری داهاتووی قیست' in st.session_state.installments.columns:
-        try:
-            today = datetime.now().date()
-            st.session_state.installments['بەرواری داهاتووی قیست'] = pd.to_datetime(st.session_state.installments['بەرواری داهاتووی قیست'], errors='coerce').dt.date
-            valid_inst = st.session_state.installments.dropna(subset=['بەرواری داهاتووی قیست'])
-            if not valid_inst.empty:
-                days_diff = (valid_inst['بەرواری داهاتووی قیست'] - today).dt.days
-                active_mask = st.session_state.installments['ڕەوش'] == 'چالاکە'
-                return valid_inst[(days_diff <= 7) & active_mask]
-        except:
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-def check_birthdays():
-    today = datetime.now()
-    birthdays = []
-    if not st.session_state.customers.empty and 'ڕێکەوتی لەدایکبوون' in st.session_state.customers.columns:
-        for _, c in st.session_state.customers.iterrows():
-            if c['ڕێکەوتی لەدایکبوون'] and pd.notna(c['ڕێکەوتی لەدایکبوون']):
-                try:
-                    bd = pd.to_datetime(c['ڕێکەوتی لەدایکبوون'])
-                    if bd.month == today.month and bd.day == today.day:
-                        birthdays.append(c['ناوی کڕیار'])
-                except:
-                    pass
-    return birthdays
-
-def export_to_excel(df, sheet="Data"):
-    if df.empty:
-        return None
-    try:
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name=sheet, index=False)
-        return output.getvalue()
-    except:
-        return None
-
-def get_download_link(data, filename):
-    if data is None:
-        return "هیچ داتایەک بۆ هەناردەکردن نییە"
-    b64 = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}">📥 {filename}</a>'
-
-def backup_data():
-    all_data = {}
-    for k, v in st.session_state.items():
-        if not k.startswith('_'):
-            try:
-                if hasattr(v, 'to_dict'):
-                    all_data[k] = v.to_dict()
-                else:
-                    all_data[k] = v
-            except:
-                pass
-    all_data['backup_date'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return json.dumps(all_data, default=str), pickle.dumps(all_data)
-
-def restore_data(uploaded_file):
-    try:
-        if uploaded_file.name.endswith('.json'):
-            data = json.loads(uploaded_file.read().decode('utf-8'))
-        else:
-            data = pickle.loads(uploaded_file.read())
-        
-        for key in data:
-            if key != 'backup_date' and key in st.session_state:
-                try:
-                    if isinstance(data[key], dict) and hasattr(st.session_state[key], 'empty'):
-                        st.session_state[key] = pd.DataFrame(data[key])
-                    else:
-                        st.session_state[key] = data[key]
-                except:
-                    pass
-        return True
-    except Exception as e:
-        st.error(f"هەڵە لە گەڕاندنەوەی بەکاپ: {str(e)}")
-        return False
-
-def create_sample_data():
-    """Create sample data for testing"""
-    if st.session_state.sales.empty:
-        sample_sale = pd.DataFrame({
-            'ناوی بەرهەم': ['iPhone 15 Pro', 'Samsung Galaxy S24', 'Google Pixel 8'],
-            'نرخ': [1000, 900, 800],
-            'کاتی فرۆشتن': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")] * 3,
-            'ناوی کڕیار': ['ئەحمەد', 'سارا', 'محەمەد'],
-            'کۆدی داشکاندن': ['', '', ''],
-            'نرخی کۆتایی': [1000, 900, 800],
-            'کارمەند': ['ڕێباز', 'ڕێباز', 'هەڵگورد']
-        })
-        st.session_state.sales = sample_sale
-        
-    if st.session_state.inventory.empty:
-        sample_inv = pd.DataFrame({
-            'ناوی کەلوپەل': ['iPhone 15 Pro', 'Samsung Galaxy S24', 'Google Pixel 8', 'Charger', 'Phone Case'],
-            'ژمارەی دانەکان': [15, 12, 8, 50, 100],
-            'نرخی کڕین': [700, 600, 550, 15, 5],
-            'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")] * 5,
-            'کەمترین ژمارە': [5, 5, 5, 20, 30],
-            'بارکۆد': ['1234567890123', '1234567890124', '1234567890125', 'CH001', 'CS001']
-        })
-        st.session_state.inventory = sample_inv
-    
-    if st.session_state.employees.empty:
-        sample_emp = pd.DataFrame({
-            'ناوی کارمەند': ['ڕێباز', 'هەڵگورد', 'دڵشاد'],
-            'پلە': ['بەڕێوەبەر', 'فرۆشیار', 'فرۆشیار'],
-            'مووچە': [1000, 600, 600],
-            'بەرواری دەستبەکاربوون': [datetime.now().strftime("%Y-%m-%d")] * 3,
-            'ژمارەی فرۆشتن': [0, 0, 0],
-            'کۆی فرۆشتن': [0, 0, 0],
-            'پاداشت': [0, 0, 0]
-        })
-        st.session_state.employees = sample_emp
-    
-    if st.session_state.customers.empty:
-        sample_cust = pd.DataFrame({
-            'ناوی کڕیار': ['ئەحمەد', 'سارا', 'محەمەد'],
-            'ژمارەی مۆبایل': ['07701234567', '07707654321', '07501234567'],
-            'ئیمەیڵ': ['ahmed@email.com', 'sara@email.com', 'mohammed@email.com'],
-            'ناونیشان': ['هەولێر', 'سلێمانی', 'دهۆک'],
-            'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")] * 3,
-            'ڕێکەوتی لەدایکبوون': ['1990-01-01', '1992-05-15', '1988-10-20'],
-            'کۆی کڕین': [1000, 900, 800],
-            'خاڵەکان': [100, 90, 80],
-            'ئاست': ['🥈 زیوین', '🥈 زیوین', '🥉 ئاسایی']
-        })
-        st.session_state.customers = sample_cust
-    
-    if st.session_state.discounts.empty:
-        sample_discounts = pd.DataFrame({
-            'کۆدی داشکاندن': ['SUMMER2024', 'NEWYEAR2024'],
-            'ڕێژە': [10, 15],
-            'بەرواری دەستپێک': [(datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")] * 2,
-            'بەرواری کۆتایی': [(datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")] * 2,
-            'کەمترین کڕین': [0, 500],
-            'ژمارەی بەکارهێنان': [0, 0]
-        })
-        st.session_state.discounts = sample_discounts
-        
-    st.success("✅ داتای نموونەیی دروست کرا!")
-
-# ================== SIDEBAR ==================
-with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/shop.png", width=80)
-    st.title("📱 مینوی سەرەکی")
-    
-    if st.button("📊 داتای نموونەیی دروست بکە"):
-        create_sample_data()
-    
-    st.markdown("---")
-    st.markdown("### 🔔 ئاگادارییەکان")
-    
-    low = check_low_stock()
-    if not low.empty:
-        with st.expander(f"⚠️ {len(low)} کەلوپەلی کەم!", expanded=True):
-            for _, i in low.iterrows(): 
-                st.error(f"📦 {i['ناوی کەلوپەل']}: {i['ژمارەی دانەکان']} دانە")
-    
-    exp = check_expiring_warranty()
-    if not exp.empty:
-        with st.expander(f"⏰ {len(exp)} گەرەنتی نزیک!", expanded=False):
-            for _, w in exp.iterrows(): 
-                st.warning(f"📱 {w['ناوی کڕیار']} - کۆتایی: {w['بەرواری کۆتایی گەرەنتی']}")
-    
-    inst = check_upcoming_installments()
-    if not inst.empty:
-        with st.expander(f"💳 {len(inst)} قیستی نزیک!", expanded=False):
-            for _, i in inst.iterrows(): 
-                st.warning(f"💰 {i['ناوی کڕیار']}: ${i['مانگانە']:,.2f} - {i['بەرواری داهاتووی قیست']}")
-    
-    bdays = check_birthdays()
-    if bdays:
-        for b in bdays: 
-            st.success(f"🎂 ڕۆژی لەدایکبوونی {b} پیرۆز بێت!")
-    
-    st.markdown("---")
-    
-    menu = {
-        "💰 فرۆشتن": ["📝 فرۆشتنی نوێ", "📋 لیستی فرۆشتن", "🧾 فاکتوور", "📷 سکانی بارکۆد"],
-        "📦 کۆگا": ["📝 زیادکردنی کەلوپەل", "📋 لیستی کۆگا", "🔄 نوێکردنەوەی کۆگا", "🏭 دابینکەران"],
-        "🏷️ داشکاندن": ["📝 کۆدی نوێ", "📋 لیستی کۆدەکان"],
-        "💳 قیست": ["📝 قیستی نوێ", "📋 لیستی قیستەکان", "💰 پارەدان", "⚠️ ئاگاداری قیست"],
-        "🛡️ گەرەنتی": ["📝 تۆمارکردنی گەرەنتی", "📋 لیستی گەرەنتی", "⚠️ ئاگاداری گەرەنتی"],
-        "🔧 چاککردنەوە": ["📝 تۆماری چاککردنەوە", "📋 لیستی چاککردنەوەکان"],
-        "🚚 گەیاندن": ["📝 داواکاری نوێ", "📋 لیستی گەیاندنەکان"],
-        "🎫 پشتیوانی": ["📝 تیکتی نوێ", "📋 تیکتەکان"],
-        "👥 کڕیاران": ["📝 زیادکردنی کڕیار", "📋 لیستی کڕیاران", "⭐ خاڵەکان", "🎂 ڕۆژی لەدایکبوون"],
-        "👨‍💼 کارمەندان": ["📝 زیادکردنی کارمەند", "📋 لیستی کارمەندان", "📊 ئاستی کارمەندان", "⏰ ئامادەبوون"],
-        "📊 قازانج": ["💰 خەمڵاندنی قازانج", "📈 هێڵکاری", "📄 ڕاپۆرتی PDF", "💸 خەرجییەکان"],
-        "📊 داشبۆرد": ["🎯 سەرەکی", "📈 شیکاری"],
-        "⚙️ ڕێکخستن": ["💾 بەکاپ", "🔔 ئاگادارییەکان"]
+# ================================
+# 2. CSS و ستایلە پێشکەوتووەکان (لەگەڵ ئەنیمەیشنی زیاتر)
+# ================================
+st.markdown("""
+<style>
+    /* 2.1 باکگراوندی پشت */
+    .stApp {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #0f0c29);
+        min-height: 100vh;
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
     }
     
-    main_choice = st.selectbox("بەشێک هەڵبژێرە:", list(menu.keys()))
-    sub_choice = None
-    if main_choice in menu:
-        sub_choice = st.radio("ژێربەش:", menu[main_choice])
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .main {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        border-radius: 35px;
+        padding: 2.5rem;
+        margin: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        animation: fadeIn 1s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* 2.2 سایدبار - پاک و مۆدێرن (دیارترین گۆڕانکاری) */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0a1929 0%, #0d2137 50%, #0a1929 100%) !important;
+        border-right: 1px solid rgba(79, 172, 254, 0.15) !important;
+        box-shadow: 5px 0 40px rgba(0, 0, 0, 0.5) !important;
+        backdrop-filter: blur(10px) !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+    
+    /* سایدبار - هەموو دەقەکان */
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] .stMarkdown span,
+    [data-testid="stSidebar"] label {
+        color: rgba(255, 255, 255, 0.85) !important;
+        font-weight: 400 !important;
+    }
+    
+    /* سایدبار - دابەشکەر */
+    [data-testid="stSidebar"] hr {
+        border-color: rgba(79, 172, 254, 0.2) !important;
+    }
+    
+    /* سایدبار - ڕادیۆ بەتنی پاک */
+    [data-testid="stSidebar"] .stRadio > div {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border-radius: 16px !important;
+        padding: 8px !important;
+        border: 1px solid rgba(79, 172, 254, 0.15) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    [data-testid="stSidebar"] .stRadio > div:hover {
+        background: rgba(79, 172, 254, 0.08) !important;
+        border-color: rgba(79, 172, 254, 0.3) !important;
+    }
+    
+    [data-testid="stSidebar"] .stRadio [role="radiogroup"] label {
+        transition: all 0.3s ease !important;
+        padding: 6px 12px !important;
+        border-radius: 12px !important;
+    }
+    
+    [data-testid="stSidebar"] .stRadio [role="radiogroup"] label:hover {
+        background: rgba(79, 172, 254, 0.1) !important;
+    }
+    
+    /* 2.3 ویجێتەکان - چوارچێوەی جوان */
+    .stSelectbox > div > div,
+    .stTextInput > div > div,
+    .stTextArea > div > div,
+    .stNumberInput > div > div {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(79, 172, 254, 0.2) !important;
+        border-radius: 14px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stSelectbox > div > div:focus-within,
+    .stTextInput > div > div:focus-within,
+    .stTextArea > div > div:focus-within,
+    .stNumberInput > div > div:focus-within {
+        border-color: #4facfe !important;
+        box-shadow: 0 0 20px rgba(79, 172, 254, 0.25) !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    /* کۆنتەینەری پەیوەندی بۆردەر */
+    [data-testid="stVerticalBlock"] [data-testid="stVerticalBlock"] {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 22px;
+        border: 1px solid rgba(79, 172, 254, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* 2.4 دوگمەکان - شێوازی مۆدێرنی پزیشکی (شین و سەوزی کاڵ) */
+    .stButton > button {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        border: none !important;
+        color: #0a1929 !important;
+        font-weight: 700 !important;
+        padding: 0.8rem 2.5rem !important;
+        border-radius: 50px !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.35) !important;
+        letter-spacing: 0.5px;
+        font-size: 0.95rem !important;
+        text-transform: none !important;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 15px 35px rgba(67, 233, 123, 0.45) !important;
+        color: #0a1929 !important;
+    }
+    
+    .stButton > button:active {
+        transform: scale(0.96) !important;
+        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3) !important;
+    }
+    
+    /* دوگمەی سەرەتایی */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+        box-shadow: 0 8px 25px rgba(67, 233, 123, 0.35) !important;
+        color: #0a1929 !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        box-shadow: 0 15px 35px rgba(79, 172, 254, 0.45) !important;
+    }
+    
+    /* دوگمەی چوونە دەرەوە */
+    [data-testid="stSidebar"] .stButton > button {
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)) !important;
+        border: 1px solid rgba(79, 172, 254, 0.3) !important;
+        color: white !important;
+        box-shadow: none !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+        border-color: #ff6b6b !important;
+        color: white !important;
+    }
+    
+    /* 2.5 لۆگۆی Dr.Danyal */
+    .logo-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        animation: float 4s ease-in-out infinite;
+        background: rgba(255,255,255,0.05);
+        padding: 15px 30px;
+        border-radius: 60px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 20px;
+        box-shadow: 0 10px 40px rgba(102,126,234,0.2);
+    }
+    .logo-icon {
+        font-size: 4rem;
+        animation: pulse 2s infinite;
+        filter: drop-shadow(0 0 20px rgba(102,126,234,0.5));
+    }
+    .logo-text {
+        font-size: 2.2rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea, #f093fb, #4facfe, #667eea);
+        background-size: 300% 300%;
+        animation: textShimmer 4s ease infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: 1px;
+    }
+    .logo-sub {
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.6);
+        -webkit-text-fill-color: rgba(255,255,255,0.6);
+        text-align: center;
+        margin-top: -5px;
+    }
+    
+    @keyframes textShimmer {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-12px); }
+        100% { transform: translateY(0px); }
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); text-shadow: 0 0 20px rgba(102,126,234,0.3); }
+        50% { transform: scale(1.05); text-shadow: 0 0 40px rgba(102,126,234,0.6), 0 0 80px rgba(118,75,162,0.3); }
+        100% { transform: scale(1); text-shadow: 0 0 20px rgba(102,126,234,0.3); }
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes slideInLeft {
+        from { opacity: 0; transform: translateX(-50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes glow {
+        0% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+        50% { box-shadow: 0 0 60px rgba(102, 126, 234, 0.6), 0 0 100px rgba(118, 75, 162, 0.3); }
+        100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: 400% 0; }
+        100% { background-position: -400% 0; }
+    }
+    
+    @keyframes iconFloat {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-15px) rotate(5deg); }
+        100% { transform: translateY(0px) rotate(0deg); }
+    }
+    
+    /* ئایکۆنەکان بە ئەنیمەیشن */
+    .icon-animated {
+        display: inline-block;
+        animation: iconFloat 3s ease-in-out infinite;
+        font-size: 2rem;
+    }
+    .icon-animated-slow {
+        display: inline-block;
+        animation: iconFloat 5s ease-in-out infinite;
+        font-size: 2.5rem;
+    }
+    .icon-spin {
+        display: inline-block;
+        animation: spin 10s linear infinite;
+        font-size: 2rem;
+    }
+    
+    .main-header {
+        font-size: 3.8rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 30%, #f093fb 60%, #4facfe 100%);
+        background-size: 300% 300%;
+        animation: headerGradient 4s ease infinite;
+        color: white;
+        text-align: center;
+        padding: 2.8rem;
+        border-radius: 35px;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.5);
+        font-family: 'Noto Naskh Arabic', sans-serif;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    @keyframes headerGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .main-header::before {
+        content: '🩺';
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 4rem;
+        opacity: 0.3;
+        animation: spin 20s linear infinite;
+    }
+    
+    .main-header::after {
+        content: '⚕️';
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 4rem;
+        opacity: 0.3;
+        animation: spin 20s linear infinite reverse;
+    }
+    
+    .case-card {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 28px;
+        border-left: 8px solid #667eea;
+        margin: 1.2rem 0;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        animation: slideInLeft 0.6s ease-out;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .case-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(102,126,234,0.08) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    
+    .case-card:hover {
+        transform: translateY(-10px) scale(1.01);
+        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.3);
+        border-color: #764ba2;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .success-box {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.3), rgba(40, 167, 69, 0.08));
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
+        border-left: 8px solid #28a745;
+        box-shadow: 0 10px 45px rgba(40, 167, 69, 0.2);
+        animation: pulse 2s infinite;
+        color: #fff;
+        border: 1px solid rgba(40, 167, 69, 0.15);
+    }
+    
+    .error-box {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.3), rgba(220, 53, 69, 0.08));
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
+        border-left: 8px solid #dc3545;
+        box-shadow: 0 10px 45px rgba(220, 53, 69, 0.2);
+        color: #fff;
+        border: 1px solid rgba(220, 53, 69, 0.15);
+    }
+    
+    .quiz-card {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(20px);
+        padding: 3rem;
+        border-radius: 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        margin: 1.5rem 0;
+        border: 2px solid rgba(102, 126, 234, 0.15);
+        transition: all 0.4s ease;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    .quiz-card::before {
+        content: '📝';
+        position: absolute;
+        top: 15px;
+        right: 25px;
+        font-size: 5rem;
+        opacity: 0.05;
+        animation: iconFloat 6s ease-in-out infinite;
+    }
+    
+    .quiz-card:hover {
+        box-shadow: 0 30px 80px rgba(102, 126, 234, 0.3);
+        transform: translateY(-6px);
+        border-color: #764ba2;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .progress-container {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 25px;
+        height: 22px;
+        overflow: hidden;
+        margin: 1rem 0;
+        box-shadow: inset 0 3px 8px rgba(0,0,0,0.2);
+        position: relative;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #4facfe, #667eea);
+        background-size: 400% 100%;
+        border-radius: 25px;
+        transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: shimmer 4s infinite linear;
+        position: relative;
+    }
+    
+    .progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        animation: shine 2s infinite;
+    }
+    
+    @keyframes shine {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        padding: 2.2rem;
+        border-radius: 25px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        text-align: center;
+        border-top: 6px solid #667eea;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        cursor: default;
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-15px) scale(1.02);
+        box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        border-top-color: #f093fb;
+    }
+    
+    .stat-number {
+        font-size: 4rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea, #f093fb, #4facfe);
+        background-size: 200% 200%;
+        animation: numberGradient 3s ease infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: none;
+    }
+    
+    @keyframes numberGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    .badge-level {
+        display: inline-block;
+        padding: 0.6rem 2.2rem;
+        border-radius: 40px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea, #f093fb);
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        animation: pulse 3s infinite;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+    }
+    
+    .footer-style {
+        text-align: center;
+        padding: 3.5rem;
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
+        color: white;
+        border-radius: 35px;
+        margin-top: 3rem;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        animation: fadeIn 1s ease-out;
+    }
+    
+    .drug-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(15px);
+        padding: 1.8rem;
+        border-radius: 22px;
+        border: 2px solid rgba(102, 126, 234, 0.08);
+        margin: 0.8rem 0;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
+        position: relative;
+        animation: slideInLeft 0.5s ease-out;
+    }
+    
+    .drug-card:hover {
+        transform: translateY(-6px) scale(1.01);
+        border-color: #764ba2;
+        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.2);
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .drug-card .drug-icon {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 3rem;
+        opacity: 0.08;
+        animation: spin 20s linear infinite;
+    }
+    
+    .symptom-tag {
+        display: inline-block;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+        backdrop-filter: blur(5px);
+        padding: 0.4rem 1.4rem;
+        border-radius: 30px;
+        margin: 0.25rem;
+        font-size: 0.85rem;
+        color: #c8d0ff;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        cursor: default;
+    }
+    
+    .symptom-tag:hover {
+        background: rgba(102, 126, 234, 0.5);
+        color: white;
+        transform: scale(1.08);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .risk-high { color: #ff6b6b; font-weight: bold; }
+    .risk-medium { color: #ffd93d; font-weight: bold; }
+    .risk-low { color: #6bcb77; font-weight: bold; }
+    
+    .achievement-badge {
+        display: inline-flex;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 179, 0, 0.08));
+        backdrop-filter: blur(10px);
+        padding: 0.6rem 2rem;
+        border-radius: 40px;
+        color: #ffd700;
+        font-weight: bold;
+        box-shadow: 0 6px 25px rgba(255, 215, 0, 0.2);
+        margin: 0.3rem;
+        border: 1px solid rgba(255, 215, 0, 0.15);
+        transition: all 0.3s ease;
+    }
+    
+    .achievement-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 35px rgba(255, 215, 0, 0.3);
+    }
+    
+    .tab-container {
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
+        padding: 2.8rem;
+        border-radius: 28px;
+        box-shadow: 0 10px 45px rgba(0,0,0,0.1);
+        margin: 1.5rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        color: #fff;
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    .button-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+        color: white;
+        border: none;
+        padding: 1.1rem 3rem;
+        border-radius: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .button-primary::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+        transform: rotate(45deg);
+        transition: all 0.6s ease;
+    }
+    
+    .button-primary:hover {
+        transform: scale(1.06);
+        box-shadow: 0 20px 50px rgba(102, 126, 234, 0.5);
+    }
+    
+    .button-primary:hover::before {
+        transform: rotate(45deg) scale(1.5);
+    }
+    
+    .medication-card {
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin: 0.8rem 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #fff;
+        position: relative;
+        padding-left: 20px;
+    }
+    
+    .medication-card::before {
+        content: '💊';
+        position: absolute;
+        left: -5px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 2rem;
+        opacity: 0.15;
+    }
+    
+    .medication-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: #667eea;
+        transform: translateX(10px);
+    }
+    
+    .level-badge {
+        display: inline-block;
+        padding: 0.3rem 1.2rem;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.8rem;
+        margin: 0.2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .level-1 { background: rgba(40, 167, 69, 0.3); color: #6bcb77; border: 1px solid rgba(40, 167, 69, 0.2); }
+    .level-2 { background: rgba(23, 162, 184, 0.3); color: #5bc0de; border: 1px solid rgba(23, 162, 184, 0.2); }
+    .level-3 { background: rgba(255, 193, 7, 0.3); color: #ffd93d; border: 1px solid rgba(255, 193, 7, 0.2); }
+    .level-4 { background: rgba(255, 153, 0, 0.3); color: #ff9f1c; border: 1px solid rgba(255, 153, 0, 0.2); }
+    .level-5 { background: rgba(220, 53, 69, 0.3); color: #ff6b6b; border: 1px solid rgba(220, 53, 69, 0.2); }
+    
+    .lab-result-card {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1.2rem;
+        border-radius: 15px;
+        margin: 0.5rem 0;
+        border-left: 4px solid #667eea;
+        transition: all 0.3s ease;
+    }
+    
+    .lab-result-card:hover {
+        background: rgba(0, 0, 0, 0.3);
+        transform: translateX(5px);
+    }
+    
+    .lab-normal { border-left-color: #28a745; }
+    .lab-high { border-left-color: #dc3545; }
+    .lab-low { border-left-color: #ffc107; }
+    
+    .quiz-level-progress {
+        background: rgba(255, 255, 255, 0.04);
+        padding: 1rem 2rem;
+        border-radius: 18px;
+        margin: 0.5rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .quiz-level-progress:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: scale(1.01);
+    }
+    
+    .notification-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        padding: 1.2rem 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.3);
+        z-index: 1000;
+        animation: slideInRight 0.5s ease;
+        font-weight: bold;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .timeline-item {
+        padding: 1rem 1.8rem;
+        border-left: 4px solid #667eea;
+        margin: 0.8rem 0;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 0 16px 16px 0;
+        transition: all 0.3s ease;
+        color: #ddd;
+    }
+    
+    .timeline-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(8px);
+    }
+    
+    .timeline-item .time {
+        font-size: 0.8rem;
+        color: #888;
+    }
+    
+    /* ئایکۆنی تایبەت بۆ Dr.Danyal */
+    .dr-icon {
+        font-size: 3.5rem;
+        animation: pulse 2s infinite, float 4s ease-in-out infinite;
+        display: inline-block;
+        filter: drop-shadow(0 0 30px rgba(102,126,234,0.4));
+    }
+    
+    /* ستایلی پەڕەی لۆگین */
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+    }
+    
+    .login-box {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(30px);
+        padding: 3rem;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        text-align: center;
+        max-width: 450px;
+        width: 100%;
+        animation: fadeIn 1s ease-out;
+    }
+    
+    .login-input {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 15px !important;
+        color: white !important;
+        padding: 12px 20px !important;
+        margin: 10px 0 !important;
+        width: 100% !important;
+        font-size: 1rem !important;
+    }
+    
+    @media (max-width: 768px) {
+        .main-header {
+            font-size: 2.2rem;
+            padding: 1.2rem;
+        }
+        .stat-number {
+            font-size: 2.8rem;
+        }
+        .stat-card {
+            padding: 1rem;
+        }
+        .logo-text {
+            font-size: 1.5rem;
+        }
+        .logo-icon {
+            font-size: 2.5rem;
+        }
+        .dr-icon {
+            font-size: 2.5rem;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ================================
+# 3. سیستەمی ئاستەکان (Levels) - پڕتر
+# ================================
+LEVELS = {
+    1: {
+        "name": "سەرەتایی (Beginner)",
+        "min_score": 0,
+        "max_score": 9,
+        "color": "#28a745",
+        "quizzes": 50,
+        "icon": "🌱",
+        "description": "دەستپێکی ڕێگای پزیشکی",
+        "requirements": "هیچ"
+    },
+    2: {
+        "name": "فێرخواز (Learner)",
+        "min_score": 10,
+        "max_score": 29,
+        "color": "#17a2b8",
+        "quizzes": 100,
+        "icon": "📖",
+        "description": "فێربوونی بنەماکانی پزیشکی",
+        "requirements": "تەواوکردنی ئاست ١"
+    },
+    3: {
+        "name": "پێشکەوتوو (Advanced)",
+        "min_score": 30,
+        "max_score": 59,
+        "color": "#ffc107",
+        "quizzes": 150,
+        "icon": "🚀",
+        "description": "پێشکەوتن لە زانستە پزیشکییەکان",
+        "requirements": "تەواوکردنی ئاست ٢"
+    },
+    4: {
+        "name": "شارەزا (Expert)",
+        "min_score": 60,
+        "max_score": 89,
+        "color": "#ff9f1c",
+        "quizzes": 200,
+        "icon": "🏆",
+        "description": "شارەزایی لە نەخۆشییەکان",
+        "requirements": "تەواوکردنی ئاست ٣"
+    },
+    5: {
+        "name": "پزیشک (Master)",
+        "min_score": 90,
+        "max_score": 100,
+        "color": "#dc3545",
+        "quizzes": 500,
+        "icon": "👨‍⚕️",
+        "description": "پزیشکی لێهاتوو و شارەزا",
+        "requirements": "تەواوکردنی ئاست ٤"
+    }
+}
+
+def get_user_level(score: int) -> int:
+    for level, info in LEVELS.items():
+        if info["min_score"] <= score <= info["max_score"]:
+            return level
+    return 1
+
+def get_level_info(level: int) -> Dict:
+    return LEVELS.get(level, LEVELS[1])
+
+def get_next_level(level: int) -> int:
+    return min(level + 1, 5)
+
+def get_level_progress(score: int) -> float:
+    level = get_user_level(score)
+    if level == 5:
+        return 100.0
+    current = LEVELS[level]
+    next_level = get_next_level(level)
+    if next_level == 5:
+        total = 100 - current["min_score"]
+        achieved = score - current["min_score"]
+        return min((achieved / total) * 100, 100)
+    total = LEVELS[next_level]["min_score"] - current["min_score"]
+    achieved = score - current["min_score"]
+    return min((achieved / total) * 100, 100)
+
+def get_level_requirements(level: int) -> str:
+    info = get_level_info(level)
+    return info.get("requirements", "هیچ")
+
+def get_level_icon(level: int) -> str:
+    info = get_level_info(level)
+    return info.get("icon", "📚")
+
+# ================================
+# 4. داتابەسی نەخۆشییەکان (١٠٠+ نەخۆشی)
+# ================================
+DISEASE_DATABASE = {
+    # 4.1 نەخۆشییەکانی کۆئەندامی هەرس (٢٠ نەخۆشی)
+    "شەکرەی جۆری 1": {
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "کێش کەمبوونەوە", "ماندوویی", "بینی تەڵخ", "برسێتی زۆر", "سەرگێژخواردن", "هەستی بەمەزە", "پێست وشک", "هەستی بێهێزی"],
+        "پشکنینەکان": {"FBS": ">200 mg/dL", "HbA1c": ">8%", "C-peptide": "نزم", "Anti-GAD": "positive", "Insulin": "نزم"},
+        "چارەسەر": ["ئەنسولین", "پێوانەکردنی شەکر", "شێوازی خواردن", "وەرزش", "پشکنینی بەردەوام"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "تەمەن < 30 + C-peptide نزم + Anti-GAD positive",
+        "ڕێپیشگیری": ["پشکنینی بۆماوەیی", "پێشگیری لە هەوکردنە ڤایرۆسییەکان"],
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "خۆئەگەر"
+    },
+    "شەکرەی جۆری 2": {
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "کێش کەمبوونەوە", "بینی تەڵخ", "برسێتی زۆر", "پێست وشک", "هەستی بەمەزە", "هەستی بێهێزی", "پێستی تۆخ"],
+        "پشکنینەکان": {"FBS": ">126 mg/dL", "HbA1c": ">6.5%", "OGTT": ">200 mg/dL", "C-peptide": "نۆرماڵ یان بەرز", "Insulin": "بەرز"},
+        "چارەسەر": ["مێتفۆرمین 500mg", "گۆڕینی شێوازی ژیان", "وەرزشی ڕۆژانە 30 خولەک", "شێوازی خواردن کەم کاربۆهیدرات", "پێوانەکردنی شەکر"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "FBS بەرز + HbA1c بەرز + تەمەن > 40 ساڵ",
+        "ڕێپیشگیری": ["شێوازی خواردنی تەندروست", "چالاکی جەستەیی", "پێوانەکردنی شەکر بەردەوام", "کەمکردنەوەی کێش"],
+        "گروپی تەمەن": "تەمەن مامناوەند و پیر",
+        "ڕێژەی تووشبوون": "8.5%",
+        "جۆری نەخۆشی": "مێتابۆلیک"
+    },
+    "شەکرەی حەملی دووگانی": {
+        "نیشانەکان": ["تینوویەتی زۆر", "میزی زۆر", "ماندوویی", "هەستی بەمەزە", "هەستی بێهێزی"],
+        "پشکنینەکان": {"FBS": ">126 mg/dL", "OGTT": ">200 mg/dL", "HbA1c": ">6.5%"},
+        "چارەسەر": ["گۆڕینی شێوازی ژیان", "ئەنسولین (ئەگەر پێویست)", "پێوانەکردنی شەکر", "شێوازی خواردن"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "حەمل + شەکر",
+        "ڕێپیشگیری": ["پێشکەشکردنی شەکر لە حەملی پێشوو", "پێوانەکردنی شەکر"],
+        "گروپی تەمەن": "ژنانی حەملی",
+        "ڕێژەی تووشبوون": "7%",
+        "جۆری نەخۆشی": "مێتابۆلیک"
+    },
+    "پەستانی خوێنی سەرەتایی": {
+        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئەرەقەکردن", "مەلە", "خوێن لە لووتدا"],
+        "پشکنینەکان": {"BP": ">140/90 mmHg", "ECG": "Left ventricular hypertrophy", "Creatinine": "نۆرماڵ", "Potassium": "نۆرماڵ", "Echocardiogram": "نۆرماڵ"},
+        "چارەسەر": ["کاپتۆپریل 25mg", "کەمکردنەوەی نمەک", "وەرزشی ئیروبیک", "کەمکردنەوەی کێش", "پێوانەکردنی BP"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "BP بەرز بەبێ هۆکاری دیکە",
+        "ڕێپیشگیری": ["پێوانەکردنی BP بەردەوام", "شێوازی خواردنی کەم نمەک", "ڕاهێنانی ڕۆژانە"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
+    },
+    "پەستانی خوێنی دووەمی": {
+        "نیشانەکان": ["سەرئێشە", "سەرگێژخواردن", "فشاری پشت چاو", "خێرالێدانی دڵ", "ئاوسانی قاچ", "میلە"],
+        "پشکنینەکان": {"BP": ">140/90 mmHg", "Creatinine": "بەرز", "Ultrasound": "نەخۆشی گورچیلە", "Aldosterone": "بەرز"},
+        "چارەسەر": ["چارەسەری هۆکار", "دژە پەستانی خوێن", "کەمکردنەوەی نمەک", "پشکنینی بەردەوام"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "BP بەرز + هۆکاری دیکە وەک نەخۆشی گورچیلە",
+        "ڕێپیشگیری": ["دۆزینەوەی هۆکار", "چارەسەری هۆکار"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
+    },
+    "نەخۆشی دڵی ئیسکیمیک": {
+        "نیشانەکان": ["ئازاری سنگ", "کورتی هەناسە", "ئارەقەکردن", "سکچوون و ڕشانەوە", "ئازاری شان", "تنگەنەفەسی", "ئازاری پشت", "خێرالێدانی دڵ"],
+        "پشکنینەکان": {"ECG": "ST depression", "Troponin": "بەرز >0.04", "CK-MB": "بەرز >5", "Echocardiogram": "کەمبوونی ئیشی دڵ", "CAG": "تەنگی کرۆنەری"},
+        "چارەسەر": ["ئەسپیرین 300mg", "نایترۆگلیسیرین", "ئۆکسجین", "بێتا بلاکەر", "هێپارین"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "ST changes + Troponin elevated",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی پەستانی خوێن", "وەرزش", "وەستانی جگەرە", "کۆنتڕۆڵی شەکرە"],
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "7%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
+    },
+    "نەخۆشی دڵی شکان (Heart Failure)": {
+        "نیشانەکان": ["کورتی هەناسە", "ئاوسانی قاچ", "ماندوویی", "خێرالێدانی دڵ", "کۆخە", "ئارەقەکردنی شەو"],
+        "پشکنینەکان": {"BNP": "بەرز", "Echocardiogram": "EF < 40%", "Chest X-ray": "Cardiomegaly", "ECG": "Abnormal"},
+        "چارەسەر": ["Diuretics", "ACE inhibitor", "Beta blocker", "کەمکردنەوەی نمەک", "ئۆکسجین"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "BNP بەرز + EF نزم",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "وەرزش", "شێوازی خواردن"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
+    },
+    "نەخۆشی دڵی ڕیتم (Arrhythmia)": {
+        "نیشانەکان": ["لێدانی دڵ ناڕێک", "سەرگێژخواردن", "کورتی هەناسە", "ئازاری سنگ", "خێرالێدانی دڵ"],
+        "پشکنینەکان": {"ECG": "Arrhythmia", "Holter": "Abnormal", "Echocardiogram": "نۆرماڵ"},
+        "چارەسەر": ["Beta blocker", "Calcium channel blocker", "Anticoagulant", "Pacemaker"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "ECG ناڕێک",
+        "ڕێپیشگیری": ["پارێزی لە کافئین", "وەرزش", "پشکنینی بەردەوام"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1.5%",
+        "جۆری نەخۆشی": "دڵ و خوێن"
+    },
+    "هەوکردنی سییەکان (Pneumonia)": {
+        "نیشانەکان": ["تا", "کۆخە", "هەناسەدان بە زەحمەت", "ئازاری سنگ", "ڕژانی لووت", "ماندوویی", "ئارەقەکردن", "لەرزین"],
+        "پشکنینەکان": {"Chest X-ray": "Consolidation", "CRP": "بەرز >10", "WBC": "بەرز >11", "Sputum culture": "بەکتریا", "O2 saturation": "کەم"},
+        "چارەسەر": ["ئەمۆکسیسیلین 500mg", "ئۆکسجین", "شلەمەنی", "دەرمانی دژە تا", "پشوو"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "Consolidation لە X-ray + CRP بەرز",
+        "ڕێپیشگیری": ["کوتان (Vaccination)", "دەستشۆردن", "دوورکەوتنەوە لە کەسانی تووشبوو"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "3%",
+        "جۆری نەخۆشی": "هەوکردن"
+    },
+    "هەوکردنی سییە ڤایرۆسی": {
+        "نیشانەکان": ["تا", "کۆخە وشک", "هەناسەدان بە زەحمەت", "ماندوویی", "ئازاری ماسوولکە", "سەرئێشە"],
+        "پشکنینەکان": {"Chest X-ray": "Interstitial", "CRP": "نۆرماڵ", "WBC": "نزم", "PCR": "positive"},
+        "چارەسەر": ["شلەمەنی", "ئۆکسجین", "دەرمانی دژە تا", "پشوو"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "کۆخە وشک + CRP نۆرماڵ",
+        "ڕێپیشگیری": ["دەستشۆردن", "ماسک", "دوورکەوتنەوە"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "هەوکردن"
+    },
+    "ئەنیمیا": {
+        "نیشانەکان": ["ماندوویی", "ڕەنگی پێست زەرد", "سەرگێژخواردن", "لێدانی دڵ خێرا", "سەرئێشە", "پڕۆشتن", "هەستی ساردی", "تەنگی هەناسە"],
+        "پشکنینەکان": {"Hb": "<12 g/dL", "MCV": "<80 fL", "Ferritin": "نزم <15", "TIBC": "بەرز >450", "Iron": "نزم"},
+        "چارەسەر": ["فێروس سولفەیت 325mg", "گۆڕینی خواردن", "دۆزینەوەی هۆکاری سەرەکی", "ڤیتامین C 500mg"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "Hb نزم + MCV نزم + Ferritin نزم",
+        "ڕێپیشگیری": ["خواردنی ئاسن", "خواردنی ڤیتامین C", "پشکنینی خوێنی بەردەوام"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "خوێن"
+    },
+    "ئەنیمیای ماکرۆسایتیک": {
+        "نیشانەکان": ["ماندوویی", "سەرگێژخواردن", "هەستی بێهێزی", "کورتی هەناسە", "خێرالێدانی دڵ"],
+        "پشکنینەکان": {"Hb": "<12 g/dL", "MCV": ">100 fL", "B12": "نزم", "Folate": "نزم"},
+        "چارەسەر": ["ڤیتامین B12 1000mcg", "فۆلیک ئەسید 1mg", "گۆڕینی خواردن"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "MCV بەرز + B12 نزم",
+        "ڕێپیشگیری": ["خواردنی ڤیتامین B12", "خواردنی فۆلیک ئەسید"],
+        "گروپی تەمەن": "پیران",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "خوێن"
+    },
+    "ئەنیمیای هیمۆلایتیک": {
+        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "تا", "ئازاری سک", "خێرالێدانی دڵ"],
+        "پشکنینەکان": {"Hb": "نزم", "Reticulocyte": "بەرز", "LDH": "بەرز", "Haptoglobin": "نزم", "Coomb's test": "positive"},
+        "چارەسەر": ["دەرمانی ستیرۆید", "خوێن گواستنەوە", "دۆزینەوەی هۆکار"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "Hb نزم + Reticulocyte بەرز",
+        "ڕێپیشگیری": ["دۆزینەوەی هۆکار", "پارێزی لە دەرمانەکان"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1%",
+        "جۆری نەخۆشی": "خوێن"
+    },
+    "ئەنیمیای شاخە (Sickle Cell)": {
+        "نیشانەکان": ["ئازاری ماسوولکە", "ماندوویی", "زەردبوون", "تەنگی هەناسە", "خێرالێدانی دڵ"],
+        "پشکنینەکان": {"Hb": "نزم", "HbS": "positive", "Peripheral smear": "Sickle cells"},
+        "چارەسەر": ["هیدروکسی یوریا", "خوێن گواستنەوە", "ئۆکسجین", "دەرمانی ئازار"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "HbS positive + شێوەی شاخە",
+        "ڕێپیشگیری": ["پشکنینی بۆماوەیی", "پارێزی لە وشکبوونەوە"],
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "خوێن"
+    },
+    "لەوسیمیا (Leukemia)": {
+        "نیشانەکان": ["ماندوویی", "خوێنبەربوون", "تا", "کێش کەمبوونەوە", "ئازاری ئێسک", "خوێن لە لووتدا"],
+        "پشکنینەکان": {"WBC": "بەرز >20", "Hb": "نزم", "Platelets": "نزم", "Bone marrow": "Blast cells"},
+        "چارەسەر": ["کیمۆتێراپی", "خوێن گواستنەوە", "ستیرۆید", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "WBC بەرز + Blast cells",
+        "ڕێپیشگیری": ["پشکنینی بەردەوام"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "خوێن"
+    },
+    "نەخۆشی گورچیلە": {
+        "نیشانەکان": ["ئاوسانی ڕوو و قاچ", "میزی کەم", "ماندوویی", "سەرئێشە", "خوێن لە میزدا", "فشاری خوێن بەرز", "هەستی ساردی"],
+        "پشکنینەکان": {"Creatinine": "بەرز >1.3", "BUN": "بەرز >20", "eGFR": "<60", "Urinalysis": "پڕۆتین + خوێن", "Potassium": "بەرز"},
+        "چارەسەر": ["ACE inhibitor", "کەمکردنەوەی پڕۆتین", "کۆنتڕۆڵی BP", "دایەلیز (ئەگەر پێویست)"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "Creatinine بەرز + eGFR نزم",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی شەکرە", "کۆنتڕۆڵی BP", "کەمکردنەوەی نمەک"],
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "10%",
+        "جۆری نەخۆشی": "گورچیلە"
+    },
+    "نەخۆشی گورچیلەی شەکری": {
+        "نیشانەکان": ["پڕۆتین لە میزدا", "ئاوسان", "فشاری خوێن بەرز", "میزی کەم"],
+        "پشکنینەکان": {"Urine protein": ">300mg", "Creatinine": "بەرز", "eGFR": "کەم"},
+        "چارەسەر": ["ACE inhibitor", "کۆنتڕۆڵی شەکرە", "کەمکردنەوەی پڕۆتین"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "شەکرە + پڕۆتین لە میزدا",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی شەکرە", "کۆنتڕۆڵی BP"],
+        "گروپی تەمەن": "نەخۆشانی شەکرە",
+        "ڕێژەی تووشبوون": "20% (لە نەخۆشانی شەکرە)",
+        "جۆری نەخۆشی": "گورچیلە"
+    },
+    "نەخۆشی گورچیلە بەرد": {
+        "نیشانەکان": ["ئازاری پشت", "خوێن لە میزدا", "سکچوون", "تا", "ئازاری میزکردن"],
+        "پشکنینەکان": {"Ultrasound": "بەرد", "Urinalysis": "خوێن + بەلۆر", "CT": "بەرد"},
+        "چارەسەر": ["شلەمەنی", "دەرمانی ئازار", "Lithotripsy", "نەشتەرگەری"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "ئازاری پشت + خوێن لە میزدا",
+        "ڕێپیشگیری": ["ئاوی زۆر", "کەمکردنەوەی نمەک"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "8%",
+        "جۆری نەخۆشی": "گورچیلە"
+    },
+    "نەخۆشی جگەر (Hepatitis A)": {
+        "نیشانەکان": ["ماندوویی", "زەردبوونی چاو", "سکچوون", "تا", "ئازاری سک", "میز تۆخ"],
+        "پشکنینەکان": {"ALT": "بەرز >40", "AST": "بەرز >40", "Bilirubin": "بەرز >1.2", "Anti-HAV": "positive"},
+        "چارەسەر": ["پشوو", "شلەمەنی", "شێوازی خواردن", "پارێزی لە جگەر"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "Anti-HAV positive",
+        "ڕێپیشگیری": ["کوتان", "دەستشۆردن", "خواردنی پاک"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "1.5%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی جگەر (Hepatitis B)": {
+        "نیشانەکان": ["ماندوویی", "زەردبوون", "میز تۆخ", "ئازاری سک", "سکچوون"],
+        "پشکنینەکان": {"ALT": "بەرز", "HBsAg": "positive", "Anti-HBc": "positive"},
+        "چارەسەر": ["Entecavir", "Tenofovir", "پشکنینی بەردەوام", "پارێزی لە جگەر"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "HBsAg positive",
+        "ڕێپیشگیری": ["کوتان", "پارێزی لە پەیوەندی خوێن"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "3%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی جگەر (Hepatitis C)": {
+        "نیشانەکان": ["ماندوویی", "کێش کەمبوونەوە", "ئازاری سک", "زەردبوون", "میلە"],
+        "پشکنینەکان": {"Anti-HCV": "positive", "PCR": "positive", "ALT": "بەرز"},
+        "چارەسەر": ["Sofosbuvir", "Daclatasvir", "پشکنینی بەردەوام"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "Anti-HCV positive",
+        "ڕێپیشگیری": ["پارێزی لە پەیوەندی خوێن"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی جگەر (Cirrhosis)": {
+        "نیشانەکان": ["ئاوسانی سک", "زەردبوون", "ماندوویی", "خوێنبەربوون", "کێش کەمبوونەوە"],
+        "پشکنینەکان": {"ALT": "بەرز", "AST": "بەرز", "Albumin": "نزم", "Ultrasound": "Cirrhosis"},
+        "چارەسەر": ["پارێزی لە کحول", "Diuretic", "شێوازی خواردن", "پشکنینی بەردەوام"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "Ultrasound cirrhosis",
+        "ڕێپیشگیری": ["پارێزی لە کحول", "پارێزی لە Hepatitis"],
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی جگەر (Fatty Liver)": {
+        "نیشانەکان": ["ماندوویی", "ئازاری سکی سەرەوە", "کێش زیادکردن", "میلە"],
+        "پشکنینەکان": {"Ultrasound": "Fatty liver", "ALT": "نزم بەرز", "Cholesterol": "بەرز"},
+        "چارەسەر": ["کەمکردنەوەی کێش", "وەرزش", "شێوازی خواردن", "پارێزی لە جگەر"],
+        "ئاستی مەترسی": "کەم",
+        "تایبەتمەندی": "Ultrasound fatty liver",
+        "ڕێپیشگیری": ["شێوازی خواردن", "وەرزش"],
+        "گروپی تەمەن": "تەمەن مامناوەند",
+        "ڕێژەی تووشبوون": "25%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی جگەر (Liver Cancer)": {
+        "نیشانەکان": ["کێش کەمبوونەوە", "ئازاری سک", "زەردبوون", "ئاوسانی سک", "میلە"],
+        "پشکنینەکان": {"AFP": "بەرز >400", "CT": "تومۆر", "Biopsy": "Malignant"},
+        "چارەسەر": ["نەشتەرگەری", "کیمۆتێراپی", "ڕادیۆتێراپی", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "AFP بەرز + تومۆر",
+        "ڕێپیشگیری": ["پارێزی لە Hepatitis", "پشکنینی بەردەوام"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "جگەر"
+    },
+    "نەخۆشی کۆکە (Asthma)": {
+        "نیشانەکان": ["هەناسەدان بە زەحمەت", "کۆخە", "تنگەنەفەسی", "فیشک (Wheezing)", "فشاری سنگ", "تەنگی هەناسە"],
+        "پشکنینەکان": {"Pulmonary function": "FEV1 < 80%", "Peak flow": "کەم", "Chest X-ray": "نۆرماڵ", "IgE": "بەرز"},
+        "چارەسەر": ["Bronchodilator", "Steroid inhaler", "پارێزی لە هۆکارەکان", "Leukotriene inhibitor"],
+        "ئاستی مەترسی": "مامناوەند",
+        "تایبەتمەندی": "FEV1 کەم + فیشک",
+        "ڕێپیشگیری": ["پارێزی لە هۆکارەکان", "بەکارهێنانی inhaler", "وەرزش"],
+        "گروپی تەمەن": "منداڵان و گەنجان",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "هەناسە"
+    },
+    "نەخۆشی کۆکە (COPD)": {
+        "نیشانەکان": ["کۆخەی درێژخایەن", "تنگەنەفەسی", "هەناسەدان بە زەحمەت", "کەمبوونی کێش", "ماندوویی"],
+        "پشکنینەکان": {"Pulmonary function": "FEV1/FVC < 70%", "Chest X-ray": "Hyperinflation", "Blood gas": "نزم"},
+        "چارەسەر": ["Bronchodilator", "Steroid", "ئۆکسجین", "وەستانی جگەرە"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "FEV1/FVC < 70%",
+        "ڕێپیشگیری": ["وەستانی جگەرە", "پارێزی لە پیسی"],
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "6%",
+        "جۆری نەخۆشی": "هەناسە"
+    },
+    "نەخۆشی سیل (TB)": {
+        "نیشانەکان": ["کۆخە (بە خوێن)", "تا", "ئارەقەکردنی شەو", "کێش کەمبوونەوە", "ماندوویی", "تەنگی هەناسە"],
+        "پشکنینەکان": {"Chest X-ray": "تەوەرەکان", "Sputum AFB": "positive", "PPD": "positive", "GeneXpert": "positive"},
+        "چارەسەر": ["Rifampicin", "Isoniazid", "Pyrazinamide", "Ethambutol"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "کۆخەی خوێناوی + X-ray تایبەت",
+        "ڕێپیشگیری": ["BCG vaccine", "پارێزی لە کەسانی تووشبوو", "پشکنین"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.5%",
+        "جۆری نەخۆشی": "هەناسە"
+    },
+    "نەخۆشی تایفیید (Typhoid)": {
+        "نیشانەکان": ["تای بەرز", "سەرئێشە", "سکچوون", "رشانەوە", "ئازاری سک", "میلە"],
+        "پشکنینەکان": {"WBC": "نزم", "Blood culture": "Salmonella", "Widal": "positive", "CRP": "بەرز"},
+        "چارەسەر": ["Azithromycin", "Ceftriaxone", "شلەمەنی", "پشوو"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "تای بەرز + سکچوون",
+        "ڕێپیشگیری": ["خواردنی پاک", "دەستشۆردن", "کوتان"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.8%",
+        "جۆری نەخۆشی": "هەوکردن"
+    },
+    "نەخۆشی کۆلێرا (Cholera)": {
+        "نیشانەکان": ["سکچوونی زۆر (وەک ئاو)", "رشانەوە", "تینوویەتی زۆر", "کەمبوونەوەی میز"],
+        "پشکنینەکان": {"Stool culture": "Vibrio cholera", "Rapid test": "positive", "Electrolytes": "نزم"},
+        "چارەسەر": ["ORS", "شلەمەنی", "Doxycycline", "Azithromycin"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "سکچوونی زۆر وەک ئاو",
+        "ڕێپیشگیری": ["خواردنی پاک", "ئاوی پاک", "دەستشۆردن", "کوتان"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "0.1%",
+        "جۆری نەخۆشی": "هەوکردن"
+    },
+    "نەخۆشی پەنکریاتیت": {
+        "نیشانەکان": ["ئازاری سکی سەرەوە", "رشانەوە", "تا", "سکچوون", "ئازاری پشت", "تەنگی هەناسە"],
+        "پشکنینەکان": {"Amylase": "بەرز >200", "Lipase": "بەرز >200", "CT scan": "پەنکریاتیت", "CRP": "بەرز"},
+        "چارەسەر": ["پشووی خواردن", "شلەمەنی", "دەرمانی ئازار", "ئەنتیبایۆتیک"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "Amylase + Lipase بەرز",
+        "ڕێپیشگیری": ["پارێزی لە خواردنی چەور", "کەمکردنەوەی کحول"],
+        "گروپی تەمەن": "تەمەن > 40 ساڵ",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "پەنکریاس"
+    },
+    "نەخۆشی گەدە (Gastritis)": {
+        "نیشانەکان": ["ئازاری گەدە", "سکچوون", "سووتانی گەدە", "ڕشانەوە", "هەستی پڕی"],
+        "پشکنینەکان": {"Endoscopy": "هەوکردن", "H. pylori": "positive", "Urea breath test": "positive"},
+        "چارەسەر": ["PPI (Omeprazole)", "Antibiotic (Amoxicillin)", "Antacid", "گۆڕینی خواردن"],
+        "ئاستی مەترسی": "کەم",
+        "تایبەتمەندی": "ئازاری گەدە + H. pylori positive",
+        "ڕێپیشگیری": ["خواردنی کەم بەهارات", "پارێزی لە NSAIDs"],
+        "گروپی تەمەن": "هەموو تەمەنەکان",
+        "ڕێژەی تووشبوون": "20%",
+        "جۆری نەخۆشی": "گەدە"
+    },
+    "نەخۆشی گەدە (Gastric Ulcer)": {
+        "نیشانەکان": ["ئازاری گەدە", "سکچوون", "خوێن لە رشانەوە", "کێش کەمبوونەوە", "ئازاری شەو"],
+        "پشکنینەکان": {"Endoscopy": "Ulcer", "H. pylori": "positive", "Barium swallow": "Ulcer"},
+        "چارەسەر": ["PPI", "Antibiotic", "Sucralfate", "گۆڕینی خواردن"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "Ulcer لە Endoscopy",
+        "ڕێپیشگیری": ["پارێزی لە NSAIDs", "پارێزی لە کحول"],
+        "گروپی تەمەن": "تەمەن > 50 ساڵ",
+        "ڕێژەی تووشبوون": "5%",
+        "جۆری نەخۆشی": "گەدە"
+    },
+    "نەخۆشی Parkinson": {
+        "نیشانەکان": ["لەرزین", "خاوکردنەوەی جوڵە", "سختی ماسوولکە", "کەمبوونی پێست", "مشکێتی ڕۆیشتن"],
+        "پشکنینەکان": {"Clinical exam": "Parkinsonian", "DAT scan": "کەم", "MRI": "نۆرماڵ"},
+        "چارەسەر": ["Levodopa", "Carbidopa", "Pramipexole", "Ropinirole"],
+        "ئاستی مەترسی": "مەترسیدار",
+        "تایبەتمەندی": "لەرزین + سختی ماسوولکە",
+        "ڕێپیشگیری": ["وەرزش", "پارێزی لە پیسی"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "1%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Alzheimer": {
+        "نیشانەکان": ["بیرچون", "کەمبوونی بیر", "گۆڕانی کەسایەتی", "مشکێتی ڕۆژانە", "بێئاگایی"],
+        "پشکنینەکان": {"MRI": "Atrophy", "PET": "Abnormal", "Cognitive test": "کەم"},
+        "چارەسەر": ["Donepezil", "Rivastigmine", "Memantine", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "بیرچون + MRI atrophy",
+        "ڕێپیشگیری": ["مەشقی مێشک", "وەرزش", "شێوازی خواردن"],
+        "گروپی تەمەن": "تەمەن > 65 ساڵ",
+        "ڕێژەی تووشبوون": "5% (تەمەن > 65)",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی MS (Multiple Sclerosis)": {
+        "نیشانەکان": ["کورتی بینین", "ماندوویی", "بێئاگایی", "مشکێتی جوڵە", "سەرگێژخواردن"],
+        "پشکنینەکان": {"MRI": "Plagues", "CSF": "Oligoclonal bands", "VEP": "کەم"},
+        "چارەسەر": ["Steroid", "Interferon", "Glatiramer", "Rituximab"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "MRI plagues + Oligoclonal bands",
+        "ڕێپیشگیری": ["پارێزی لە ڤایرۆس"],
+        "گروپی تەمەن": "ژنانی گەنج",
+        "ڕێژەی تووشبوون": "0.3%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Stroke": {
+        "نیشانەکان": ["مشکێتی جوڵە", "مشکێتی قسەکردن", "بێئاگایی", "سەرگێژخواردن", "خوێنبەربوون"],
+        "پشکنینەکان": {"CT": "Ischemia/Hemorrhage", "MRI": "Stroke", "Angiography": "تەنگی کرۆنەری"},
+        "چارەسەر": ["Thrombolytic", "Antiplatelet", "Rehabilitation", "پشتیوانی"],
+        "ئاستی مەترسی": "زۆر مەترسیدار",
+        "تایبەتمەندی": "مشکێتی جوڵە + CT stroke",
+        "ڕێپیشگیری": ["کۆنتڕۆڵی BP", "کۆنتڕۆڵی شەکرە", "وەستانی جگەرە"],
+        "گروپی تەمەن": "تەمەن > 60 ساڵ",
+        "ڕێژەی تووشبوون": "2%",
+        "جۆری نەخۆشی": "دەمار"
+    },
+    "نەخۆشی Migraine": {
+        "نیشانەکان": ["سەرئێشەی توند", "سەرگێژخواردن", "هەستی بەمەزە", "بینینی تەڵخ", "ڕشانەوە"],
+        "پشکنینەکان": {"MRI": "نۆرماڵ", "Clinical exam": "Migraine", "Response to triptan": "positive"},
+        "چارەسەر": ["Triptan", "NSAIDs", "Propranolol", "Amitriptyline"],
+        "ئاستی مەترسی": "کەم",
+        "تایبەتمەندی": "سەرئێشەی توند + هەستی بەمەزە",
+        "ڕێپیشگیری": ["پارێزی لە هۆکارەکان", "وەرزش", "پشوو"],
+        "گروپی تەمەن": "ژنان",
+        "ڕێژەی تووشبوون": "12%",
+        "جۆری نەخۆشی": "دەمار"
+    }
+}
+
+# ================================
+# 5. داتابەسی پشکنینەکانی تاقیگە (٢٠٠ پشکنین) - بە ناوی ئامێر و تێبینی
+# ================================
+LAB_TESTS = {}
+
+# 5.1 پشکنینەکانی خوێن (٥٠ پشکنین)
+blood_tests = {
+    "CBC": {"گروپ": "خوێن", "نۆرماڵ": (4.0, 11.0), "یەکە": "x10³/µL", "تەفسیر": "خڕۆکە سپیەکان", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Hemoglobin": {"گروپ": "خوێن", "نۆرماڵ": (12.0, 16.0), "یەکە": "g/dL", "تەفسیر": "هیمۆگلۆبین", "ئامێر": "هیمۆگلۆبینۆمیتەر (HemoCue 201+", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Platelets": {"گروپ": "خوێن", "نۆرماڵ": (150, 450), "یەکە": "x10³/µL", "تەفسیر": "پلەیتلێت", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "MCV": {"گروپ": "خوێن", "نۆرماڵ": (80, 100), "یەکە": "fL", "تەفسیر": "قەبارەی خڕۆکە سوورەکان", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "MCH": {"گروپ": "خوێن", "نۆرماڵ": (27, 33), "یەکە": "pg", "تەفسیر": "کەمی هیمۆگلۆبین", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "MCHC": {"گروپ": "خوێن", "نۆرماڵ": (32, 36), "یەکە": "g/dL", "تەفسیر": "چڕی هیمۆگلۆبین", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "RDW": {"گروپ": "خوێن", "نۆرماڵ": (11.5, 14.5), "یەکە": "%", "تەفسیر": "جیاوازی قەبارە", "ئامێر": "ئۆتۆماتیک سێل کاونتر (Sysmex XN-9000)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Reticulocyte": {"گروپ": "خوێن", "نۆرماڵ": (0.5, 2.5), "یەکە": "%", "تەفسیر": "خڕۆکە نوێکان", "ئامێر": "فلۆ سایتمیتەر (BD FACSCalibur)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Ferritin": {"گروپ": "خوێن", "نۆرماڵ": (15, 300), "یەکە": "ng/mL", "تەفسیر": "ئاسن", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "TIBC": {"گروپ": "خوێن", "نۆرماڵ": (250, 450), "یەکە": "mcg/dL", "تەفسیر": "ئاسن", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Iron": {"گروپ": "خوێن", "نۆرماڵ": (60, 170), "یەکە": "mcg/dL", "تەفسیر": "ئاسن", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Vitamin B12": {"گروپ": "خوێن", "نۆرماڵ": (200, 900), "یەکە": "pg/mL", "تەفسیر": "ڤیتامین B12", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Folate": {"گروپ": "خوێن", "نۆرماڵ": (3, 17), "یەکە": "ng/mL", "تەفسیر": "فۆلیک ئەسید", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "LDH": {"گروپ": "خوێن", "نۆرماڵ": (100, 250), "یەکە": "U/L", "تەفسیر": "ئەنزیم", "ئامێر": "سپێکترۆفۆتۆمیتەر (Beckman Coulter AU480)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Haptoglobin": {"گروپ": "خوێن", "نۆرماڵ": (50, 250), "یەکە": "mg/dL", "تەفسیر": "پروتێین", "ئامێر": "نێفێلۆمیتەر (Siemens BNII)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "ESR": {"گروپ": "خوێن", "نۆرماڵ": (0, 20), "یەکە": "mm/hr", "تەفسیر": "خێرایی تەنیشتن", "ئامێر": "ESR ئۆتۆماتیک (Ves-Matic 20)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "CRP": {"گروپ": "خوێن", "نۆرماڵ": (0, 5), "یەکە": "mg/L", "تەفسیر": "پروتێینی هەوکردن", "ئامێر": "توربیدیمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Procalcitonin": {"گروپ": "خوێن", "نۆرماڵ": (0, 0.5), "یەکە": "ng/mL", "تەفسیر": "هەوکردنی بەکتریایی", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Interleukin-6": {"گروپ": "خوێن", "نۆرماڵ": (0, 5), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن", "ئامێر": "ELISA Reader (BioTek 800TS)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "TNF-alpha": {"گروپ": "خوێن", "نۆرماڵ": (0, 8), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن", "ئامێر": "ELISA Reader (BioTek 800TS)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.2 پشکنینەکانی بایۆکیمیایی (٥٠ پشکنین)
+biochem_tests = {
+    "Glucose": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (70, 126), "یەکە": "mg/dL", "تەفسیر": "شەکری خوێن", "ئامێر": "گلوکۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "HbA1c": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (4.0, 5.6), "یەکە": "%", "تەفسیر": "شەکری درێژخایەن", "ئامێر": "HPLC (Bio-Rad D-100)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Creatinine": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0.6, 1.3), "یەکە": "mg/dL", "تەفسیر": "کارایی گورچیلە", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "BUN": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (7, 20), "یەکە": "mg/dL", "تەفسیر": "نایترۆجینی یوریا", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "ALT": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "AST": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (10, 40), "یەکە": "U/L", "تەفسیر": "ئەنزیمی جگەر", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Bilirubin": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0.1, 1.2), "یەکە": "mg/dL", "تەفسیر": "زەرداوی", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Albumin": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (3.5, 5.0), "یەکە": "g/dL", "تەفسیر": "ئەلبومین", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Potassium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (3.5, 5.0), "یەکە": "mmol/L", "تەفسیر": "پۆتاسیۆم", "ئامێر": "ئایۆن سەلێکت یوڤ ئەنالایزەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Sodium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (135, 145), "یەکە": "mmol/L", "تەفسیر": "سۆدیۆم", "ئامێر": "ئایۆن سەلێکت یوڤ ئەنالایزەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Calcium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (8.5, 10.5), "یەکە": "mg/dL", "تەفسیر": "کالسیۆم", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Phosphorus": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (2.5, 4.5), "یەکە": "mg/dL", "تەفسیر": "فۆسفۆر", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Magnesium": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (1.7, 2.5), "یەکە": "mg/dL", "تەفسیر": "مەگنیسیۆم", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Amylase": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Lipase": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (20, 200), "یەکە": "U/L", "تەفسیر": "ئەنزیمی پەنکریاس", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Cholesterol": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 200), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆل", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "LDL": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 100), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆلی خراپ", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "HDL": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (40, 60), "یەکە": "mg/dL", "تەفسیر": "کۆلسترۆلی باش", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Triglycerides": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (0, 150), "یەکە": "mg/dL", "تەفسیر": "تریگلیسیرید", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Total Protein": {"گروپ": "بایۆکیمیایی", "نۆرماڵ": (6.0, 8.0), "یەکە": "g/dL", "تەفسیر": "پڕۆتینی گشتی", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.3 پشکنینەکانی دڵ (٤٠ پشکنین)
+cardiac_tests = {
+    "Troponin I": {"گروپ": "دڵ", "نۆرماڵ": (0, 0.04), "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Troponin T": {"گروپ": "دڵ", "نۆرماڵ": (0, 0.014), "یەکە": "ng/mL", "تەفسیر": "پروتێینی دڵ", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "CK-MB": {"گروپ": "دڵ", "نۆرماڵ": (0, 5), "یەکە": "ng/mL", "تەفسیر": "ئەنزیمی دڵ", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "BNP": {"گروپ": "دڵ", "نۆرماڵ": (0, 100), "یەکە": "pg/mL", "تەفسیر": "پروتێینی دڵ", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Myoglobin": {"گروپ": "دڵ", "نۆرماڵ": (0, 80), "یەکە": "ng/mL", "تەفسیر": "پروتێین", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "HS-CRP": {"گروپ": "دڵ", "نۆرماڵ": (0, 2), "یەکە": "mg/L", "تەفسیر": "هەوکردنی دڵ", "ئامێر": "توربیدیمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Homocysteine": {"گروپ": "دڵ", "نۆرماڵ": (5, 15), "یەکە": "μmol/L", "تەفسیر": "مەترسی دڵ", "ئامێر": "HPLC (Agilent 1200)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "ApoB": {"گروپ": "دڵ", "نۆرماڵ": (60, 120), "یەکە": "mg/dL", "تەفسیر": "پرۆتێین", "ئامێر": "نێفێلۆمیتەر (Siemens BNII)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "ApoA": {"گروپ": "دڵ", "نۆرماڵ": (90, 150), "یەکە": "mg/dL", "تەفسیر": "پرۆتێین", "ئامێر": "نێفێلۆمیتەر (Siemens BNII)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Lipoprotein(a)": {"گروپ": "دڵ", "نۆرماڵ": (0, 30), "یەکە": "mg/dL", "تەفسیر": "مەترسی دڵ", "ئامێر": "نێفێلۆمیتەر (Siemens BNII)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.4 پشکنینەکانی هەوکردن (٣٠ پشکنین)
+inflammation_tests = {
+    "Procalcitonin": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 0.5), "یەکە": "ng/mL", "تەفسیر": "هەوکردنی بەکتریایی", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "IL-6": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 5), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن", "ئامێر": "ELISA Reader (BioTek 800TS)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "TNF-alpha": {"گروپ": "هەوکردن", "نۆرماڵ": (0, 8), "یەکە": "pg/mL", "تەفسیر": "سایتۆکاینی هەوکردن", "ئامێر": "ELISA Reader (BioTek 800TS)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Ferritin": {"گروپ": "هەوکردن", "نۆرماڵ": (15, 300), "یەکە": "ng/mL", "تەفسیر": "ئاسن", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "LDH": {"گروپ": "هەوکردن", "نۆرماڵ": (100, 250), "یەکە": "U/L", "تەفسیر": "ئەنزیم", "ئامێر": "سپێکترۆفۆتۆمیتەر (Beckman Coulter AU480)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Haptoglobin": {"گروپ": "هەوکردن", "نۆرماڵ": (50, 250), "یەکە": "mg/dL", "تەفسیر": "پروتێین", "ئامێر": "نێفێلۆمیتەر (Siemens BNII)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.5 پشکنینەکانی هۆرمۆن (٣٠ پشکنین)
+hormone_tests = {
+    "TSH": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0.4, 4.0), "یەکە": "mIU/L", "تەفسیر": "هۆرمۆنی دروان", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "T4": {"گروپ": "هۆرمۆن", "نۆرماڵ": (5, 12), "یەکە": "μg/dL", "تەفسیر": "هۆرمۆنی دروان", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "T3": {"گروپ": "هۆرمۆن", "نۆرماڵ": (80, 200), "یەکە": "ng/dL", "تەفسیر": "هۆرمۆنی دروان", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Cortisol": {"گروپ": "هۆرمۆن", "نۆرماڵ": (5, 25), "یەکە": "μg/dL", "تەفسیر": "هۆرمۆنی پەستانی خوێن", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Insulin": {"گروپ": "هۆرمۆن", "نۆرماڵ": (2, 25), "یەکە": "μIU/mL", "تەفسیر": "هۆرمۆنی شەکر", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "C-peptide": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0.5, 2.0), "یەکە": "ng/mL", "تەفسیر": "پێکهاتەی ئەنسولین", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "ACTH": {"گروپ": "هۆرمۆن", "نۆرماڵ": (10, 60), "یەکە": "pg/mL", "تەفسیر": "هۆرمۆنی دروان", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Growth Hormone": {"گروپ": "هۆرمۆن", "نۆرماڵ": (0, 5), "یەکە": "ng/mL", "تەفسیر": "هۆرمۆنی گەشە", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Prolactin": {"گروپ": "هۆرمۆن", "نۆرماڵ": (2, 15), "یەکە": "ng/mL", "تەفسیر": "هۆرمۆنی شیر", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Testosterone": {"گروپ": "هۆرمۆن", "نۆرماڵ": (300, 1000), "یەکە": "ng/dL", "تەفسیر": "هۆرمۆنی نێر", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Estradiol": {"گروپ": "هۆرمۆن", "نۆرماڵ": (20, 400), "یەکە": "pg/mL", "تەفسیر": "هۆرمۆنی مێ", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.6 پشکنینەکانی میز (٣٠ پشکنین)
+urine_tests = {
+    "Urine Protein": {"گروپ": "میز", "نۆرماڵ": (0, 0.3), "یەکە": "g/24h", "تەفسیر": "پڕۆتینی میز", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine Glucose": {"گروپ": "میز", "نۆرماڵ": (0, 0), "یەکە": "mg/dL", "تەفسیر": "شەکری میز", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine Ketones": {"گروپ": "میز", "نۆرماڵ": (0, 0), "یەکە": "mg/dL", "تەفسیر": "کیتۆنی میز", "ئامێر": "سپێکترۆفۆتۆمیتەر (Roche Cobas c502)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine WBC": {"گروپ": "میز", "نۆرماڵ": (0, 5), "یەکە": "/HPF", "تەفسیر": "خڕۆکە سپیەکان", "ئامێر": "مایکرۆسکۆپی (Olympus CX23)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine RBC": {"گروپ": "میز", "نۆرماڵ": (0, 3), "یەکە": "/HPF", "تەفسیر": "خڕۆکە سوورەکان", "ئامێر": "مایکرۆسکۆپی (Olympus CX23)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine pH": {"گروپ": "میز", "نۆرماڵ": (5.0, 8.0), "یەکە": "", "تەفسیر": "pH میز", "ئامێر": "pH میتر (Hanna HI221)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Urine Specific Gravity": {"گروپ": "میز", "نۆرماڵ": (1.005, 1.030), "یەکە": "", "تەفسیر": "چڕی میز", "ئامێر": "ریفڕاکتۆمیتەر (Atago PAL-10S)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.7 پشکنینەکانی ڤیتامین (٢٠ پشکنین)
+vitamin_tests = {
+    "Vitamin D": {"گروپ": "ڤیتامین", "نۆرماڵ": (30, 100), "یەکە": "ng/mL", "تەفسیر": "ڤیتامین D", "ئامێر": "کیمیایی ئیمینۆ (Roche Cobas e411)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Vitamin A": {"گروپ": "ڤیتامین", "نۆرماڵ": (20, 80), "یەکە": "μg/dL", "تەفسیر": "ڤیتامین A", "ئامێر": "HPLC (Agilent 1200)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Vitamin E": {"گروپ": "ڤیتامین", "نۆرماڵ": (5, 18), "یەکە": "mg/L", "تەفسیر": "ڤیتامین E", "ئامێر": "HPLC (Agilent 1200)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Vitamin K": {"گروپ": "ڤیتامین", "نۆرماڵ": (0.2, 3.0), "یەکە": "ng/mL", "تەفسیر": "ڤیتامین K", "ئامێر": "HPLC (Agilent 1200)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Vitamin C": {"گروپ": "ڤیتامین", "نۆرماڵ": (0.6, 2.0), "یەکە": "mg/dL", "تەفسیر": "ڤیتامین C", "ئامێر": "HPLC (Agilent 1200)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# 5.8 پشکنینەکانی معدن (٢٠ پشکنین)
+mineral_tests = {
+    "Zinc": {"گروپ": "معدن", "نۆرماڵ": (70, 120), "یەکە": "μg/dL", "تەفسیر": "زینک", "ئامێر": "ICP-MS (Agilent 7800)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Selenium": {"گروپ": "معدن", "نۆرماڵ": (70, 150), "یەکە": "μg/L", "تەفسیر": "سێلینیۆم", "ئامێر": "ICP-MS (Agilent 7800)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Copper": {"گروپ": "معدن", "نۆرماڵ": (70, 140), "یەکە": "μg/dL", "تەفسیر": "کۆپر", "ئامێر": "ICP-MS (Agilent 7800)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Manganese": {"گروپ": "معدن", "نۆرماڵ": (4, 15), "یەکە": "μg/L", "تەفسیر": "مەنگەنیز", "ئامێر": "ICP-MS (Agilent 7800)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+    "Chromium": {"گروپ": "معدن", "نۆرماڵ": (0.5, 2.0), "یەکە": "μg/L", "تەفسیر": "کرۆمیۆم", "ئامێر": "ICP-MS (Agilent 7800)", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+}
+
+# یەکخستنی هەموو پشکنینەکان
+for test_dict in [blood_tests, biochem_tests, cardiac_tests, inflammation_tests, hormone_tests, urine_tests, vitamin_tests, mineral_tests]:
+    LAB_TESTS.update(test_dict)
+
+# ================================
+# 6. داتابەسی دەرمانەکان (١٢٠+ دەرمان) - بە وەسفی تەواو و تێبینی
+# ================================
+DRUG_DATABASE = {
+    # 6.1 دژە پەستانی خوێن (٢٠ دەرمان)
+    "دژە پەستانی خوێن": {
+        "کاپتۆپریل": {"ڕێژە": "25-50mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە, سەرگێژخواردن", "پێچەوانە": "حەملی دووگانی", "وەسف": "دەرمانی ACE inhibitor کە پەستانی خوێن کەم دەکاتەوە بە فراوانکردنی خوێنبەرەکان", "بۆچی": "بۆ کەمکردنەوەی پەستانی خوێن و پاراستنی گورچیلە لە نەخۆشانی شەکرە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەملۆدیپین": {"ڕێژە": "5-10mg", "میکانیزم": "Calcium channel blocker", "کاریگەری لاوەکی": "ئاوسانی قاچ", "پێچەوانە": "هەستیاری", "وەسف": "بەربەستەری کالسیۆم کە خوێنبەرەکان فراوان دەکات", "بۆچی": "بۆ چارەسەری پەستانی خوێنی بەرز و ئازاری سنگ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "لۆسارتان": {"ڕێژە": "50-100mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری گیرۆدەی ئەنجیۆتێنسین کە خوێنبەرەکان فراوان دەکات", "بۆچی": "بۆ چارەسەری پەستانی خوێن و پاراستنی گورچیلە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "بایسۆپرۆلۆل": {"ڕێژە": "2.5-10mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە", "وەسف": "بەربەستەری بیتا کە لێدانی دڵ خاو دەکاتەوە", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵی ئیسکیمیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "هیدروکلۆرۆتایزید": {"ڕێژە": "12.5-25mg", "میکانیزم": "Thiazide diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دەرمانی دەرکەری ئاو کە شلەمەنی زیاد لە جەستە دەر دەکات", "بۆچی": "بۆ کەمکردنەوەی پەستانی خوێن بە دەرکردنی نمەک و ئاو", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فورۆسیماید": {"ڕێژە": "20-40mg", "میکانیزم": "Loop diuretic", "کاریگەری لاوەکی": "نزمی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دەرمانی دەرکەری بەهێز بۆ دەرکردنی ئاو و نمەک", "بۆچی": "بۆ چارەسەری پەستانی خوێن و ئاوسان لە نەخۆشی دڵ و گورچیلە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "کارڤیدیلۆل": {"ڕێژە": "6.25-25mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە", "وەسف": "بەربەستەری بیتا کە خوێنبەرەکان فراوان دەکات", "بۆچی": "بۆ نەخۆشی دڵی شکان و پەستانی خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "نایترۆگلیسیرین": {"ڕێژە": "0.3-0.6mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP", "وەسف": "دەرمانی فراوانکەری خوێنبەرەکان", "بۆچی": "بۆ چارەسەری ئازاری سنگ و نەخۆشی دڵی ئیسکیمیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئیسۆسۆرباید": {"ڕێژە": "10-30mg", "میکانیزم": "Nitrate", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نزمی BP", "وەسف": "دەرمانی نایترات بۆ فراوانکردنی خوێنبەرەکان", "بۆچی": "بۆ پێشگیری لە ئازاری سنگ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دیلتیازەم": {"ڕێژە": "30-60mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "بەربەستەری کالسیۆم بۆ خوێنبەرەکان", "بۆچی": "بۆ پەستانی خوێن و ئازاری سنگ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ڤێراپامیل": {"ڕێژە": "40-80mg", "میکانیزم": "Calcium blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "بەربەستەری کالسیۆم کە دڵ خاو دەکاتەوە", "بۆچی": "بۆ چارەسەری ئازاری سنگ و پەستانی خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "آتنۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "ماندوویی", "پێچەوانە": "ئەستمی هەوە", "وەسف": "بەربەستەری بیتا بۆ کەمکردنەوەی کاری دڵ", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "میتۆپرۆلۆل": {"ڕێژە": "25-50mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "خاوکردنەوەی دڵ", "پێچەوانە": "ئەستمی هەوە", "وەسف": "بەربەستەری بیتا بۆ دڵ و خوێنبەرەکان", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵی شکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پروپانۆلۆل": {"ڕێژە": "10-40mg", "میکانیزم": "Beta blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "ئەستمی هەوە", "وەسف": "بەربەستەری بیتا بۆ کەمکردنەوەی دڵ", "بۆچی": "بۆ پەستانی خوێن، ئازاری سنگ، و خێرایی دڵ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "رامبەریل": {"ڕێژە": "1.25-5mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "وەسف": "ACE inhibitor بۆ کەمکردنەوەی پەستانی خوێن", "بۆچی": "بۆ پاراستنی گورچیلە و کەمکردنەوەی پەستانی خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "کینیاپریل": {"ڕێژە": "5-20mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "وەسف": "ACE inhibitor بۆ خوێنبەرەکان", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "تێلمیسارتان": {"ڕێژە": "40-80mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری گیرۆدەی ئەنجیۆتێنسین", "بۆچی": "بۆ پەستانی خوێن و پاراستنی گورچیلە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئیربێسارتان": {"ڕێژە": "150-300mg", "میکانیزم": "ARB", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "ARB بۆ کەمکردنەوەی پەستانی خوێن", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی گورچیلە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فۆزینۆپریل": {"ڕێژە": "10-40mg", "میکانیزم": "ACE inhibitor", "کاریگەری لاوەکی": "کۆخە", "پێچەوانە": "حەمل", "وەسف": "ACE inhibitor بۆ خوێنبەرەکان", "بۆچی": "بۆ پەستانی خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سپیرۆنۆلاکتۆن": {"ڕێژە": "25-50mg", "میکانیزم": "Aldosterone antagonist", "کاریگەری لاوەکی": "بەرزی پۆتاسیۆم", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دژە ئەلدۆستێرۆن بۆ دەرکردنی ئاو و نمەک", "بۆچی": "بۆ پەستانی خوێن و نەخۆشی دڵی شکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.2 دژە شەکرە (١٥ دەرمان)
+    "دژە شەکرە": {
+        "مێتفۆرمین": {"ڕێژە": "500-2000mg", "میکانیزم": "Biguanide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دەرمانی هێڵی یەکەم بۆ شەکرەی جۆری ٢ - کەمکردنی بەرهەمهێنانی شەکر لە جگەر و زیادکردنی هەستی ئەنسولین", "بۆچی": "بۆ کۆنتڕۆڵکردنی شەکری خوێن لە نەخۆشانی شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "گلیپیزاید": {"ڕێژە": "5-20mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری", "وەسف": "دەرمانی سەلفۆنیل یوریا کە پەنکریاس هان دەدات بۆ بەرهەمهێنانی زیاتری ئەنسولین", "بۆچی": "بۆ کەمکردنەوەی شەکری خوێن لە شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەنسولین Glargine": {"ڕێژە": "10-40 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "وەسف": "ئەنسولینی درێژخایەن کە شەکر بە درێژایی ٢٤ کاتژمێر کۆنتڕۆڵ دەکات", "بۆچی": "بۆ کۆنتڕۆڵی شەکری خوێن لە شەکرەی جۆری ١ و جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سیتاگلیپتین": {"ڕێژە": "100mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "بەربەستەری DPP-4 کە ئاستی GLP-1 زیاد دەکات بۆ کەمکردنەوەی شەکر", "بۆچی": "بۆ کۆنتڕۆڵی شەکری خوێن لە شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ساکساگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "بەربەستەری DPP-4 بۆ کەمکردنەوەی شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "لیناگلیپتین": {"ڕێژە": "5mg", "میکانیزم": "DPP-4 inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "بەربەستەری DPP-4 بۆ شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەلبیکوتاید": {"ڕێژە": "1-2mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "هاندهری GLP-1 بۆ کەمکردنەوەی شەکر و کێش", "بۆچی": "بۆ شەکرەی جۆری ٢ و کەمکردنەوەی کێش", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "لیراگلوتاید": {"ڕێژە": "0.6-1.8mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "هاندهری GLP-1 بۆ کۆنتڕۆڵی شەکر و کەمکردنەوەی کێش", "بۆچی": "بۆ شەکرەی جۆری ٢ و نەخۆشی دڵ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دولاگلوتاید": {"ڕێژە": "0.75-1.5mg", "میکانیزم": "GLP-1 agonist", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی پەنکریاس", "وەسف": "هاندهری GLP-1 بۆ کۆنتڕۆڵی شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەنسولین Aspart": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "وەسف": "ئەنسولینی خێرا بۆ کۆنتڕۆڵی شەکری پاش خواردن", "بۆچی": "بۆ شەکرەی جۆری ١ و جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەنسولین Lispro": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin analog", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "وەسف": "ئەنسولینی خێرا بۆ کۆنتڕۆڵی شەکر", "بۆچی": "بۆ شەکرەی جۆری ١ و جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەنسولین Regular": {"ڕێژە": "2-10 IU", "میکانیزم": "Insulin", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هایپۆگلایسیمیا", "وەسف": "ئەنسولینی ستاندارد بۆ کۆنتڕۆڵی شەکر", "بۆچی": "بۆ شەکرەی جۆری ١ و جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "گلیمێپیراید": {"ڕێژە": "1-4mg", "میکانیزم": "Sulfonylurea", "کاریگەری لاوەکی": "هایپۆگلایسیمیا", "پێچەوانە": "هەستیاری", "وەسف": "سەلفۆنیل یوریا بۆ زیادی ئەنسولین", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پایۆگلیتازۆن": {"ڕێژە": "15-45mg", "میکانیزم": "Thiazolidinedione", "کاریگەری لاوەکی": "ئاوسان", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "زیادکەری هەستی ئەنسولین لە شانەکاندا", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەکاربۆز": {"ڕێژە": "25-50mg", "میکانیزم": "Alpha-glucosidase inhibitor", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گەدە", "وەسف": "بەربەستەری هەرسکردنی کاربۆهیدرات بۆ کەمکردنەوەی شەکر", "بۆچی": "بۆ شەکرەی جۆری ٢", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.3 دژە کۆخە و هەوکردن (١٥ دەرمان)
+    "دژە کۆخە و هەوکردن": {
+        "ئەمۆکسیسیلین": {"ڕێژە": "500mg", "میکانیزم": "Beta-lactam", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری پێنیسیلین", "وەسف": "ئەنتیبایۆتیکی پێنیسیلین بۆ هەوکردنی بەکتریایی", "بۆچی": "بۆ هەوکردنی سییەکان، گەدە، میز", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئازیترۆمایسین": {"ڕێژە": "250-500mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "ئەنتیبایۆتیکی ماکرۆلید بۆ هەوکردنی هەناسە", "بۆچی": "بۆ هەوکردنی سییەکان و کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سیپرۆفلۆکساسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "وەسف": "ئەنتیبایۆتیکی فلۆرۆکینۆلۆن بۆ هەوکردنی بەکتریایی", "بۆچی": "بۆ هەوکردنی میز و سییەکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سێفتریاکسۆن": {"ڕێژە": "1-2g", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری", "وەسف": "ئەنتیبایۆتیکی سێفالۆسپۆرین بۆ هەوکردنی توند", "بۆچی": "بۆ هەوکردنی سییەکان، گورچیلە، و خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دۆکسیسایکلین": {"ڕێژە": "100mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "وەسف": "ئەنتیبایۆتیکی تێتراسایکلین بۆ هەوکردنی جۆراوجۆر", "بۆچی": "بۆ هەوکردنی سییەکان، کۆلێرا، و سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "تتراسایکلین": {"ڕێژە": "250-500mg", "میکانیزم": "Tetracycline", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "وەسف": "ئەنتیبایۆتیکی تێتراسایکلین", "بۆچی": "بۆ هەوکردنی پێست و سییەکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "کوتریمۆکسازۆل": {"ڕێژە": "400-800mg", "میکانیزم": "Sulfonamide", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "هەستیاری", "وەسف": "ئەنتیبایۆتیکی سەلفۆنامید", "بۆچی": "بۆ هەوکردنی میز و سییەکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "مێترۆنیدازۆل": {"ڕێژە": "250-500mg", "میکانیزم": "Nitroimidazole", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل", "وەسف": "ئەنتیبایۆتیک بۆ بەکتریای ئانایروب", "بۆچی": "بۆ هەوکردنی گەدە و خوێن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فینوکسیمایسین": {"ڕێژە": "250mg", "میکانیزم": "Macrolide", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "ئەنتیبایۆتیکی ماکرۆلید", "بۆچی": "بۆ هەوکردنی هەناسە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سێفیکسیم": {"ڕێژە": "400mg", "میکانیزم": "Cephalosporin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هەستیاری", "وەسف": "سێفالۆسپۆرین بۆ هەوکردنی میز و سییەکان", "بۆچی": "بۆ هەوکردنی میز و کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "لیفلوکسایسین": {"ڕێژە": "500mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "وەسف": "فلۆرۆکینۆلۆن بۆ هەوکردن", "بۆچی": "بۆ هەوکردنی سییەکان و میز", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "مۆکسیفلۆکساسین": {"ڕێژە": "400mg", "میکانیزم": "Fluoroquinolone", "کاریگەری لاوەکی": "ئازاری ماسوولکە", "پێچەوانە": "منداڵان", "وەسف": "فلۆرۆکینۆلۆن", "بۆچی": "بۆ هەوکردنی سییەکان", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ریفامپیسین": {"ڕێژە": "600mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زەردبوون", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "ئەنتیبایۆتیک بۆ سیل", "بۆچی": "بۆ چارەسەری سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئایسۆنیازید": {"ڕێژە": "300mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "ئەنتیبایۆتیک بۆ سیل", "بۆچی": "بۆ چارەسەری سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پیرازیناماید": {"ڕێژە": "1500mg", "میکانیزم": "Antibiotic", "کاریگەری لاوەکی": "ئازاری جومگە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "ئەنتیبایۆتیک بۆ سیل", "بۆچی": "بۆ چارەسەری سیل", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.4 دژە ئەنیمیا (١٠ دەرمان)
+    "دژە ئەنیمیا": {
+        "فێروس سولفەیت": {"ڕێژە": "300-600mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "هیمۆکروماتۆسیس", "وەسف": "پڕکەری ئاسن بۆ چارەسەری ئەنیمیای کەمخوێنی ئاسن", "بۆچی": "بۆ زیادی ئاسن لە جەستە و چارەسەری ئەنیمیا", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فۆلیک ئەسید": {"ڕێژە": "1mg", "میکانیزم": "Folate supplement", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "وەسف": "پڕکەری فۆلیک ئەسید بۆ ئەنیمیای ماکرۆسایتیک", "بۆچی": "بۆ زیادکردنی فۆلیک ئەسید و چارەسەری ئەنیمیا", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ڤیتامین B12": {"ڕێژە": "1000mcg", "میکانیزم": "Cobalamin", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "وەسف": "پڕکەری ڤیتامین B12 بۆ ئەنیمیای ماکرۆسایتیک", "بۆچی": "بۆ چارەسەری ئەنیمیای کەمخوێنی B12", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەریترۆپۆیتین": {"ڕێژە": "50-100 IU/kg", "میکانیزم": "Erythropoietin", "کاریگەری لاوەکی": "BP بەرز", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "هۆرمۆنی دروستکردنی خڕۆکە سوورەکان", "بۆچی": "بۆ زیادکردنی خڕۆکە سوورەکان لە نەخۆشی گورچیلە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سیانۆکۆبالامین": {"ڕێژە": "1000mcg", "میکانیزم": "Vitamin B12", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "وەسف": "پڕکەری ڤیتامین B12", "بۆچی": "بۆ ئەنیمیای ماکرۆسایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئاسن دیکستران": {"ڕێژە": "100-200mg", "میکانیزم": "Iron supplement", "کاریگەری لاوەکی": "هەستیاری", "پێچەوانە": "هیمۆکروماتۆسیس", "وەسف": "پڕکەری ئاسن بۆ نەخۆشانی گورچیلە", "بۆچی": "بۆ چارەسەری ئەنیمیای کەمخوێنی ئاسن", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دێسفێریۆکسامین": {"ڕێژە": "500-1000mg", "میکانیزم": "Iron chelator", "کاریگەری لاوەکی": "زیان بە گورچیلە", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دەرمانی دەرکردنی ئاسنی زۆر لە جەستە", "بۆچی": "بۆ چارەسەری هیمۆکروماتۆسیس", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فۆلیک اسید": {"ڕێژە": "1-5mg", "میکانیزم": "Folate", "کاریگەری لاوەکی": "کەم", "پێچەوانە": "هەستیاری", "وەسف": "پڕکەری فۆلیک ئەسید", "بۆچی": "بۆ ئەنیمیای ماکرۆسایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دەیکسۆمیتازۆن": {"ڕێژە": "0.5-2mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن", "وەسف": "ستیرۆید بۆ هەوکردن و ئەنیمیا", "بۆچی": "بۆ چارەسەری ئەنیمیای هیمۆلایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پرەدنیسۆلۆن": {"ڕێژە": "5-20mg", "میکانیزم": "Steroid", "کاریگەری لاوەکی": "کێش زیادکردن", "پێچەوانە": "هەوکردن", "وەسف": "ستیرۆید بۆ هەوکردن و خۆئەگەری", "بۆچی": "بۆ ئەنیمیای هیمۆلایتیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.5 دژە کۆکە (١٠ دەرمان)
+    "دژە کۆکە": {
+        "سالبوتامۆل": {"ڕێژە": "2 puffs", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە بۆ کۆکە", "بۆچی": "بۆ چارەسەری کۆکە و COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "بۆدیزۆناید": {"ڕێژە": "200-800mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری", "وەسف": "ستیرۆیدی هەناسەدان بۆ کەمکردنەوەی هەوکردن", "بۆچی": "بۆ پێشگیری لە کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فۆرمۆتێرۆل": {"ڕێژە": "6-12mcg", "میکانیزم": "Beta-2 agonist", "کاریگەری لاوەکی": "لەرزین", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە", "بۆچی": "بۆ کۆکە و COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فلوتیکاسۆن": {"ڕێژە": "250-500mcg", "میکانیزم": "Steroid inhaler", "کاریگەری لاوەکی": "هەوکردنی دەم", "پێچەوانە": "هەستیاری", "وەسف": "ستیرۆیدی هەناسەدان", "بۆچی": "بۆ کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "مۆنتلۆکاست": {"ڕێژە": "10mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری", "وەسف": "بەربەستەری لیوکۆترین بۆ کەمکردنەوەی هەوکردن", "بۆچی": "بۆ کۆکە و هەستێکی هەوە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "زافیرلوکاست": {"ڕێژە": "20mg", "میکانیزم": "Leukotriene inhibitor", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "هەستیاری", "وەسف": "بەربەستەری لیوکۆترین", "بۆچی": "بۆ کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "تیۆترۆپیۆم": {"ڕێژە": "18mcg", "میکانیزم": "Anticholinergic", "کاریگەری لاوەکی": "دەم وشک", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "بەربەستەری ئەستیلکۆلین بۆ فراوانکردنی بۆڕی هەناسە", "بۆچی": "بۆ COPD و کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئیپرەترۆپیۆم": {"ڕێژە": "20mcg", "میکانیزم": "Anticholinergic", "کاریگەری لاوەکی": "دەم وشک", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "بەربەستەری ئەستیلکۆلین", "بۆچی": "بۆ COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "تئۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە", "بۆچی": "بۆ کۆکە و COPD", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئامینۆفیلین": {"ڕێژە": "100-200mg", "میکانیزم": "Bronchodilator", "کاریگەری لاوەکی": "خێرالێدانی دڵ", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "فراوانکەری بۆڕی هەناسە", "بۆچی": "بۆ کۆکە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.6 دژە سکچوون (١٠ دەرمان)
+    "دژە سکچوون": {
+        "ئومەپرازۆل": {"ڕێژە": "20-40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "بەربەستەری پمپەی پرۆتۆن بۆ کەمکردنەوەی ترشێتی گەدە", "بۆچی": "بۆ چارەسەری سکچوون و برینداری گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "لانسۆپرازۆل": {"ڕێژە": "30mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "بەربەستەری پمپەی پرۆتۆن", "بۆچی": "بۆ سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پانتۆپرازۆل": {"ڕێژە": "40mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "بەربەستەری پمپەی پرۆتۆن", "بۆچی": "بۆ گەدە و سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ڕابێپرازۆل": {"ڕێژە": "20mg", "میکانیزم": "PPI", "کاریگەری لاوەکی": "سەرئێشە", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "PPI بۆ کەمکردنەوەی ترشێتی", "بۆچی": "بۆ سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ڕانیتیدین": {"ڕێژە": "150mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری H2 بۆ کەمکردنەوەی ترشێتی", "بۆچی": "بۆ سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فامۆتیدین": {"ڕێژە": "20-40mg", "میکانیزم": "H2 blocker", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری H2", "بۆچی": "بۆ سکچوون", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "پارێزەری پەردەی گەدە", "بۆچی": "بۆ برینداری گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "بسمەت سابیسیلیت": {"ڕێژە": "262mg", "میکانیزم": "Antidiarrheal", "کاریگەری لاوەکی": "زکچوون", "پێچەوانە": "منداڵان", "وەسف": "دژە سکچوون بۆ کەمکردنەوەی سکچوون", "بۆچی": "بۆ سکچوون و گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "میزۆپرۆستۆل": {"ڕێژە": "100-200mcg", "میکانیزم": "Prostaglandin", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "حەمل", "وەسف": "پرۆستاگلاندین بۆ پاراستنی گەدە", "بۆچی": "بۆ پێشگیری لە برینداری گەدە لە NSAIDs", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "سوکرالفەیت": {"ڕێژە": "1g", "میکانیزم": "Mucosal protectant", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "پارێزەری گەدە", "بۆچی": "بۆ برینداری گەدە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.7 دژە ئازار (١٠ دەرمان)
+    "دژە ئازار": {
+        "ئەسپیرین": {"ڕێژە": "75-300mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە ئازار و دژە تەمەن بۆ کەمکردنەوەی ئازار و تا", "بۆچی": "بۆ ئازاری کەم و ناوەند و پێشگیری لە خوێن مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئیبۆپروفین": {"ڕێژە": "200-400mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دژە ئازار و دژە هەوکردن", "بۆچی": "بۆ ئازاری ماسوولکە و سەرئێشە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "نابومیتۆن": {"ڕێژە": "500mg", "میکانیزم": "NSAID", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "دژە هەوکردن بۆ ئازاری جومگەکان", "بۆچی": "بۆ ئازاری جومگە و ئارتریت", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پاراستامۆل": {"ڕێژە": "500-1000mg", "میکانیزم": "Analgesic", "کاریگەری لاوەکی": "زیان بە جگەر", "پێچەوانە": "نەخۆشی جگەر", "وەسف": "دژە ئازار و دژە تەمەن بۆ هەموو ئازارەکان", "بۆچی": "بۆ ئازاری سەرئێشە و تا", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "مۆرفین": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە", "وەسف": "دژە ئازاری بەهێز بۆ ئازاری توند", "بۆچی": "بۆ ئازاری توند وەک ئازاری شێرپەنجە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "کۆدەین": {"ڕێژە": "30mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "منداڵان", "وەسف": "دژە ئازاری مامناوەند", "بۆچی": "بۆ ئازاری مامناوەند", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ترامادۆل": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "دژە ئازاری نا ئۆپیۆیدی", "بۆچی": "بۆ ئازاری مامناوەند", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پێتیدین": {"ڕێژە": "50mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سەرگێژخواردن", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "دژە ئازاری بەهێز", "بۆچی": "بۆ ئازاری توند", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ناکسۆکسان": {"ڕێژە": "5-10mg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "سکچوون", "پێچەوانە": "نەخۆشی دڵ", "وەسف": "دژە ئازار", "بۆچی": "بۆ ئازاری ناوەند", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "فوێنتانیل": {"ڕێژە": "25mcg", "میکانیزم": "Opioid", "کاریگەری لاوەکی": "خەوی", "پێچەوانە": "نەخۆشی هەناسە", "وەسف": "دژە ئازاری زۆر بەهێز", "بۆچی": "بۆ ئازاری شێرپەنجە", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    },
+    # 6.8 دژە خوێن (١٠ دەرمان)
+    "دژە خوێن": {
+        "وارفارین": {"ڕێژە": "5mg", "میکانیزم": "Vitamin K antagonist", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "حەمل", "وەسف": "دژە خوێن بۆ پێشگیری لە مەبەست", "بۆچی": "بۆ پێشگیری لە خوێن مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "هێپارین": {"ڕێژە": "5000 IU", "میکانیزم": "Anticoagulant", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە خوێنی خێرا بۆ نەخۆشخانە", "بۆچی": "بۆ پێشگیری لە مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەنۆکساپارین": {"ڕێژە": "40mg", "میکانیزم": "LMWH", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە خوێنی کەم کێش", "بۆچی": "بۆ پێشگیری لە مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "کلۆپیدۆگرێل": {"ڕێژە": "75mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە پلەیتلێت بۆ پێشگیری لە مەبەست", "بۆچی": "بۆ نەخۆشی دڵی ئیسکیمیک", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "پراسوگرێل": {"ڕێژە": "10mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە پلەیتلێت", "بۆچی": "بۆ ئازاری سنگ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "تیکاگرێلۆر": {"ڕێژە": "90mg", "میکانیزم": "Antiplatelet", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "خوێنبەربوون", "وەسف": "دژە پلەیتلێت", "بۆچی": "بۆ نەخۆشی دڵ", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "دابیگاتران": {"ڕێژە": "110mg", "میکانیزم": "Direct thrombin inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری ترۆمبین", "بۆچی": "بۆ پێشگیری لە مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ریڤارۆکسابان": {"ڕێژە": "10mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری فاکتۆر Xa", "بۆچی": "بۆ مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئەپیکسابان": {"ڕێژە": "2.5-5mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری فاکتۆر Xa", "بۆچی": "بۆ مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."},
+        "ئیدۆکسابان": {"ڕێژە": "30-60mg", "میکانیزم": "Factor Xa inhibitor", "کاریگەری لاوەکی": "خوێنبەربوون", "پێچەوانە": "نەخۆشی گورچیلە", "وەسف": "بەربەستەری فاکتۆر Xa", "بۆچی": "بۆ مەبەست", "تێبینی": "تێبینی تایبەتی خۆت لێرە بنووسە..."}
+    }
+}
+
+# ================================
+# 7. دروستکردنی ١٠٠٠ کویز (بە ئاست)
+# ================================
+def generate_quizzes_by_level():
+    quizzes = []
+    
+    # پرس و وەڵامەکان بۆ ئاستی ١ (سەرەتایی)
+    level1_questions = [
+        {"پرسیار": "نیشانەی سەرەکی شەکرەی جۆری ٢ چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "پەستانی خوێنی نۆرماڵ چەندە؟", "هەڵبژاردەکان": ["120/80", "140/90", "160/100", "180/110"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ شەکرە بەکاردێت؟", "هەڵبژاردەکان": ["مێتفۆرمین", "ئەسپیرین", "کاپتۆپریل", "ئەمۆکسیسیلین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی ئەنیمیا چییە؟", "هەڵبژاردەکان": ["ماندوویی", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ دەستنیشانکردنی شەکرە؟", "هەڵبژاردەکان": ["FBS", "ECG", "Chest X-ray", "MRI"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی پەستانی خوێن چییە؟", "هەڵبژاردەکان": ["سەرئێشە", "کۆخە", "تا", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ ئازار بەکاردێت؟", "هەڵبژاردەکان": ["ئەسپیرین", "مێتفۆرمین", "ئەنسولین", "کاپتۆپریل"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی هەوکردنی سی چییە؟", "هەڵبژاردەکان": ["تا و کۆخە", "سەرئێشە", "ئازاری سنگ", "ماندوویی"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Hb نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیا", "شەکرە", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ پەستانی خوێن؟", "هەڵبژاردەکان": ["کاپتۆپریل", "مێتفۆرمین", "ئەنسولین", "ئەمۆکسیسیلین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی گەدە چییە؟", "هەڵبژاردەکان": ["ئازاری گەدە", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ پەستانی خوێن؟", "هەڵبژاردەکان": ["BP", "FBS", "HbA1c", "CBC"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی دڵ چییە؟", "هەڵبژاردەکان": ["ئازاری سنگ", "تینوویەتی زۆر", "سکچوون", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ ئەنیمیا؟", "هەڵبژاردەکان": ["فێروس سولفەیت", "ئەسپیرین", "کاپتۆپریل", "مێتفۆرمین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CRP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردن", "شەکرە", "ئەنیمیا", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ کۆخە؟", "هەڵبژاردەکان": ["سالبوتامۆل", "مێتفۆرمین", "کاپتۆپریل", "ئەسپیرین"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی سیل چییە؟", "هەڵبژاردەکان": ["کۆخەی خوێناوی", "سەرئێشە", "ئازاری سنگ", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ دڵ؟", "هەڵبژاردەکان": ["ECG", "FBS", "HbA1c", "CBC"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی شەکرە چییە؟", "هەڵبژاردەکان": ["تینوویەتی زۆر", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ هەوکردن؟", "هەڵبژاردەکان": ["ئەمۆکسیسیلین", "مێتفۆرمین", "کاپتۆپریل", "ئەسپیرین"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٢ (مامناوەند)
+    level2_questions = [
+        {"پرسیار": "HbA1c > 6.5% ئاماژەیە بۆ چی؟", "هەڵبژاردەکان": ["شەکرە", "ئەنیمیا", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "BP > 140/90 نیشانەی چییە؟", "هەڵبژاردەکان": ["پەستانی خوێن", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MCV < 80 fL نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیای مایکرۆسایتیک", "ئەنیمیای ماکرۆسایتیک", "ئەنیمیای نۆرمۆسایتیک", "هیمۆلایتیک"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Troponin بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵ", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Creatinine بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "ALT بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ferritin نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["ئەنیمیای کەمخوێنی ئاسن", "ئەنیمیای ماکرۆسایتیک", "هیمۆلایتیک", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "C-peptide نزم لە شەکرەی جۆری چی؟", "هەڵبژاردەکان": ["جۆری 1", "جۆری 2", "حەملی دووگانی", "پێش شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "FEV1 < 80% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی کۆکە", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "BNP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Anti-GAD positive نیشانەی چییە؟", "هەڵبژاردەکان": ["شەکرەی جۆری 1", "شەکرەی جۆری 2", "نەخۆشی دڵ", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "eGFR < 60 نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "HBsAg positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر B", "نەخۆشی جگەر C", "نەخۆشی جگەر A", "سیرۆسیس"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Anti-HCV positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر C", "نەخۆشی جگەر B", "نەخۆشی جگەر A", "سیرۆسیس"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Amylase بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["پەنکریاتیت", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Lipase بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["پەنکریاتیت", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "وەڵامی ڕاست بۆ کویزی ئاست ٢ چییە؟", "هەڵبژاردەکان": ["ئاست ٢", "ئاست ١", "ئاست ٣", "ئاست ٤"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ MS؟", "هەڵبژاردەکان": ["Interferon", "Levodopa", "Donepezil", "Warfarin"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی Stroke چییە؟", "هەڵبژاردەکان": ["مشکێتی جوڵە", "بیرچون", "لەرزین", "ئازاری سنگ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ نەخۆشی جگەر؟", "هەڵبژاردەکان": ["ALT", "Troponin", "CBC", "ESR"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٣ (پێشکەوتوو)
+    level3_questions = [
+        {"پرسیار": "ST depression + Troponin elevated نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CAG تەنگی کرۆنەری نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵ", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "AFP بەرز > 400 نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "DAT scan کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PET abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "VEP کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Sputum AFB positive نیشانەی چییە؟", "هەڵبژاردەکان": ["سیل", "هەوکردنی سی", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ultrasound fatty liver نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەری چەور", "سیرۆسیس", "نەخۆشی جگەر B", "نەخۆشی جگەر C"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI atrophy نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT ischemia نیشانەی چییە؟", "هەڵبژاردەکان": ["Stroke", "MS", "Alzheimer", "Parkinson"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Holter abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Arrhythmia", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Echocardiogram EF < 40% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Chest X-ray consolidation نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردنی سی", "سیل", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Widal positive نیشانەی چییە؟", "هەڵبژاردەکان": ["تایفیید", "کۆلێرا", "سیل", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Stool culture Vibrio cholera نیشانەی چییە؟", "هەڵبژاردەکان": ["کۆلێرا", "تایفیید", "هەوکردن", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT scan tumor نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Endoscopy ulcer نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "هەوکردنی گەدە", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "H. pylori positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گەدە", "هەوکردنی گەدە", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٤ (شارەزا)
+    level4_questions = [
+        {"پرسیار": "CA19-9 بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پەنکریاس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PSA بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی پڕۆستات", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CA125 بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی هێلکەدان", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "AFP بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CEA بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی کۆلۆن", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "HCG بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["حەمل", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "LDH بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Haptoglobin نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Reticulocyte بەرز نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Coomb's test positive نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆلایسیس خۆئەگەر", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Bone marrow blast cells نیشانەی چییە؟", "هەڵبژاردەکان": ["لەوسیمیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Lymph node biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["لەوسیمیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Platelets < 50 نیشانەی چییە؟", "هەڵبژاردەکان": ["ترۆمبۆسایتۆپینیا", "لەوسیمیا", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PTT درێژ نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا", "نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Factor VIII نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا A", "هیمۆفیلیا B", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Factor IX نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["هیمۆفیلیا B", "هیمۆفیلیا A", "نەخۆشی جگەر", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Urine protein > 3.5g نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Urine casts نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Complement نزم نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی گورچیلە", "نەخۆشی جگەر", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Water deprivation test positive نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی میزی شەکر", "شەکرە", "نەخۆشی گورچیلە", "هەوکردن"], "وەڵامی ڕاست": 0}
+    ]
+    
+    # پرس و وەڵامەکان بۆ ئاستی ٥ (پزیشک)
+    level5_questions = [
+        {"پرسیار": "CAG تەنگی کرۆنەری نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن", "ئەنیمیا"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Oligoclonal bands لە CSF نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام دەرمانە بۆ Hep C؟", "هەڵبژاردەکان": ["Sofosbuvir", "Rifampicin", "Levodopa", "Warfarin"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "نیشانەی نەخۆشی گەدە چییە؟", "هەڵبژاردەکان": ["ئازاری گەدە", "سەرئێشە", "ئازاری سنگ", "کۆخە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "کام پشکنینە بۆ پەنکریاتیت؟", "هەڵبژاردەکان": ["Amylase", "ALT", "Troponin", "CRP"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI plagues نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "DAT scan کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["Parkinson", "Alzheimer", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "PET abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "VEP کەم نیشانەی چییە؟", "هەڵبژاردەکان": ["MS", "Alzheimer", "Parkinson", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Sputum AFB positive نیشانەی چییە؟", "هەڵبژاردەکان": ["سیل", "هەوکردنی سی", "شەکرە", "نەخۆشی دڵ"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Ultrasound cirrhosis نیشانەی چییە؟", "هەڵبژاردەکان": ["سیرۆسیس", "نەخۆشی جگەری چەور", "نەخۆشی جگەر B", "نەخۆشی جگەر C"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "MRI atrophy نیشانەی چییە؟", "هەڵبژاردەکان": ["Alzheimer", "Parkinson", "MS", "Stroke"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT stroke نیشانەی چییە؟", "هەڵبژاردەکان": ["Stroke", "MS", "Alzheimer", "Parkinson"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Holter abnormal نیشانەی چییە؟", "هەڵبژاردەکان": ["Arrhythmia", "نەخۆشی دڵ", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Echocardiogram EF < 40% نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی دڵی شکان", "نەخۆشی دڵی ئیسکیمیک", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Chest X-ray consolidation نیشانەی چییە؟", "هەڵبژاردەکان": ["هەوکردنی سی", "سیل", "نەخۆشی دڵ", "شەکرە"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Widal positive نیشانەی چییە؟", "هەڵبژاردەکان": ["تایفیید", "کۆلێرا", "سیل", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Stool culture Vibrio cholera نیشانەی چییە؟", "هەڵبژاردەکان": ["کۆلێرا", "تایفیید", "هەوکردن", "سکچوون"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "CT scan tumor نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0},
+        {"پرسیار": "Biopsy malignant نیشانەی چییە؟", "هەڵبژاردەکان": ["نەخۆشی جگەر", "نەخۆشی گورچیلە", "شەکرە", "هەوکردن"], "وەڵامی ڕاست": 0}
+    ]
+    
+    level_questions = {
+        1: level1_questions,
+        2: level2_questions,
+        3: level3_questions,
+        4: level4_questions,
+        5: level5_questions
+    }
+    
+    # دروستکردنی کویزەکان بۆ هەر ئاستێک
+    for level, questions in level_questions.items():
+        for i in range(LEVELS[level]["quizzes"]):
+            q = random.choice(questions)
+            quiz = {
+                "پرسیار": q["پرسیار"],
+                "هەڵبژاردەکان": q["هەڵبژاردەکان"],
+                "وەڵامی ڕاست": q["وەڵامی ڕاست"],
+                "ئاست": level,
+                "ئاستی ناو": LEVELS[level]["name"],
+                "ڕوونکردنەوە": f"ئاستی {LEVELS[level]['name']} - کویز ژمارە {i+1}"
+            }
+            quizzes.append(quiz)
+    
+    return quizzes
+
+MEDICAL_QUIZZES = generate_quizzes_by_level()
+
+# ================================
+# 8. فانکشنە یارمەتیدەرەکان
+# ================================
+def generate_case_id() -> str:
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    random_num = random.randint(1000, 9999)
+    return f"CASE-{timestamp}-{random_num}"
+
+def calculate_risk_score(disease: str, age: int, gender: str, symptoms: List[str] = None) -> int:
+    base_risk = {"زۆر مەترسیدار": 80, "مەترسیدار": 60, "مامناوەند": 40, "کەم": 20}
+    disease_info = DISEASE_DATABASE.get(disease, {})
+    risk = base_risk.get(disease_info.get('ئاستی مەترسی', 'کەم'), 40)
+    if age > 70: risk += 20
+    elif age > 60: risk += 15
+    elif age > 50: risk += 10
+    elif age > 40: risk += 5
+    if gender == 'نێر' and disease in ['نەخۆشی دڵی ئیسکیمیک', 'نەخۆشی دڵی شکان']:
+        risk += 10
+    if symptoms:
+        risk += min(len(symptoms) * 3, 15)
+    return min(risk, 100)
+
+def analyze_symptoms_advanced(symptoms: List[str], disease: str) -> Dict:
+    disease_symptoms = set(DISEASE_DATABASE[disease]['نیشانەکان'])
+    patient_symptoms = set(symptoms)
+    match_count = len(patient_symptoms.intersection(disease_symptoms))
+    total_disease_symptoms = len(disease_symptoms)
+    total_patient_symptoms = len(patient_symptoms)
+    match_percentage = (match_count / total_disease_symptoms) * 100 if total_disease_symptoms > 0 else 0
+    coverage_percentage = (match_count / total_patient_symptoms) * 100 if total_patient_symptoms > 0 else 0
+    return {
+        "match_count": match_count,
+        "total_disease_symptoms": total_disease_symptoms,
+        "total_patient_symptoms": total_patient_symptoms,
+        "match_percentage": round(match_percentage, 1),
+        "coverage_percentage": round(coverage_percentage, 1),
+        "match_quality": "باش" if match_percentage > 60 else "مامناوەند" if match_percentage > 30 else "کەم",
+        "matched_symptoms": list(patient_symptoms.intersection(disease_symptoms)),
+        "unmatched_disease_symptoms": list(disease_symptoms.difference(patient_symptoms)),
+        "unmatched_patient_symptoms": list(patient_symptoms.difference(disease_symptoms))
+    }
+
+def get_student_level_score(level: str) -> int:
+    levels = {"ساڵی یەکەم": 10, "ساڵی دووەم": 25, "ساڵی سێیەم": 40, "ساڵی چوارەم": 60, "ساڵی پێنجەم": 75, "ساڵی شەشەم": 90}
+    return levels.get(level, 10)
+
+def get_risk_color(risk_level: str) -> str:
+    colors = {"زۆر مەترسیدار": "#ff6b6b", "مەترسیدار": "#ffd93d", "مامناوەند": "#ffc107", "کەم": "#6bcb77"}
+    return colors.get(risk_level, "#6c757d")
+
+def get_age_group(age: int) -> str:
+    if age < 18: return "منداڵ"
+    elif age < 40: return "گەنج"
+    elif age < 60: return "تەمەن مامناوەند"
+    else: return "پیر"
+
+def generate_random_lab_results() -> Dict:
+    results = {}
+    for test, info in LAB_TESTS.items():
+        low, high = info["نۆرماڵ"]
+        if random.random() < 0.7:
+            value = round(random.uniform(low, high), 2)
+            status = "نۆرماڵ"
+        else:
+            if random.random() < 0.5:
+                value = round(random.uniform(high, high * 1.5), 2)
+                status = "بەرز"
+            else:
+                value = round(random.uniform(low * 0.5, low), 2)
+                status = "نزم"
+        results[test] = {"value": value, "status": status, "unit": info["یەکە"]}
+    return results
+
+def calculate_case_similarity(case1: Dict, case2: Dict) -> float:
+    similarities = []
+    if abs(case1.get('تەمەن', 0) - case2.get('تەمەن', 0)) < 10:
+        similarities.append(1)
+    else:
+        similarities.append(0)
+    if case1.get('ڕەگەز') == case2.get('ڕەگەز'):
+        similarities.append(1)
+    symptoms1 = set(case1.get('نیشانە سەرەکییەکان', []))
+    symptoms2 = set(case2.get('نیشانە سەرەکییەکان', []))
+    if symptoms1 and symptoms2:
+        intersection = len(symptoms1.intersection(symptoms2))
+        union = len(symptoms1.union(symptoms2))
+        similarities.append(intersection / union if union > 0 else 0)
+    return sum(similarities) / len(similarities) if similarities else 0
+
+def get_disease_count() -> int:
+    return len(DISEASE_DATABASE)
+
+def get_drug_count() -> int:
+    total = 0
+    for category in DRUG_DATABASE.values():
+        total += len(category)
+    return total
+
+def get_lab_count() -> int:
+    return len(LAB_TESTS)
+
+def get_quiz_count() -> int:
+    return len(MEDICAL_QUIZZES)
+
+def get_quizzes_for_level(level: int) -> List:
+    return [q for q in MEDICAL_QUIZZES if q.get("ئاست", 1) == level]
+
+def get_quiz_progress(level: int) -> float:
+    total = LEVELS[level]["quizzes"]
+    done = st.session_state.get(f"level_{level}_done", 0)
+    return (done / total) * 100 if total > 0 else 0
+
+def get_next_quiz(level: int) -> Optional[Dict]:
+    quizzes = get_quizzes_for_level(level)
+    done = st.session_state.get(f"level_{level}_done", 0)
+    if done < len(quizzes):
+        return quizzes[done]
+    return None
+
+def analyze_lab_result(test_name: str, value: float) -> Dict:
+    if test_name not in LAB_TESTS:
+        return {"status": "نەزانراو", "color": "#6c757d", "interpretation": "پشکنین نەدۆزرایەوە"}
+    low, high = LAB_TESTS[test_name]["نۆرماڵ"]
+    if value < low:
+        return {"status": "نزم", "color": "#ffc107", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} نزمە (نزمتر لە نۆرماڵ)"}
+    elif value > high:
+        return {"status": "بەرز", "color": "#dc3545", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} بەرزە (بەرزتر لە نۆرماڵ)"}
+    else:
+        return {"status": "نۆرماڵ", "color": "#28a745", "interpretation": f"{LAB_TESTS[test_name]['تەفسیر']} نۆرماڵە (لە مەودای نۆرماڵدایە)"}
+
+# ================================
+# 9. دروستکردنی داتای ڕاهێنان
+# ================================
+@st.cache_data
+def generate_training_data():
+    cases = []
+    case_id_counter = 1
+    for disease, info in DISEASE_DATABASE.items():
+        for i in range(10):
+            age = random.randint(18, 80)
+            gender = random.choice(['نێر', 'مێ'])
+            symptoms = random.sample(info['نیشانەکان'], min(5, len(info['نیشانەکان'])))
+            test_keys = list(info['پشکنینەکان'].keys())
+            selected_tests = random.sample(test_keys, min(4, len(test_keys)))
+            lab_results = generate_random_lab_results()
+            case = {
+                'case_id': f"CASE-{case_id_counter:04d}",
+                'تەمەن': age,
+                'ڕەگەز': gender,
+                'نیشانە سەرەکییەکان': symptoms,
+                'پشکنینە پێویستەکان': selected_tests,
+                'ئەنجامی پشکنینەکان': lab_results,
+                'دەستنیشانکردن': disease,
+                'ئاستی مەترسی': info['ئاستی مەترسی'],
+                'نمرەی مەترسی': calculate_risk_score(disease, age, gender, symptoms),
+                'case_date': datetime.now() - timedelta(days=random.randint(0, 730)),
+                'دەستنیشانکردنی دوایین': disease
+            }
+            cases.append(case)
+            case_id_counter += 1
+    return pd.DataFrame(cases)
+
+training_data = generate_training_data()
+
+# ================================
+# 10. مۆدێلی AI پێشکەوتوو
+# ================================
+@st.cache_resource
+def train_prediction_model_advanced():
+    try:
+        data = training_data.copy()
+        data['گروپی تەمەن'] = data['تەمەن'].apply(get_age_group)
+        features = pd.get_dummies(data[['تەمەن', 'ڕەگەز', 'گروپی تەمەن'] + ['نیشانە سەرەکییەکان']], drop_first=True)
+        scaler = StandardScaler()
+        numerical_cols = features.select_dtypes(include=[np.number]).columns
+        features_scaled = scaler.fit_transform(features[numerical_cols])
+        model = RandomForestClassifier(n_estimators=250, max_depth=15, min_samples_split=5, min_samples_leaf=2, random_state=42)
+        model.fit(features_scaled, data['دەستنیشانکردن'])
+        predictions = model.predict(features_scaled)
+        accuracy = accuracy_score(data['دەستنیشانکردن'], predictions)
+        pca = PCA(n_components=2)
+        pca_result = pca.fit_transform(features_scaled)
+        return model, scaler, accuracy, numerical_cols, pca, pca_result
+    except Exception as e:
+        return None, None, 0, None, None, None
+
+model, scaler, model_accuracy, numerical_cols, pca_model, pca_result = train_prediction_model_advanced()
+
+# ================================
+# 11. ستەیتەکانی ئەپ
+# ================================
+if 'current_case' not in st.session_state:
+    st.session_state.current_case = None
+if 'diagnosis_submitted' not in st.session_state:
+    st.session_state.diagnosis_submitted = False
+if 'quiz_index' not in st.session_state:
+    st.session_state.quiz_index = 0
+if 'quiz_score' not in st.session_state:
+    st.session_state.quiz_score = 0
+if 'quiz_completed' not in st.session_state:
+    st.session_state.quiz_completed = False
+if 'case_history' not in st.session_state:
+    st.session_state.case_history = []
+if 'total_cases_solved' not in st.session_state:
+    st.session_state.total_cases_solved = 0
+if 'correct_diagnoses' not in st.session_state:
+    st.session_state.correct_diagnoses = 0
+if 'last_activity' not in st.session_state:
+    st.session_state.last_activity = datetime.now()
+if 'student_level' not in st.session_state:
+    st.session_state.student_level = "ساڵی یەکەم"
+if 'quiz_answers' not in st.session_state:
+    st.session_state.quiz_answers = []
+if 'streak_days' not in st.session_state:
+    st.session_state.streak_days = 0
+if 'last_study_date' not in st.session_state:
+    st.session_state.last_study_date = datetime.now().date()
+if 'achievements' not in st.session_state:
+    st.session_state.achievements = []
+if 'favorite_diseases' not in st.session_state:
+    st.session_state.favorite_diseases = []
+if 'study_notes' not in st.session_state:
+    st.session_state.study_notes = ""
+if 'study_time' not in st.session_state:
+    st.session_state.study_time = 0
+if 'quiz_attempts' not in st.session_state:
+    st.session_state.quiz_attempts = 0
+if 'simulation_count' not in st.session_state:
+    st.session_state.simulation_count = 0
+if 'current_level' not in st.session_state:
+    st.session_state.current_level = 1
+if 'level_1_done' not in st.session_state:
+    st.session_state.level_1_done = 0
+if 'level_2_done' not in st.session_state:
+    st.session_state.level_2_done = 0
+if 'level_3_done' not in st.session_state:
+    st.session_state.level_3_done = 0
+if 'level_4_done' not in st.session_state:
+    st.session_state.level_4_done = 0
+if 'level_5_done' not in st.session_state:
+    st.session_state.level_5_done = 0
+if 'lab_history' not in st.session_state:
+    st.session_state.lab_history = []
+if 'custom_lab_tests' not in st.session_state:
+    st.session_state.custom_lab_tests = {}
+if 'custom_drugs' not in st.session_state:
+    st.session_state.custom_drugs = {}
+
+# ================================
+# پەڕەی لۆگین
+# ================================
+if not st.session_state.logged_in:
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+    
+    st.markdown("""
+        <span class="dr-icon">🩺</span>
+        <h2 style="color:white;margin-bottom:20px;">Dr.Danyal</h2>
+        <p style="color:rgba(255,255,255,0.6);">تکایە بچۆ ژوورەوە یان هەژمارێکی نوێ دروست بکە</p>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["چوونە ژوورەوە", "دروستکردنی هەژمار"])
+    
+    with tab1:
+        with st.form("login_form"):
+            login_username = st.text_input("👤 ناوی بەکارهێنەری", key="login_username")
+            login_password = st.text_input("🔒 وشەی نهێنی", type="password", key="login_password")
+            login_submit = st.form_submit_button("🚪 چوونە ژوورەوە", type="primary")
+            
+            if login_submit:
+                if authenticate_user(login_username, login_password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = login_username
+                    user_data = load_user_data(login_username)
+                    st.session_state.custom_lab_tests = user_data.get("custom_lab_tests", {})
+                    st.session_state.custom_drugs = user_data.get("custom_drugs", {})
+                    st.success(f"بەخێربێیت {login_username}!")
+                    st.rerun()
+                else:
+                    st.error("❌ ناوی بەکارهێنەری یان وشەی نهێنی هەڵەیە")
+    
+    with tab2:
+        with st.form("register_form"):
+            new_username = st.text_input("👤 ناوی بەکارهێنەری نوێ", key="new_username")
+            new_password = st.text_input("🔒 وشەی نهێنی", type="password", key="new_password")
+            new_password_confirm = st.text_input("🔒 دووبارە وشەی نهێنی", type="password", key="new_password_confirm")
+            register_submit = st.form_submit_button("📝 دروستکردنی هەژمار", type="primary")
+            
+            if register_submit:
+                if not new_username or not new_password:
+                    st.error("تکایە هەموو خانەکان پڕ بکەرەوە")
+                elif new_password != new_password_confirm:
+                    st.error("وشەی نهێنی یەک ناگرنەوە")
+                elif len(new_password) < 4:
+                    st.error("وشەی نهێنی پێویستە لانیکەم ٤ پیت بێت")
+                else:
+                    if create_user(new_username, new_password):
+                        st.success("✅ هەژمارەکەت بە سەرکەوتوویی دروست کرا! ئێستا دەتوانیت بچیتە ژوورەوە")
+                    else:
+                        st.error("❌ ئەم ناوی بەکارهێنەرییە پێشتر بەکارهێنراوە")
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.stop()
+
+# ================================
+# 12. سایدبار - لەگەڵ لۆگۆی Dr.Danyal و دوگمەی چوونە دەرەوە
+# ================================
+with st.sidebar:
+    st.markdown(f"""
+    <div style="text-align:center;padding:10px 0;">
+        <span class="dr-icon">🩺</span>
+        <div style="font-size:2rem;font-weight:bold;background:linear-gradient(135deg,#4facfe,#43e97b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+            Dr.Danyal
+        </div>
+        <div style="color:rgba(255,255,255,0.5);font-size:0.8rem;margin-top:-5px;">🎓 ڕاهێنەری پزیشکی Pro Max</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("### 📊 کورتە")
-    total_sales_sum = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
-    total_customers = len(st.session_state.customers)
-    total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
-    total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
-    total_profit = total_sales_sum - total_cost - total_expenses
     
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💰 فرۆشتن", f"${total_sales_sum:,.0f}")
-    c2.metric("👥 کڕیار", total_customers)
-    c3.metric("💵 قازانج", f"${total_profit:,.0f}")
-
-# ================== MAIN CONTENT ==================
-st.markdown('<p class="main-header">📱 سیستەمی بەڕێوەبردنی دوکانی مۆبایل</p>', unsafe_allow_html=True)
-
-try:
-    # ================== 1. SALES SECTION ==================
-    if main_choice == "💰 فرۆشتن" and sub_choice == "📝 فرۆشتنی نوێ":
-        st.header("📝 فرۆشتنی نوێ")
-        c1, c2 = st.columns([2, 1])
-        with c1:
-            with st.form("sale_form"):
-                # FIXED: Use text_input with datalist for product name
-                product_list = list(st.session_state.inventory['ناوی کەلوپەل'].values) if not st.session_state.inventory.empty else []
-                product_name = st.text_input("📱 ناوی بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
-                
-                # Show suggestions if available
-                if product_list and product_name:
-                    suggestions = [p for p in product_list if product_name.lower() in p.lower()][:5]
-                    if suggestions:
-                        st.caption(f"💡 پێشنیار: {', '.join(suggestions)}")
-                
-                col1, col2 = st.columns(2)
-                quantity = col1.number_input("📦 ژمارە", min_value=1, value=1, step=1)
-                price = col2.number_input("💵 نرخ ($)", min_value=0.0, step=10.0, value=0.0)
-                
-                col3, col4 = st.columns(2)
-                # FIXED: Use text_input for customer name with suggestions
-                customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
-                customer_name = col3.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                
-                if customer_list and customer_name:
-                    cust_suggestions = [c for c in customer_list if customer_name.lower() in c.lower()][:5]
-                    if cust_suggestions:
-                        col3.caption(f"💡 {', '.join(cust_suggestions)}")
-                
-                discount_code = col4.text_input("🏷️ کۆدی داشکاندن", placeholder="ئارەزوومەندانە")
-                
-                employee_options = [""] + list(st.session_state.employees['ناوی کارمەند'].values) if not st.session_state.employees.empty else [""]
-                employee = st.selectbox("👨‍💼 کارمەند", employee_options)
-                
-                if discount_code and price > 0:
-                    final_price = apply_discount(price, discount_code)
-                    if final_price != price:
-                        st.success(f"💰 نرخی کۆتایی دوای داشکاندن: ${final_price * quantity:,.2f}")
-                
-                if st.form_submit_button("➕ تۆمارکردنی فرۆشتن"):
-                    if product_name and price > 0 and customer_name:
-                        if add_sale(product_name, price, customer_name, discount_code, employee, quantity):
-                            st.success(f"✅ {quantity} دانە {product_name} بە {customer_name} فرۆشرا! کۆی گشتی: ${apply_discount(price, discount_code) * quantity:,.2f}")
-                            st.balloons()
-                            if st.session_state.last_sale_invoice:
-                                st.download_button(
-                                    label="📄 داگرتنی فاکتوور",
-                                    data=st.session_state.last_sale_invoice,
-                                    file_name=f"invoice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                                    mime="application/pdf"
-                                )
-                    else:
-                        st.error("❌ تکایە ناوی بەرهەم، نرخ و ناوی کڕیار پڕ بکەرەوە!")
-        
-        with c2:
-            if not st.session_state.sales.empty:
-                st.subheader("📈 دوایین فرۆشتنەکان")
-                st.dataframe(st.session_state.sales.tail(5)[['ناوی بەرهەم', 'نرخی کۆتایی', 'ناوی کڕیار']], use_container_width=True)
-
-    elif main_choice == "💰 فرۆشتن" and sub_choice == "📋 لیستی فرۆشتن":
-        st.header("📋 لیستی فرۆشتنەکان")
-        if not st.session_state.sales.empty:
-            filtered_sales = st.session_state.sales.copy()
-            
-            col1, col2, col3 = st.columns(3)
-            if not st.session_state.employees.empty:
-                emp_filter = col1.selectbox("پاڵێو بە کارمەند", ["هەموو"] + list(st.session_state.employees['ناوی کارمەند'].unique()))
-                if emp_filter != "هەموو":
-                    filtered_sales = filtered_sales[filtered_sales['کارمەند'] == emp_filter]
-            
-            date_filter = col2.date_input("لە بەروارەوە", value=None)
-            if date_filter:
-                filtered_sales['date'] = pd.to_datetime(filtered_sales['کاتی فرۆشتن']).dt.date
-                filtered_sales = filtered_sales[filtered_sales['date'] == date_filter]
-            
-            st.dataframe(filtered_sales, use_container_width=True)
-            
-            col_a, col_b, col_c = st.columns(3)
-            col_a.metric("📊 ژمارەی فرۆشتن", len(filtered_sales))
-            col_b.metric("💰 کۆی داهات", f"${filtered_sales['نرخی کۆتایی'].sum():,.2f}")
-            col_c.metric("📈 تێکڕای فرۆشتن", f"${filtered_sales['نرخی کۆتایی'].mean():,.2f}" if not filtered_sales.empty else "$0")
-            
-            if st.button("📥 هەناردەکردن بۆ Excel"):
-                excel_data = export_to_excel(filtered_sales, 'Sales')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'sales_report.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ فرۆشتنێک تۆمار نەکراوە")
-
-    elif main_choice == "💰 فرۆشتن" and sub_choice == "🧾 فاکتوور":
-        st.header("🧾 دروستکردنی فاکتوور")
-        if not st.session_state.sales.empty:
-            sale_options = [f"{row['ناوی بەرهەم']} - {row['ناوی کڕیار']} ({row['کاتی فرۆشتن']})" for _, row in st.session_state.sales.iterrows()]
-            selected_idx = st.selectbox("📝 فرۆشتنی هەڵبژێرە", range(len(sale_options)), format_func=lambda x: sale_options[x])
-            
-            if st.button("🧾 دروستکردنی فاکتوور"):
-                sale_data = st.session_state.sales.iloc[selected_idx]
-                invoice_data = {
-                    'date': sale_data['کاتی فرۆشتن'],
-                    'customer': sale_data['ناوی کڕیار'],
-                    'product': sale_data['ناوی بەرهەم'],
-                    'quantity': 1,
-                    'price': sale_data['نرخ'],
-                    'discount_code': sale_data['کۆدی داشکاندن'],
-                    'final_price': sale_data['نرخی کۆتایی']
-                }
-                invoice_pdf = generate_invoice(invoice_data)
-                if invoice_pdf:
-                    st.download_button(
-                        label="📄 داگرتنی فاکتوور",
-                        data=invoice_pdf,
-                        file_name=f"invoice_{sale_data['ناوی کڕیار']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
-                    )
-                    st.success("✅ فاکتوور بە سەرکەوتوویی دروست کرا!")
-        else:
-            st.info("📭 سەرەتا فرۆشتنێک تۆمار بکە")
-
-    # ================== BARCODE SCANNER SECTION ==================
-    elif main_choice == "💰 فرۆشتن" and sub_choice == "📷 سکانی بارکۆد":
-        st.header("📷 سکانی بارکۆد")
-        
-        barcode_input = st.text_input("🔢 بارکۆد یان ناوی بەرهەم", placeholder="بارکۆدەکە سکان بکە یان ناوەکە بنووسە...", key="barcode_scanner")
-        
-        if barcode_input:
-            found_item = None
-            for _, row in st.session_state.inventory.iterrows():
-                row_barcode = str(row.get('بارکۆد', '')).strip()
-                row_name = str(row['ناوی کەلوپەل']).strip().lower()
-                
-                if barcode_input.strip() == row_barcode or barcode_input.strip().lower() == row_name:
-                    found_item = row
-                    break
-            
-            if found_item is not None:
-                st.success(f"✅ بەرهەم دۆزرایەوە: {found_item['ناوی کەلوپەل']}")
-                
-                suggested_price = found_item['نرخی کڕین'] * 1.3
-                
-                with st.form(key="quick_sale_form"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        selling_price = st.number_input("💰 نرخی فرۆشتن ($)", min_value=0.0, value=float(suggested_price), step=10.0)
-                        quantity = st.number_input("📦 ژمارەی دانە", min_value=1, max_value=int(found_item['ژمارەی دانەکان']), value=1)
-                    with col2:
-                        # FIXED: Use text_input for customer name
-                        customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
-                        customer_name = st.text_input("👤 کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                        
-                        employee_options = [""] + list(st.session_state.employees['ناوی کارمەند'].values) if not st.session_state.employees.empty else [""]
-                        employee = st.selectbox("👨‍💼 کارمەند", employee_options)
-                    
-                    discount_code = st.text_input("🏷️ کۆدی داشکاندن (ئارەزوومەندانە)")
-                    
-                    if st.form_submit_button("🛒 فرۆشتن"):
-                        if customer_name:
-                            if add_sale(found_item['ناوی کەلوپەل'], selling_price, customer_name, discount_code, employee, quantity):
-                                st.success(f"✅ {quantity} دانە {found_item['ناوی کەلوپەل']} فرۆشرا!")
-                                st.balloons()
-                                st.rerun()
-                        else:
-                            st.error("❌ تکایە ناوی کڕیار بنووسە")
-            else:
-                st.error("❌ بەرهەم نەدۆزرایەوە! تکایە بارکۆد یان ناوێکی دروست بنووسە")
-
-    # ================== 2. INVENTORY SECTION ==================
-    elif main_choice == "📦 کۆگا" and sub_choice == "📝 زیادکردنی کەلوپەل":
-        st.header("📝 زیادکردنی کەلوپەلی نوێ")
-        with st.form("inventory_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                item_name = st.text_input("🏷️ ناوی کەلوپەل *")
-                quantity = st.number_input("📦 ژمارەی دانەکان", min_value=1, step=1, value=1)
-                barcode = st.text_input("🔢 بارکۆد (ئارەزوومەندانە)", placeholder="1234567890123")
-            with col2:
-                purchase_price = st.number_input("💰 نرخی کڕین ($)", min_value=0.0, step=1.0, value=0.0)
-                min_stock = st.number_input("⚠️ کەمترین ئاستی ئاگاداری", min_value=1, value=5, step=1)
-                supplier_options = [""] + list(st.session_state.suppliers['ناوی کۆمپانیا'].values) if not st.session_state.suppliers.empty else [""]
-                supplier = st.selectbox("🏭 دابینکەر", supplier_options)
-            
-            if st.form_submit_button("➕ زیادکردنی کەلوپەل"):
-                if item_name and quantity > 0:
-                    # Check if item already exists
-                    if not st.session_state.inventory.empty and item_name in st.session_state.inventory['ناوی کەلوپەل'].values:
-                        idx = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == item_name].index[0]
-                        st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] += quantity
-                        if purchase_price > 0:
-                            st.session_state.inventory.at[idx, 'نرخی کڕین'] = purchase_price
-                        st.success(f"✅ {quantity} دانە بە {item_name} زیاد کرا! کۆی ئێستا: {st.session_state.inventory.at[idx, 'ژمارەی دانەکان']} دانە")
-                    else:
-                        new_item = pd.DataFrame({
-                            'ناوی کەلوپەل': [item_name],
-                            'ژمارەی دانەکان': [quantity],
-                            'نرخی کڕین': [purchase_price],
-                            'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
-                            'کەمترین ژمارە': [min_stock],
-                            'بارکۆد': [barcode if barcode else '']
-                        })
-                        st.session_state.inventory = safe_concat(st.session_state.inventory, new_item)
-                        st.success(f"✅ {quantity} دانە {item_name} بە سەرکەوتوویی زیاد کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ تکایە ناوی کەلوپەل و ژمارەی دانەکان پڕ بکەرەوە")
-
-    elif main_choice == "📦 کۆگا" and sub_choice == "📋 لیستی کۆگا":
-        st.header("📋 لیستی کەلوپەلەکان")
-        if not st.session_state.inventory.empty:
-            inventory_display = st.session_state.inventory.copy()
-            inventory_display['کۆی بەها'] = inventory_display['ژمارەی دانەکان'] * inventory_display['نرخی کڕین']
-            inventory_display['نرخی فرۆشتن (پێشنیارکراو)'] = inventory_display['نرخی کڕین'] * 1.3
-            inventory_display['ڕەوش'] = inventory_display.apply(
-                lambda x: '🔴 کەمە' if x['ژمارەی دانەکان'] < x['کەمترین ژمارە'] else '🟢 باشە', 
-                axis=1
-            )
-            
-            search = st.text_input("🔍 گەڕان...", placeholder="ناوی کەلوپەل بنووسە...")
-            if search:
-                inventory_display = inventory_display[inventory_display['ناوی کەلوپەل'].str.contains(search, case=False)]
-            
-            st.dataframe(inventory_display, use_container_width=True)
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("📦 جۆری کەلوپەل", len(inventory_display))
-            col2.metric("🔢 کۆی دانەکان", inventory_display['ژمارەی دانەکان'].sum())
-            col3.metric("💰 کۆی بەها", f"${inventory_display['کۆی بەها'].sum():,.2f}")
-            
-            if st.button("📥 هەناردەکردن بۆ Excel"):
-                excel_data = export_to_excel(inventory_display, 'Inventory')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'inventory_report.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ کەلوپەلێک لە کۆگادا نییە")
-
-    elif main_choice == "📦 کۆگا" and sub_choice == "🔄 نوێکردنەوەی کۆگا":
-        st.header("🔄 نوێکردنەوەی کۆگا")
-        if not st.session_state.inventory.empty:
-            item_list = st.session_state.inventory['ناوی کەلوپەل'].tolist()
-            selected_item = st.selectbox("📦 کەلوپەلی هەڵبژێرە", item_list)
-            
-            if selected_item:
-                current_item = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == selected_item].iloc[0]
-                st.info(f"📊 زانیاری ئێستا:\n- ژمارەی دانەکان: {current_item['ژمارەی دانەکان']}\n- نرخی کڕین: ${current_item['نرخی کڕین']:,.2f}")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    quantity_change = st.number_input("🔄 گۆڕانی ژمارە (+/-)", value=0, step=1)
-                with col2:
-                    new_price = st.number_input("💰 نرخی نوێ (0 = نەگۆڕان)", value=0.0, step=10.0)
-                
-                if st.button("💾 نوێکردنەوە"):
-                    idx = st.session_state.inventory[st.session_state.inventory['ناوی کەلوپەل'] == selected_item].index[0]
-                    
-                    if quantity_change != 0:
-                        new_quantity = current_item['ژمارەی دانەکان'] + quantity_change
-                        if new_quantity >= 0:
-                            st.session_state.inventory.at[idx, 'ژمارەی دانەکان'] = new_quantity
-                        else:
-                            st.error("❌ ناتوانیت ژمارەی دانەکان بکەیت بە سالب!")
-                            st.stop()
-                    
-                    if new_price > 0:
-                        st.session_state.inventory.at[idx, 'نرخی کڕین'] = new_price
-                    
-                    st.success("✅ کۆگا بە سەرکەوتوویی نوێ کرایەوە!")
-                    st.rerun()
-        else:
-            st.info("📭 هیچ کەلوپەلێک لە کۆگادا نییە")
-
-    elif main_choice == "📦 کۆگا" and sub_choice == "🏭 دابینکەران":
-        st.header("🏭 بەڕێوەبردنی دابینکەران")
-        
-        tab1, tab2 = st.tabs(["➕ زیادکردن", "📋 لیست"])
-        
-        with tab1:
-            with st.form("supplier_form"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    company_name = st.text_input("🏢 ناوی کۆمپانیا *")
-                    contact_person = st.text_input("👤 ناوی بەرپرس")
-                    phone = st.text_input("📞 ژمارەی مۆبایل")
-                with col2:
-                    email = st.text_input("📧 ئیمەیڵ")
-                    address = st.text_area("📍 ناونیشان")
-                    product_type = st.text_input("📦 جۆری کەلوپەل")
-                
-                if st.form_submit_button("➕ زیادکردنی دابینکەر") and company_name:
-                    new_supplier = pd.DataFrame({
-                        'ID': [f"SUP{datetime.now().strftime('%Y%m%d%H%M%S')}"],
-                        'ناوی کۆمپانیا': [company_name],
-                        'بەرپرس': [contact_person],
-                        'مۆبایل': [phone],
-                        'ئیمەیڵ': [email],
-                        'ناونیشان': [address],
-                        'جۆری کەلوپەل': [product_type]
-                    })
-                    st.session_state.suppliers = safe_concat(st.session_state.suppliers, new_supplier)
-                    st.success(f"✅ دابینکەر {company_name} زیاد کرا!")
-                    st.rerun()
-        
-        with tab2:
-            if not st.session_state.suppliers.empty:
-                st.dataframe(st.session_state.suppliers, use_container_width=True)
-                
-                if st.button("📥 هەناردەکردن"):
-                    excel_data = export_to_excel(st.session_state.suppliers, 'Suppliers')
-                    if excel_data:
-                        st.markdown(get_download_link(excel_data, 'suppliers_list.xlsx'), unsafe_allow_html=True)
-            else:
-                st.info("📭 هیچ دابینکەرێک تۆمار نەکراوە")
-
-    # ================== 3. DISCOUNTS SECTION ==================
-    elif main_choice == "🏷️ داشکاندن" and sub_choice == "📝 کۆدی نوێ":
-        st.header("📝 دروستکردنی کۆدی داشکاندنی نوێ")
-        with st.form("discount_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                code = st.text_input("🏷️ کۆدی داشکاندن *", placeholder="SUMMER2024")
-                percentage = st.slider("📊 ڕێژەی داشکاندن %", 0, 100, 10)
-            with col2:
-                start_date = st.date_input("📅 بەرواری دەستپێک", value=datetime.now().date())
-                end_date = st.date_input("📅 بەرواری کۆتایی", value=datetime.now().date() + timedelta(days=30))
-                min_purchase = st.number_input("💰 کەمترین کڕین ($)", min_value=0.0, value=0.0, step=50.0)
-            
-            if st.form_submit_button("➕ دروستکردنی کۆد"):
-                if code:
-                    new_discount = pd.DataFrame({
-                        'کۆدی داشکاندن': [code],
-                        'ڕێژە': [percentage],
-                        'بەرواری دەستپێک': [start_date.strftime("%Y-%m-%d")],
-                        'بەرواری کۆتایی': [end_date.strftime("%Y-%m-%d")],
-                        'کەمترین کڕین': [min_purchase],
-                        'ژمارەی بەکارهێنان': [0]
-                    })
-                    st.session_state.discounts = safe_concat(st.session_state.discounts, new_discount)
-                    st.success(f"✅ کۆدی {code} بە {percentage}% داشکاندن دروست کرا!")
-                    st.balloons()
-                else:
-                    st.error("❌ تکایە کۆدێک بنووسە")
-
-    elif main_choice == "🏷️ داشکاندن" and sub_choice == "📋 لیستی کۆدەکان":
-        st.header("📋 لیستی کۆدی داشکاندنەکان")
-        if not st.session_state.discounts.empty:
-            st.dataframe(st.session_state.discounts, use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            active_discounts = 0
-            today = datetime.now().date()
-            for _, d in st.session_state.discounts.iterrows():
-                try:
-                    start = pd.to_datetime(d['بەرواری دەستپێک']).date()
-                    end = pd.to_datetime(d['بەرواری کۆتایی']).date()
-                    if start <= today <= end:
-                        active_discounts += 1
-                except:
-                    pass
-            
-            col1.metric("🏷️ کۆدی چالاک", active_discounts)
-            col2.metric("📊 کۆی کۆدەکان", len(st.session_state.discounts))
-            
-            if st.button("📥 هەناردەکردن"):
-                excel_data = export_to_excel(st.session_state.discounts, 'Discounts')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'discounts_list.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ کۆدی داشکاندنێک نییە")
-
-    # ================== 4. INSTALLMENTS SECTION ==================
-    elif main_choice == "💳 قیست" and sub_choice == "📝 قیستی نوێ":
-        st.header("📝 تۆمارکردنی قیستی نوێ")
-        
-        with st.form("installment_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # FIXED: Use text_input for customer name
-                customer_list = list(st.session_state.customers['ناوی کڕیار'].values) if not st.session_state.customers.empty else []
-                customer = st.text_input("👤 کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                if customer_list and customer:
-                    suggestions = [c for c in customer_list if customer.lower() in c.lower()][:5]
-                    if suggestions:
-                        st.caption(f"💡 {', '.join(suggestions)}")
-                
-                # FIXED: Use text_input for product name
-                product_list = list(st.session_state.inventory['ناوی کەلوپەل'].values) if not st.session_state.inventory.empty else []
-                product = st.text_input("📱 بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
-                if product_list and product:
-                    suggestions = [p for p in product_list if product.lower() in p.lower()][:5]
-                    if suggestions:
-                        st.caption(f"💡 {', '.join(suggestions)}")
-                
-                total_price = st.number_input("💰 کۆی نرخ ($)", min_value=0.0, step=50.0, value=0.0)
-            with col2:
-                down_payment = st.number_input("💵 پارەی پێشەکی ($)", min_value=0.0, step=50.0, value=0.0)
-                months = st.number_input("📅 ماوە (مانگ)", min_value=1, max_value=24, value=6)
-                start_date = st.date_input("📅 بەرواری دەستپێک", value=datetime.now().date())
-            
-            if total_price > 0 and months > 0:
-                remaining = total_price - down_payment
-                monthly = remaining / months if remaining > 0 else 0
-                st.info(f"📊 **پوختە:**\n- پارەی ماوە: ${remaining:,.2f}\n- مانگانە: ${monthly:,.2f}\n- کۆتا قیست: {(start_date + timedelta(days=30*months)).strftime('%Y-%m-%d')}")
-            
-            if st.form_submit_button("➕ تۆمارکردنی قیست"):
-                if customer and product and total_price > 0 and down_payment <= total_price:
-                    remaining = total_price - down_payment
-                    monthly = remaining / months if months > 0 and remaining > 0 else 0
-                    
-                    new_installment = pd.DataFrame({
-                        'ID': [f"INST{datetime.now().strftime('%Y%m%d%H%M%S')}"],
-                        'ناوی کڕیار': [customer],
-                        'بەرهەم': [product],
-                        'کۆی نرخ': [total_price],
-                        'پارەی پێشەکی': [down_payment],
-                        'مانگانە': [monthly],
-                        'ماوە': [months],
-                        'بەرواری دەستپێک': [start_date.strftime("%Y-%m-%d")],
-                        'پارەی دراو': [down_payment],
-                        'پارەی ماوە': [remaining],
-                        'ڕەوش': ['چالاکە'],
-                        'بەرواری داهاتووی قیست': [(start_date + timedelta(days=30)).strftime("%Y-%m-%d")]
-                    })
-                    
-                    st.session_state.installments = safe_concat(st.session_state.installments, new_installment)
-                    st.success(f"✅ قیست بۆ {customer} بە سەرکەوتوویی تۆمار کرا!")
-                    st.balloons()
-                    st.rerun()
-                elif down_payment > total_price:
-                    st.error("❌ پارەی پێشەکی نابێت لە کۆی نرخ زیاتر بێت!")
-                else:
-                    st.error("❌ تکایە هەموو خانە پێویستەکان پڕ بکەرەوە!")
-
-    elif main_choice == "💳 قیست" and sub_choice == "📋 لیستی قیستەکان":
-        st.header("📋 لیستی قیستەکان")
-        
-        if not st.session_state.installments.empty:
-            display_df = st.session_state.installments.copy()
-            
-            status_filter = st.selectbox("ڕەوش", ["هەموو", "چالاکە", "تەواو بوو"])
-            if status_filter != "هەموو":
-                display_df = display_df[display_df['ڕەوش'] == status_filter]
-            
-            try:
-                display_df['بەرواری داهاتووی قیست'] = pd.to_datetime(display_df['بەرواری داهاتووی قیست'], errors='coerce').dt.date
-            except:
-                pass
-            
-            st.dataframe(display_df, use_container_width=True)
-            
-            col1, col2, col3 = st.columns(3)
-            active_inst = st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە']
-            total_remaining = active_inst['پارەی ماوە'].sum() if not active_inst.empty else 0
-            total_paid = active_inst['پارەی دراو'].sum() if not active_inst.empty else 0
-            
-            col1.metric("📊 قیستی چالاک", len(active_inst))
-            col2.metric("💰 کۆی پارەی دراو", f"${total_paid:,.2f}")
-            col3.metric("💳 پارەی ماوە", f"${total_remaining:,.2f}")
-            
-            if st.button("📥 هەناردەکردن بۆ Excel"):
-                excel_data = export_to_excel(display_df, 'Installments')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'installments_list.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ قیستێک تۆمار نەکراوە")
-
-    elif main_choice == "💳 قیست" and sub_choice == "💰 پارەدان":
-        st.header("💰 تۆمارکردنی پارەدانی قیست")
-        
-        if not st.session_state.installments.empty:
-            active_inst = st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە']
-            if not active_inst.empty:
-                selected_id = st.selectbox("📋 قیستی هەڵبژێرە", active_inst['ID'].tolist())
-                inst_data = active_inst[active_inst['ID'] == selected_id].iloc[0]
-                
-                st.info(f"""
-                **👤 کڕیار:** {inst_data['ناوی کڕیار']}
-                **📱 بەرهەم:** {inst_data['بەرهەم']}
-                **💰 پارەی ماوە:** ${inst_data['پارەی ماوە']:,.2f}
-                **💳 مانگانە:** ${inst_data['مانگانە']:,.2f}
-                **📅 بەرواری داهاتوو:** {inst_data['بەرواری داهاتووی قیست']}
-                """)
-                
-                amount = st.number_input("💰 بڕی پارە ($)", min_value=0.0, max_value=float(inst_data['پارەی ماوە']), step=10.0, value=float(inst_data['مانگانە']))
-                
-                if st.button("✅ تۆمارکردنی پارە") and amount > 0:
-                    idx = st.session_state.installments[st.session_state.installments['ID'] == selected_id].index[0]
-                    new_paid = inst_data['پارەی دراو'] + amount
-                    remaining = inst_data['کۆی نرخ'] - new_paid
-                    
-                    st.session_state.installments.at[idx, 'پارەی دراو'] = new_paid
-                    st.session_state.installments.at[idx, 'پارەی ماوە'] = remaining
-                    
-                    if remaining <= 0:
-                        st.session_state.installments.at[idx, 'ڕەوش'] = 'تەواو بوو'
-                        st.success("🎉 قیستەکە تەواو بوو! پیرۆز بێت!")
-                        st.balloons()
-                    else:
-                        next_date = (datetime.now().date() + timedelta(days=30)).strftime("%Y-%m-%d")
-                        st.session_state.installments.at[idx, 'بەرواری داهاتووی قیست'] = next_date
-                        st.success(f"✅ پارەکە تۆمار کرا! پارەی ماوە: ${remaining:,.2f}")
-                    st.rerun()
-            else:
-                st.info("هیچ قیستێکی چالاک نییە!")
-        else:
-            st.info("📭 هیچ قیستێک تۆمار نەکراوە")
-
-    elif main_choice == "💳 قیست" and sub_choice == "⚠️ ئاگاداری قیست":
-        st.header("⚠️ ئاگادارییەکانی قیستەکان")
-        
-        upcoming = check_upcoming_installments()
-        if not upcoming.empty:
-            st.warning(f"⚠️ {len(upcoming)} قیست لە 7 ڕۆژی داهاتوودا دەبێت!")
-            for _, inst in upcoming.iterrows():
-                days_left = (inst['بەرواری داهاتووی قیست'] - datetime.now().date()).days if pd.notna(inst['بەرواری داهاتووی قیست']) else 0
-                st.markdown(f"""
-                <div class='customer-card'>
-                    <h4>💰 {inst['ناوی کڕیار']} 
-                    <span class='status-badge status-pending'>{days_left} ڕۆژ ماوە</span></h4>
-                    <p>📱 {inst['بەرهەم']}</p>
-                    <p>💳 مانگانە: ${inst['مانگانە']:,.2f}</p>
-                    <p>📅 بەرواری داهاتوو: {inst['بەرواری داهاتووی قیست']}</p>
-                    <p>💰 پارەی ماوە: ${inst['پارەی ماوە']:,.2f}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✅ هیچ قیستێکی نزیک لە کۆتایی هاتن نییە!")
-        
-        # Overdue installments
-        if not st.session_state.installments.empty:
-            today = datetime.now().date()
-            active_inst = st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە'].copy()
-            if not active_inst.empty:
-                active_inst['بەرواری داهاتووی قیست'] = pd.to_datetime(active_inst['بەرواری داهاتووی قیست'], errors='coerce').dt.date
-                overdue = active_inst[active_inst['بەرواری داهاتووی قیست'] < today]
-                if not overdue.empty:
-                    st.error(f"🚨 {len(overdue)} قیستی دواکەوتوو هەیە!")
-                    for _, inst in overdue.iterrows():
-                        st.error(f"❌ {inst['ناوی کڕیار']} - {inst['بەرهەم']}: ${inst['مانگانە']:,.2f}")
-
-    # ================== 5. WARRANTY SECTION ==================
-    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📝 تۆمارکردنی گەرەنتی":
-        st.header("📝 تۆمارکردنی گەرەنتی نوێ")
-        with st.form("warranty_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # FIXED: Use text_input for customer name
-                customer_name = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                imei = st.text_input("📱 ژمارەی IMEI (15 ژمارە)", max_chars=15)
-            with col2:
-                phone_model = st.text_input("📱 جۆری مۆبایل *", placeholder="جۆری مۆبایل بنووسە...")
-                warranty_end = st.date_input("📅 بەرواری کۆتایی گەرەنتی", min_value=datetime.now().date())
-            
-            if st.form_submit_button("➕ تۆمارکردن") and customer_name and imei:
-                if len(imei) == 15 and imei.isdigit():
-                    new_warranty = pd.DataFrame({
-                        'ناوی کڕیار': [customer_name],
-                        'ژمارەی IMEI': [imei],
-                        'بەرواری کۆتایی گەرەنتی': [warranty_end.strftime("%Y-%m-%d")],
-                        'جۆری مۆبایل': [phone_model]
-                    })
-                    st.session_state.warranty = safe_concat(st.session_state.warranty, new_warranty)
-                    st.success("✅ گەرەنتی بە سەرکەوتوویی تۆمار کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ ژمارەی IMEI دەبێت 15 ژمارە بێت!")
-
-    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "📋 لیستی گەرەنتی":
-        st.header("📋 لیستی گەرەنتییەکان")
-        if not st.session_state.warranty.empty:
-            st.dataframe(st.session_state.warranty, use_container_width=True)
-            if st.button("📥 هەناردەکردن"):
-                excel_data = export_to_excel(st.session_state.warranty, 'Warranty')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'warranty_list.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ گەرەنتییەک تۆمار نەکراوە")
-
-    elif main_choice == "🛡️ گەرەنتی" and sub_choice == "⚠️ ئاگاداری گەرەنتی":
-        st.header("⚠️ ئاگادارییەکانی گەرەنتی")
-        expiring_warranties = check_expiring_warranty()
-        if not expiring_warranties.empty:
-            st.warning(f"⚠️ {len(expiring_warranties)} گەرەنتی لە 30 ڕۆژی داهاتوودا کۆتایی دێت!")
-            for _, warranty in expiring_warranties.iterrows():
-                days_left = (warranty['بەرواری کۆتایی گەرەنتی'] - datetime.now().date()).days
-                st.markdown(f"""
-                <div class='customer-card'>
-                    <h4>📱 {warranty['جۆری مۆبایل']} 
-                    <span class='status-badge status-pending'>{days_left} ڕۆژ ماوە</span></h4>
-                    <p>👤 {warranty['ناوی کڕیار']}</p>
-                    <p>📅 کۆتایی: {warranty['بەرواری کۆتایی گەرەنتی']}</p>
-                    <p>🔢 IMEI: {warranty['ژمارەی IMEI']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✅ هیچ گەرەنتییەکی نزیک لە کۆتایی هاتن نییە!")
-
-    # ================== 6. REPAIRS SECTION ==================
-    elif main_choice == "🔧 چاککردنەوە" and sub_choice == "📝 تۆماری چاککردنەوە":
-        st.header("📝 تۆمارکردنی چاککردنەوەی نوێ")
-        with st.form("repair_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # FIXED: Use text_input for customer name
-                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                phone_model = st.text_input("📱 جۆری مۆبایل *", placeholder="جۆری مۆبایل بنووسە...")
-                issue = st.text_area("🔧 کێشە *", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...")
-            with col2:
-                received_date = st.date_input("📅 بەرواری وەرگرتن", value=datetime.now().date())
-                expected_return = st.date_input("📅 بەرواری پێشبینیکراوی گەڕاندنەوە", value=datetime.now().date() + timedelta(days=7))
-                repair_cost = st.number_input("💰 نرخی چاککردنەوە ($)", min_value=0.0, step=10.0)
-            
-            if st.form_submit_button("➕ تۆمارکردن"):
-                if customer and phone_model and issue:
-                    new_repair = pd.DataFrame({
-                        'ID': [f"REP{datetime.now().strftime('%Y%m%d%H%M%S')}"],
-                        'ناوی کڕیار': [customer],
-                        'جۆری مۆبایل': [phone_model],
-                        'کێشە': [issue],
-                        'بەرواری وەرگرتن': [received_date.strftime("%Y-%m-%d")],
-                        'بەرواری گەڕاندنەوە': [expected_return.strftime("%Y-%m-%d")],
-                        'نرخی چاککردنەوە': [repair_cost],
-                        'ڕەوش': ['چاوەڕوان']
-                    })
-                    st.session_state.repairs = safe_concat(st.session_state.repairs, new_repair)
-                    st.success(f"✅ چاککردنەوە بۆ {customer} تۆمار کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ تکایە هەموو خانە پێویستەکان پڕ بکەرەوە")
-
-    elif main_choice == "🔧 چاککردنەوە" and sub_choice == "📋 لیستی چاککردنەوەکان":
-        st.header("📋 لیستی چاککردنەوەکان")
-        if not st.session_state.repairs.empty:
-            col1, col2, col3 = st.columns(3)
-            status_filter = col1.selectbox("ڕەوش", ["هەموو"] + list(st.session_state.repairs['ڕەوش'].unique()))
-            
-            filtered = st.session_state.repairs.copy()
-            if status_filter != "هەموو":
-                filtered = filtered[filtered['ڕەوش'] == status_filter]
-            
-            st.dataframe(filtered, use_container_width=True)
-            
-            st.subheader("🔄 نوێکردنەوەی ڕەوش")
-            if not filtered.empty:
-                repair_to_update = st.selectbox("چاککردنەوە هەڵبژێرە", filtered['ID'].tolist())
-                new_status = st.selectbox("ڕەوشی نوێ", ["چاوەڕوان", "لەژێرکارە", "تەواو بوو", "گەڕێندرایەوە"])
-                if st.button("💾 نوێکردنەوەی ڕەوش"):
-                    idx = st.session_state.repairs[st.session_state.repairs['ID'] == repair_to_update].index[0]
-                    st.session_state.repairs.at[idx, 'ڕەوش'] = new_status
-                    if new_status == "گەڕێندرایەوە":
-                        st.session_state.repairs.at[idx, 'بەرواری گەڕاندنەوە'] = datetime.now().strftime("%Y-%m-%d")
-                    st.success(f"✅ ڕەوشی چاککردنەوە نوێ کرایەوە بۆ '{new_status}'")
-                    st.rerun()
-            
-            col_a, col_b, col_c = st.columns(3)
-            col_a.metric("📊 کۆی چاککردنەوەکان", len(st.session_state.repairs))
-            col_b.metric("⏳ چاوەڕوان", len(st.session_state.repairs[st.session_state.repairs['ڕەوش'] == 'چاوەڕوان']))
-            col_c.metric("✅ تەواوکراو", len(st.session_state.repairs[st.session_state.repairs['ڕەوش'] == 'گەڕێندرایەوە']))
-        else:
-            st.info("📭 هیچ چاککردنەوەیەک تۆمار نەکراوە")
-
-    # ================== 7. DELIVERIES SECTION ==================
-    elif main_choice == "🚚 گەیاندن" and sub_choice == "📝 داواکاری نوێ":
-        st.header("📝 داواکاری گەیاندنی نوێ")
-        with st.form("delivery_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # FIXED: Use text_input
-                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                phone = st.text_input("📞 ژمارەی مۆبایل")
-                address = st.text_area("📍 ناونیشانی گەیاندن *")
-            with col2:
-                product = st.text_input("📦 بەرهەم *", placeholder="ناوی بەرهەم بنووسە...")
-                delivery_date = st.date_input("📅 بەرواری داواکاری", value=datetime.now().date())
-                delivery_cost = st.number_input("💰 تێچووی گەیاندن ($)", min_value=0.0, step=5.0)
-            
-            notes = st.text_area("📝 تێبینی (ئارەزوومەندانە)")
-            
-            if st.form_submit_button("➕ تۆمارکردنی داواکاری"):
-                if customer and address and product:
-                    new_delivery = pd.DataFrame({
-                        'ID': [f"DEL{datetime.now().strftime('%Y%m%d%H%M%S')}"],
-                        'ناوی کڕیار': [customer],
-                        'ژمارەی مۆبایل': [phone],
-                        'ناونیشان': [address],
-                        'بەرهەم': [product],
-                        'بەرواری داواکاری': [delivery_date.strftime("%Y-%m-%d")],
-                        'بەرواری گەیاندن': [''],
-                        'تێچووی گەیاندن': [delivery_cost],
-                        'ڕەوش': ['چاوەڕوان'],
-                        'تێبینی': [notes]
-                    })
-                    st.session_state.deliveries = safe_concat(st.session_state.deliveries, new_delivery)
-                    st.success(f"✅ داواکاری گەیاندن بۆ {customer} تۆمار کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ تکایە ناوی کڕیار، ناونیشان و بەرهەم پڕ بکەرەوە")
-
-    elif main_choice == "🚚 گەیاندن" and sub_choice == "📋 لیستی گەیاندنەکان":
-        st.header("📋 لیستی گەیاندنەکان")
-        if not st.session_state.deliveries.empty:
-            status_filter = st.selectbox("ڕەوش", ["هەموو"] + list(st.session_state.deliveries['ڕەوش'].unique()))
-            
-            filtered = st.session_state.deliveries.copy()
-            if status_filter != "هەموو":
-                filtered = filtered[filtered['ڕەوش'] == status_filter]
-            
-            st.dataframe(filtered, use_container_width=True)
-            
-            if not filtered.empty:
-                st.subheader("🔄 نوێکردنەوەی ڕەوش")
-                delivery_to_update = st.selectbox("داواکاری هەڵبژێرە", filtered['ID'].tolist())
-                new_status = st.selectbox("ڕەوشی نوێ", ["چاوەڕوان", "لەڕێگادا", "گەیشتووە", "هەڵوەشاوەتەوە"])
-                if st.button("💾 نوێکردنەوە"):
-                    idx = st.session_state.deliveries[st.session_state.deliveries['ID'] == delivery_to_update].index[0]
-                    st.session_state.deliveries.at[idx, 'ڕەوش'] = new_status
-                    if new_status == "گەیشتووە":
-                        st.session_state.deliveries.at[idx, 'بەرواری گەیاندن'] = datetime.now().strftime("%Y-%m-%d")
-                    st.success("✅ ڕەوش نوێ کرایەوە!")
-                    st.rerun()
-            
-            col1, col2 = st.columns(2)
-            col1.metric("📦 کۆی داواکارییەکان", len(st.session_state.deliveries))
-            col2.metric("✅ گەیشتووە", len(st.session_state.deliveries[st.session_state.deliveries['ڕەوش'] == 'گەیشتووە']))
-        else:
-            st.info("📭 هیچ داواکارییەکی گەیاندن نییە")
-
-    # ================== 8. SUPPORT TICKETS SECTION ==================
-    elif main_choice == "🎫 پشتیوانی" and sub_choice == "📝 تیکتی نوێ":
-        st.header("📝 کردنەوەی تیکتی نوێ")
-        with st.form("ticket_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                # FIXED: Use text_input
-                customer = st.text_input("👤 ناوی کڕیار *", placeholder="ناوی کڕیار بنووسە...")
-                subject = st.text_input("📋 بابەت *")
-            with col2:
-                priority = st.selectbox("🔺 لەولەوەپێشی", ["نزم", "مامناوەند", "بەرز", "زۆر بەرز"])
-            
-            issue = st.text_area("📝 کێشە *", placeholder="کێشەکە بە وردی ڕوون بکەرەوە...", height=150)
-            
-            if st.form_submit_button("📤 ناردنی تیکت"):
-                if customer and subject and issue:
-                    new_ticket = pd.DataFrame({
-                        'ID': [f"TCK{datetime.now().strftime('%Y%m%d%H%M%S')}"],
-                        'ناوی کڕیار': [customer],
-                        'بابەت': [subject],
-                        'کێشە': [issue],
-                        'لەولەوەپێشی': [priority],
-                        'بەرواری کردنەوە': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-                        'بەرواری داخستن': [''],
-                        'ڕەوش': ['کراوە'],
-                        'وەڵام': ['']
-                    })
-                    st.session_state.tickets = safe_concat(st.session_state.tickets, new_ticket)
-                    st.success(f"✅ تیکت بە سەرکەوتوویی نێردرا! ژمارەی تیکت: {new_ticket['ID'].iloc[0]}")
-                    st.rerun()
-                else:
-                    st.error("❌ تکایە ناوی کڕیار، بابەت و کێشە پڕ بکەرەوە")
-
-    elif main_choice == "🎫 پشتیوانی" and sub_choice == "📋 تیکتەکان":
-        st.header("📋 لیستی تیکتەکان")
-        if not st.session_state.tickets.empty:
-            col1, col2 = st.columns(2)
-            status_filter = col1.selectbox("ڕەوش", ["هەموو"] + list(st.session_state.tickets['ڕەوش'].unique()))
-            priority_filter = col2.selectbox("لەولەوەپێشی", ["هەموو"] + list(st.session_state.tickets['لەولەوەپێشی'].unique()))
-            
-            filtered = st.session_state.tickets.copy()
-            if status_filter != "هەموو":
-                filtered = filtered[filtered['ڕەوش'] == status_filter]
-            if priority_filter != "هەموو":
-                filtered = filtered[filtered['لەولەوەپێشی'] == priority_filter]
-            
-            st.dataframe(filtered, use_container_width=True)
-            
-            if not filtered.empty:
-                st.subheader("📝 وەڵامدانەوە")
-                open_tickets = filtered[filtered['ڕەوش'] == 'کراوە']
-                ticket_ids = open_tickets['ID'].tolist() if not open_tickets.empty else filtered['ID'].tolist()
-                ticket_to_answer = st.selectbox("تیکت هەڵبژێرە", ticket_ids)
-                response = st.text_area("وەڵام", height=100)
-                close_ticket = st.checkbox("تیکتەکە دابخە")
-                
-                if st.button("📤 ناردنی وەڵام"):
-                    idx = st.session_state.tickets[st.session_state.tickets['ID'] == ticket_to_answer].index[0]
-                    st.session_state.tickets.at[idx, 'وەڵام'] = response
-                    if close_ticket:
-                        st.session_state.tickets.at[idx, 'ڕەوش'] = 'داخراوە'
-                        st.session_state.tickets.at[idx, 'بەرواری داخستن'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    st.success("✅ وەڵام بە سەرکەوتوویی نێردرا!")
-                    st.rerun()
-        else:
-            st.info("📭 هیچ تیکتێک نییە")
-
-    # ================== 9. CUSTOMERS SECTION ==================
-    elif main_choice == "👥 کڕیاران" and sub_choice == "📝 زیادکردنی کڕیار":
-        st.header("📝 زیادکردنی کڕیاری نوێ")
-        with st.form("customer_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                cust_name = st.text_input("👤 ناوی کڕیار *")
-                cust_phone = st.text_input("📞 ژمارەی مۆبایل")
-                cust_email = st.text_input("📧 ئیمەیڵ")
-            with col2:
-                cust_address = st.text_area("📍 ناونیشان")
-                cust_birthday = st.date_input("🎂 ڕێکەوتی لەدایکبوون", value=None)
-            
-            if st.form_submit_button("➕ زیادکردنی کڕیار") and cust_name:
-                if not st.session_state.customers.empty and cust_name in st.session_state.customers['ناوی کڕیار'].values:
-                    st.error(f"❌ کڕیار {cust_name} پێشتر تۆمار کراوە!")
-                else:
-                    new_customer = pd.DataFrame({
-                        'ناوی کڕیار': [cust_name],
-                        'ژمارەی مۆبایل': [cust_phone],
-                        'ئیمەیڵ': [cust_email],
-                        'ناونیشان': [cust_address],
-                        'بەرواری زیادکردن': [datetime.now().strftime("%Y-%m-%d")],
-                        'ڕێکەوتی لەدایکبوون': [cust_birthday.strftime("%Y-%m-%d") if cust_birthday else ''],
-                        'کۆی کڕین': [0],
-                        'خاڵەکان': [0],
-                        'ئاست': ['🥉 ئاسایی']
-                    })
-                    st.session_state.customers = safe_concat(st.session_state.customers, new_customer)
-                    st.success(f"✅ کڕیار {cust_name} بە سەرکەوتوویی زیاد کرا!")
-                    st.balloons()
-                    st.rerun()
-
-    elif main_choice == "👥 کڕیاران" and sub_choice == "📋 لیستی کڕیاران":
-        st.header("📋 لیستی کڕیاران")
-        if not st.session_state.customers.empty:
-            search = st.text_input("🔍 گەڕان...", placeholder="ناوی کڕیار یان ژمارە...")
-            display_df = st.session_state.customers.copy()
-            if search:
-                mask = display_df['ناوی کڕیار'].str.contains(search, case=False) | display_df['ژمارەی مۆبایل'].str.contains(search, case=False)
-                display_df = display_df[mask]
-            
-            st.dataframe(display_df, use_container_width=True)
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("👥 کۆی کڕیاران", len(display_df))
-            col2.metric("⭐ کۆی خاڵەکان", display_df['خاڵەکان'].sum())
-            col3.metric("💰 کۆی کڕین", f"${display_df['کۆی کڕین'].sum():,.2f}")
-            
-            if st.button("📥 هەناردەکردن بۆ Excel"):
-                excel_data = export_to_excel(display_df, 'Customers')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'customers_list.xlsx'), unsafe_allow_html=True)
-        else:
-            st.info("📭 هیچ کڕیارێک تۆمار نەکراوە")
-
-    elif main_choice == "👥 کڕیاران" and sub_choice == "⭐ خاڵەکان":
-        st.header("⭐ خاڵەکانی کڕیاران")
-        if not st.session_state.customers.empty:
-            loyalty_df = st.session_state.customers[['ناوی کڕیار', 'کۆی کڕین', 'خاڵەکان', 'ئاست']].copy()
-            loyalty_df = loyalty_df.sort_values('خاڵەکان', ascending=False)
-            
-            st.dataframe(loyalty_df, use_container_width=True)
-            
-            if not loyalty_df.empty:
-                top_customer = loyalty_df.iloc[0]
-                st.success(f"🏆 کڕیاری هەفتە: {top_customer['ناوی کڕیار']} - {top_customer['خاڵەکان']} خاڵ!")
-            
-            fig = px.bar(loyalty_df.head(10), x='ناوی کڕیار', y='خاڵەکان', color='ئاست', title='باشترین 10 کڕیار')
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("📭 هیچ کڕیارێک تۆمار نەکراوە")
-
-    elif main_choice == "👥 کڕیاران" and sub_choice == "🎂 ڕۆژی لەدایکبوون":
-        st.header("🎂 ڕۆژانی لەدایکبوون")
-        
-        today = datetime.now()
-        birthdays_today = check_birthdays()
-        
-        if birthdays_today:
-            st.success(f"🎂 ئەمڕۆ ڕۆژی لەدایکبوونی {', '.join(birthdays_today)} پیرۆز بێت!")
-            st.balloons()
-        
-        if not st.session_state.customers.empty:
-            this_month = st.session_state.customers.copy()
-            this_month['birth_date'] = pd.to_datetime(this_month['ڕێکەوتی لەدایکبوون'], errors='coerce')
-            this_month = this_month.dropna(subset=['birth_date'])
-            this_month = this_month[this_month['birth_date'].dt.month == today.month]
-            
-            if not this_month.empty:
-                this_month = this_month.sort_values('birth_date')
-                st.subheader(f"📅 ڕۆژانی لەدایکبوونی مانگی {today.month}")
-                st.dataframe(this_month[['ناوی کڕیار', 'ڕێکەوتی لەدایکبوون', 'ژمارەی مۆبایل']], use_container_width=True)
-            else:
-                st.info("هیچ ڕۆژی لەدایکبوونێک لەم مانگەدا نییە")
-        else:
-            st.info("📭 هیچ کڕیارێک تۆمار نەکراوە")
-
-    # ================== 10. EMPLOYEES SECTION ==================
-    elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "📝 زیادکردنی کارمەند":
-        st.header("📝 زیادکردنی کارمەندی نوێ")
-        with st.form("employee_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                emp_name = st.text_input("👤 ناوی کارمەند *")
-                emp_position = st.selectbox("📋 پلە", ["فرۆشیار", "بەڕێوەبەر", "تەکنیکار", "پاککەرەوە", "گەیاندن"])
-            with col2:
-                emp_salary = st.number_input("💰 مووچە ($)", min_value=0.0, step=50.0, value=600.0)
-                emp_start_date = st.date_input("📅 بەرواری دەستبەکاربوون", value=datetime.now().date())
-            
-            if st.form_submit_button("➕ زیادکردنی کارمەند") and emp_name:
-                new_employee = pd.DataFrame({
-                    'ناوی کارمەند': [emp_name],
-                    'پلە': [emp_position],
-                    'مووچە': [emp_salary],
-                    'بەرواری دەستبەکاربوون': [emp_start_date.strftime("%Y-%m-%d")],
-                    'ژمارەی فرۆشتن': [0],
-                    'کۆی فرۆشتن': [0],
-                    'پاداشت': [0]
-                })
-                st.session_state.employees = safe_concat(st.session_state.employees, new_employee)
-                st.success(f"✅ کارمەند {emp_name} زیاد کرا!")
-                st.rerun()
-        
-        if not st.session_state.employees.empty:
-            st.subheader("📋 لیستی کارمەندان")
-            st.dataframe(st.session_state.employees, use_container_width=True)
-
-    elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "📋 لیستی کارمەندان":
-        st.header("📋 لیستی کارمەندان")
-        if not st.session_state.employees.empty:
-            st.dataframe(st.session_state.employees, use_container_width=True)
-            
-            if st.button("📥 هەناردەکردن"):
-                excel_data = export_to_excel(st.session_state.employees, 'Employees')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'employees_list.xlsx'), unsafe_allow_html=True)
-            
-            total_salary = st.session_state.employees['مووچە'].sum()
-            total_bonus = st.session_state.employees['پاداشت'].sum()
-            st.metric("💰 کۆی مووچە و پاداشت", f"${total_salary + total_bonus:,.2f}")
-        else:
-            st.info("📭 هیچ کارمەندێک تۆمار نەکراوە")
-
-    elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "📊 ئاستی کارمەندان":
-        st.header("📊 ئاستی کارمەندان")
-        if not st.session_state.employees.empty:
-            performance_df = st.session_state.employees[['ناوی کارمەند', 'پلە', 'ژمارەی فرۆشتن', 'کۆی فرۆشتن', 'پاداشت']].copy()
-            performance_df = performance_df.sort_values('کۆی فرۆشتن', ascending=False)
-            st.dataframe(performance_df, use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                fig = px.bar(performance_df, x='ناوی کارمەند', y='کۆی فرۆشتن', title='کۆی فرۆشتن')
-                st.plotly_chart(fig, use_container_width=True)
-            with col2:
-                fig2 = px.pie(performance_df, values='پاداشت', names='ناوی کارمەند', title='دابەشکردنی پاداشت')
-                st.plotly_chart(fig2, use_container_width=True)
-        else:
-            st.info("📭 هیچ کارمەندێک تۆمار نەکراوە")
-
-    elif main_choice == "👨‍💼 کارمەندان" and sub_choice == "⏰ ئامادەبوون":
-        st.header("⏰ تۆمارکردنی ئامادەبوون")
-        
-        if not st.session_state.employees.empty:
-            col1, col2 = st.columns(2)
-            with col1:
-                employee = st.selectbox("👨‍💼 کارمەند", st.session_state.employees['ناوی کارمەند'].tolist())
-                attendance_date = st.date_input("📅 بەروار", value=datetime.now().date())
-            with col2:
-                time_in = st.time_input("🕐 کاتی هاتن", value=datetime.strptime("08:00", "%H:%M").time())
-                time_out = st.time_input("🕔 کاتی ڕۆیشتن", value=datetime.strptime("17:00", "%H:%M").time())
-            
-            if time_in and time_out:
-                hours_worked = (datetime.combine(datetime.today(), time_out) - datetime.combine(datetime.today(), time_in)).seconds / 3600
-                st.info(f"⏱️ کاتژمێری کار: {hours_worked:.1f} کاتژمێر")
-            
-            if st.button("✅ تۆمارکردنی ئامادەبوون"):
-                new_attendance = pd.DataFrame({
-                    'کارمەند': [employee],
-                    'بەروار': [attendance_date.strftime("%Y-%m-%d")],
-                    'کاتی هاتن': [time_in.strftime("%H:%M")],
-                    'کاتی ڕۆیشتن': [time_out.strftime("%H:%M")],
-                    'کاتژمێر': [hours_worked],
-                    'ڕەوش': ['ئامادە']
-                })
-                st.session_state.attendance = safe_concat(st.session_state.attendance, new_attendance)
-                st.success(f"✅ ئامادەبوونی {employee} تۆمار کرا!")
-                st.rerun()
-            
-            if not st.session_state.attendance.empty:
-                st.subheader("📋 مێژووی ئامادەبوون")
-                filtered_attendance = st.session_state.attendance.copy()
-                emp_filter = st.selectbox("پاڵێو بە کارمەند", ["هەموو"] + list(st.session_state.attendance['کارمەند'].unique()))
-                if emp_filter != "هەموو":
-                    filtered_attendance = filtered_attendance[filtered_attendance['کارمەند'] == emp_filter]
-                
-                st.dataframe(filtered_attendance.tail(20), use_container_width=True)
-        else:
-            st.info("📭 هیچ کارمەندێک تۆمار نەکراوە")
-
-    # ================== 11. PROFIT SECTION ==================
-    elif main_choice == "📊 قازانج" and sub_choice == "💰 خەمڵاندنی قازانج":
-        st.header("💰 خەمڵاندنی قازانج")
-        
-        total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
-        total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
-        total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
-        net_profit = total_sales - total_cost - total_expenses
-        profit_margin = (net_profit / total_sales * 100) if total_sales > 0 else 0
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("💰 کۆی فرۆشتن", f"${total_sales:,.2f}")
-        col2.metric("💸 کۆی تێچوو", f"${total_cost:,.2f}")
-        col3.metric("📊 کۆی خەرجی", f"${total_expenses:,.2f}")
-        col4.metric("💰 قازانجی خالص", f"${net_profit:,.2f}", f"{profit_margin:.1f}%")
-        
-        if profit_margin > 30:
-            st.success("🎉 ئاستی قازانج زۆر باشە! بەردەوام بە!")
-        elif profit_margin > 15:
-            st.info("👍 ئاستی قازانج باشە، بەڵام دەتوانی باشتر بکەیت")
-        elif profit_margin > 0:
-            st.warning("⚠️ ئاستی قازانج کەمە، پێویستی بە باشترکردنە")
-        else:
-            st.error("❌ دوکانەکە لە زیاندا! پێویستی بە ڕێکخستنەوە")
-
-    elif main_choice == "📊 قازانج" and sub_choice == "📈 هێڵکاری":
-        st.header("📈 هێڵکاری قازانج")
-        
-        total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
-        total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
-        total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
-        net_profit = total_sales - total_cost - total_expenses
-        
-        fig = go.Figure()
-        fig.add_trace(go.Bar(name='کۆی فرۆشتن', x=['دارایی'], y=[total_sales], marker_color='#2ecc71'))
-        fig.add_trace(go.Bar(name='کۆی تێچوو', x=['دارایی'], y=[total_cost], marker_color='#e74c3c'))
-        fig.add_trace(go.Bar(name='کۆی خەرجی', x=['دارایی'], y=[total_expenses], marker_color='#f39c12'))
-        fig.add_trace(go.Bar(name='قازانجی خالص', x=['دارایی'], y=[net_profit], marker_color='#3498db'))
-        
-        fig.update_layout(title="هێڵکاری دارایی دوکان", barmode='group', height=500)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        if not st.session_state.expenses.empty:
-            expense_by_type = st.session_state.expenses.groupby('جۆر')['بڕ'].sum()
-            fig2 = px.pie(values=expense_by_type.values, names=expense_by_type.index, title='دابەشکردنی خەرجییەکان')
-            st.plotly_chart(fig2, use_container_width=True)
-
-    elif main_choice == "📊 قازانج" and sub_choice == "📄 ڕاپۆرتی PDF":
-        st.header("📄 دروستکردنی ڕاپۆرتی PDF")
-        
-        report_type = st.selectbox("جۆری ڕاپۆرت", ["دارایی", "فرۆشتن", "کۆگا", "کڕیاران", "قیستەکان"])
-        date_from = st.date_input("لە بەروارەوە", value=datetime.now().date() - timedelta(days=30))
-        date_to = st.date_input("تا بەروار", value=datetime.now().date())
-        
-        if st.button("📄 دروستکردنی ڕاپۆرت"):
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_pdf:
-                    pdf = FPDF()
-                    pdf.add_page()
-                    
-                    pdf.set_font("Arial", "B", 20)
-                    pdf.cell(0, 15, f"Mobile Shop - ڕاپۆرتی {report_type}", ln=True, align="C")
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "", 12)
-                    pdf.cell(0, 8, f"ماوە: {date_from} تا {date_to}", ln=True)
-                    pdf.cell(0, 8, f"بەرواری دروستکردن: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
-                    pdf.ln(10)
-                    
-                    if report_type == "دارایی":
-                        total_sales = st.session_state.sales['نرخی کۆتایی'].sum() if not st.session_state.sales.empty else 0
-                        total_expenses = st.session_state.expenses['بڕ'].sum() if not st.session_state.expenses.empty else 0
-                        total_cost = (st.session_state.inventory['نرخی کڕین'] * st.session_state.inventory['ژمارەی دانەکان']).sum() if not st.session_state.inventory.empty else 0
-                        
-                        pdf.set_font("Arial", "B", 14)
-                        pdf.cell(0, 10, "پوختەی دارایی", ln=True)
-                        pdf.set_font("Arial", "", 12)
-                        pdf.cell(0, 8, f"کۆی فرۆشتن: ${total_sales:,.2f}", ln=True)
-                        pdf.cell(0, 8, f"کۆی تێچوو: ${total_cost:,.2f}", ln=True)
-                        pdf.cell(0, 8, f"کۆی خەرجی: ${total_expenses:,.2f}", ln=True)
-                        pdf.cell(0, 8, f"قازانجی خالص: ${total_sales - total_cost - total_expenses:,.2f}", ln=True)
-                    
-                    elif report_type == "فرۆشتن":
-                        pdf.set_font("Arial", "B", 14)
-                        pdf.cell(0, 10, "دوایین فرۆشتنەکان", ln=True)
-                        pdf.set_font("Arial", "", 10)
-                        for _, sale in st.session_state.sales.tail(20).iterrows():
-                            pdf.cell(0, 6, f"{sale['کاتی فرۆشتن']} - {sale['ناوی بەرهەم']} - ${sale['نرخی کۆتایی']:.2f}", ln=True)
-                    
-                    pdf.output(tmp_pdf.name)
-                    with open(tmp_pdf.name, "rb") as f:
-                        pdf_data = f.read()
-                    os.unlink(tmp_pdf.name)
-                    
-                    st.download_button(
-                        label="📥 داگرتنی ڕاپۆرت",
-                        data=pdf_data,
-                        file_name=f"report_{report_type}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf"
-                    )
-                    st.success("✅ ڕاپۆرت بە سەرکەوتوویی دروست کرا!")
-            except Exception as e:
-                st.error(f"هەڵە لە دروستکردنی ڕاپۆرت: {str(e)}")
-
-    elif main_choice == "📊 قازانج" and sub_choice == "💸 خەرجییەکان":
-        st.header("💸 تۆمارکردنی خەرجی")
-        with st.form("expense_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                expense_date = st.date_input("📅 بەروار", value=datetime.now().date())
-                expense_type = st.selectbox("📋 جۆری خەرجی", ["کرێ", "مووچە", "کارەبا", "ئاو", "ئینتەرنێت", "گواستنەوە", "ڕیکلام", "چاککردنەوە", "کڕینی کەلوپەل", "تر"])
-            with col2:
-                expense_amount = st.number_input("💰 بڕی خەرجی ($)", min_value=0.0, step=10.0)
-                expense_note = st.text_area("📝 تێبینی")
-            
-            if st.form_submit_button("➕ تۆمارکردنی خەرجی"):
-                if expense_amount > 0:
-                    new_expense = pd.DataFrame({
-                        'بەروار': [expense_date.strftime("%Y-%m-%d")],
-                        'جۆر': [expense_type],
-                        'بڕ': [expense_amount],
-                        'تێبینی': [expense_note]
-                    })
-                    st.session_state.expenses = safe_concat(st.session_state.expenses, new_expense)
-                    st.success(f"✅ خەرجی {expense_type} بە بڕی ${expense_amount:,.2f} تۆمار کرا!")
-                    st.rerun()
-                else:
-                    st.error("❌ تکایە بڕی خەرجی پڕ بکەرەوە")
-        
-        if not st.session_state.expenses.empty:
-            st.subheader("📋 مێژووی خەرجییەکان")
-            
-            expense_type_filter = st.selectbox("پاڵێو بە جۆر", ["هەموو"] + list(st.session_state.expenses['جۆر'].unique()))
-            filtered_expenses = st.session_state.expenses.copy()
-            if expense_type_filter != "هەموو":
-                filtered_expenses = filtered_expenses[filtered_expenses['جۆر'] == expense_type_filter]
-            
-            st.dataframe(filtered_expenses.sort_values('بەروار', ascending=False), use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            col1.metric("💰 کۆی خەرجییەکان", f"${filtered_expenses['بڕ'].sum():,.2f}")
-            col2.metric("📊 ژمارەی خەرجییەکان", len(filtered_expenses))
-            
-            if st.button("📥 هەناردەکردن"):
-                excel_data = export_to_excel(filtered_expenses, 'Expenses')
-                if excel_data:
-                    st.markdown(get_download_link(excel_data, 'expenses_list.xlsx'), unsafe_allow_html=True)
-
-    # ================== 12. DASHBOARD SECTION ==================
-    elif main_choice == "📊 داشبۆرد" and sub_choice == "🎯 سەرەکی":
-        st.header("🎯 داشبۆردی سەرەکی")
-        
-        today = datetime.now().date()
-        today_sales = 0
-        if not st.session_state.sales.empty:
-            sales_today = st.session_state.sales.copy()
-            sales_today['date'] = pd.to_datetime(sales_today['کاتی فرۆشتن']).dt.date
-            today_sales = sales_today[sales_today['date'] == today]['نرخی کۆتایی'].sum()
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("💰 فرۆشتی ئەمڕۆ", f"${today_sales:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("📦 کەلوپەلی کەم", len(check_low_stock()))
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col3:
-            active_repairs = len(st.session_state.repairs[st.session_state.repairs['ڕەوش'].isin(['چاوەڕوان', 'لەژێرکارە'])]) if not st.session_state.repairs.empty else 0
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("🔧 چاککردنەوە", active_repairs)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col4:
-            active_installments = len(st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە']) if not st.session_state.installments.empty else 0
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.metric("💳 قیستی چالاک", active_installments)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.subheader("🚀 کردارە خێراکان")
-        col_a, col_b, col_c, col_d = st.columns(4)
-        with col_a:
-            if st.button("💰 فرۆشتنی نوێ"):
-                st.rerun()
-        with col_b:
-            if st.button("📦 زیادکردنی کەلوپەل"):
-                st.rerun()
-        with col_c:
-            if st.button("👥 کڕیاری نوێ"):
-                st.rerun()
-        with col_d:
-            if st.button("💸 خەرجی نوێ"):
-                st.rerun()
-
-    elif main_choice == "📊 داشبۆرد" and sub_choice == "📈 شیکاری":
-        st.header("📈 شیکاری پێشکەوتوو")
-        
-        if not st.session_state.sales.empty:
-            sales_data = st.session_state.sales.copy()
-            sales_data['date'] = pd.to_datetime(sales_data['کاتی فرۆشتن']).dt.date
-            sales_data['month'] = pd.to_datetime(sales_data['کاتی فرۆشتن']).dt.month
-            
-            monthly_sales = sales_data.groupby('month')['نرخی کۆتایی'].sum()
-            
-            fig = px.line(
-                x=monthly_sales.index, 
-                y=monthly_sales.values,
-                labels={'x': 'مانگ', 'y': 'فرۆشتن ($)'},
-                title="هێڵکاری فرۆشتن بەپێی مانگ",
-                markers=True
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                top_products = sales_data.groupby('ناوی بەرهەم')['نرخی کۆتایی'].sum().nlargest(5)
-                fig2 = px.pie(values=top_products.values, names=top_products.index, title='باشترین 5 بەرهەم')
-                st.plotly_chart(fig2, use_container_width=True)
-            
-            with col2:
-                top_customers = sales_data.groupby('ناوی کڕیار')['نرخی کۆتایی'].sum().nlargest(5)
-                fig3 = px.bar(x=top_customers.index, y=top_customers.values, title='باشترین 5 کڕیار')
-                st.plotly_chart(fig3, use_container_width=True)
-            
-            daily_sales = sales_data.groupby('date')['نرخی کۆتایی'].sum()
-            fig4 = px.line(x=daily_sales.index, y=daily_sales.values, title='فرۆشتی ڕۆژانە', markers=True)
-            st.plotly_chart(fig4, use_container_width=True)
-        else:
-            st.info("هیچ داتایەکی فرۆشتن بۆ شیکاری نییە")
-
-    # ================== 13. SETTINGS SECTION ==================
-    elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "💾 بەکاپ":
-        st.header("💾 بەکاپ و گەڕاندنەوە")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("📤 دروستکردنی بەکاپ")
-            if st.button("📥 دروستکردنی بەکاپ"):
-                json_backup, pickle_backup = backup_data()
-                st.download_button(
-                    label="📥 داگرتنی بەکاپ (JSON)",
-                    data=json_backup,
-                    file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
-                )
-                st.download_button(
-                    label="📥 داگرتنی بەکاپ (Pickle)",
-                    data=pickle_backup,
-                    file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl",
-                    mime="application/octet-stream"
-                )
-                st.success("✅ بەکاپ بە سەرکەوتوویی دروست کرا!")
-        
-        with col2:
-            st.subheader("🔄 گەڕاندنەوەی بەکاپ")
-            uploaded_file = st.file_uploader("فایلی بەکاپ هەڵبژێرە", type=['json', 'pkl'])
-            if uploaded_file and st.button("🔄 گەڕاندنەوە"):
-                if restore_data(uploaded_file):
-                    st.success("✅ داتا بە سەرکەوتوویی گەڕێندرایەوە!")
-                    st.balloons()
-                    st.rerun()
-        
-        st.markdown("---")
-        st.warning("⚠️ ئاگاداری: گەڕاندنەوەی بەکاپ هەموو داتا ئێستاکە دەسڕێتەوە!")
-
-    elif main_choice == "⚙️ ڕێکخستن" and sub_choice == "🔔 ئاگادارییەکان":
-        st.header("🔔 ئاگادارییە زیرەکەکان")
-        
-        notifications = []
-        
-        for _, item in check_low_stock().iterrows():
-            notifications.append(('error', f"📦 کەلوپەلی {item['ناوی کەلوپەل']} کەمە! (ماوە: {item['ژمارەی دانەکان']} دانە)"))
-        
-        for _, warranty in check_expiring_warranty().iterrows():
-            days_left = (warranty['بەرواری کۆتایی گەرەنتی'] - datetime.now().date()).days if pd.notna(warranty['بەرواری کۆتایی گەرەنتی']) else 0
-            notifications.append(('warning', f"⏰ گەرەنتی {warranty['ناوی کڕیار']} ({days_left} ڕۆژ ماوە)"))
-        
-        for _, installment in check_upcoming_installments().iterrows():
-            notifications.append(('info', f"💳 قیستی {installment['ناوی کڕیار']}: ${installment['مانگانە']:,.2f}"))
-        
-        for birthday in check_birthdays():
-            notifications.append(('success', f"🎂 ڕۆژی لەدایکبوونی {birthday} پیرۆز بێت!"))
-        
-        if not st.session_state.installments.empty:
-            today = datetime.now().date()
-            active_inst = st.session_state.installments[st.session_state.installments['ڕەوش'] == 'چالاکە'].copy()
-            if not active_inst.empty:
-                active_inst['due_date'] = pd.to_datetime(active_inst['بەرواری داهاتووی قیست'], errors='coerce').dt.date
-                overdue = active_inst[active_inst['due_date'] < today]
-                for _, inst in overdue.iterrows():
-                    notifications.append(('error', f"🚨 قیستی دواکەوتوو: {inst['ناوی کڕیار']} - ${inst['مانگانە']:,.2f}"))
-        
-        if notifications:
-            for notif_type, message in notifications:
-                if notif_type == 'error':
-                    st.error(message)
-                elif notif_type == 'warning':
-                    st.warning(message)
-                elif notif_type == 'info':
-                    st.info(message)
-                elif notif_type == 'success':
-                    st.success(message)
-        else:
-            st.success("✅ هیچ ئاگادارییەک نییە! هەموو شتێک لە ڕێگای خۆیدایە.")
-        
-        st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("⚠️ کەلوپەلی کەم", len(check_low_stock()))
-        col2.metric("⏰ گەرەنتی نزیک", len(check_expiring_warranty()))
-        col3.metric("💳 قیستی نزیک", len(check_upcoming_installments()))
-        col4.metric("🎂 ڕۆژی لەدایکبوون", len(check_birthdays()))
-
-    # ================== DEFAULT PAGE ==================
+    st.markdown(f"**👤 بەخێربێیت:** {st.session_state.username}")
+    st.markdown(f"**📚 ئاستی خوێندن:** {st.session_state.student_level}")
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
+    st.markdown(f"<span class='badge-level'>{get_level_icon(level)} {level_info['name']}</span>", unsafe_allow_html=True)
+    
+    st.markdown(f"**📊 کویز:** {st.session_state.quiz_score}/100")
+    st.markdown(f"**🩺 کەیس:** {st.session_state.total_cases_solved}")
+    st.markdown(f"**🔬 پشکنین:** {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)}")
+    st.markdown(f"**💊 دەرمان:** {get_drug_count() + len(st.session_state.custom_drugs)}")
+    
+    st.markdown("---")
+    
+    page = st.radio(
+        "📋 بەشەکان:",
+        [
+            "🏠 داشبۆرد",
+            "📚 نەخۆشییەکان",
+            "🩺 شیکاری کەیس",
+            "📝 کویز (ئاستی)",
+            "🔬 تاقیگە (٢٠٠)",
+            "📊 پێشکەوتن",
+            "💊 فارماکۆلۆجی",
+            "🧠 AI یاریدەدەر",
+            "🏆 دەستکەوتەکان"
+        ],
+        index=0
+    )
+    
+    st.markdown("---")
+    st.markdown(f"🔥 بەردەوامی: {st.session_state.streak_days} ڕۆژ")
+    st.markdown(f"⏱️ خوێندن: {st.session_state.study_time} خولەک")
+    
+    time_diff = datetime.now() - st.session_state.last_activity
+    minutes = int(time_diff.total_seconds() / 60)
+    if minutes > 60:
+        st.markdown(f"🕐 دوایین چالاکی: {minutes//60} کاتژمێر پێش")
     else:
-        st.info(f"""
-        ### 👋 بەخێربێیت بۆ سیستەمی بەڕێوەبردنی دوکانی مۆبایل!
-        
-        **ڕێنمایی خێرا:**
-        - 🏠 لە شریتی لای ڕاستەوە بەشێک هەڵبژێرە
-        - 💰 بۆ فرۆشتن، بەشی "فرۆشتن" هەڵبژێرە
-        - 💳 بۆ بەڕێوەبردنی قیستەکان، بەشی "قیست" هەڵبژێرە
-        - 📦 بۆ بەڕێوەبردنی کۆگا، بەشی "کۆگا" هەڵبژێرە
-        - 👥 بۆ بەڕێوەبردنی کڕیاران، بەشی "کڕیاران" هەڵبژێرە
-        
-        **تایبەتمەندییە نوێیەکان:**
-        - ✅ 15+ بەشی جیاواز
-        - ✅ سیستەمی قیستی تەواو
-        - ✅ سکانی بارکۆد
-        - ✅ چاککردنەوە و گەیاندن
-        - ✅ تیکتی پشتیوانی
-        - ✅ بەڕێوەبردنی کارمەندان و ئامادەبوون
-        - ✅ فاکتوور و ڕاپۆرتی PDF
-        - ✅ سیستەمی خاڵ و پاداشت
-        - ✅ بەکاپ و گەڕاندنەوە
-        - ✅ ئاگادارییە زیرەکەکان
-        
-        📌 دەتوانیت بە دوگمەی **"داتای نموونەیی"** لە شریتی لاتەنیشتەوە، داتای تاقیکردنەوە دروست بکەیت.
-        """)
+        st.markdown(f"🕐 دوایین چالاکی: {minutes} خولەک پێش")
+    
+    st.markdown("---")
+    if st.button("🚪 چوونە دەرەوە", type="primary"):
+        save_user_data(st.session_state.username, {
+            "custom_lab_tests": st.session_state.custom_lab_tests,
+            "custom_drugs": st.session_state.custom_drugs
+        })
+        st.session_state.logged_in = False
+        st.session_state.username = ""
+        st.session_state.custom_lab_tests = {}
+        st.session_state.custom_drugs = {}
+        st.rerun()
 
-except Exception as e:
-    st.error(f"هەڵەیەک ڕوویدا: {str(e)}")
-    st.info("تکایە پەڕەکە نوێ بکەرەوە یان پەیوەندی بە پشتیوانییەوە بکەن.")
+# ================================
+# خەزنکردنی خۆکارانەی داتا لە کاتی گۆڕانکاریدا
+# ================================
+def auto_save():
+    if st.session_state.logged_in:
+        save_user_data(st.session_state.username, {
+            "custom_lab_tests": st.session_state.custom_lab_tests,
+            "custom_drugs": st.session_state.custom_drugs
+        })
 
-# ================== FOOTER ==================
-st.markdown("---")
-st.markdown("""
-    <div class="footer">
-        <h3>📱 سیستەمی بەڕێوەبردنی دوکانی مۆبایل</h3>
-        <p>© 2024 | 15+ بەشی جیاواز | ڕاپۆرتی زیرەک | پشتیوانی قیست | پشتیوانی بارکۆد</p>
-        <p>🔧 وەشانی 3.1 - تەواو پاڵپشتیکراو و بێ کێشە (ناوی بەرهەم و کڕیار دەنووسرێت)</p>
+# ================================
+# 13. پەڕەی داشبۆرد
+# ================================
+if page == "🏠 داشبۆرد":
+    st.markdown("""
+    <div class="main">
+        <div class="logo-container">
+            <span class="logo-icon">🩺</span>
+            <span class="logo-text">Dr.Danyal</span>
+        </div>
+        <h1 class="main-header">🎓 ڕاهێنەری پزیشکی Pro Max</h1>
     </div>
+    """, unsafe_allow_html=True)
+    
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.markdown(f'<div class="stat-card"><h3>📚</h3><div class="stat-number">{get_disease_count()}</div><p>نەخۆشی</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<div class="stat-card"><h3>💊</h3><div class="stat-number">{get_drug_count() + len(st.session_state.custom_drugs)}</div><p>دەرمان</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown(f'<div class="stat-card"><h3>📝</h3><div class="stat-number">{st.session_state.quiz_score}/100</div><p>کویز</p></div>', unsafe_allow_html=True)
+    with col4:
+        accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
+        st.markdown(f'<div class="stat-card"><h3>🎯</h3><div class="stat-number">{accuracy}%</div><p>دەقی</p></div>', unsafe_allow_html=True)
+    with col5:
+        st.markdown(f'<div class="stat-card"><h3>🏅</h3><div class="stat-number">{level_info["name"]}</div><p>ئاست</p></div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    st.markdown(f"""
+    <div class="case-card">
+        <h3>{get_level_icon(level)} ئاستی ئێستا: {level_info['name']}</h3>
+        <p>نمرەی کویز: {st.session_state.quiz_score}</p>
+        <div class="progress-container">
+            <div class="progress-fill" style="width:{get_level_progress(st.session_state.quiz_score)}%"></div>
+        </div>
+        <p>پێشکەوتن: {get_level_progress(st.session_state.quiz_score):.1f}%</p>
+        <p>کویزەکانی ئەم ئاستە: {st.session_state.get(f'level_{level}_done', 0)}/{LEVELS[level]['quizzes']}</p>
+        <p style="font-size:0.9rem;color:#888;">{level_info['description']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ================================
+# 14. پەڕەی کویز (ئاستی)
+# ================================
+elif page == "📝 کویز (ئاستی)":
+    st.markdown("""
+    <div class="main">
+        <h2>📝 کویزی پزیشکی - بەپێی ئاست</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    level = get_user_level(st.session_state.quiz_score)
+    level_info = get_level_info(level)
+    
+    st.markdown("### 🎯 پێشکەوتنی ئاستەکان")
+    cols = st.columns(5)
+    for i in range(1, 6):
+        with cols[i-1]:
+            info = get_level_info(i)
+            done = st.session_state.get(f'level_{i}_done', 0)
+            total = info['quizzes']
+            pct = (done / total) * 100 if total > 0 else 0
+            is_current = i == level
+            st.markdown(f"""
+            <div class="stat-card" style="border-top-color: {info['color']}; {'transform: scale(1.05); box-shadow: 0 10px 30px rgba(102,126,234,0.3);' if is_current else ''}">
+                <h4>{get_level_icon(i)} ئاست {i}</h4>
+                <p style="font-size:0.9rem;">{info['name']}</p>
+                <p>{done}/{total}</p>
+                <div class="progress-container">
+                    <div class="progress-fill" style="width:{pct}%;background:{info['color']};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    if not st.session_state.quiz_completed:
+        next_quiz = get_next_quiz(level)
+        
+        if next_quiz:
+            st.markdown(f"""
+            <div class="quiz-card">
+                <h3>{next_quiz['پرسیار']}</h3>
+                <p style="color: #888;font-size:0.9rem;">ئاست: {get_level_icon(level)} {next_quiz.get('ئاستی ناو', level_info['name'])}</p>
+                <p style="color: #666;font-size:0.8rem;">پێشکەوتن: {st.session_state.get(f'level_{level}_done', 0)}/{LEVELS[level]['quizzes']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            answer = st.radio("وەڵام:", next_quiz['هەڵبژاردەکان'], key=f"q_{st.session_state.quiz_index}")
+            
+            if st.button("✅ پشتڕاستکردنەوە", type="primary"):
+                selected = next_quiz['هەڵبژاردەکان'].index(answer)
+                st.session_state.quiz_attempts += 1
+                
+                if selected == next_quiz['وەڵامی ڕاست']:
+                    st.session_state.quiz_score += 1
+                    st.success("🎉 ڕاستە! نمرەی زیادیکرد")
+                    st.balloons()
+                else:
+                    st.error(f"❌ هەڵەیە. ڕاست: {next_quiz['هەڵبژاردەکان'][next_quiz['وەڵامی ڕاست']]}")
+                
+                st.info(f"📚 {next_quiz['ڕوونکردنەوە']}")
+                st.session_state.quiz_answers.append({
+                    'پرسیار': next_quiz['پرسیار'],
+                    'وەڵام': answer,
+                    'ڕاستە': selected == next_quiz['وەڵامی ڕاست']
+                })
+                
+                st.session_state[f'level_{level}_done'] = st.session_state.get(f'level_{level}_done', 0) + 1
+                st.session_state.study_time += 2
+                st.session_state.last_activity = datetime.now()
+                
+                if datetime.now().date() > st.session_state.last_study_date:
+                    st.session_state.streak_days += 1
+                    st.session_state.last_study_date = datetime.now().date()
+                
+                if st.session_state.get(f'level_{level}_done', 0) >= LEVELS[level]['quizzes']:
+                    next_level = get_next_level(level)
+                    st.success(f"🎊 پیرۆز! تۆ ئاستی {level_info['name']} تەواو کردیت!")
+                    if next_level <= 5:
+                        st.info(f"🚀 بچۆ بۆ ئاستی {LEVELS[next_level]['name']}")
+                        st.session_state.current_level = next_level
+                        if f"تەواوکردنی ئاست {level}" not in st.session_state.achievements:
+                            st.session_state.achievements.append(f"تەواوکردنی ئاست {level}")
+                
+                st.rerun()
+        else:
+            st.info("هیچ کویزێکی تر نییە بۆ ئەم ئاستە!")
+            if level < 5:
+                if st.button(f"🚀 بچۆ بۆ ئاستی {LEVELS[level+1]['name']}"):
+                    st.session_state.current_level = level + 1
+                    st.rerun()
+            else:
+                st.success("🎊 پیرۆز! تۆ هەموو ئاستەکانت تەواو کردیت! تۆ پزیشکێکی لێهاتووی!")
+    else:
+        st.markdown(f"""
+        <div class="success-box">
+            <h2>🎊 کویز تەواو بوو!</h2>
+            <h3>نمرە: {st.session_state.quiz_score}/100</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 کویزی نوێ"):
+            st.session_state.quiz_completed = False
+            st.session_state.quiz_index = 0
+            st.rerun()
+
+# ================================
+# 15. پەڕەی تاقیگە (٢٠٠ پشکنین) - پشکنینەکان بە ناوی ئامێر و تێبینی
+# ================================
+elif page == "🔬 تاقیگە (٢٠٠)":
+    st.markdown("""
+    <div class="main">
+        <h2>🔬 تاقیگەی ڤێرچواڵ - Dr.Danyal</h2>
+        <p style="color:#aaa;">200+ پشکنینی تاقیگە لەگەڵ ئامێرەکان و شوێنی تێبینی تایبەتی خۆت</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    groups = ["هەموو"] + sorted(set(test["گروپ"] for test in LAB_TESTS.values()))
+    selected_group = st.selectbox("📂 پۆلێن:", groups)
+    
+    search_lab = st.text_input("🔍 گەڕان:", placeholder="ناوی پشکنین...")
+    
+    all_lab_tests = {**LAB_TESTS, **st.session_state.custom_lab_tests}
+    st.markdown(f"**📊 ژمارەی پشکنینەکان:** {len([t for t in all_lab_tests if (selected_group == 'هەموو' or all_lab_tests[t].get('گروپ', '') == selected_group) and (not search_lab or search_lab.lower() in t.lower())])}")
+    
+    cols = st.columns(2)
+    idx = 0
+    
+    for test_name, test_info in all_lab_tests.items():
+        if selected_group != "هەموو" and test_info.get("گروپ", "") != selected_group:
+            continue
+        if search_lab and search_lab.lower() not in test_name.lower():
+            continue
+        
+        with cols[idx % 2]:
+            low, high = test_info.get("نۆرماڵ", (0, 0))
+            note = test_info.get("تێبینی", "تێبینی تایبەتی خۆت لێرە بنووسە...")
+            st.markdown(f"""
+            <div class="lab-result-card lab-normal">
+                <strong>{test_name}</strong>
+                <p style="color:#aaa;font-size:0.9rem;">{test_info.get('گروپ', 'گشتی')} | ئامێر: {test_info.get('ئامێر', 'نەزانراو')}</p>
+                <p>نۆرماڵ: {low} - {high} {test_info.get('یەکە', '')}</p>
+                <p style="color:#888;font-size:0.8rem;">{test_info.get('تەفسیر', '')}</p>
+                <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {note}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        idx += 1
+    
+    st.markdown("---")
+    st.markdown("### 🧪 شیکاری پشکنین (نرخەکەت پێوەر بکە لەگەڵ نۆرماڵ)")
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        test_to_analyze = st.selectbox("پشکنین هەڵبژێرە:", list(all_lab_tests.keys()))
+        test_value = st.number_input("نرخ:", value=0.0, step=0.1)
+    
+    with col2:
+        if test_to_analyze and test_value:
+            result = analyze_lab_result(test_to_analyze, test_value)
+            low, high = all_lab_tests[test_to_analyze].get("نۆرماڵ", (0, 0))
+            note = all_lab_tests[test_to_analyze].get("تێبینی", "تێبینی تایبەتی خۆت لێرە بنووسە...")
+            st.markdown(f"""
+            <div class="lab-result-card lab-{result['status']}">
+                <h4>{test_to_analyze}</h4>
+                <p><strong>نرخ:</strong> {test_value} {all_lab_tests[test_to_analyze].get('یەکە', '')}</p>
+                <p><strong>نۆرماڵ:</strong> {low} - {high}</p>
+                <p><strong>دۆخ:</strong> <span style="color:{result['color']}">{result['status']}</span></p>
+                <p><strong>تەفسیر:</strong> {result['interpretation']}</p>
+                <p style="color:#aaa;font-size:0.8rem;"><strong>ئامێر:</strong> {all_lab_tests[test_to_analyze].get('ئامێر', 'نەزانراو')}</p>
+                <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {note}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### ➕ پشکنینێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
+    with st.form("add_lab_test_form", clear_on_submit=True):
+        col_new_lab1, col_new_lab2 = st.columns(2)
+        with col_new_lab1:
+            new_lab_name = st.text_input("ناوی پشکنین:")
+            new_lab_group = st.selectbox("گروپ:", ["گشتی", "خوێن", "بایۆکیمیایی", "دڵ", "هەوکردن", "هۆرمۆن", "میز", "ڤیتامین", "معدن"])
+            new_lab_low = st.number_input("نزمترین ڕێژەی نۆرماڵ:", value=0.0)
+            new_lab_high = st.number_input("بەرزترین ڕێژەی نۆرماڵ:", value=10.0)
+        with col_new_lab2:
+            new_lab_unit = st.text_input("یەکە:", placeholder="mg/dL")
+            new_lab_machine = st.text_input("ئامێر:", placeholder="ئامێری پێوانەکردن")
+            new_lab_desc = st.text_area("تەفسیر:", placeholder="ڕوونکردنەوەی ئەم پشکنینە...")
+            new_lab_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
+            
+        submitted = st.form_submit_button("✅ پشکنینەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
+        if submitted and new_lab_name:
+            st.session_state.custom_lab_tests[new_lab_name] = {
+                "گروپ": new_lab_group,
+                "نۆرماڵ": (new_lab_low, new_lab_high),
+                "یەکە": new_lab_unit,
+                "تەفسیر": new_lab_desc,
+                "ئامێر": new_lab_machine,
+                "تێبینی": new_lab_note
+            }
+            auto_save()
+            st.success(f"پشکنینی '{new_lab_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
+            st.rerun()
+
+# ================================
+# 16. پەڕەی شیکاری کەیس
+# ================================
+elif page == "🩺 شیکاری کەیس":
+    st.markdown("""
+    <div class="main">
+        <h2>🩺 شیکاری کەیسی پزیشکی</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🔄 کەیسی نوێ", type="primary"):
+        random_case = training_data.sample(1).iloc[0]
+        st.session_state.current_case = random_case
+        st.session_state.diagnosis_submitted = False
+        st.rerun()
+    
+    if st.session_state.current_case is not None:
+        case = st.session_state.current_case
+        st.markdown(f"""
+        <div class="case-card">
+            <h3>📋 کەیسی {case.get('case_id', 'N/A')}</h3>
+            <p><strong>تەمەن:</strong> {case.get('تەمەن', 'N/A')} ساڵ ({get_age_group(case.get('تەمەن', 40))})</p>
+            <p><strong>ڕەگەز:</strong> {case.get('ڕەگەز', 'N/A')}</p>
+            <p><strong>نیشانەکان:</strong> {', '.join(case.get('نیشانە سەرەکییەکان', []))}</p>
+            <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(case.get('ئاستی مەترسی', 'کەم'))}">{case.get('ئاستی مەترسی', 'نەزانراو')}</span></p>
+            <p><strong>نمرەی مەترسی:</strong> {case.get('نمرەی مەترسی', 0)}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        user_diagnosis = st.selectbox("دەستنیشانکردن:", list(DISEASE_DATABASE.keys()))
+        
+        if st.button("✅ پشتڕاستکردنەوە", type="primary"):
+            correct = case.get('دەستنیشانکردن', '')
+            st.session_state.total_cases_solved += 1
+            st.session_state.study_time += 3
+            
+            if user_diagnosis == correct:
+                st.session_state.correct_diagnoses += 1
+                st.markdown(f'<div class="success-box"><h3>🎉 ڕاستە!</h3><p>{correct}</p></div>', unsafe_allow_html=True)
+                st.balloons()
+                if st.session_state.correct_diagnoses >= 5:
+                    if "دەستنیشانکەری شارەزا" not in st.session_state.achievements:
+                        st.session_state.achievements.append("دەستنیشانکەری شارەزا")
+            else:
+                st.markdown(f'<div class="error-box"><h3>❌ هەڵەیە</h3><p>ڕاست: {correct}</p></div>', unsafe_allow_html=True)
+                disease_info = DISEASE_DATABASE.get(correct, {})
+                if disease_info:
+                    st.info(f"**🔑 خاڵی جیاکەرەوە:** {disease_info.get('تایبەتمەندی', 'نییە')}")
+                    st.info(f"**🩺 نیشانە سەرەکییەکان:** {', '.join(disease_info.get('نیشانەکان', [])[:4])}")
+
+# ================================
+# 17. پەڕەی فارماکۆلۆجی - بە وەسفی تەواو و تێبینی
+# ================================
+elif page == "💊 فارماکۆلۆجی":
+    st.markdown("""
+    <div class="main">
+        <h2>💊 فارماکۆلۆجی و دەرمانناسی - Dr.Danyal</h2>
+        <p style="color:#aaa;">120+ دەرمان لەگەڵ وەسف و شوێنی تێبینی تایبەتی خۆت</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    search_drug = st.text_input("🔍 گەڕان:", placeholder="ناوی دەرمان...")
+    
+    for category, drugs in DRUG_DATABASE.items():
+        if search_drug:
+            filtered = {k: v for k, v in drugs.items() if search_drug.lower() in k.lower() or search_drug.lower() in category.lower()}
+            if not filtered:
+                continue
+            drugs = filtered
+        
+        with st.expander(f"📂 {category} ({len(drugs)} دەرمان)"):
+            cols = st.columns(2)
+            idx = 0
+            for drug, info in drugs.items():
+                with cols[idx % 2]:
+                    note = info.get("تێبینی", "تێبینی تایبەتی خۆت لێرە بنووسە...")
+                    st.markdown(f"""
+                    <div class="drug-card">
+                        <div class="drug-icon">💊</div>
+                        <h4>{drug}</h4>
+                        <p><strong>ڕێژە:</strong> {info.get('ڕێژە', 'نەزانراو')}</p>
+                        <p><strong>میکانیزم:</strong> {info.get('میکانیزم', 'نەزانراو')}</p>
+                        <p><strong>وەسف:</strong> {info.get('وەسف', 'نییە')}</p>
+                        <p><strong>بۆچی بەکاردێت:</strong> {info.get('بۆچی', 'نییە')}</p>
+                        <p><strong>کاریگەری لاوەکی:</strong> {info.get('کاریگەری لاوەکی', 'نەزانراو')}</p>
+                        <p><strong>پێچەوانە:</strong> {info.get('پێچەوانە', 'نەزانراو')}</p>
+                        <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {note}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                idx += 1
+
+    if st.session_state.custom_drugs:
+        with st.expander(f"📂 دەرمانە تایبەتییەکانی خۆت ({len(st.session_state.custom_drugs)} دەرمان)"):
+            cols = st.columns(2)
+            idx = 0
+            for drug, info in st.session_state.custom_drugs.items():
+                with cols[idx % 2]:
+                    st.markdown(f"""
+                    <div class="drug-card">
+                        <div class="drug-icon">💊</div>
+                        <h4>{drug}</h4>
+                        <p><strong>ڕێژە:</strong> {info.get('ڕێژە', '')}</p>
+                        <p><strong>میکانیزم:</strong> {info.get('میکانیزم', '')}</p>
+                        <p><strong>وەسف:</strong> {info.get('وەسف', '')}</p>
+                        <p><strong>بۆچی بەکاردێت:</strong> {info.get('بۆچی', '')}</p>
+                        <p><strong>کاریگەری لاوەکی:</strong> {info.get('کاریگەری لاوەکی', '')}</p>
+                        <p><strong>پێچەوانە:</strong> {info.get('پێچەوانە', '')}</p>
+                        <p style="color:#aaa;font-size:0.8rem;background:rgba(255,255,255,0.05);padding:8px;border-radius:8px;margin-top:5px;">📝 {info.get('تێبینی', '')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                idx += 1
+
+    st.markdown("---")
+    st.markdown("### ➕ دەرمانێکی نوێ زیاد بکە (لەگەڵ تێبینی خۆت) - بۆ هەمیشە خەزن دەکرێت")
+    with st.form("add_drug_form", clear_on_submit=True):
+        col_new_drug1, col_new_drug2 = st.columns(2)
+        with col_new_drug1:
+            new_drug_name = st.text_input("ناوی دەرمان:")
+            new_drug_dose = st.text_input("ڕێژە:", placeholder="500mg")
+            new_drug_mech = st.text_input("میکانیزم:", placeholder="چۆن کار دەکات")
+            new_drug_effect = st.text_input("کاریگەری لاوەکی:", placeholder="سەرگێژخواردن")
+        with col_new_drug2:
+            new_drug_contra = st.text_input("پێچەوانە:", placeholder="نەخۆشی گورچیلە")
+            new_drug_desc = st.text_area("وەسف:", placeholder="ڕوونکردنەوەی دەرمانەکە...")
+            new_drug_why = st.text_area("بۆچی:", placeholder="بۆ چارەسەری چی بەکاردێت...")
+            new_drug_note = st.text_area("📝 تێبینی:", placeholder="تێبینی تایبەتی خۆت لێرە بنووسە...")
+            
+        submitted = st.form_submit_button("✅ دەرمانەکە زیاد بکە و بۆ هەمیشە خەزن بکە")
+        if submitted and new_drug_name:
+            st.session_state.custom_drugs[new_drug_name] = {
+                "ڕێژە": new_drug_dose,
+                "میکانیزم": new_drug_mech,
+                "کاریگەری لاوەکی": new_drug_effect,
+                "پێچەوانە": new_drug_contra,
+                "وەسف": new_drug_desc,
+                "بۆچی": new_drug_why,
+                "تێبینی": new_drug_note
+            }
+            auto_save()
+            st.success(f"دەرمانی '{new_drug_name}' بە سەرکەوتوویی زیاد کرا و بۆ هەمیشە خەزن کرا!")
+            st.rerun()
+
+# ================================
+# 18. پەڕەی AI یاریدەدەر
+# ================================
+elif page == "🧠 AI یاریدەدەر":
+    st.markdown("""
+    <div class="main">
+        <h2>🧠 یاریدەدەری هۆشمەند - Dr.Danyal</h2>
+        <p style="color:#aaa;">شیکاری نیشانەکان بە یارمەتی AI</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    symptoms_input = st.text_area("🩺 نیشانەکان بنووسە:", placeholder="وەک: سەرئێشە, تا, کۆخە, ...", height=120)
+    
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        age_ai = st.number_input("تەمەن:", 1, 120, 40)
+        gender_ai = st.selectbox("ڕەگەز:", ["نێر", "مێ"])
+    
+    with col2:
+        if st.button("🔍 شیکاری AI بکە", type="primary"):
+            if symptoms_input.strip():
+                symptoms_list = [s.strip() for s in symptoms_input.split(',') if s.strip()]
+                if symptoms_list:
+                    results = []
+                    for disease, info in DISEASE_DATABASE.items():
+                        match = len(set(symptoms_list).intersection(set(info['نیشانەکان'])))
+                        if match > 0:
+                            pct = (match / len(info['نیشانەکان'])) * 100
+                            risk_score = calculate_risk_score(disease, age_ai, gender_ai, symptoms_list)
+                            results.append({
+                                'disease': disease,
+                                'pct': round(pct, 1),
+                                'risk': info['ئاستی مەترسی'],
+                                'risk_score': risk_score,
+                                'symptoms': list(set(symptoms_list).intersection(set(info['نیشانەکان']))),
+                                'treatment': info['چارەسەر'][:2]
+                            })
+                    results.sort(key=lambda x: x['pct'], reverse=True)
+                    
+                    if results:
+                        st.markdown("### 📊 ئەنجامی شیکاری")
+                        for r in results[:5]:
+                            st.markdown(f"""
+                            <div class="case-card">
+                                <h4>{r['disease']}</h4>
+                                <p><strong>ڕێژەی گونجاندن:</strong> {r['pct']}%</p>
+                                <p><strong>نیشانە هاوبەشەکان:</strong> {', '.join(r['symptoms'])}</p>
+                                <p><strong>ئاستی مەترسی:</strong> <span style="color:{get_risk_color(r['risk'])}">{r['risk']}</span></p>
+                                <p><strong>نمرەی مەترسی:</strong> {r['risk_score']}%</p>
+                                <p><strong>چارەسەر:</strong> {', '.join(r['treatment'])}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.warning("هیچ نەخۆشییەک نەدۆزرایەوە کە نیشانەکانت بگونجێت.")
+                else:
+                    st.error("تکایە نیشانەکان بنووسە.")
+            else:
+                st.error("تکایە نیشانەکان بنووسە.")
+
+# ================================
+# 19. پەڕەی پێشکەوتن و دەستکەوتەکان
+# ================================
+elif page == "🏆 دەستکەوتەکان" or page == "📊 پێشکەوتن":
+    st.markdown("""
+    <div class="main">
+        <h2>📊 پێشکەوتن و دەستکەوتەکان - Dr.Danyal</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### 🎯 ئاستەکان")
+    cols = st.columns(5)
+    for i in range(1, 6):
+        with cols[i-1]:
+            info = get_level_info(i)
+            done = st.session_state.get(f'level_{i}_done', 0)
+            total = info['quizzes']
+            pct = (done / total) * 100 if total > 0 else 0
+            is_current = i == get_user_level(st.session_state.quiz_score)
+            st.markdown(f"""
+            <div class="stat-card" style="border-top-color: {info['color']}; {'transform: scale(1.05); box-shadow: 0 10px 30px rgba(102,126,234,0.3);' if is_current else ''}">
+                <h4>{get_level_icon(i)} ئاست {i}</h4>
+                <p style="font-size:0.9rem;">{info['name']}</p>
+                <p>{done}/{total}</p>
+                <div class="progress-container">
+                    <div class="progress-fill" style="width:{pct}%;background:{info['color']};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    st.markdown("### 🏆 دەستکەوتەکان")
+    
+    all_achievements = [
+        {"icon": "⭐", "name": "دەستنیشانکەری شارەزا", "condition": st.session_state.correct_diagnoses >= 5},
+        {"icon": "📚", "name": "ڕاهێنەری پزیشکی", "condition": st.session_state.total_cases_solved >= 20},
+        {"icon": "📝", "name": "شارەزای کویز", "condition": st.session_state.quiz_score >= 30},
+        {"icon": "🎓", "name": "پزیشکی گشتی", "condition": st.session_state.quiz_score >= 50},
+        {"icon": "👨‍⚕️", "name": "پزیشکی لێهاتوو", "condition": st.session_state.quiz_score >= 80},
+        {"icon": "🔥", "name": "بەردەوامی ٧ ڕۆژ", "condition": st.session_state.streak_days >= 7},
+        {"icon": "💪", "name": "بەردەوامی ٣٠ ڕۆژ", "condition": st.session_state.streak_days >= 30},
+        {"icon": "🔬", "name": "شارەزای تاقیگە", "condition": len(st.session_state.lab_history) >= 50},
+        {"icon": "💊", "name": "فارماکۆلۆجیست", "condition": len(st.session_state.favorite_diseases) >= 10}
+    ]
+    
+    for ach in all_achievements:
+        if ach["condition"] and ach["name"] not in st.session_state.achievements:
+            st.session_state.achievements.append(ach["name"])
+    
+    if st.session_state.achievements:
+        cols = st.columns(3)
+        for i, ach in enumerate(st.session_state.achievements):
+            with cols[i % 3]:
+                st.markdown(f"""
+                <div class="achievement-badge">
+                    {ach} ✅
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("💪 بەردەوام بە! دەستکەوتەکان لە ڕێگادان...")
+    
+    st.markdown("---")
+    st.markdown("### 📊 ئاماری گشتی")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📝 کویز", f"{st.session_state.quiz_score}/100")
+    with col2:
+        st.metric("🩺 کەیس", st.session_state.total_cases_solved)
+    with col3:
+        accuracy = int((st.session_state.correct_diagnoses / max(st.session_state.total_cases_solved, 1)) * 100)
+        st.metric("🎯 دەقی", f"{accuracy}%")
+    with col4:
+        st.metric("🔥 بەردەوامی", f"{st.session_state.streak_days} ڕۆژ")
+
+# ================================
+# 20. پەڕەی نەخۆشییەکان
+# ================================
+elif page == "📚 نەخۆشییەکان":
+    st.markdown(f"""
+    <div class="main">
+        <h2>📚 کتێبخانەی نەخۆشییەکان - Dr.Danyal</h2>
+        <p style="color:#aaa;">{get_disease_count()} نەخۆشی لەگەڵ پشکنین و چارەسەر</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    search = st.text_input("🔍 گەڕان:", placeholder="ناوی نەخۆشی...")
+    filter_risk = st.selectbox("فلتر:", ["هەموو", "زۆر مەترسیدار", "مەترسیدار", "مامناوەند", "کەم"])
+    filter_age = st.selectbox("گروپی تەمەن:", ["هەموو", "منداڵان", "گەنجان", "تەمەن مامناوەند", "پیران"])
+    
+    filtered = {k: v for k, v in DISEASE_DATABASE.items() if (not search or search in k)}
+    if filter_risk != "هەموو":
+        filtered = {k: v for k, v in filtered.items() if v.get('ئاستی مەترسی', '') == filter_risk}
+    if filter_age != "هەموو":
+        filtered = {k: v for k, v in filtered.items() if filter_age in v.get('گروپی تەمەن', '')}
+    
+    st.markdown(f"**📊 ژمارە:** {len(filtered)} نەخۆشی")
+    
+    cols = st.columns(2)
+    idx = 0
+    for disease, info in filtered.items():
+        with cols[idx % 2]:
+            with st.expander(f"🩺 {disease}"):
+                st.markdown(f"**⚠️ ئاستی مەترسی:** <span style='color:{get_risk_color(info.get('ئاستی مەترسی', 'کەم'))}'>{info.get('ئاستی مەترسی', 'نەزانراو')}</span>", unsafe_allow_html=True)
+                st.markdown(f"**👤 گروپی تەمەن:** {info.get('گروپی تەمەن', 'هەموو')}")
+                st.markdown(f"**📊 ڕێژەی تووشبوون:** {info.get('ڕێژەی تووشبوون', 'نەزانراو')}")
+                st.markdown(f"**🏥 جۆری نەخۆشی:** {info.get('جۆری نەخۆشی', 'نەزانراو')}")
+                
+                st.markdown("**🔍 نیشانەکان:**")
+                for s in info.get('نیشانەکان', [])[:6]:
+                    st.markdown(f"- {s}")
+                
+                st.markdown("**🧪 پشکنینەکان (لەگەڵ نۆرماڵ):**")
+                for test, value in list(info.get('پشکنینەکان', {}).items())[:4]:
+                    st.markdown(f"- {test}: {value}")
+                
+                st.markdown("**💊 چارەسەر:**")
+                for t in info.get('چارەسەر', [])[:4]:
+                    st.markdown(f"- {t}")
+                
+                st.info(f"**🔑 تایبەتمەندی:** {info.get('تایبەتمەندی', 'نییە')}")
+                
+                if info.get('ڕێپیشگیری'):
+                    st.markdown("**🛡️ ڕێپیشگیری:**")
+                    for p in info['ڕێپیشگیری'][:3]:
+                        st.markdown(f"- {p}")
+        idx += 1
+
+# ================================
+# 21. فووەتەر
+# ================================
+st.markdown("---")
+st.markdown(f"""
+<div class="footer-style">
+    <h3>🩺 Dr.Danyal - ڕاهێنەری پزیشکی Pro Max v5.0</h3>
+    <p>{get_disease_count()} نەخۆشی | {get_drug_count() + len(st.session_state.custom_drugs)} دەرمان | {get_quiz_count()} کویز | {len(LAB_TESTS) + len(st.session_state.custom_lab_tests)} پشکنین</p>
+    <p style="font-size:0.8rem;opacity:0.8;">© 2024 Dr.Danyal | بەکارهێنەر: {st.session_state.username} | داتاکانت بۆ هەمیشە خەزن دەکرێن</p>
+    <p style="font-size:0.7rem;opacity:0.5;">پشکنین و دەرمانە زیادکراوەکانت بە پارێزراوی لە فایلی JSON دا هەڵدەگیرێن</p>
+</div>
 """, unsafe_allow_html=True)
