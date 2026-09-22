@@ -29,21 +29,24 @@
     </div>
 
     <script>
+        // ١. دۆزینەوەی بەشەکانی ڕووکارەکە
         const input = document.getElementById('message-input');
         const button = document.querySelector('button');
         const messagesDiv = document.getElementById('messages-container');
         
-        // پرسیارکردن لە بەکارهێنەر بۆ ناوی خۆی لە سەرەتادا
+        // ٢. پرسیارکردن لە بەکارهێنەر بۆ ناوی خۆی
         let username = prompt("تکایە ناوی خۆت بنووسە:");
         if (!username || username.trim() === "") {
             username = "نەناسراو";
         }
 
+        // ٣. چالاککردنی دوگمە و دوگمەی Enter
         button.addEventListener('click', sendMessage);
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') sendMessage();
         });
 
+        // ٤. فەنکشنی ناردنی نامە بۆ ڕاژەکارەکە
         function sendMessage() {
             const text = input.value.trim();
             if (!text) return;
@@ -55,16 +58,17 @@
             })
             .then(response => response.json())
             .then(data => {
-                input.value = '';
-                loadMessages();
+                input.value = ''; // پاککردنەوەی خانەکە
+                loadMessages(); // نوێکردنەوەی لیستەکە
             });
         }
 
+        // ٥. فەنکشنی وەرگرتنی نامەکان لە ڕاژەکارەکە
         function loadMessages() {
             fetch('/get_messages')
             .then(response => response.json())
             .then(data => {
-                messagesDiv.innerHTML = ''; // پاککردنەوەی لیستەکە پێش نوێکردنەوە
+                messagesDiv.innerHTML = ''; // پاککردنەوەی لیستەکە
                 
                 if (data.length === 0) {
                     messagesDiv.innerHTML = '<div class="message-box"><div class="message-text">سیستەم: بەخێربێن بۆ چاتەکە!</div></div>';
@@ -91,7 +95,7 @@
             });
         }
 
-        // هەر ٢ چرکە جارێک نامەکان نوێ دەکاتەوە
+        // ٦. هەر ٢ چرکە جارێک نامەکان نوێ دەکاتەوە
         setInterval(loadMessages, 2000);
         loadMessages(); // بانگکردنی یەکەم جار
     </script>
