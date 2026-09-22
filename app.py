@@ -1,70 +1,49 @@
-<!DOCTYPE html>
-<html lang="ku" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>چاتی دانیال</title>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .chat-container { width: 400px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; height: 80vh; }
-        .header { background: #fffc00; color: black; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
-        .messages { flex: 1; padding: 15px; overflow-y: auto; background: #fafafa; }
-        .message { margin-bottom: 10px; padding: 10px; border-radius: 10px; background: #e4e6eb; display: inline-block; }
-        .input-area { display: flex; padding: 10px; border-top: 1px solid #ddd; background: white; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 25px; outline: none; }
-        button { background: #fffc00; border: none; padding: 12px 20px; border-radius: 25px; margin-right: 10px; cursor: pointer; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="chat-container">
-        <div class="header">چاتی دانیال</div>
-        <div class="messages" id="messages-container">
-            <div class="message">سیستەم: بەخێربێن بۆ چاتەکە!</div>
-        </div>
-        <div class="input-area">
-            <input type="text" placeholder="نامەیەک بنووسە..." id="message-input">
-            <button>ناردن</button>
-        </div>
-    </div>
+from flask import Flask, render_template, request, jsonify
+import datetime
+import json
+import os
 
-    <script>
-        const input = document.getElementById('message-input');
-        const button = document.querySelector('button');
-        const messagesDiv = document.getElementById('messages-container');
+app = Flask(__name__)
 
-        button.addEventListener('click', sendMessage);
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendMessage();
-        });
+# فایلی پاشەکەوتکردنی نامەکان
+MESSAGES_FILE = 'messages.json'
 
-        function sendMessage() {
-            const text = input.value.trim();
-            if (!text) return;
+def load_messages():
+    if os.path.exists(MESSAGES_FILE):
+        with open(MESSAGES_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
 
-            fetch('/send', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({message: text})
-            })
-            .then(response => response.json())
-            .then(data => {
-                input.value = '';
-                loadMessages();
-            });
+def save_messages(messages):
+    with open(MESSAGES_FILE, 'w', encoding='utf-8') as f:
+        json.dump(messages, f, ensure_ascii=False, indent=4)
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/send', methods=['POST'])
+def send():
+    data = request.get_json()
+    username = data.get('username')
+    message = data.get('message')
+    
+    if message:
+        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_message = {
+            'username': username,
+            'message': message,
+            'time': time_now
         }
+        messages = load_messages()
+        messages.append(new_message)
+        save_messages(messages)
+        return jsonify({'status': 'success'})
+    return jsonify({'status': 'error'})
 
-        function loadMessages() {
-            fetch('/get_messages')
-            .then(response => response.json())
-            .then(data => {
-                messagesDiv.innerHTML = '<div class="message">سیستەم: بەخێربێن بۆ چاتەکە!</div>';
-                data.forEach(msg => {
-                    messagesDiv.innerHTML += '<div class="message">' + msg + '</div>';
-                });
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            });
-        }
+@app.route('/get_messages')
+def get_messages():
+    return jsonify(load_messages())
 
-        setInterval(loadMessages, 2000);
-    </script>
-</body>
-</html>
+if __name__ == '__main__':
+    app.run(debug=True)
