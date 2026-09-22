@@ -17,7 +17,7 @@
 <body>
     <div class="chat-container">
         <div class="header">چاتی دانیال</div>
-        <div class="messages">
+        <div class="messages" id="messages-container">
             <div class="message">سیستەم: بەخێربێن بۆ چاتەکە!</div>
         </div>
         <div class="input-area">
@@ -29,15 +29,42 @@
     <script>
         const input = document.getElementById('message-input');
         const button = document.querySelector('button');
-        const messagesDiv = document.querySelector('.messages');
+        const messagesDiv = document.getElementById('messages-container');
 
-        button.addEventListener('click', function() {
-            const text = input.value;
-            if (text === '') return;
-            
-            messagesDiv.innerHTML += '<div class="message">' + text + '</div>';
-            input.value = '';
+        button.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
         });
+
+        function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            fetch('/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: text})
+            })
+            .then(response => response.json())
+            .then(data => {
+                input.value = '';
+                loadMessages();
+            });
+        }
+
+        function loadMessages() {
+            fetch('/get_messages')
+            .then(response => response.json())
+            .then(data => {
+                messagesDiv.innerHTML = '<div class="message">سیستەم: بەخێربێن بۆ چاتەکە!</div>';
+                data.forEach(msg => {
+                    messagesDiv.innerHTML += '<div class="message">' + msg + '</div>';
+                });
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
+        }
+
+        setInterval(loadMessages, 2000);
     </script>
 </body>
 </html>
