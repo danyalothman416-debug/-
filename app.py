@@ -1,173 +1,293 @@
-import pygame
-import random
-import sys
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ڕێبەری کەرکووک | Kirkuk Guide</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --primary: #0284c7;
+      --primary-light: #e0f2fe;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --tag-bg: #f1f5f9;
+      --radius: 14px;
+    }
 
-# دەستپێکردنی Pygame
-pygame.init()
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-# ڕەهەندەکانی شاشە
-WIDTH, HEIGHT = 500, 700
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Danyal Car Racing 🏎️")
-clock = pygame.time.Clock()
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding-bottom: 50px;
+    }
 
-# ڕەنگەکان
-ASPHALT = (35, 39, 45)
-GRASS = (34, 139, 34)
-LINE_COLOR = (240, 240, 240)
-RED_CAR = (230, 40, 40)
-BLUE_CAR = (30, 144, 255)
-YELLOW_CAR = (255, 215, 0)
-WHITE = (255, 255, 255)
-DARK = (15, 15, 20)
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
 
-# ڕێکخستنی شەقام
-ROAD_X = 80
-ROAD_WIDTH = 340
-ROAD_RIGHT = ROAD_X + ROAD_WIDTH
+    .header-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
 
-font = pygame.font.SysFont("Arial", 24, bold=True)
-big_font = pygame.font.SysFont("Arial", 40, bold=True)
+    .header-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
 
-def draw_car(surface, x, y, color, is_player=False):
-    w, h = 48, 85
-    # چەرخەکان
-    pygame.draw.rect(surface, DARK, (x - 4, y + 10, 8, 18), border_radius=3)
-    pygame.draw.rect(surface, DARK, (x + w - 4, y + 10, 8, 18), border_radius=3)
-    pygame.draw.rect(surface, DARK, (x - 4, y + h - 28, 8, 18), border_radius=3)
-    pygame.draw.rect(surface, DARK, (x + w - 4, y + h - 28, 8, 18), border_radius=3)
+    .search-box {
+      max-width: 500px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 20px;
+      font-size: 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 50px;
+      outline: none;
+      background: var(--bg);
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 4px var(--primary-light);
+    }
+
+    .categories {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 20px auto 10px;
+      max-width: 700px;
+      padding: 0 15px;
+    }
+
+    .cat-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .cat-btn.active, .cat-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 25px auto;
+      padding: 0 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .badge-area { background: #fef3c7; color: #b45309; }
+    .badge-historic { background: #e0e7ff; color: #4338ca; }
+    .badge-fun { background: #dcfce7; color: #15803d; }
+    .badge-market { background: #fce7f3; color: #be185d; }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--text-muted);
+      grid-column: 1 / -1;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title">🏛️ ڕێبەری شاری کەرکووک</div>
+    <div class="header-sub">گەڕان بەناو گەڕەکەکان، شوێنە مێژووییەکان و سەیرانگاکاندا</div>
     
-    # لاشەی سەیارەکە
-    pygame.draw.rect(surface, color, (x, y, w, h), border_radius=12)
-    # جامی پێشەوە و دواوە
-    pygame.draw.rect(surface, (20, 25, 35), (x + 6, y + (22 if is_player else 45), w - 12, 16), border_radius=4)
-    pygame.draw.rect(surface, (20, 25, 35), (x + 8, y + (55 if is_player else 18), w - 16, 12), border_radius=3)
-    # سەقف
-    pygame.draw.rect(surface, color, (x + 8, y + 36, w - 16, 18))
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="ناوی گەڕەک یان شوێنێک بنووسە...">
+    </div>
 
-    # لایتی پێشەوە
-    light_color = (255, 255, 180)
-    if is_player:
-        pygame.draw.circle(surface, light_color, (x + 8, y + 4), 4)
-        pygame.draw.circle(surface, light_color, (x + w - 8, y + 4), 4)
-    else:
-        pygame.draw.circle(surface, (255, 70, 70), (x + 8, y + 4), 3)
-        pygame.draw.circle(surface, (255, 70, 70), (x + w - 8, y + 4), 3)
+    <div class="categories">
+      <button class="cat-btn active" onclick="filterCategory('all')">هەمووی</button>
+      <button class="cat-btn" onclick="filterCategory('گەڕەک')">گەڕەکەکان</button>
+      <button class="cat-btn" onclick="filterCategory('مێژوویی')">شوێنە مێژووییەکان</button>
+      <button class="cat-btn" onclick="filterCategory('پارک و گەشت')">پارک و شوێنی خۆش</button>
+      <button class="cat-btn" onclick="filterCategory('مۆڵ و بازاڕ')">مۆڵ و بازاڕ</button>
+    </div>
+  </header>
 
-def main():
-    # زانیارییەکانی یاریزان
-    p_w, p_h = 48, 85
-    px = ROAD_X + (ROAD_WIDTH - p_w) // 2
-    py = HEIGHT - 130
-    pspeed = 7
+  <main class="container">
+    <div class="grid" id="placesGrid"></div>
+  </main>
 
-    # هێڵەکانی شەقام بۆ دروستکردنی جووڵە
-    stripes = [i * 90 for i in range(10)]
-    stripe_speed = 9
+  <script>
+    const data = [
+      // گەڕەکەکان
+      { name: "ڕەحیماوا", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی گەورە و بەناوبانگی کەرکووکە؛ بە بازاڕە قەرەباڵغەکەی، کەرەستەی خۆراکی و ژیانی شەوانە ناسراوە.", loc: "باکووری کەرکووک" },
+      { name: "شۆرجە", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی دێرین و زیندوو لە سەنتەری شار؛ بازاڕێکی چالاک و فرەجۆری تێدایە.", loc: "ناوەندی شار" },
+      { name: "ئیسکان", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی ئارام و ڕێکخراو لە نزیک کۆلێژ و سەنتەری شار، کۆڵانی فراوان و ژینگەیەکی خێزانی هەیە.", loc: "ناوەندی کەرکووک" },
+      { name: "ئەڵماس", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی هاوچەرخ و مۆدێرن؛ پڕە لە نۆرینگە، دەرمانخانە، کافێ و خواردنگەی بەناوبانگ.", loc: "ناوەندی شار" },
+      { name: "ئیمام قاسم", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی کۆن و مێژوویی کەرکووک کە پێگەیەکی کەلەپووری تایبەتی لە دڵی شارەکەدا هەیە.", loc: "ناوەند و ڕۆژهەڵات" },
+      { name: "شۆراو", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی فراوان لە نزیک دەروازەی سەرەکی شار بەرەو هەولێر، بە باڵەخانە و خانووی نوێ ناسراوە.", loc: "باکووری شار" },
+      { name: "پەنجا عەلی", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی گەورەی نیشتەجێبوون لە ڕۆژهەڵاتی شار بە ڕووبەرێکی فراوان و خەڵکێکی زۆرەوە.", loc: "ڕۆژهەڵاتی شار" },
+      { name: "تسعین", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی ناسراو و دێرین لە سەرەتای ڕێگای بەغدا، کەشێکی هێمن و نیشتەجێبوونی تەواوی هەیە.", loc: "باشووری شار" },
+      { name: "قادسیە", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی گەورە و هاوچەرخ لە کەرکووک کە بە چەندین بەش و بازاڕی ناوخۆیی دابەش بووە.", loc: "باشووری ڕۆژهەڵات" },
+      { name: "عەرەفە", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی مێژوویی سەر بە کۆمپانیای نەوت؛ بە دیزاینی کلاسیکی ئینگلیزی و باخچەکانی ناسراوە.", loc: "باکووری ڕۆژئاوا" },
+      { name: "موسەڵڵا", type: "گەڕەک", badgeClass: "badge-area", desc: "گەڕەکێکی مێژوویی کەلەپووری کۆن بە کۆڵان و تاقی تەقلیدییەوە.", loc: "ناوەندی کەرکووک" },
+      { name: "ڕێگای بەغدا", type: "گەڕەک", badgeClass: "badge-area", desc: "شەقام و ناوچەیەکی سەرەکی بازرگانی پڕ لە مۆڵ، پێشانگای سەیارە و ڕێستۆرانت.", loc: "باشووری کەرکووک" },
 
-    # سەیارەکانی تر (ئاستەنگەکان)
-    traffic = []
-    enemy_colors = [BLUE_CAR, YELLOW_CAR, (180, 50, 220), (255, 140, 0)]
-    spawn_timer = 0
+      // شوێنە مێژوویی و شوێنەوارەکان
+      { name: "قەڵای کەرکووک", type: "مێژوویی", badgeClass: "badge-historic", desc: "دێرینترین و دیارترین هێمای شارەکە؛ بەسەر تەواوی شاردا دەڕوانێت و مێژووەکەی بۆ هەزاران ساڵ دەگەڕێتەوە.", loc: "دڵی سەنتەری شار" },
+      { name: "بازاڕی قەیسەری کۆن", type: "مێژوویی", badgeClass: "badge-historic", desc: "بازاڕێکی کەلەپووری دێرین بە تاقی بەردین و دوکانی زێڕینگەری و کەرەستەی میللییەوە.", loc: "خوار قەڵا" },
+      { name: "پردی بەردین (خاسە)", type: "مێژوویی", badgeClass: "badge-historic", desc: "پردە مێژووییەکەی سەر ڕووباری خاسە کە بەشە دێرینەکانی شاری کەرکووک بەیەکەوە دەبەستێتەوە.", loc: "سەر ڕووباری خاسە" },
 
-    score = 0
-    game_over = False
+      // پارک و شوێنی خۆش
+      { name: "باخچەی گشتی (پارکی شار)", type: "پارک و گەشت", badgeClass: "badge-fun", desc: "گەورەترین باخچەی مێژوویی شار بۆ پشوودان، پیاسەکردن و یاری منداڵان لە ناوەندێکی سەوزدا.", loc: "ناوەندی شار" },
+      { name: "کۆڕنیشی خاسە", type: "پارک و گەشت", badgeClass: "badge-fun", desc: "شەقامێکی درێژ بە درێژایی ڕووباری خاسە کە ئێواران خەڵک بۆ پیاسەکردن و کافێکان ڕووی تێدەکەن.", loc: "لەنێوان هەردوو دیوی شار" },
+      { name: "شاری یاری کەرکووک (سەندباد)", type: "پارک و گەشت", badgeClass: "badge-fun", desc: "شوێنێکی خۆش و گونجاو بۆ خێزان و منداڵان بە چەندین یاریی سەرنجڕاکێشەوە.", loc: "ڕێگای بەغدا" },
 
-    while True:
-        clock.tick(60)
+      // مۆڵ و بازاڕ
+      { name: "کەرکووک مۆڵ (Kirkuk Mall)", type: "مۆڵ و بازاڕ", badgeClass: "badge-market", desc: "ناوەندێکی بازاڕکردنی مۆدێرن بە براندە نێودەوڵەتییەکان، خواردنگەی خێرا و سینەما.", loc: "ڕێگای بەغدا" },
+      { name: "تاوەر مۆڵ (Tower Mall)", type: "مۆڵ و بازاڕ", badgeClass: "badge-market", desc: "مۆڵێکی گەورە و سەردەمییانە لە شارەکە بۆ جلوبەرگ، کافێ و کات بەسەربردن.", loc: "گەڕەکی ئیسکان" }
+    ];
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.KEYDOWN and game_over:
-                if event.key == pygame.K_SPACE:
-                    return main()
+    let currentCategory = 'all';
 
-        if not game_over:
-            keys = pygame.key.get_pressed()
-            # جووڵەی سەیارەی یاریزان بە چوار ئاراستە
-            if keys[pygame.K_LEFT] and px > ROAD_X + 8:
-                px -= pspeed
-            if keys[pygame.K_RIGHT] and px < ROAD_RIGHT - p_w - 8:
-                px += pspeed
-            if keys[pygame.K_UP] and py > 40:
-                py -= 5
-            if keys[pygame.K_DOWN] and py < HEIGHT - p_h - 20:
-                py += 5
+    function renderPlaces(filterText = '') {
+      const grid = document.getElementById('placesGrid');
+      grid.innerHTML = '';
 
-            # جووڵاندنی هێڵی شەقامەکان
-            for i in range(len(stripes)):
-                stripes[i] += stripe_speed
-                if stripes[i] > HEIGHT:
-                    stripes[i] = -70
+      const filtered = data.filter(item => {
+        const matchesCategory = currentCategory === 'all' || item.type === currentCategory;
+        const matchesSearch = item.name.includes(filterText) || item.desc.includes(filterText) || item.loc.includes(filterText);
+        return matchesCategory && matchesSearch;
+      });
 
-            # دروستکردنی سەیارەی نوێ
-            spawn_timer += 1
-            if spawn_timer > 45:
-                spawn_timer = 0
-                ex = random.randint(ROAD_X + 15, ROAD_RIGHT - p_w - 15)
-                espeed = random.randint(5, 8)
-                ecolor = random.choice(enemy_colors)
-                traffic.append([ex, -100, espeed, ecolor])
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="empty-state">هیچ شوێنێک یان گەڕەکێک بەم ناوە نەدۆزرایەوە! 🔍</div>`;
+        return;
+      }
 
-            # جووڵەی سەیارەکانی تر و پشکنینی پێکدادان
-            player_rect = pygame.Rect(px + 4, py + 4, p_w - 8, p_h - 8)
+      filtered.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div>
+            <div class="card-top">
+              <span class="card-title">${item.name}</span>
+              <span class="badge ${item.badgeClass}">${item.type}</span>
+            </div>
+            <p class="card-desc">${item.desc}</p>
+          </div>
+          <div class="card-footer">
+            <span>📍 ${item.loc}</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
 
-            for enemy in traffic[:]:
-                enemy[1] += enemy[2] + (stripe_speed // 3)
-                enemy_rect = pygame.Rect(enemy[0] + 4, enemy[1] + 4, p_w - 8, p_h - 8)
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.includes(cat) || (cat === 'all' && btn.innerText === 'هەمووی'));
+      });
+      renderPlaces(document.getElementById('searchInput').value.trim());
+    }
 
-                # پێکدادان (Collision)
-                if player_rect.colliderect(enemy_rect):
-                    game_over = True
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      renderPlaces(e.target.value.trim());
+    });
 
-                # سەیارەکە لە شاشە دەچێتە دەرەوە و خاڵ زیاد دەکات
-                if enemy[1] > HEIGHT:
-                    traffic.remove(enemy)
-                    score += 10
-                    # زیادکردنی کەمێک لە خێرایی شەقامەکە لەگەڵ بەرزبوونەوەی خاڵەکان
-                    if score % 50 == 0 and stripe_speed < 18:
-                        stripe_speed += 1
-
-        # کێشانی شاشە
-        screen.fill(GRASS)
-        # کێشانی قیر
-        pygame.draw.rect(screen, ASPHALT, (ROAD_X, 0, ROAD_WIDTH, HEIGHT))
-        # هێڵە زەردەکانی قەراغ
-        pygame.draw.line(screen, (255, 200, 0), (ROAD_X, 0), (ROAD_X, HEIGHT), 5)
-        pygame.draw.line(screen, (255, 200, 0), (ROAD_RIGHT, 0), (ROAD_RIGHT, HEIGHT), 5)
-
-        # هێڵە سپییەکانی ناوەڕاستی شەقام
-        lane_x1 = ROAD_X + ROAD_WIDTH // 3
-        lane_x2 = ROAD_X + (ROAD_WIDTH // 3) * 2
-        for sy in stripes:
-            pygame.draw.rect(screen, LINE_COLOR, (lane_x1 - 3, sy, 6, 45))
-            pygame.draw.rect(screen, LINE_COLOR, (lane_x2 - 3, sy, 6, 45))
-
-        # کێشانی سەیارەکانی تر
-        for enemy in traffic:
-            draw_car(screen, enemy[0], enemy[1], enemy[3], is_player=False)
-
-        # کێشانی سەیارەی یاریزان
-        draw_car(screen, px, py, RED_CAR, is_player=True)
-
-        # پیشاندانی خاڵ
-        score_surface = font.render(f"SCORE: {score}", True, WHITE)
-        screen.blit(score_surface, (20, 20))
-
-        # شاشەی دۆڕان
-        if game_over:
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))
-            screen.blit(overlay, (0, 0))
-
-            over_txt = big_font.render("CRASHED!", True, (255, 60, 60))
-            screen.blit(over_txt, (WIDTH // 2 - over_txt.get_width() // 2, HEIGHT // 2 - 50))
-
-            restart_txt = font.render("Press SPACE to Play Again", True, WHITE)
-            screen.blit(restart_txt, (WIDTH // 2 - restart_txt.get_width() // 2, HEIGHT // 2 + 15))
-
-        pygame.display.flip()
-
-main()
+    // کارپێکردنی یەکەمجار
+    renderPlaces();
+  </script>
+</body>
+</html>
