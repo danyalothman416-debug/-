@@ -1,523 +1,487 @@
-<!DOCTYPE html>
-<html lang="ckb" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستەمی بەڕێوەبردنی قەرز | دانیال</title>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+"""
+Advanced Debt Management System
+Backend Server with SQLite, Role-Based Access, CSV/Excel Export & Backup
+"""
 
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --surface: #111827;
-            --surface-glass: rgba(17, 24, 39, 0.7);
-            --border: rgba(255, 255, 255, 0.08);
-            --accent-primary: #3b82f6;
-            --accent-danger: #ef4444;
-            --accent-success: #10b981;
-            --text-primary: #f9fafb;
-            --text-secondary: #9ca3af;
-        }
+import os
+import sqlite3
+import csv
+import io
+from datetime import datetime, date, timedelta
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, session, send_file, Response
+from werkzeug.security import generate_password_hash, check_password_hash
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Vazirmatn', sans-serif;
-        }
+app = Flask(__name__)
+app.secret_key = os.urandom(32)
+app.permanent_session_lifetime = timedelta(days=2)
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            min-height: 100vh;
-            padding: 24px;
-        }
+DB_NAME = "debt_pro.db"
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
 
-        /* بەشی سەرەوە (Header) */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            background: var(--surface-glass);
-            padding: 20px 28px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            backdrop-filter: blur(12px);
-        }
+def get_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
 
-        .brand i {
-            font-size: 28px;
-            color: var(--accent-primary);
-        }
+def init_db():
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # خشتەی بەکارهێنەران
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'staff', -- 'admin' یان 'staff'
+                created_at TEXT NOT NULL
+            )
+        """)
+        # خشتەی قەرزە سەرەکییەکان
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS debts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_name TEXT NOT NULL,
+                phone TEXT,
+                total_amount REAL NOT NULL,
+                debt_date TEXT NOT NULL,
+                due_date TEXT NOT NULL,
+                note TEXT,
+                status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'partial', 'paid', 'overdue'
+                created_by TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        # خشتەی پارەدانەوەکان (مامەڵەکان)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                debt_id INTEGER NOT NULL,
+                amount_paid REAL NOT NULL,
+                payment_date TEXT NOT NULL,
+                note TEXT,
+                received_by TEXT,
+                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
+            )
+        """)
+        
+        # دروستکردنی ئەدمینی بنەڕەتی ئەگەر بوونی نەبێت
+        admin = cursor.execute("SELECT * FROM users WHERE username = 'admin'").fetchone()
+        if not admin:
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, full_name, role, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                "admin",
+                generate_password_hash("admin123"),
+                "بەڕێوەبەری گشتی",
+                "admin",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ))
+        conn.commit()
 
-        .brand h1 {
-            font-size: 22px;
-            font-weight: 800;
-        }
+init_db()
 
-        .btn-add {
-            background: var(--accent-primary);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: 0.2s;
-        }
 
-        .btn-add:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
+# دیکۆریتەرەکانی پاراستن
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user" not in session:
+            return jsonify({"status": "error", "message": "تکایە سەرەتا بچۆ ژوورەوە"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
-        /* کارتەکانی ئامار (KPIs) */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
 
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 22px;
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user" not in session or session["user"].get("role") != "admin":
+            return jsonify({"status": "error", "message": "دەسەڵاتی ئەم کردارەت نییە"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
-        .stat-info p {
-            color: var(--text-secondary);
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
 
-        .stat-info h2 {
-            font-size: 24px;
-            font-weight: 800;
-        }
+# پشکنین و نوێکردنەوەی دۆخی قەرزەکان (دواکەوتوو یان تەواوبوو)
+def update_debt_status(conn, debt_id):
+    debt = conn.execute("SELECT total_amount, due_date FROM debts WHERE id = ?", (debt_id,)).fetchone()
+    if not debt:
+        return
+    
+    paid_sum = conn.execute(
+        "SELECT COALESCE(SUM(amount_paid), 0) as total FROM payments WHERE debt_id = ?", (debt_id,)
+    ).fetchone()["total"]
 
-        .stat-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
+    remaining = debt["total_amount"] - paid_sum
+    today = date.today().isoformat()
 
-        .stat-icon.debt { background: rgba(239, 68, 68, 0.15); color: var(--accent-danger); }
-        .stat-icon.paid { background: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
-        .stat-icon.users { background: rgba(59, 130, 246, 0.15); color: var(--accent-primary); }
+    if remaining <= 0:
+        status = "paid"
+    elif debt["due_date"] and debt["due_date"] < today:
+        status = "overdue"
+    elif paid_sum > 0:
+        status = "partial"
+    else:
+        status = "pending"
 
-        /* خشتەی کڕیاران و گەڕان */
-        .table-wrapper {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 24px;
-            overflow-x: auto;
-        }
+    conn.execute("UPDATE debts SET status = ? WHERE id = ?", (status, debt_id))
+    conn.commit()
 
-        .table-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            gap: 16px;
-        }
 
-        .search-box {
-            position: relative;
-            width: 100%;
-            max-width: 340px;
-        }
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-        .search-box input {
-            width: 100%;
-            padding: 10px 40px 10px 14px;
-            background: #1f2937;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: #fff;
-            outline: none;
-            font-size: 13px;
-        }
 
-        .search-box i {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-        }
+# --- Auth APIs ---
+@app.route("/api/auth/login", methods=["POST"])
+def api_login():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: right;
-            font-size: 14px;
-        }
+    with get_db() as conn:
+        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
 
-        th {
-            padding: 14px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            border-bottom: 1px solid var(--border);
-        }
+    if not user or not check_password_hash(user["password_hash"], password):
+        return jsonify({"status": "error", "message": "ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە!"}), 401
 
-        td {
-            padding: 16px 14px;
-            border-bottom: 1px solid var(--border);
-        }
+    session["user"] = {
+        "id": user["id"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"]
+    }
+    return jsonify({"status": "success", "user": session["user"]})
 
-        .badge-balance {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-weight: 700;
-        }
 
-        .badge-debt {
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--accent-danger);
-        }
+@app.route("/api/auth/logout", methods=["POST"])
+def api_logout():
+    session.clear()
+    return jsonify({"status": "success"})
 
-        .badge-zero {
-            background: rgba(16, 185, 129, 0.15);
-            color: var(--accent-success);
-        }
 
-        .action-btns {
-            display: flex;
-            gap: 8px;
-        }
+@app.route("/api/auth/me", methods=["GET"])
+def api_me():
+    if "user" in session:
+        return jsonify({"logged_in": True, "user": session["user"]})
+    return jsonify({"logged_in": False})
 
-        .btn-sm {
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: none;
-            font-size: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
 
-        .btn-debt { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .btn-debt:hover { background: var(--accent-danger); color: #fff; }
+# --- Dashboard & Reports APIs ---
+@app.route("/api/dashboard/stats", methods=["GET"])
+@login_required
+def api_dashboard_stats():
+    today = date.today().isoformat()
+    week_later = (date.today() + timedelta(days=7)).isoformat()
 
-        .btn-pay { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .btn-pay:hover { background: var(--accent-success); color: #fff; }
+    with get_db() as conn:
+        # نوێکردنەوەی هەموو ئەو قەرزانەی بەسەرچوون پێش هێنانی ئامار
+        debts_check = conn.execute("SELECT id FROM debts").fetchall()
+        for d in debts_check:
+            update_debt_status(conn, d["id"])
 
-        .btn-history { background: #374151; color: #fff; }
-        .btn-history:hover { background: #4b5563; }
+        total_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts").fetchone()["s"]
+        total_paid = conn.execute("SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments").fetchone()["s"]
+        total_remaining = max(0.0, total_debt - total_paid)
 
-        /* مۆداڵەکان */
-        .modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
+        overdue_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE status = 'overdue'").fetchone()["c"]
 
-        .modal-content {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            width: 100%;
-            max-width: 420px;
-            border-radius: 18px;
-            padding: 24px;
-        }
+        # قەرزەکانی ئەمڕۆ
+        due_today = conn.execute(
+            "SELECT COUNT(*) as c FROM debts WHERE due_date = ? AND status != 'paid'", (today,)
+        ).fetchone()["c"]
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+        # قەرزەکانی ئەم هەفتەیە
+        due_this_week = conn.execute(
+            "SELECT COUNT(*) as c FROM debts WHERE due_date BETWEEN ? AND ? AND status != 'paid'",
+            (today, week_later)
+        ).fetchone()["c"]
 
-        .input-group {
-            margin-bottom: 14px;
-        }
+        # لیستی ئاگادارییە گرنگەکان (ئەوانەی ئەمڕۆ کاتیان هاتووە یان بەسەرچوون)
+        alerts = conn.execute("""
+            SELECT id, customer_name, phone, total_amount, due_date, status
+            FROM debts
+            WHERE status IN ('overdue', 'pending', 'partial') AND due_date <= ?
+            ORDER BY due_date ASC
+            LIMIT 10
+        """, (week_later,)).fetchall()
 
-        .input-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
+    return jsonify({
+        "total_debt": total_debt,
+        "total_paid": total_paid,
+        "total_remaining": total_remaining,
+        "overdue_count": overdue_count,
+        "due_today": due_today,
+        "due_this_week": due_this_week,
+        "alerts": [dict(a) for a in alerts]
+    })
 
-        .input-group input, .input-group textarea {
-            width: 100%;
-            padding: 10px;
-            background: #1f2937;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: #fff;
-            outline: none;
-        }
-    </style>
-</head>
-<body>
 
-    <div class="container">
-        <!-- سەرپەڕە -->
-        <header>
-            <div class="brand">
-                <i class="fa-solid fa-file-invoice-dollar"></i>
-                <div>
-                    <h1>سیستەمی قەرز و حسابات</h1>
-                    <p style="font-size: 12px; color: var(--text-secondary);">بەڕێوەبردنی قەرزی کڕیاران و تۆمارە داراییەکان</p>
-                </div>
-            </div>
-            <button class="btn-add" onclick="openCustomerModal()">
-                <i class="fa-solid fa-user-plus"></i> کڕیاری نوێ
-            </button>
-        </header>
+# --- Debts CRUD ---
+@app.route("/api/debts", methods=["GET"])
+@login_required
+def get_debts():
+    search = request.args.get("search", "").strip()
+    status_filter = request.args.get("status", "").strip()
 
-        <!-- ئامارەکان -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-info">
-                    <p>کۆی گشتی قەرزی ماوە لای خەڵک</p>
-                    <h2 style="color: var(--accent-danger);">{{ "{:,.0f}".format(total_debt) }} دینار</h2>
-                </div>
-                <div class="stat-icon debt"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-            </div>
+    query = """
+        SELECT 
+            d.id, d.customer_name, d.phone, d.total_amount, d.debt_date, d.due_date, d.note, d.status,
+            COALESCE(SUM(p.amount_paid), 0) as paid_amount,
+            (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining_amount
+        FROM debts d
+        LEFT JOIN payments p ON d.id = p.debt_id
+        WHERE 1=1
+    """
+    params = []
 
-            <div class="stat-card">
-                <div class="stat-info">
-                    <p>کۆی گشتی پارەی وەرگیراو (دانراوە)</p>
-                    <h2 style="color: var(--accent-success);">{{ "{:,.0f}".format(total_paid) }} دینار</h2>
-                </div>
-                <div class="stat-icon paid"><i class="fa-solid fa-circle-check"></i></div>
-            </div>
+    if search:
+        query += " AND (d.customer_name LIKE ? OR d.phone LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
 
-            <div class="stat-card">
-                <div class="stat-info">
-                    <p>کۆی ژمارەی کڕیاران</p>
-                    <h2>{{ total_customers }}</h2>
-                </div>
-                <div class="stat-icon users"><i class="fa-solid fa-users"></i></div>
-            </div>
-        </div>
+    if status_filter:
+        query += " AND d.status = ?"
+        params.append(status_filter)
 
-        <!-- خشتەی زانیارییەکان -->
-        <div class="table-wrapper">
-            <div class="table-top">
-                <h3 style="font-size: 16px;">لیستی کڕیارەکان و دۆخی قەرز</h3>
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="searchInput" placeholder="گەڕان بەپێی ناو یان مۆبایل..." onkeyup="filterTable()">
-                </div>
-            </div>
+    query += " GROUP BY d.id ORDER BY d.id DESC"
 
-            <table id="customersTable">
-                <thead>
-                    <tr>
-                        <th>ناوی کڕیار</th>
-                        <th>ژمارەی مۆبایل</th>
-                        <th>ناونیشان</th>
-                        <th>بڕی ماوە (باڵانس)</th>
-                        <th>کردارەکان</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in customers %}
-                    <tr>
-                        <td style="font-weight: 700;">{{ c.name }}</td>
-                        <td>{{ c.phone }}</td>
-                        <td>{{ c.address }}</td>
-                        <td>
-                            <span class="badge-balance {% if c.balance > 0 %}badge-debt{% else %}badge-zero{% endif %}">
-                                {{ "{:,.0f}".format(c.balance) }} دینار
-                            </span>
-                        </td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-sm btn-debt" onclick="openTxModal({{ c.id }}, '{{ c.name }}', 'debt')">+ قەرز</button>
-                                <button class="btn-sm btn-pay" onclick="openTxModal({{ c.id }}, '{{ c.name }}', 'payment')">دانەوە</button>
-                                <button class="btn-sm btn-history" onclick="viewHistory({{ c.id }})"><i class="fa-solid fa-clock-rotate-left"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    with get_db() as conn:
+        rows = conn.execute(query, params).fetchall()
 
-    <!-- مۆداڵی کڕیاری نوێ -->
-    <div class="modal" id="customerModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>زیادکردنی کڕیاری نوێ</h3>
-                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('customerModal')"></i>
-            </div>
-            <form id="customerForm">
-                <div class="input-group">
-                    <label>ناوی تەواو</label>
-                    <input type="text" id="custName" required placeholder="ناوی کڕیار...">
-                </div>
-                <div class="input-group">
-                    <label>ژمارەی مۆبایل</label>
-                    <input type="text" id="custPhone" placeholder="0750...">
-                </div>
-                <div class="input-group">
-                    <label>ناونیشان</label>
-                    <input type="text" id="custAddress" placeholder="گەڕەک / شوێن...">
-                </div>
-                <button type="submit" class="btn-add" style="width: 100%; justify-content: center; margin-top: 10px;">پاشەکەوتکردن</button>
-            </form>
-        </div>
-    </div>
+    return jsonify([dict(r) for r in rows])
 
-    <!-- مۆداڵی زیادکردنی مامەڵە (قەرز / دانەوە) -->
-    <div class="modal" id="txModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="txTitle">تۆمارکردنی مامەڵە</h3>
-                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('txModal')"></i>
-            </div>
-            <form id="txForm">
-                <input type="hidden" id="txCustomerId">
-                <input type="hidden" id="txType">
-                <div class="input-group">
-                    <label>بڕی پارە (دینار)</label>
-                    <input type="number" id="txAmount" required placeholder="نموونە: 25000">
-                </div>
-                <div class="input-group">
-                    <label>تێبینی / هۆکار</label>
-                    <textarea id="txNote" rows="2" placeholder="بۆچی براوە یان چۆن دراوەتەوە..."></textarea>
-                </div>
-                <button type="submit" class="btn-add" id="txSubmitBtn" style="width: 100%; justify-content: center; margin-top: 10px;">تۆمارکردن</button>
-            </form>
-        </div>
-    </div>
 
-    <!-- مۆداڵی بینینی مێژووی وەسڵەکان -->
-    <div class="modal" id="historyModal">
-        <div class="modal-content" style="max-width: 550px;">
-            <div class="modal-header">
-                <h3 id="historyCustName">مێژووی مامەڵەکان</h3>
-                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('historyModal')"></i>
-            </div>
-            <div id="historyList" style="max-height: 350px; overflow-y: auto;"></div>
-        </div>
-    </div>
+@app.route("/api/debts", methods=["POST"])
+@login_required
+def create_debt():
+    data = request.get_json() or {}
+    name = data.get("customer_name", "").strip()
+    phone = data.get("phone", "").strip()
+    amount = data.get("total_amount")
+    debt_date = data.get("debt_date") or date.today().isoformat()
+    due_date = data.get("due_date")
+    note = data.get("note", "").strip()
 
-    <script>
-        function openCustomerModal() { document.getElementById('customerModal').style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    if not name or not amount or not due_date:
+        return jsonify({"status": "error", "message": "تکایە ناو، بڕی پارە، و بەرواری دانەوە پڕبکەرەوە"}), 400
 
-        // گەڕان لەناو کڕیارەکاندا
-        function filterTable() {
-            let input = document.getElementById("searchInput").value.toLowerCase();
-            let rows = document.querySelectorAll("#customersTable tbody tr");
-            rows.forEach(row => {
-                let text = row.innerText.toLowerCase();
-                row.style.display = text.includes(input) ? "" : "none";
-            });
-        }
+    try:
+        amount = float(amount)
+        if amount <= 0:
+            raise ValueError()
+    except ValueError:
+        return jsonify({"status": "error", "message": "بڕی قەرز دەبێت ژمارەیەکی دروست بێت"}), 400
 
-        // پاشەکەوتکردنی کڕیار
-        document.getElementById('customerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                name: document.getElementById('custName').value,
-                phone: document.getElementById('custPhone').value,
-                address: document.getElementById('custAddress').value
-            };
-            const res = await fetch('/api/customer/add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            if (res.ok) location.reload();
-        });
+    initial_status = "overdue" if due_date < date.today().isoformat() else "pending"
 
-        // کردنەوەی مۆداڵی مامەڵە
-        function openTxModal(custId, custName, type) {
-            document.getElementById('txCustomerId').value = custId;
-            document.getElementById('txType').value = type;
-            document.getElementById('txTitle').textContent = type === 'debt' ? `قەرزی نوێ بۆ: ${custName}` : `دانەوەی پارە لەلایەن: ${custName}`;
-            document.getElementById('txSubmitBtn').style.background = type === 'debt' ? 'var(--accent-danger)' : 'var(--accent-success)';
-            document.getElementById('txModal').style.display = 'flex';
-        }
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO debts (customer_name, phone, total_amount, debt_date, due_date, note, status, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (name, phone, amount, debt_date, due_date, note, initial_status, session["user"]["username"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
 
-        // تۆمارکردنی قەرز یان دانەوە
-        document.getElementById('txForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                customer_id: document.getElementById('txCustomerId').value,
-                type: document.getElementById('txType').value,
-                amount: document.getElementById('txAmount').value,
-                note: document.getElementById('txNote').value
-            };
-            const res = await fetch('/api/transaction/add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) location.reload();
-        });
+    return jsonify({"status": "success", "message": "قەرزەکە بە سەرکەوتوویی تۆمارکرا"})
 
-        // هێنانی مێژووی کڕیار
-        async function viewHistory(custId) {
-            const res = await fetch(`/api/customer/${custId}/statement`);
-            const data = await res.json();
-            if (res.ok) {
-                document.getElementById('historyCustName').textContent = `وەسڵەکانی: ${data.customer.name}`;
-                let container = document.getElementById('historyList');
-                container.innerHTML = '';
-                if(data.history.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color: #888; padding: 20px;">هیچ مامەڵەیەک تۆمار نەکراوە</p>';
-                } else {
-                    data.history.forEach(tx => {
-                        let isDebt = tx.type === 'debt';
-                        container.innerHTML += `
-                            <div style="background: #1f2937; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <span style="font-weight: 700; color: ${isDebt ? '#ef4444' : '#10b981'}">
-                                        ${isDebt ? 'قەرز براوە' : 'پارە دراوەتەوە'}
-                                    </span>
-                                    <p style="font-size: 12px; color: #9ca3af; margin-top: 4px;">${tx.note}</p>
-                                    <span style="font-size: 11px; color: #6b7280;">${tx.date}</span>
-                                </div>
-                                <div style="font-weight: 800; font-size: 15px;">
-                                    ${Number(tx.amount).toLocaleString()} دینار
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-                document.getElementById('historyModal').style.display = 'flex';
-            }
-        }
-    </script>
-</body>
-</html>
+
+@app.route("/api/debts/<int:debt_id>", methods=["PUT"])
+@admin_required
+def update_debt(debt_id):
+    data = request.get_json() or {}
+    name = data.get("customer_name", "").strip()
+    phone = data.get("phone", "").strip()
+    amount = data.get("total_amount")
+    due_date = data.get("due_date")
+    note = data.get("note", "").strip()
+
+    if not name or not amount or not due_date:
+        return jsonify({"status": "error", "message": "تکایە هەموو خانە گرنگەکان پڕبکەرەوە"}), 400
+
+    with get_db() as conn:
+        conn.execute("""
+            UPDATE debts
+            SET customer_name = ?, phone = ?, total_amount = ?, due_date = ?, note = ?
+            WHERE id = ?
+        """, (name, phone, float(amount), due_date, note, debt_id))
+        conn.commit()
+        update_debt_status(conn, debt_id)
+
+    return jsonify({"status": "success", "message": "زانیارییەکان دەستکاری کران"})
+
+
+@app.route("/api/debts/<int:debt_id>", methods=["DELETE"])
+@admin_required
+def delete_debt(debt_id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM payments WHERE debt_id = ?", (debt_id,))
+        conn.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
+        conn.commit()
+    return jsonify({"status": "success", "message": "قەرزەکە سڕایەوە"})
+
+
+# --- Payments API ---
+@app.route("/api/debts/<int:debt_id>/payments", methods=["GET"])
+@login_required
+def get_payments(debt_id):
+    with get_db() as conn:
+        debt = conn.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
+        if not debt:
+            return jsonify({"status": "error", "message": "قەرزەکە نەدۆزرایەوە"}), 404
+        
+        payments = conn.execute("""
+            SELECT * FROM payments WHERE debt_id = ? ORDER BY id DESC
+        """, (debt_id,)).fetchall()
+
+    return jsonify({
+        "debt": dict(debt),
+        "payments": [dict(p) for p in payments]
+    })
+
+
+@app.route("/api/debts/<int:debt_id>/payments", methods=["POST"])
+@login_required
+def make_payment(debt_id):
+    data = request.get_json() or {}
+    amount = data.get("amount")
+    note = data.get("note", "").strip()
+    pay_date = data.get("payment_date") or date.today().isoformat()
+
+    try:
+        amount = float(amount)
+        if amount <= 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "بڕی واسڵکردن دەبێت ژمارەیەکی دروست بێت"}), 400
+
+    with get_db() as conn:
+        debt = conn.execute("SELECT total_amount FROM debts WHERE id = ?", (debt_id,)).fetchone()
+        if not debt:
+            return jsonify({"status": "error", "message": "قەرزەکە نەدۆزرایەوە"}), 404
+
+        current_paid = conn.execute(
+            "SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments WHERE debt_id = ?", (debt_id,)
+        ).fetchone()["s"]
+
+        remaining = debt["total_amount"] - current_paid
+        if amount > remaining:
+            return jsonify({"status": "error", "message": f"پارەی دراو زۆرترە لە ماوەی قەرز! (ماوە: {remaining:,.0f})"}), 400
+
+        conn.execute("""
+            INSERT INTO payments (debt_id, amount_paid, payment_date, note, received_by)
+            VALUES (?, ?, ?, ?, ?)
+        """, (debt_id, amount, pay_date, note, session["user"]["username"]))
+        conn.commit()
+
+        update_debt_status(conn, debt_id)
+
+    return jsonify({"status": "success", "message": "پارەدانەکە بە سەرکەوتوویی تۆمارکرا"})
+
+
+# --- Admin: User Management & Backup ---
+@app.route("/api/admin/users", methods=["GET"])
+@admin_required
+def get_users():
+    with get_db() as conn:
+        users = conn.execute("SELECT id, username, full_name, role, created_at FROM users").fetchall()
+    return jsonify([dict(u) for u in users])
+
+
+@app.route("/api/admin/users", methods=["POST"])
+@admin_required
+def add_user():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    full_name = data.get("full_name", "").strip()
+    role = data.get("role", "staff")
+
+    if not username or not password or not full_name:
+        return jsonify({"status": "error", "message": "تکایە هەموو زانیارییەکان بنووسە"}), 400
+
+    with get_db() as conn:
+        try:
+            conn.execute("""
+                INSERT INTO users (username, password_hash, full_name, role, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (username, generate_password_hash(password), full_name, role, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"status": "error", "message": "ئەم ناوی بەکارهێنەرە پێشتر تۆمارکراوە"}), 409
+
+    return jsonify({"status": "success", "message": "بەکارهێنەری نوێ دروستکرا"})
+
+
+@app.route("/api/admin/backup", methods=["GET"])
+@admin_required
+def backup_database():
+    if os.path.exists(DB_NAME):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return send_file(
+            DB_NAME,
+            as_attachment=True,
+            download_name=f"debt_pro_backup_{timestamp}.db",
+            mimetype="application/x-sqlite3"
+        )
+    return jsonify({"status": "error", "message": "بنکەدراوە نەدۆزرایەوە"}), 404
+
+
+# --- Reports & Export to Excel (CSV with UTF-8 BOM) ---
+@app.route("/api/reports/export-excel", methods=["GET"])
+@login_required
+def export_excel():
+    with get_db() as conn:
+        query = """
+            SELECT 
+                d.id, d.customer_name, d.phone, d.total_amount,
+                COALESCE(SUM(p.amount_paid), 0) as paid_amount,
+                (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining,
+                d.debt_date, d.due_date, d.status, d.note
+            FROM debts d
+            LEFT JOIN payments p ON d.id = p.debt_id
+            GROUP BY d.id
+            ORDER BY d.id DESC
+        """
+        rows = conn.execute(query).fetchall()
+
+    output = io.StringIO()
+    # نووسینی UTF-8 BOM بۆ ئەوەی ڕاستەوخۆ لە ناو Excel زمانی کوردی بە ڕێکی نیشان بدات
+    output.write('\ufeff')
+    writer = csv.writer(output)
+
+    writer.writerow([
+        "کۆد", "ناوی کڕیار", "مۆبایل", "کۆی گشتی قەرز", "بڕی واسڵکراو", 
+        "بڕی ماوە", "بەرواری قەرز", "بەرواری دانەوە", "دۆخ", "تێبینی"
+    ])
+
+    status_map = {
+        "paid": "تەواوبوو",
+        "overdue": "دواکەوتوو",
+        "partial": "بەشەکی دراوە",
+        "pending": "نەدراوە"
+    }
+
+    for r in rows:
+        writer.writerow([
+            r["id"],
+            r["customer_name"],
+            r["phone"] or "-",
+            f"{r['total_amount']:,.0f}",
+            f"{r['paid_amount']:,.0f}",
+            f"{r['remaining']:,.0f}",
+            r["debt_date"],
+            r["due_date"],
+            status_map.get(r["status"], r["status"]),
+            r["note"] or ""
+        ])
+
+    response = Response(output.getvalue(), mimetype="text/csv; charset=utf-8")
+    response.headers["Content-Disposition"] = f"attachment; filename=debts_report_{date.today().isoformat()}.csv"
+    return response
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
