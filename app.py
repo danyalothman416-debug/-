@@ -1,551 +1,690 @@
-"""
-Commercial Multi-Tenant SaaS Debt Management System
-Engineered for Production, Data Isolation & Subscription Licensing
-Author: Danyal App Architecture
-"""
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>سیستەمی دارایی دانیال | SaaS Platform</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-import os
-import sqlite3
-import csv
-import io
-from datetime import datetime, date, timedelta
-from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, Response, send_file
-from werkzeug.security import generate_password_hash, check_password_hash
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-app = Flask(__name__)
-# لە ژینگەی ڕاستەقینە کلیلێکی جێگیر لە Environment دابنێ
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32))
-app.permanent_session_lifetime = timedelta(days=30)
-
-DB_NAME = "saas_debt_pro.db"
-UPLOAD_FOLDER = os.path.join("static", "avatars")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-
-def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    # چالاککردنی WAL Mode بۆ ئەوەی چەندین بەکارهێنەر لە یەک کاتدا بەبێ کێشە بنووسن
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
-    return conn
-
-
-def init_db():
-    with get_db() as conn:
-        cursor = conn.cursor()
-
-        # ١. خشتەی دوکان و بزنسەکان (Multi-Tenancy)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS businesses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_name TEXT NOT NULL,
-                owner_phone TEXT NOT NULL,
-                subscription_plan TEXT NOT NULL DEFAULT 'trial', -- 'trial', 'pro', 'lifetime'
-                subscription_status TEXT NOT NULL DEFAULT 'active', -- 'active', 'expired'
-                expires_at TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-        """)
-
-        # ٢. خشتەی بەکارهێنەران (پەیوەست بە دوکانی دیاریکراو)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_id INTEGER NOT NULL,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'owner', -- 'owner', 'staff'
-                avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                bio TEXT DEFAULT 'بەڕێوەبەری سیستەم',
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٣. خشتەی قەرزەکان (دابڕاو بەپێی business_id)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS debts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_id INTEGER NOT NULL,
-                customer_name TEXT NOT NULL,
-                phone TEXT,
-                total_amount REAL NOT NULL,
-                currency TEXT NOT NULL DEFAULT 'IQD',
-                debt_date TEXT NOT NULL,
-                due_date TEXT NOT NULL,
-                note TEXT,
-                is_installment INTEGER DEFAULT 0,
-                installment_count INTEGER DEFAULT 1,
-                status TEXT NOT NULL DEFAULT 'pending',
-                created_by TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٤. خشتەی قیستەکان
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS installments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_id INTEGER NOT NULL,
-                debt_id INTEGER NOT NULL,
-                installment_no INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                due_date TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                paid_date TEXT,
-                FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE,
-                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٥. خشتەی وەسڵ و واسڵکردن
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_id INTEGER NOT NULL,
-                debt_id INTEGER NOT NULL,
-                receipt_no TEXT NOT NULL,
-                amount_paid REAL NOT NULL,
-                payment_date TEXT NOT NULL,
-                note TEXT,
-                received_by TEXT,
-                FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE,
-                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٦. لۆگی چاودێری
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                business_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                action TEXT NOT NULL,
-                details TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (business_id) REFERENCES businesses (id) ON DELETE CASCADE
-            )
-        """)
-
-        conn.commit()
-
-init_db()
-
-
-# پشکنینی لۆگین
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user" not in session:
-            return jsonify({"status": "error", "message": "تکایە سەرەتا بچۆ ژوورەوە"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-# پشکنینی ماوەی بەشداریکردن (Subscription Lock)
-def subscription_active(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        biz = session.get("business")
-        if not biz:
-            return jsonify({"status": "error", "message": "زانیاری بزنس نەدۆزرایەوە"}), 403
-        
-        expires_date = datetime.strptime(biz["expires_at"], "%Y-%m-%d").date()
-        if date.today() > expires_date:
-            return jsonify({
-                "status": "error",
-                "subscription_expired": True,
-                "message": "ماوەی بەکارهێنانی سیستەمەکەت بەسەرچووە! تکایە پەیوەندی بکە بۆ نوێکردنەوە."
-            }), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def log_audit(conn, biz_id, username, action, details):
-    try:
-        conn.execute("""
-            INSERT INTO audit_logs (business_id, username, action, details, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (biz_id, username, action, details, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    except Exception:
-        pass
-
-
-def update_debt_status(conn, biz_id, debt_id):
-    debt = conn.execute("SELECT total_amount, due_date FROM debts WHERE id = ? AND business_id = ?", (debt_id, biz_id)).fetchone()
-    if not debt:
-        return
-
-    paid_sum = conn.execute(
-        "SELECT COALESCE(SUM(amount_paid), 0) as total FROM payments WHERE debt_id = ? AND business_id = ?", (debt_id, biz_id)
-    ).fetchone()["total"]
-
-    remaining = debt["total_amount"] - paid_sum
-    today = date.today().isoformat()
-
-    if remaining <= 0:
-        status = "paid"
-    elif debt["due_date"] and debt["due_date"] < today:
-        status = "overdue"
-    elif paid_sum > 0:
-        status = "partial"
-    else:
-        status = "pending"
-
-    conn.execute("UPDATE debts SET status = ? WHERE id = ? AND business_id = ?", (status, debt_id, biz_id))
-    conn.commit()
-
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-# --- Auth: Registration & Multi-Tenancy Creation ---
-@app.route("/api/auth/register", methods=["POST"])
-def api_register():
-    data = request.get_json(force=True) or {}
-    biz_name = data.get("business_name", "").strip()
-    owner_name = data.get("full_name", "").strip()
-    phone = data.get("phone", "").strip()
-    username = data.get("username", "").strip().lower()
-    password = data.get("password", "").strip()
-
-    if not biz_name or not owner_name or not username or not password:
-        return jsonify({"status": "error", "message": "تکایە هەموو خانەکان پڕبکەرەوە"}), 400
-
-    # بەخشینی ١٤ ڕۆژ تاقیکردنەوەی بەخۆڕایی
-    trial_expiry = (date.today() + timedelta(days=14)).isoformat()
-
-    with get_db() as conn:
-        existing = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
-        if existing:
-            return jsonify({"status": "error", "message": "ئەم ناوی بەکارهێنەرە پێشتر تۆمارکراوە"}), 409
-
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO businesses (business_name, owner_phone, subscription_plan, subscription_status, expires_at, created_at)
-            VALUES (?, ?, 'trial', 'active', ?, ?)
-        """, (biz_name, phone, trial_expiry, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        biz_id = cursor.lastrowid
-
-        cursor.execute("""
-            INSERT INTO users (business_id, username, password_hash, full_name, role, created_at)
-            VALUES (?, ?, ?, ?, 'owner', ?)
-        """, (biz_id, username, generate_password_hash(password), owner_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        user_id = cursor.lastrowid
-
-        log_audit(conn, biz_id, username, "REGISTER", f"تۆمارکردنی دوکانی نوێ: {biz_name}")
-        conn.commit()
-
-    session.permanent = True
-    session["user"] = {"id": user_id, "username": username, "full_name": owner_name, "role": "owner"}
-    session["business"] = {"id": biz_id, "name": biz_name, "plan": "trial", "expires_at": trial_expiry}
-
-    return jsonify({"status": "success", "message": "دوکانەکەت بە سەرکەوتوویی دروستکرا", "user": session["user"], "business": session["business"]})
-
-
-@app.route("/api/auth/login", methods=["POST"])
-def api_login():
-    data = request.get_json(force=True) or {}
-    username = data.get("username", "").strip().lower()
-    password = data.get("password", "").strip()
-
-    with get_db() as conn:
-        user = conn.execute("""
-            SELECT u.*, b.business_name, b.subscription_plan, b.subscription_status, b.expires_at 
-            FROM users u JOIN businesses b ON u.business_id = b.id 
-            WHERE u.username = ?
-        """, (username,)).fetchone()
-
-        if not user or not check_password_hash(user["password_hash"], password):
-            return jsonify({"status": "error", "message": "ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە!"}), 401
-
-        session.permanent = True
-        session["user"] = {
-            "id": user["id"],
-            "username": user["username"],
-            "full_name": user["full_name"],
-            "role": user["role"],
-            "avatar": user["avatar"],
-            "bio": user["bio"]
+    <style>
+        :root {
+            --ios-bg: #000000;
+            --ios-card: #12141c;
+            --ios-card-border: rgba(255, 255, 255, 0.08);
+            --ios-blue: #0A84FF;
+            --ios-green: #30D158;
+            --ios-red: #FF453A;
+            --ios-orange: #FF9F0A;
+            --ios-purple: #BF5AF2;
+            --ios-text: #FFFFFF;
+            --ios-muted: #8E8E93;
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+            --transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        session["business"] = {
-            "id": user["business_id"],
-            "name": user["business_name"],
-            "plan": user["subscription_plan"],
-            "expires_at": user["expires_at"]
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Vazirmatn', -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-        log_audit(conn, user["business_id"], user["username"], "LOGIN", "چوونەژوورەوە بۆ ناو سیستەم")
-        conn.commit()
 
-    return jsonify({"status": "success", "user": session["user"], "business": session["business"]})
+        body {
+            background-color: var(--ios-bg);
+            color: var(--ios-text);
+            min-height: 100vh;
+            padding-bottom: calc(var(--safe-bottom) + 85px);
+            user-select: none;
+        }
 
+        /* بەشی لۆگین و تۆمارکردن */
+        .auth-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50000;
+            padding: 20px;
+        }
 
-@app.route("/api/auth/me", methods=["GET"])
-def api_me():
-    if "user" in session and "business" in session:
-        # نوێکردنەوەی ڕۆژەکانی بەسەرچوون
-        with get_db() as conn:
-            biz = conn.execute("SELECT * FROM businesses WHERE id = ?", (session["business"]["id"],)).fetchone()
-            if biz:
-                session["business"] = {
-                    "id": biz["id"],
-                    "name": biz["business_name"],
-                    "plan": biz["subscription_plan"],
-                    "expires_at": biz["expires_at"]
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--ios-card);
+            border: 1px solid var(--ios-card-border);
+            border-radius: 28px;
+            padding: 32px 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 22px;
+        }
+
+        .auth-tab-btn {
+            flex: 1; padding: 8px; border: none; background: transparent;
+            color: var(--ios-muted); font-weight: 700; font-size: 13px;
+            border-radius: 9px; cursor: pointer;
+        }
+
+        .auth-tab-btn.active { background: var(--ios-blue); color: #fff; }
+
+        /* بانەری بەسەرچوونی بەشداریکردن */
+        .trial-banner {
+            background: rgba(255, 159, 10, 0.15);
+            border: 1px solid rgba(255, 159, 10, 0.3);
+            border-radius: 14px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--ios-orange);
+            font-weight: 700;
+        }
+
+        .trial-banner.expired {
+            background: rgba(255, 69, 58, 0.15);
+            border-color: rgba(255, 69, 58, 0.3);
+            color: var(--ios-red);
+        }
+
+        /* سەرپەڕەی ئەپ */
+        .ios-header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(20px);
+            padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .app-view {
+            display: none;
+            padding: 14px 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .tab-page { display: none; }
+        .tab-page.active { display: block; }
+
+        /* کارتەکانی باڵانس (Apple Wallet Style) */
+        .wallet-card {
+            background: linear-gradient(135deg, #182030, #0f1420);
+            border: 1px solid var(--ios-card-border);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+        }
+
+        .wallet-balance {
+            font-size: 26px; font-weight: 900; color: var(--ios-red); margin: 6px 0 14px;
+        }
+
+        .wallet-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .debt-card {
+            background: var(--ios-card);
+            border: 1px solid var(--ios-card-border);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .debt-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+        }
+
+        .action-pill {
+            flex: 1; padding: 9px; border-radius: 12px; border: none;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            text-decoration: none;
+        }
+
+        /* شریتی خوارەوەی مۆبایل */
+        .ios-tab-bar {
+            position: fixed; bottom: 0; left: 0; width: 100vw;
+            background: rgba(18, 20, 28, 0.9);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid var(--ios-card-border);
+            display: flex; justify-content: space-around;
+            padding: 8px 0 var(--safe-bottom);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--ios-muted); font-size: 10px; font-weight: 600; cursor: pointer; flex: 1;
+        }
+        .tab-item.active { color: var(--ios-blue); }
+
+        .fab-tab .fab-button {
+            width: 46px; height: 46px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--ios-purple), var(--ios-blue));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 20px; margin-top: -12px;
+            box-shadow: 0 6px 16px rgba(10, 132, 255, 0.4);
+        }
+
+        .ios-modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            z-index: 20000; display: none; align-items: flex-end; justify-content: center;
+        }
+
+        .ios-sheet {
+            width: 100%; max-width: 500px; background: #161822;
+            border-radius: 28px 28px 0 0; padding: 20px 20px calc(var(--safe-bottom) + 20px);
+            max-height: 85vh; overflow-y: auto;
+        }
+
+        .form-group { margin-bottom: 12px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 12px; color: var(--ios-muted); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.06);
+            border: 1px solid var(--ios-card-border); border-radius: 14px; color: #fff; outline: none; font-size: 14px;
+        }
+
+        .btn-ios-submit {
+            width: 100%; padding: 14px; border-radius: 16px; border: none;
+            background: var(--ios-blue); color: #fff; font-size: 15px; font-weight: 800; cursor: pointer; margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ١. پەڕەی لۆگین و دروستکردنی دوکان (Multi-Tenancy Sign Up) -->
+    <div class="auth-container" id="authSection">
+        <div class="auth-card">
+            <div style="text-align: center; margin-bottom: 18px;">
+                <div style="width: 60px; height: 60px; background: linear-gradient(135deg, var(--ios-purple), var(--ios-blue)); border-radius: 18px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 26px;">
+                    <i class="fa-solid fa-cube"></i>
+                </div>
+                <h2 style="font-size: 18px; font-weight: 800;">سیستەمی دارایی دانیال</h2>
+                <p style="font-size: 11px; color: var(--ios-muted);">بەڕێوەبردنی تایبەتی قەرزی فرۆشگاکەت</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="btnTabLogin" onclick="switchAuthTab('login')">چوونەژوورەوە</button>
+                <button class="auth-tab-btn" id="btnTabRegister" onclick="switchAuthTab('register')">تۆمارکردنی دوکانی نوێ</button>
+            </div>
+
+            <!-- فۆڕمی چوونەژوورەوە -->
+            <form id="formLogin">
+                <div class="form-group">
+                    <label>ناوی بەکارهێنەر</label>
+                    <input type="text" id="loginUser" required placeholder="admin">
+                </div>
+                <div class="form-group">
+                    <label>وشەی نهێنی</label>
+                    <input type="password" id="loginPass" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-ios-submit">چوونەژوورەوە</button>
+            </form>
+
+            <!-- فۆڕمی دوکانی نوێ (١٤ ڕۆژ تاقیکردنەوە) -->
+            <form id="formRegister" style="display: none;">
+                <div class="form-group">
+                    <label>ناوی دوکان / مارکێت *</label>
+                    <input type="text" id="regBizName" required placeholder="مارکێتی کوردستان">
+                </div>
+                <div class="form-group">
+                    <label>ناوی خاوەن دوکان *</label>
+                    <input type="text" id="regFullName" required placeholder="ئارام ئەحمەد">
+                </div>
+                <div class="form-group">
+                    <label>ژمارەی مۆبایل</label>
+                    <input type="tel" id="regPhone" required placeholder="0750 000 0000">
+                </div>
+                <div class="form-group">
+                    <label>ناوی بەکارهێنەر (Username) *</label>
+                    <input type="text" id="regUsername" required placeholder="aram_shop">
+                </div>
+                <div class="form-group">
+                    <label>وشەی نهێنی *</label>
+                    <input type="password" id="regPassword" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-ios-submit" style="background: var(--ios-green); color: #000;">
+                    دەستپێکردنی ١٤ ڕۆژی بەخۆڕایی
+                </button>
+            </form>
+
+            <p id="authMsg" style="color: var(--ios-red); font-size: 12px; text-align: center; margin-top: 12px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- ٢. ئەپی سەرەکی -->
+    <div class="app-view" id="appView">
+        <header class="ios-header">
+            <div>
+                <h3 id="topBizName" style="font-size: 15px; font-weight: 800;">ناوی دوکان</h3>
+                <span id="topOwnerName" style="font-size: 11px; color: var(--ios-muted);">خاوەن کار</span>
+            </div>
+            <button class="action-pill" style="background: rgba(255, 69, 58, 0.15); color: var(--ios-red); flex:0 0 38px; height:38px; border-radius:50%;" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </header>
+
+        <!-- ئاگاداری ماوەی تاقیکردنەوە -->
+        <div id="trialBanner" class="trial-banner" style="display: none; margin-top: 14px;">
+            <span id="trialText">١٤ ڕۆژ لە تاقیکردنەوەت ماوە</span>
+            <a href="tel:07500000000" style="color: inherit; text-decoration: underline;">نوێکردنەوە</a>
+        </div>
+
+        <!-- تابی سەرەکی: باڵانس -->
+        <div id="tabHome" class="tab-page active">
+            <div class="wallet-card">
+                <span style="font-size: 12px; color: var(--ios-muted);">کۆی قەرزی ماوە (دینار)</span>
+                <div class="wallet-balance" id="iqdRemaining">0 د.ع</div>
+                <div class="wallet-grid">
+                    <div><span style="font-size: 11px; color: var(--ios-muted);">کۆی گشتی:</span><strong id="iqdTotalDebt">0</strong></div>
+                    <div><span style="font-size: 11px; color: var(--ios-muted);">واسڵکراو:</span><strong id="iqdTotalPaid" style="color: var(--ios-green);">0</strong></div>
+                </div>
+            </div>
+
+            <div class="wallet-card" style="background: linear-gradient(135deg, #13241b, #0d1712);">
+                <span style="font-size: 12px; color: var(--ios-muted);">کۆی قەرزی ماوە (دۆلار)</span>
+                <div class="wallet-balance" id="usdRemaining">$0</div>
+                <div class="wallet-grid">
+                    <div><span style="font-size: 11px; color: var(--ios-muted);">کۆی گشتی:</span><strong id="usdTotalDebt">$0</strong></div>
+                    <div><span style="font-size: 11px; color: var(--ios-muted);">واسڵکراو:</span><strong id="usdTotalPaid" style="color: var(--ios-green);">$0</strong></div>
+                </div>
+            </div>
+
+            <div style="background: var(--ios-card); border: 1px solid var(--ios-card-border); border-radius: 20px; padding: 16px;">
+                <h4 style="font-size: 12px; margin-bottom: 12px; color: var(--ios-muted);">واڵسکردنی ٦ مانگی ڕابردوو</h4>
+                <div style="height: 160px;"><canvas id="monthlyChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- تابی قەرزەکان -->
+        <div id="tabDebts" class="tab-page">
+            <input type="text" id="searchInput" placeholder="گەڕان بەپێی ناوی کەسەکە..." oninput="loadDebts()"
+                   style="width: 100%; padding: 12px 14px; background: var(--ios-card); border: 1px solid var(--ios-card-border); border-radius: 14px; color: #fff; font-size: 13px; margin: 10px 0 14px;">
+            <div id="debtsCardsContainer"></div>
+        </div>
+
+        <!-- تابی ڕاپۆرت -->
+        <div id="tabAnalytics" class="tab-page">
+            <div style="background: var(--ios-card); border: 1px solid var(--ios-card-border); border-radius: 20px; padding: 16px; margin: 14px 0;">
+                <h4 style="font-size: 12px; margin-bottom: 12px; color: var(--ios-muted);">گەورەترین قەرزدارەکان</h4>
+                <div style="height: 180px;"><canvas id="debtorsChart"></canvas></div>
+            </div>
+            <button class="action-pill" style="background: var(--ios-card); border: 1px solid var(--ios-card-border); color: #fff; width: 100%; padding: 14px;" onclick="location.href='/api/reports/export-excel'">
+                <i class="fa-solid fa-file-excel" style="color: var(--ios-green);"></i> دابەزاندنی ڕاپۆرتی ئێکسڵ (Excel)
+            </button>
+        </div>
+    </div>
+
+    <!-- شریتی خوارەوە (iOS Tab Bar) -->
+    <nav class="ios-tab-bar" id="iosTabBar" style="display: none;">
+        <div class="tab-item active" onclick="switchTab('tabHome', this)">
+            <i class="fa-solid fa-wallet"></i><span>باڵانس</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('tabDebts', this)">
+            <i class="fa-solid fa-list-check"></i><span>قەرزەکان</span>
+        </div>
+        <div class="tab-item fab-tab" onclick="openAddDebtModal()">
+            <div class="fab-button"><i class="fa-solid fa-plus"></i></div>
+            <span>نوێ</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('tabAnalytics', this)">
+            <i class="fa-solid fa-chart-pie"></i><span>ڕاپۆرت</span>
+        </div>
+    </nav>
+
+    <!-- مۆداڵی قەرزی نوێ -->
+    <div class="ios-modal" id="debtModal">
+        <div class="ios-sheet">
+            <h3 style="margin-bottom: 16px; font-size: 16px;">تۆمارکردنی قەرزی نوێ</h3>
+            <form id="debtForm" onsubmit="event.preventDefault(); saveNewDebt();">
+                <div class="form-group">
+                    <label>ناوی کڕیار *</label>
+                    <input type="text" id="custName" list="custSuggestions" required placeholder="ناوی کڕیار بنووسە...">
+                    <datalist id="custSuggestions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>مۆبایل (واتسئاپ)</label>
+                    <input type="tel" id="custPhone" placeholder="0750 000 0000">
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                    <div class="form-group">
+                        <label>بڕی قەرز *</label>
+                        <input type="number" step="any" id="custAmount" required placeholder="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>دراو</label>
+                        <select id="custCurrency">
+                            <option value="IQD">دینار</option>
+                            <option value="USD">دۆلار ($)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>بەرواری دانەوە *</label>
+                    <input type="date" id="custDueDate" required>
+                </div>
+                <button type="submit" class="btn-ios-submit" id="btnSaveDebt">پاشەکەوتکردن</button>
+                <button type="button" class="btn-ios-submit" style="background: transparent; color: var(--ios-muted);" onclick="closeModal('debtModal')">داخستن</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مۆداڵی واسڵکردن -->
+    <div class="ios-modal" id="payModal">
+        <div class="ios-sheet">
+            <h3 id="payTitle" style="margin-bottom: 10px; font-size: 16px;">واسڵکردن</h3>
+            <p id="payRemainingText" style="color: var(--ios-red); font-weight: 800; font-size: 14px; margin-bottom: 14px;"></p>
+            <form id="payForm">
+                <input type="hidden" id="payDebtId">
+                <div class="form-group">
+                    <label>بڕی دراو *</label>
+                    <input type="number" step="any" id="payAmount" required>
+                </div>
+                <button type="submit" class="btn-ios-submit" style="background: var(--ios-green); color: #000;">تەواوکردنی وەرگرتن</button>
+                <button type="button" class="btn-ios-submit" style="background: transparent; color: var(--ios-muted);" onclick="closeModal('payModal')">داخستن</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let monthlyChartInstance = null;
+        let debtorsChartInstance = null;
+
+        window.addEventListener('DOMContentLoaded', checkAuth);
+
+        function switchAuthTab(type) {
+            document.getElementById('formLogin').style.display = type === 'login' ? 'block' : 'none';
+            document.getElementById('formRegister').style.display = type === 'register' ? 'block' : 'none';
+            document.getElementById('btnTabLogin').className = `auth-tab-btn ${type === 'login' ? 'active' : ''}`;
+            document.getElementById('btnTabRegister').className = `auth-tab-btn ${type === 'register' ? 'active' : ''}`;
+            document.getElementById('authMsg').style.display = 'none';
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (data.logged_in) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('appView').style.display = 'block';
+                    document.getElementById('iosTabBar').style.display = 'flex';
+
+                    document.getElementById('topBizName').textContent = data.business.name;
+                    document.getElementById('topOwnerName').textContent = data.user.full_name;
+
+                    // ڕێکخستنی بانەری تاقیکردنەوە
+                    const banner = document.getElementById('trialBanner');
+                    banner.style.display = 'flex';
+                    if (data.is_expired) {
+                        banner.className = 'trial-banner expired';
+                        document.getElementById('trialText').textContent = 'ماوەی تاقیکردنەوەت بەسەرچووە!';
+                    } else {
+                        document.getElementById('trialText').textContent = `${data.days_left} ڕۆژ لە بەکارهێنانی بەخۆڕایی ماوە`;
+                    }
+
+                    loadDashboard();
+                    loadDebts();
+                    loadSuggestions();
+                } else {
+                    document.getElementById('authSection').style.display = 'flex';
+                    document.getElementById('appView').style.display = 'none';
+                    document.getElementById('iosTabBar').style.display = 'none';
                 }
-        days_left = (datetime.strptime(session["business"]["expires_at"], "%Y-%m-%d").date() - date.today()).days
-        return jsonify({
-            "logged_in": True,
-            "user": session["user"],
-            "business": session["business"],
-            "days_left": max(0, days_left),
-            "is_expired": days_left < 0
-        })
-    return jsonify({"logged_in": False})
-
-
-@app.route("/api/auth/logout", methods=["POST"])
-def api_logout():
-    session.clear()
-    return jsonify({"status": "success"})
-
-
-# --- Dashboard Analytics (دابڕاو بەپێی business_id) ---
-@app.route("/api/dashboard/analytics", methods=["GET"])
-@login_required
-def dashboard_analytics():
-    biz_id = session["business"]["id"]
-    today = date.today().isoformat()
-
-    with get_db() as conn:
-        for d in conn.execute("SELECT id FROM debts WHERE business_id = ?", (biz_id,)).fetchall():
-            update_debt_status(conn, biz_id, d["id"])
-
-        iqd_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts WHERE business_id = ? AND currency = 'IQD'", (biz_id,)).fetchone()["s"]
-        iqd_paid = conn.execute("""
-            SELECT COALESCE(SUM(p.amount_paid), 0) as s 
-            FROM payments p JOIN debts d ON p.debt_id = d.id 
-            WHERE p.business_id = ? AND d.currency = 'IQD'
-        """, (biz_id,)).fetchone()["s"]
-
-        usd_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts WHERE business_id = ? AND currency = 'USD'", (biz_id,)).fetchone()["s"]
-        usd_paid = conn.execute("""
-            SELECT COALESCE(SUM(p.amount_paid), 0) as s 
-            FROM payments p JOIN debts d ON p.debt_id = d.id 
-            WHERE p.business_id = ? AND d.currency = 'USD'
-        """, (biz_id,)).fetchone()["s"]
-
-        overdue_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE business_id = ? AND status = 'overdue'", (biz_id,)).fetchone()["c"]
-        due_today_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE business_id = ? AND due_date = ? AND status != 'paid'", (biz_id, today)).fetchone()["c"]
-
-        top_debtors_raw = conn.execute("""
-            SELECT d.customer_name, (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining
-            FROM debts d LEFT JOIN payments p ON d.id = p.debt_id
-            WHERE d.business_id = ?
-            GROUP BY d.id HAVING remaining > 0 ORDER BY remaining DESC LIMIT 5
-        """, (biz_id,)).fetchall()
-
-        monthly_payments = conn.execute("""
-            SELECT strftime('%Y-%m', payment_date) as month, SUM(amount_paid) as total
-            FROM payments WHERE business_id = ?
-            GROUP BY month ORDER BY month DESC LIMIT 6
-        """, (biz_id,)).fetchall()
-
-    return jsonify({
-        "iqd": {"debt": iqd_debt, "paid": iqd_paid, "remaining": max(0.0, iqd_debt - iqd_paid)},
-        "usd": {"debt": usd_debt, "paid": usd_paid, "remaining": max(0.0, usd_debt - usd_paid)},
-        "overdue_count": overdue_count,
-        "due_today_count": due_today_count,
-        "top_debtors": [dict(r) for r in top_debtors_raw],
-        "monthly_chart": [dict(m) for m in reversed(monthly_payments)]
-    })
-
-
-# --- Debts Endpoints (دابڕاو بەپێی business_id) ---
-@app.route("/api/debts", methods=["GET"])
-@login_required
-def get_debts():
-    biz_id = session["business"]["id"]
-    search = request.args.get("search", "").strip()
-
-    query = """
-        SELECT d.id, d.customer_name, d.phone, d.total_amount, d.currency,
-               d.debt_date, d.due_date, d.status, d.is_installment, d.installment_count, d.note,
-               COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-               (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining_amount
-        FROM debts d
-        LEFT JOIN payments p ON d.id = p.debt_id
-        WHERE d.business_id = ?
-    """
-    params = [biz_id]
-    if search:
-        query += " AND (d.customer_name LIKE ? OR d.phone LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    query += " GROUP BY d.id ORDER BY d.id DESC"
-
-    with get_db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/api/debts", methods=["POST"])
-@login_required
-@subscription_active
-def create_debt():
-    biz_id = session["business"]["id"]
-    data = request.get_json(force=True) or {}
-    name = data.get("customer_name", "").strip()
-    phone = data.get("phone", "").strip()
-    amount = data.get("total_amount")
-    currency = data.get("currency", "IQD")
-    debt_date = data.get("debt_date") or date.today().isoformat()
-    due_date = data.get("due_date")
-    note = data.get("note", "").strip()
-
-    if not name or not amount or not due_date:
-        return jsonify({"status": "error", "message": "تکایە ناو، بڕی پارە و بەرواری دانەوە بنووسە"}), 400
-
-    try:
-        amount = float(amount)
-        if amount <= 0:
-            raise ValueError()
-    except (TypeError, ValueError):
-        return jsonify({"status": "error", "message": "بڕی پارە دەبێت ژمارەیەکی دروست بێت"}), 400
-
-    status = "overdue" if due_date < date.today().isoformat() else "pending"
-    username = session["user"]["username"]
-
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO debts (business_id, customer_name, phone, total_amount, currency, debt_date, due_date, note, status, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (biz_id, name, phone, amount, currency, debt_date, due_date, note, status, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        debt_id = cursor.lastrowid
-
-        log_audit(conn, biz_id, username, "ADD_DEBT", f"قەرزی نوێ بۆ {name} بە بڕی {amount} {currency}")
-        conn.commit()
-
-    return jsonify({"status": "success", "message": "قەرزەکە تۆمارکرا"})
-
-
-@app.route("/api/debts/<int:debt_id>/payments", methods=["POST"])
-@login_required
-@subscription_active
-def make_payment(debt_id):
-    biz_id = session["business"]["id"]
-    data = request.get_json(force=True) or {}
-    try:
-        amount = float(data.get("amount", 0))
-    except (TypeError, ValueError):
-        amount = 0.0
-
-    note = data.get("note", "").strip()
-    if amount <= 0:
-        return jsonify({"status": "error", "message": "بڕی پارە دەبێت لە ٠ زیاتر بێت"}), 400
-
-    username = session["user"]["username"]
-
-    with get_db() as conn:
-        debt = conn.execute("SELECT * FROM debts WHERE id = ? AND business_id = ?", (debt_id, biz_id)).fetchone()
-        if not debt:
-            return jsonify({"status": "error", "message": "قەرزەکە نەدۆزرایەوە"}), 404
-
-        current_paid = conn.execute(
-            "SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments WHERE debt_id = ? AND business_id = ?", (debt_id, biz_id)
-        ).fetchone()["s"]
-
-        remaining = debt["total_amount"] - current_paid
-        if amount > remaining:
-            return jsonify({"status": "error", "message": f"بڕی دراو لە ماوە زیاترە! ({remaining:,.0f} {debt['currency']})"}), 400
-
-        receipt_no = f"REC-{biz_id}-{int(datetime.now().timestamp()) % 100000}"
-
-        conn.execute("""
-            INSERT INTO payments (business_id, debt_id, receipt_no, amount_paid, payment_date, note, received_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (biz_id, debt_id, receipt_no, amount, datetime.now().strftime("%Y-%m-%d %H:%M"), note, username))
-
-        update_debt_status(conn, biz_id, debt_id)
-        log_audit(conn, biz_id, username, "PAYMENT", f"وەرگرتنی {amount} {debt['currency']} بۆ وەسڵی #{receipt_no}")
-        conn.commit()
-
-        remaining_after = remaining - amount
-
-    return jsonify({
-        "status": "success",
-        "receipt": {
-            "receipt_no": receipt_no,
-            "customer_name": debt["customer_name"],
-            "phone": debt["phone"],
-            "amount_paid": amount,
-            "currency": debt["currency"],
-            "remaining": remaining_after,
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "received_by": session["user"]["full_name"]
+            } catch (e) {
+                console.error(e);
+            }
         }
-    })
 
+        // لۆگین
+        document.getElementById('formLogin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('loginUser').value.trim(),
+                    password: document.getElementById('loginPass').value.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            } else {
+                showAuthError(data.message);
+            }
+        });
 
-@app.route("/api/debts/<int:debt_id>", methods=["DELETE"])
-@login_required
-@subscription_active
-def delete_debt(debt_id):
-    biz_id = session["business"]["id"]
-    with get_db() as conn:
-        debt = conn.execute("SELECT customer_name FROM debts WHERE id = ? AND business_id = ?", (debt_id, biz_id)).fetchone()
-        if debt:
-            conn.execute("DELETE FROM payments WHERE debt_id = ? AND business_id = ?", (debt_id, biz_id))
-            conn.execute("DELETE FROM debts WHERE id = ? AND business_id = ?", (debt_id, biz_id))
-            log_audit(conn, biz_id, session["user"]["username"], "DELETE_DEBT", f"سڕینەوەی قەرزی {debt['customer_name']}")
-            conn.commit()
-    return jsonify({"status": "success"})
+        // تۆمارکردنی دوکانی نوێ
+        document.getElementById('formRegister').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    business_name: document.getElementById('regBizName').value.trim(),
+                    full_name: document.getElementById('regFullName').value.trim(),
+                    phone: document.getElementById('regPhone').value.trim(),
+                    username: document.getElementById('regUsername').value.trim(),
+                    password: document.getElementById('regPassword').value.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            } else {
+                showAuthError(data.message);
+            }
+        });
 
+        function showAuthError(msg) {
+            const el = document.getElementById('authMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
 
-@app.route("/api/customers/suggestions", methods=["GET"])
-@login_required
-def get_customer_suggestions():
-    biz_id = session["business"]["id"]
-    with get_db() as conn:
-        rows = conn.execute("SELECT DISTINCT customer_name, phone FROM debts WHERE business_id = ? ORDER BY customer_name ASC", (biz_id,)).fetchall()
-    return jsonify([{"name": r["customer_name"], "phone": r["phone"] or ""} for r in rows])
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            location.reload();
+        }
 
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            el.classList.add('active');
+        }
 
-@app.route("/api/reports/export-excel", methods=["GET"])
-@login_required
-def export_excel():
-    biz_id = session["business"]["id"]
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT d.id, d.customer_name, d.phone, d.total_amount, d.currency,
-                   COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-                   (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining,
-                   d.due_date, d.status
-            FROM debts d LEFT JOIN payments p ON d.id = p.debt_id
-            WHERE d.business_id = ?
-            GROUP BY d.id ORDER BY d.id DESC
-        """, (biz_id,)).fetchall()
+        function openAddDebtModal() {
+            const nextMonth = new Date();
+            nextMonth.setDate(nextMonth.getDate() + 30);
+            document.getElementById('custDueDate').value = nextMonth.toISOString().split('T')[0];
+            document.getElementById('debtModal').style.display = 'flex';
+        }
 
-    output = io.StringIO()
-    output.write('\ufeff')
-    writer = csv.writer(output)
-    writer.writerow(["کۆد", "ناوی کڕیار", "مۆبایل", "کۆی قەرز", "دراو", "ماوە", "دراو", "بەرواری دانەوە", "دۆخ"])
-    for r in rows:
-        writer.writerow([r["id"], r["customer_name"], r["phone"] or "-", f"{r['total_amount']:,.0f}", f"{r['paid_amount']:,.0f}", f"{r['remaining']:,.0f}", r["currency"], r["due_date"], r["status"]])
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
 
-    response = Response(output.getvalue(), mimetype="text/csv; charset=utf-8")
-    response.headers["Content-Disposition"] = f"attachment; filename=debts_{session['business']['name']}_{date.today().isoformat()}.csv"
-    return response
+        async function loadDashboard() {
+            const res = await fetch('/api/dashboard/analytics');
+            const data = await res.json();
 
+            document.getElementById('iqdTotalDebt').textContent = Number(data.iqd.debt).toLocaleString() + " د.ع";
+            document.getElementById('iqdTotalPaid').textContent = Number(data.iqd.paid).toLocaleString() + " د.ع";
+            document.getElementById('iqdRemaining').textContent = Number(data.iqd.remaining).toLocaleString() + " د.ع";
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+            document.getElementById('usdTotalDebt').textContent = "$" + Number(data.usd.debt).toLocaleString();
+            document.getElementById('usdTotalPaid').textContent = "$" + Number(data.usd.paid).toLocaleString();
+            document.getElementById('usdRemaining').textContent = "$" + Number(data.usd.remaining).toLocaleString();
+
+            renderCharts(data.monthly_chart, data.top_debtors);
+        }
+
+        function renderCharts(monthlyData, topDebtors) {
+            const ctx1 = document.getElementById('monthlyChart').getContext('2d');
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+            monthlyChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: monthlyData.map(m => m.month),
+                    datasets: [{ data: monthlyData.map(m => m.total), backgroundColor: '#0A84FF', borderRadius: 8 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const ctx2 = document.getElementById('debtorsChart').getContext('2d');
+            if (debtorsChartInstance) debtorsChartInstance.destroy();
+            debtorsChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: topDebtors.map(d => d.customer_name),
+                    datasets: [{ data: topDebtors.map(d => d.remaining), backgroundColor: ['#FF453A', '#FF9F0A', '#BF5AF2', '#0A84FF', '#30D158'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        async function loadDebts() {
+            const q = document.getElementById('searchInput').value;
+            const res = await fetch(`/api/debts?search=${encodeURIComponent(q)}`);
+            const debts = await res.json();
+            const container = document.getElementById('debtsCardsContainer');
+            container.innerHTML = '';
+
+            if (debts.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--ios-muted); padding: 30px;">هیچ قەرزێک تۆمار نەکراوە</p>';
+                return;
+            }
+
+            debts.forEach(d => {
+                let cleanPhone = (d.phone || '').replace(/[^0-9]/g, '');
+                if (cleanPhone.startsWith('07')) cleanPhone = '964' + cleanPhone.substring(1);
+                const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(`سڵاو کاک ${d.customer_name}، لە سیستەمی ${document.getElementById('topBizName').textContent} بڕی (${Number(d.remaining_amount).toLocaleString()}${d.currency}) قەرزت ماوە.`)}` : '#';
+
+                container.innerHTML += `
+                    <div class="debt-card">
+                        <div class="debt-row">
+                            <div>
+                                <strong style="font-size: 15px;">${d.customer_name}</strong>
+                                <p style="font-size: 11px; color: var(--ios-muted);">${d.due_date}</p>
+                            </div>
+                            <strong style="color: var(--ios-red); font-size: 17px;">${Number(d.remaining_amount).toLocaleString()} ${d.currency}</strong>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            ${d.remaining_amount > 0 ? `
+                                <button class="action-pill" style="background: var(--ios-green); color: #000;" onclick="openPayModal(${d.id}, '${d.customer_name}', ${d.remaining_amount}, '${d.currency}')">
+                                    واسڵکردن
+                                </button>
+                            ` : ''}
+                            ${cleanPhone ? `
+                                <a href="${waLink}" target="_blank" class="action-pill" style="background: rgba(37,211,102,0.15); color: var(--ios-green);">
+                                    واتسئاپ
+                                </a>
+                            ` : ''}
+                            <button class="action-pill" style="background: rgba(255,69,58,0.15); color: var(--ios-red); flex:0 0 38px;" onclick="deleteDebt(${d.id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function saveNewDebt() {
+            const btn = document.getElementById('btnSaveDebt');
+            btn.disabled = true;
+            btn.textContent = 'کەمێکی تر...';
+
+            const res = await fetch('/api/debts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    customer_name: document.getElementById('custName').value.trim(),
+                    phone: document.getElementById('custPhone').value.trim(),
+                    total_amount: document.getElementById('custAmount').value,
+                    currency: document.getElementById('custCurrency').value,
+                    due_date: document.getElementById('custDueDate').value
+                })
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.textContent = 'پاشەکەوتکردن';
+
+            if (res.ok) {
+                closeModal('debtModal');
+                document.getElementById('debtForm').reset();
+                loadDashboard();
+                loadDebts();
+                loadSuggestions();
+            } else {
+                alert(data.message);
+            }
+        }
+
+        function openPayModal(id, name, remaining, currency) {
+            document.getElementById('payDebtId').value = id;
+            document.getElementById('payTitle').textContent = `واسڵکردن: ${name}`;
+            document.getElementById('payRemainingText').textContent = `ماوە: ${Number(remaining).toLocaleString()} ${currency}`;
+            document.getElementById('payAmount').max = remaining;
+            document.getElementById('payModal').style.display = 'flex';
+        }
+
+        document.getElementById('payForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const debtId = document.getElementById('payDebtId').value;
+            const res = await fetch(`/api/debts/${debtId}/payments`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ amount: document.getElementById('payAmount').value })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeModal('payModal');
+                loadDashboard();
+                loadDebts();
+            } else {
+                alert(data.message);
+            }
+        });
+
+        async function loadSuggestions() {
+            const res = await fetch('/api/customers/suggestions');
+            const list = await res.json();
+            const dl = document.getElementById('custSuggestions');
+            dl.innerHTML = '';
+            list.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                dl.appendChild(opt);
+            });
+        }
+
+        async function deleteDebt(id) {
+            if (confirm('ئایا دڵنیایت لە سڕینەوە؟')) {
+                await fetch(`/api/debts/${id}`, { method: 'DELETE' });
+                loadDashboard();
+                loadDebts();
+            }
+        }
+    </script>
+</body>
+</html>
