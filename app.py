@@ -1,425 +1,867 @@
-"""
-Advanced Debt Management System with Video Intro, Profiles & Customer Auto-list
-Author: Danyal App Architecture
-"""
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستەمی قەرز | پڕۆژەی دانیال</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-import os
-import sqlite3
-import csv
-import io
-from datetime import datetime, date, timedelta
-from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, send_file, Response
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+    <style>
+        :root {
+            --bg-dark: #07090e;
+            --surface: rgba(18, 24, 38, 0.85);
+            --surface-glass: rgba(255, 255, 255, 0.04);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --accent-blue: #0070f3;
+            --accent-purple: #7928ca;
+            --accent-danger: #ef4444;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --text-main: #ffffff;
+            --text-muted: #8e95a5;
+            --transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
 
-app = Flask(__name__)
-app.secret_key = os.urandom(32)
-app.permanent_session_lifetime = timedelta(days=3)
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Vazirmatn', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
 
-DB_NAME = "debt_pro.db"
-UPLOAD_FOLDER = os.path.join("static", "avatars")
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+        /* ١. بەشی چوونەژوورەوە لەگەڵ ڤیدیۆ و ئەنیمەیشن */
+        .auth-wrapper {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #000;
+        }
 
+        .video-bg {
+            position: absolute;
+            top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            width: auto; height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            filter: brightness(0.35) contrast(1.15) saturate(1.2);
+            z-index: 0;
+        }
 
-def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
+        .auth-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(7,9,14,0.85) 100%);
+            z-index: 1;
+        }
 
+        .auth-box {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 440px;
+            padding: 44px 36px;
+            background: rgba(14, 18, 28, 0.65);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 1px solid var(--border-glass);
+            border-radius: 28px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+            animation: zoomFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
 
-def init_db():
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # خشتەی بەکارهێنەران لەگەڵ وێنە و بایۆ
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'admin',
-                avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                bio TEXT DEFAULT 'بەڕێوەبەری سیستەمی دارایی',
-                created_at TEXT NOT NULL
-            )
-        """)
+        @keyframes zoomFade {
+            from { opacity: 0; transform: scale(0.92) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
 
-        # پشکنینی ستوونەکانی avatar و bio ئەگەر خشتەکە پێشتر دروستکرابێت
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'")
-        except sqlite3.OperationalError:
-            pass
+        .brand-icon-anim {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #fff;
+            box-shadow: 0 12px 28px rgba(121, 40, 202, 0.4);
+            animation: pulseGlow 4s infinite alternate ease-in-out;
+        }
 
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT 'بەڕێوەبەری سیستەمی دارایی'")
-        except sqlite3.OperationalError:
-            pass
+        @keyframes pulseGlow {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(121, 40, 202, 0.4); }
+            100% { transform: scale(1.06); box-shadow: 0 0 35px rgba(0, 112, 243, 0.7); }
+        }
 
-        # خشتەی قەرزەکان
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS debts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_name TEXT NOT NULL,
-                phone TEXT,
-                total_amount REAL NOT NULL,
-                debt_date TEXT NOT NULL,
-                due_date TEXT NOT NULL,
-                note TEXT,
-                status TEXT NOT NULL DEFAULT 'pending',
-                created_by TEXT,
-                created_at TEXT NOT NULL
-            )
-        """)
+        /* بەشی ناوەوەی سیستەم */
+        .app-container {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+            animation: fadeIn 0.6s ease forwards;
+        }
 
-        # خشتەی پارەدانەوەکان
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                debt_id INTEGER NOT NULL,
-                amount_paid REAL NOT NULL,
-                payment_date TEXT NOT NULL,
-                note TEXT,
-                received_by TEXT,
-                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
-            )
-        """)
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 
-        # دروستکردنی ئەدمینی سەرەکی ئەگەر بوونی نەبێت
-        admin = cursor.execute("SELECT * FROM users WHERE username = 'admin'").fetchone()
-        if not admin:
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, full_name, role, avatar, bio, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "admin",
-                generate_password_hash("admin123"),
-                "دانیال ئیسماعیل",
-                "admin",
-                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
-                "بەڕێوەبەری سەرەکی پڕۆژە",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ))
-        conn.commit()
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-init_db()
+        .user-profile-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 14px;
+            border-radius: 40px;
+            background: var(--surface-glass);
+            border: 1px solid var(--border-glass);
+            cursor: pointer;
+            transition: var(--transition);
+        }
 
+        .user-profile-badge:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-2px);
+        }
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user" not in session:
-            return jsonify({"status": "error", "message": "تکایە سەرەتا بچۆ ژوورەوە"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
+        .user-avatar-mini {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-blue);
+        }
 
+        .main-layout {
+            max-width: 1240px;
+            width: 100%;
+            margin: 28px auto;
+            padding: 0 20px;
+            flex: 1;
+        }
 
-def update_debt_status(conn, debt_id):
-    debt = conn.execute("SELECT total_amount, due_date FROM debts WHERE id = ?", (debt_id,)).fetchone()
-    if not debt:
-        return
+        /* کارتەکانی داشبۆرد */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
 
-    paid_sum = conn.execute(
-        "SELECT COALESCE(SUM(amount_paid), 0) as total FROM payments WHERE debt_id = ?", (debt_id,)
-    ).fetchone()["total"]
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
 
-    remaining = debt["total_amount"] - paid_sum
-    today = date.today().isoformat()
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255,255,255,0.18);
+        }
 
-    if remaining <= 0:
-        status = "paid"
-    elif debt["due_date"] and debt["due_date"] < today:
-        status = "overdue"
-    elif paid_sum > 0:
-        status = "partial"
-    else:
-        status = "pending"
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; width: 4px; height: 100%;
+        }
 
-    conn.execute("UPDATE debts SET status = ? WHERE id = ?", (status, debt_id))
-    conn.commit()
+        .card-blue::after { background: var(--accent-blue); }
+        .card-green::after { background: var(--accent-success); }
+        .card-red::after { background: var(--accent-danger); }
+        .card-yellow::after { background: var(--accent-warning); }
 
+        .stat-card h4 { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+        .stat-card .val { font-size: 24px; font-weight: 800; }
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+        /* کۆنترۆڵەکان و دوگمەکان */
+        .controls-bar {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
 
+        .search-field {
+            position: relative;
+            min-width: 280px;
+        }
 
-# --- Auth & Profile ---
-@app.route("/api/auth/login", methods=["POST"])
-def api_login():
-    data = request.get_json() or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "").strip()
+        .search-field input {
+            width: 100%;
+            padding: 11px 40px 11px 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            font-size: 13px;
+        }
 
-    with get_db() as conn:
-        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        .search-field i {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
 
-    if not user or not check_password_hash(user["password_hash"], password):
-        return jsonify({"status": "error", "message": "ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە!"}), 401
+        .btn-modern {
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: none;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
 
-    session["user"] = {
-        "id": user["id"],
-        "username": user["username"],
-        "full_name": user["full_name"],
-        "role": user["role"],
-        "avatar": user["avatar"],
-        "bio": user["bio"]
-    }
-    return jsonify({"status": "success", "user": session["user"]})
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(0,112,243,0.3);
+        }
 
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,112,243,0.5);
+        }
 
-@app.route("/api/auth/logout", methods=["POST"])
-def api_logout():
-    session.clear()
-    return jsonify({"status": "success"})
+        .btn-glass {
+            background: var(--surface-glass);
+            border: 1px solid var(--border-glass);
+            color: var(--text-main);
+        }
 
+        .btn-glass:hover {
+            background: rgba(255,255,255,0.1);
+        }
 
-@app.route("/api/auth/me", methods=["GET"])
-def api_me():
-    if "user" in session:
-        # هێنانی نوێترین زانیاری لە بنکەدراوە
-        with get_db() as conn:
-            user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user"]["id"],)).fetchone()
-            if user:
-                session["user"] = {
-                    "id": user["id"],
-                    "username": user["username"],
-                    "full_name": user["full_name"],
-                    "role": user["role"],
-                    "avatar": user["avatar"],
-                    "bio": user["bio"]
+        /* خشتە و تاگەکان */
+        .table-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: right;
+            font-size: 13.5px;
+        }
+
+        th {
+            background: rgba(0,0,0,0.25);
+            padding: 16px 20px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        td {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        .pill-paid { background: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
+        .pill-overdue { background: rgba(239, 68, 68, 0.15); color: var(--accent-danger); }
+        .pill-pending { background: rgba(0, 112, 243, 0.15); color: var(--accent-blue); }
+        .pill-partial { background: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+
+        /* مۆداڵەکان */
+        .modal-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-body {
+            background: #111624;
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 480px;
+            padding: 28px;
+            animation: modalSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes modalSlide {
+            from { opacity: 0; transform: scale(0.95) translateY(15px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .input-box {
+            margin-bottom: 16px;
+        }
+
+        .input-box label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .input-box input, .input-box select, .input-box textarea {
+            width: 100%;
+            padding: 11px 14px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            font-size: 13.5px;
+            transition: var(--transition);
+        }
+
+        .input-box input:focus, .input-box textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(0,112,243,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ١. بەشی چوونەژوورەوە بە دیزاینی ڤیدیۆی ئەڵقەیی -->
+    <div class="auth-wrapper" id="authSection">
+        <video class="video-bg" autoplay muted loop playsinline>
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-graphs-and-data-31913-large.mp4" type="video/mp4">
+        </video>
+        <div class="auth-overlay"></div>
+
+        <div class="auth-box">
+            <div class="brand-icon-anim">
+                <i class="fa-solid fa-cube"></i>
+            </div>
+            <h2 style="font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 6px;">سیستەمی دانیال</h2>
+            <p style="font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 26px;">بەڕێوەبردنی قەرز و حسابی دارایی</p>
+
+            <form id="loginForm">
+                <div class="input-box">
+                    <label>ناوی بەکارهێنەر</label>
+                    <input type="text" id="loginUser" required placeholder="admin">
+                </div>
+                <div class="input-box">
+                    <label>وشەی نهێنی</label>
+                    <input type="password" id="loginPass" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-modern btn-gradient" style="width: 100%; justify-content: center; padding: 13px; margin-top: 10px;">
+                    چوونەژوورەوە
+                </button>
+            </form>
+            <p id="loginError" style="color: var(--accent-danger); font-size: 13px; text-align: center; margin-top: 14px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- ٢. ناوەڕۆکی سەرەکی بەرنامە -->
+    <div class="app-container" id="appContainer">
+        <!-- ناڤبار -->
+        <header class="navbar">
+            <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px;">
+                <i class="fa-solid fa-wallet" style="color: var(--accent-blue);"></i>
+                سیستەمی قەرز و حسابات
+            </div>
+
+            <!-- پرۆفایلی بەکارهێنەر لەگەڵ بایۆ -->
+            <div class="user-profile-badge" onclick="openProfileModal()">
+                <img src="" id="userNavAvatar" class="user-avatar-mini" alt="avatar">
+                <div style="text-align: right;">
+                    <div id="userNavName" style="font-weight: 700; font-size: 13px;"></div>
+                    <div id="userNavBio" style="font-size: 11px; color: var(--text-muted); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                </div>
+                <i class="fa-solid fa-angle-down" style="font-size: 12px; color: var(--text-muted);"></i>
+            </div>
+        </header>
+
+        <main class="main-layout">
+            <!-- ئامارەکان -->
+            <div class="stats-grid">
+                <div class="stat-card card-blue">
+                    <div>
+                        <h4>کۆی گشتی قەرز</h4>
+                        <div class="val" id="statTotalDebt">0</div>
+                    </div>
+                    <i class="fa-solid fa-sack-dollar" style="font-size: 28px; color: var(--accent-blue);"></i>
+                </div>
+
+                <div class="stat-card card-green">
+                    <div>
+                        <h4>کۆی پارەی واسڵکراو</h4>
+                        <div class="val" style="color: var(--accent-success);" id="statTotalPaid">0</div>
+                    </div>
+                    <i class="fa-solid fa-circle-check" style="font-size: 28px; color: var(--accent-success);"></i>
+                </div>
+
+                <div class="stat-card card-red">
+                    <div>
+                        <h4>کۆی پارەی ماوە</h4>
+                        <div class="val" style="color: var(--accent-danger);" id="statTotalRemaining">0</div>
+                    </div>
+                    <i class="fa-solid fa-hand-holding-dollar" style="font-size: 28px; color: var(--accent-danger);"></i>
+                </div>
+
+                <div class="stat-card card-yellow">
+                    <div>
+                        <h4>قەرزی دواکەوتوو</h4>
+                        <div class="val" style="color: var(--accent-warning);" id="statOverdue">0</div>
+                    </div>
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 28px; color: var(--accent-warning);"></i>
+                </div>
+            </div>
+
+            <!-- کۆنترۆڵەکان -->
+            <div class="controls-bar">
+                <div class="search-field">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchInput" placeholder="گەڕان بەپێی ناوی کەسەکە یان مۆبایل..." oninput="loadDebts()">
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-modern btn-gradient" onclick="openAddDebtModal()">
+                        <i class="fa-solid fa-plus"></i> قەرزی نوێ
+                    </button>
+                    <button class="btn-modern btn-glass" onclick="location.href='/api/reports/export-excel'">
+                        <i class="fa-solid fa-file-excel"></i> هەناردەکردن بۆ Excel
+                    </button>
+                    <button class="btn-modern btn-glass" onclick="logout()">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> دەرچوون
+                    </button>
+                </div>
+            </div>
+
+            <!-- خشتە -->
+            <div class="table-panel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>کۆد</th>
+                            <th>ناوی کەسی قەرزدار</th>
+                            <th>ژمارەی مۆبایل</th>
+                            <th>کۆی قەرز</th>
+                            <th>بڕی دراو</th>
+                            <th>بڕی ماوە</th>
+                            <th>بەرواری دانەوە</th>
+                            <th>دۆخ</th>
+                            <th>کردارەکان</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debtsTableBody"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- مۆداڵی زیادکردنی قەرزی نوێ (ناوی کەسەکە بە هەڵبژاردن و دەستکرد) -->
+    <div class="modal-screen" id="debtModal">
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 17px;">تۆمارکردنی قەرزی نوێ</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('debtModal')"></i>
+            </div>
+            <form id="addDebtForm">
+                <div class="input-box">
+                    <label>ناوی کەسی قەرزەکە * (دەتوانیت هەڵیبژێریت یان ناوی نوێ بنووسیت)</label>
+                    <input type="text" id="custNameInput" list="customerSuggestions" required placeholder="ناوی کڕیار بنووسە..." autocomplete="off">
+                    <datalist id="customerSuggestions"></datalist>
+                </div>
+                <div class="input-box">
+                    <label>ژمارەی مۆبایل</label>
+                    <input type="text" id="custPhoneInput" placeholder="0750...">
+                </div>
+                <div class="input-box">
+                    <label>بڕی قەرز (دینار) *</label>
+                    <input type="number" id="custAmountInput" required placeholder="نموونە: 150000">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-box">
+                        <label>بەرواری قەرز</label>
+                        <input type="date" id="custDebtDate">
+                    </div>
+                    <div class="input-box">
+                        <label>بەرواری دانەوە *</label>
+                        <input type="date" id="custDueDate" required>
+                    </div>
+                </div>
+                <div class="input-box">
+                    <label>تێبینی</label>
+                    <textarea id="custNoteInput" rows="2" placeholder="کەلوپەل، هۆکار..."></textarea>
+                </div>
+                <button type="submit" class="btn-modern btn-gradient" style="width: 100%; justify-content: center; padding: 12px; margin-top: 10px;">
+                    پاشەکەوتکردنی قەرز
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مۆداڵی پرۆفایل و بایۆ و گۆڕینی وێنە -->
+    <div class="modal-screen" id="profileModal">
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 17px;">دەستکاریکردنی پرۆفایل</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('profileModal')"></i>
+            </div>
+            <form id="profileForm">
+                <div style="text-align: center; margin-bottom: 18px;">
+                    <img src="" id="profilePreviewImg" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-blue); margin-bottom: 8px;">
+                    <div>
+                        <button type="button" class="btn-modern btn-glass" style="font-size: 11px; padding: 6px 12px;" onclick="document.getElementById('avatarFileInput').click()">
+                            <i class="fa-solid fa-camera"></i> گۆڕینی وێنە
+                        </button>
+                        <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="input-box">
+                    <label>ناوی تەواو</label>
+                    <input type="text" id="profileFullName" required>
+                </div>
+
+                <div class="input-box">
+                    <label>بایۆ (دەربارەی من)</label>
+                    <textarea id="profileBio" rows="3" placeholder="ڕوونکردنەوەیەک دەربارەی بەرپرسیارێتیت..."></textarea>
+                </div>
+
+                <button type="submit" class="btn-modern btn-gradient" style="width: 100%; justify-content: center; padding: 12px;">
+                    نوێکردنەوەی زانیارییەکان
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مۆداڵی واسڵکردنی پارە -->
+    <div class="modal-screen" id="payModal">
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 id="payModalTitle" style="font-size: 16px;">واڵسکردنی پارە</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('payModal')"></i>
+            </div>
+            <p id="payModalRemainingLabel" style="font-size: 13px; color: var(--accent-danger); margin-bottom: 14px; font-weight: 700;"></p>
+            <form id="paymentForm">
+                <input type="hidden" id="payDebtId">
+                <div class="input-box">
+                    <label>بڕی پارەی دراو (دینار) *</label>
+                    <input type="number" id="payAmountInput" required placeholder="بڕی پارە بنووسە...">
+                </div>
+                <div class="input-box">
+                    <label>تێبینی وەسڵ</label>
+                    <input type="text" id="payNoteInput" placeholder="وەسڵی ژمارە، هتد...">
+                </div>
+                <button type="submit" class="btn-modern" style="width: 100%; justify-content: center; background: var(--accent-success); color: #fff; padding: 12px;">
+                    تەواوکردنی وەرگرتن
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let customerDataList = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('custDebtDate').value = new Date().toISOString().split('T')[0];
+            checkAuth();
+        });
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (data.logged_in) {
+                    currentUser = data.user;
+                    initApp();
+                } else {
+                    document.getElementById('authSection').style.display = 'flex';
+                    document.getElementById('appContainer').style.display = 'none';
                 }
-        return jsonify({"logged_in": True, "user": session["user"]})
-    return jsonify({"logged_in": False})
+            } catch (e) {
+                console.error(e);
+            }
+        }
 
+        function initApp() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+            updateProfileUI();
+            loadDashboard();
+            loadCustomerSuggestions();
+            loadDebts();
+        }
 
-@app.route("/api/profile/update", methods=["POST"])
-@login_required
-def update_profile():
-    full_name = request.form.get("full_name", "").strip()
-    bio = request.form.get("bio", "").strip()
-    file = request.files.get("avatar")
+        function updateProfileUI() {
+            document.getElementById('userNavName').textContent = currentUser.full_name;
+            document.getElementById('userNavBio').textContent = currentUser.bio || 'بێ بایۆ';
+            document.getElementById('userNavAvatar').src = currentUser.avatar;
+            document.getElementById('profilePreviewImg').src = currentUser.avatar;
+            document.getElementById('profileFullName').value = currentUser.full_name;
+            document.getElementById('profileBio').value = currentUser.bio || '';
+        }
 
-    if not full_name:
-        return jsonify({"status": "error", "message": "ناوی تەواو پێویستە"}), 400
+        // هێنانی ناوی کڕیارەکان بۆ ئاسان هەڵبژاردن و خۆکار پڕکردنەوەی ژمارە
+        async function loadCustomerSuggestions() {
+            const res = await fetch('/api/customers/suggestions');
+            customerDataList = await res.json();
+            const dl = document.getElementById('customerSuggestions');
+            dl.innerHTML = '';
+            customerDataList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                dl.appendChild(opt);
+            });
+        }
 
-    avatar_url = session["user"].get("avatar")
+        // کاتێک ناوەکەی هەڵبژارد، مۆبایلەکەی خۆی بنووسێت
+        document.getElementById('custNameInput').addEventListener('input', (e) => {
+            const match = customerDataList.find(c => c.name.toLowerCase() === e.target.value.toLowerCase());
+            if (match && match.phone) {
+                document.getElementById('custPhoneInput').value = match.phone;
+            }
+        });
 
-    if file and file.filename != '':
-        filename = f"avatar_{session['user']['id']}_{int(datetime.now().timestamp())}.{file.filename.rsplit('.', 1)[1].lower()}"
-        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(file_path)
-        avatar_url = f"/static/avatars/{filename}"
+        // لۆگین
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const err = document.getElementById('loginError');
+            err.style.display = 'none';
 
-    with get_db() as conn:
-        conn.execute("""
-            UPDATE users SET full_name = ?, bio = ?, avatar = ? WHERE id = ?
-        """, (full_name, bio, avatar_url, session["user"]["id"]))
-        conn.commit()
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('loginUser').value.trim(),
+                    password: document.getElementById('loginPass').value.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                initApp();
+            } else {
+                err.textContent = data.message;
+                err.style.display = 'block';
+            }
+        });
 
-    session["user"]["full_name"] = full_name
-    session["user"]["bio"] = bio
-    session["user"]["avatar"] = avatar_url
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            location.reload();
+        }
 
-    return jsonify({"status": "success", "message": "پرۆفایل بە سەرکەوتوویی نوێکرایەوە", "user": session["user"]})
+        // ئامارەکان
+        async function loadDashboard() {
+            const res = await fetch('/api/dashboard/stats');
+            const data = await res.json();
+            document.getElementById('statTotalDebt').textContent = Number(data.total_debt).toLocaleString() + " د.ع";
+            document.getElementById('statTotalPaid').textContent = Number(data.total_paid).toLocaleString() + " د.ع";
+            document.getElementById('statTotalRemaining').textContent = Number(data.total_remaining).toLocaleString() + " د.ع";
+            document.getElementById('statOverdue').textContent = data.overdue_count;
+        }
 
+        // خشتەی قەرزەکان
+        async function loadDebts() {
+            const search = document.getElementById('searchInput').value;
+            const res = await fetch(`/api/debts?search=${encodeURIComponent(search)}`);
+            const debts = await res.json();
 
-# --- هێنانی ناوی کڕیارەکان بۆ ئاسانکردنی هەڵبژاردن ---
-@app.route("/api/customers/suggestions", methods=["GET"])
-@login_required
-def get_customer_suggestions():
-    with get_db() as conn:
-        rows = conn.execute("SELECT DISTINCT customer_name, phone FROM debts ORDER BY customer_name ASC").fetchall()
-    return jsonify([{"name": r["customer_name"], "phone": r["phone"] or ""} for r in rows])
+            const tbody = document.getElementById('debtsTableBody');
+            tbody.innerHTML = '';
 
+            const statusMap = {
+                paid: { label: 'تەواوبوو', cls: 'pill-paid' },
+                overdue: { label: 'دواکەوتوو', cls: 'pill-overdue' },
+                partial: { label: 'بەشەکی دراوە', cls: 'pill-partial' },
+                pending: { label: 'نەدراوە', cls: 'pill-pending' }
+            };
 
-# --- Dashboard Stats ---
-@app.route("/api/dashboard/stats", methods=["GET"])
-@login_required
-def api_dashboard_stats():
-    today = date.today().isoformat()
-    week_later = (date.today() + timedelta(days=7)).isoformat()
+            debts.forEach(d => {
+                const s = statusMap[d.status] || { label: d.status, cls: 'pill-pending' };
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 700; color: var(--text-muted);">#${d.id}</td>
+                    <td style="font-weight: 800;">${d.customer_name}</td>
+                    <td>${d.phone || '-'}</td>
+                    <td>${Number(d.total_amount).toLocaleString()}</td>
+                    <td style="color: var(--accent-success); font-weight: 700;">${Number(d.paid_amount).toLocaleString()}</td>
+                    <td style="color: var(--accent-danger); font-weight: 800;">${Number(d.remaining_amount).toLocaleString()}</td>
+                    <td>${d.due_date}</td>
+                    <td><span class="status-pill ${s.cls}">${s.label}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            ${d.remaining_amount > 0 ? `
+                                <button class="btn-modern" style="padding: 5px 10px; font-size: 11px; background: var(--accent-success); color: #fff;" onclick="openPayModal(${d.id}, '${d.customer_name}',${d.remaining_amount})">
+                                    واسڵکردن
+                                </button>
+                            ` : ''}
+                            <button class="btn-modern btn-glass" style="padding: 5px 10px; font-size: 11px; color: var(--accent-danger);" onclick="deleteDebt(${d.id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
-    with get_db() as conn:
-        debts_check = conn.execute("SELECT id FROM debts").fetchall()
-        for d in debts_check:
-            update_debt_status(conn, d["id"])
+        // پاشەکەوتکردنی قەرزی نوێ
+        document.getElementById('addDebtForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                customer_name: document.getElementById('custNameInput').value.trim(),
+                phone: document.getElementById('custPhoneInput').value.trim(),
+                total_amount: document.getElementById('custAmountInput').value,
+                debt_date: document.getElementById('custDebtDate').value,
+                due_date: document.getElementById('custDueDate').value,
+                note: document.getElementById('custNoteInput').value.trim()
+            };
 
-        total_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts").fetchone()["s"]
-        total_paid = conn.execute("SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments").fetchone()["s"]
-        total_remaining = max(0.0, total_debt - total_paid)
-        overdue_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE status = 'overdue'").fetchone()["c"]
+            const res = await fetch('/api/debts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeModal('debtModal');
+                document.getElementById('addDebtForm').reset();
+                loadCustomerSuggestions();
+                loadDashboard();
+                loadDebts();
+            } else {
+                alert(data.message || 'هەڵەیەک هەیە');
+            }
+        });
 
-        due_today = conn.execute(
-            "SELECT COUNT(*) as c FROM debts WHERE due_date = ? AND status != 'paid'", (today,)
-        ).fetchone()["c"]
+        // واسڵکردنی پارە
+        function openPayModal(id, name, remaining) {
+            document.getElementById('payDebtId').value = id;
+            document.getElementById('payModalTitle').textContent = `واسڵکردن بۆ: ${name}`;
+            document.getElementById('payModalRemainingLabel').textContent = `بڕی پارەی ماوە: ${Number(remaining).toLocaleString()} دینار`;
+            document.getElementById('payAmountInput').max = remaining;
+            document.getElementById('payModal').style.display = 'flex';
+        }
 
-    return jsonify({
-        "total_debt": total_debt,
-        "total_paid": total_paid,
-        "total_remaining": total_remaining,
-        "overdue_count": overdue_count,
-        "due_today": due_today
-    })
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const debtId = document.getElementById('payDebtId').value;
+            const res = await fetch(`/api/debts/${debtId}/payments`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    amount: document.getElementById('payAmountInput').value,
+                    note: document.getElementById('payNoteInput').value.trim()
+                })
+            });
+            if (res.ok) {
+                closeModal('payModal');
+                document.getElementById('paymentForm').reset();
+                loadDashboard();
+                loadDebts();
+            }
+        });
 
+        // نوێکردنەوەی پرۆفایل و وێنە
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('full_name', document.getElementById('profileFullName').value);
+            formData.append('bio', document.getElementById('profileBio').value);
 
-# --- Debts CRUD ---
-@app.route("/api/debts", methods=["GET"])
-@login_required
-def get_debts():
-    search = request.args.get("search", "").strip()
-    status_filter = request.args.get("status", "").strip()
+            const file = document.getElementById('avatarFileInput').files[0];
+            if (file) formData.append('avatar', file);
 
-    query = """
-        SELECT 
-            d.id, d.customer_name, d.phone, d.total_amount, d.debt_date, d.due_date, d.note, d.status,
-            COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-            (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining_amount
-        FROM debts d
-        LEFT JOIN payments p ON d.id = p.debt_id
-        WHERE 1=1
-    """
-    params = []
+            const res = await fetch('/api/profile/update', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                updateProfileUI();
+                closeModal('profileModal');
+            }
+        });
 
-    if search:
-        query += " AND (d.customer_name LIKE ? OR d.phone LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
+        document.getElementById('avatarFileInput').addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (ev) => document.getElementById('profilePreviewImg').src = ev.target.result;
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
 
-    if status_filter:
-        query += " AND d.status = ?"
-        params.append(status_filter)
+        async function deleteDebt(id) {
+            if (confirm('ئایا دڵنیایت لە سڕینەوەی ئەم قەرزە؟')) {
+                await fetch(`/api/debts/${id}`, { method: 'DELETE' });
+                loadDashboard();
+                loadDebts();
+            }
+        }
 
-    query += " GROUP BY d.id ORDER BY d.id DESC"
-
-    with get_db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/api/debts", methods=["POST"])
-@login_required
-def create_debt():
-    data = request.get_json() or {}
-    name = data.get("customer_name", "").strip()
-    phone = data.get("phone", "").strip()
-    amount = data.get("total_amount")
-    debt_date = data.get("debt_date") or date.today().isoformat()
-    due_date = data.get("due_date")
-    note = data.get("note", "").strip()
-
-    # دڵنیابوونەوە لەوەی ناوی کەسی قەرزەکە نەنوسراو جێنەهێڵراوە
-    if not name:
-        return jsonify({"status": "error", "message": "تکایە ناوی کڕیار بنووسە یان هەڵیبژێرە"}), 400
-
-    if not amount or not due_date:
-        return jsonify({"status": "error", "message": "بڕی پارە و بەرواری دانەوە مەرجە"}), 400
-
-    try:
-        amount = float(amount)
-        if amount <= 0:
-            raise ValueError()
-    except ValueError:
-        return jsonify({"status": "error", "message": "بڕی قەرز دەبێت ژمارەیەکی دروست بێت"}), 400
-
-    initial_status = "overdue" if due_date < date.today().isoformat() else "pending"
-
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO debts (customer_name, phone, total_amount, debt_date, due_date, note, status, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (name, phone, amount, debt_date, due_date, note, initial_status, session["user"]["username"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        conn.commit()
-
-    return jsonify({"status": "success", "message": "قەرزەکە بە سەرکەوتوویی تۆمارکرا"})
-
-
-@app.route("/api/debts/<int:debt_id>", methods=["DELETE"])
-@login_required
-def delete_debt(debt_id):
-    with get_db() as conn:
-        conn.execute("DELETE FROM payments WHERE debt_id = ?", (debt_id,))
-        conn.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
-        conn.commit()
-    return jsonify({"status": "success", "message": "قەرزەکە سڕایەوە"})
-
-
-# --- Payments ---
-@app.route("/api/debts/<int:debt_id>/payments", methods=["GET", "POST"])
-@login_required
-def handle_payments(debt_id):
-    if request.method == "POST":
-        data = request.get_json() or {}
-        amount = data.get("amount")
-        note = data.get("note", "").strip()
-        pay_date = data.get("payment_date") or date.today().isoformat()
-
-        try:
-            amount = float(amount)
-            if amount <= 0:
-                raise ValueError()
-        except (TypeError, ValueError):
-            return jsonify({"status": "error", "message": "بڕی پارە هەڵەیە"}), 400
-
-        with get_db() as conn:
-            debt = conn.execute("SELECT total_amount FROM debts WHERE id = ?", (debt_id,)).fetchone()
-            if not debt:
-                return jsonify({"status": "error", "message": "قەرزەکە نەدۆزرایەوە"}), 404
-
-            current_paid = conn.execute(
-                "SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments WHERE debt_id = ?", (debt_id,)
-            ).fetchone()["s"]
-
-            remaining = debt["total_amount"] - current_paid
-            if amount > remaining:
-                return jsonify({"status": "error", "message": f"پارەی دراو زۆرترە لە ماوەی قەرزەکە! ({remaining:,.0f} ماوە)"}), 400
-
-            conn.execute("""
-                INSERT INTO payments (debt_id, amount_paid, payment_date, note, received_by)
-                VALUES (?, ?, ?, ?, ?)
-            """, (debt_id, amount, pay_date, note, session["user"]["username"]))
-            conn.commit()
-            update_debt_status(conn, debt_id)
-
-        return jsonify({"status": "success", "message": "واڵسکردنەکە تۆمارکرا"})
-
-    # GET
-    with get_db() as conn:
-        debt = conn.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
-        payments = conn.execute("SELECT * FROM payments WHERE debt_id = ? ORDER BY id DESC", (debt_id,)).fetchall()
-
-    return jsonify({"debt": dict(debt), "payments": [dict(p) for p in payments]})
-
-
-@app.route("/api/reports/export-excel", methods=["GET"])
-@login_required
-def export_excel():
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT d.id, d.customer_name, d.phone, d.total_amount,
-                   COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-                   (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining,
-                   d.debt_date, d.due_date, d.status
-            FROM debts d LEFT JOIN payments p ON d.id = p.debt_id
-            GROUP BY d.id ORDER BY d.id DESC
-        """).fetchall()
-
-    output = io.StringIO()
-    output.write('\ufeff')
-    writer = csv.writer(output)
-    writer.writerow(["کۆد", "ناوی کڕیار", "مۆبایل", "کۆی قەرز", "دراو", "ماوە", "بەرواری قەرز", "بەرواری دانەوە", "دۆخ"])
-    for r in rows:
-        writer.writerow([r["id"], r["customer_name"], r["phone"] or "-", f"{r['total_amount']:,.0f}", f"{r['paid_amount']:,.0f}", f"{r['remaining']:,.0f}", r["debt_date"], r["due_date"], r["status"]])
-
-    response = Response(output.getvalue(), mimetype="text/csv; charset=utf-8")
-    response.headers["Content-Disposition"] = f"attachment; filename=debts_{date.today().isoformat()}.csv"
-    return response
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+        function openAddDebtModal() { document.getElementById('debtModal').style.display = 'flex'; }
+        function openProfileModal() { document.getElementById('profileModal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
