@@ -1,539 +1,1032 @@
-"""
-Commercial Debt & Installment Management System (POS & Financial SaaS)
-Features: Dual Currency (IQD/USD), Installments, Thermal Receipt, Audit Logs, Chart Analytics, Backup
-"""
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستەمی پێشکەوتووی قەرز و حسابات | دانیال</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js بۆ گرافیکە داراییەکان -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- کتێبخانەی Google Identity -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-import os
-import sqlite3
-import csv
-import io
-import json
-import base64
-from datetime import datetime, date, timedelta
-from functools import wraps
-from flask import Flask, render_template, request, jsonify, session, Response, send_file
-from werkzeug.security import generate_password_hash, check_password_hash
-
-app = Flask(__name__)
-app.secret_key = os.urandom(32)
-app.permanent_session_lifetime = timedelta(days=7)
-
-DB_NAME = "debt_pro.db"
-UPLOAD_FOLDER = os.path.join("static", "avatars")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-
-
-def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def log_audit(conn, username, action, details):
-    conn.execute("""
-        INSERT INTO audit_logs (username, action, details, created_at)
-        VALUES (?, ?, ?, ?)
-    """, (username, action, details, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
-
-def init_db():
-    with get_db() as conn:
-        cursor = conn.cursor()
-
-        # ١. بەکارهێنەران
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT,
-                full_name TEXT NOT NULL,
-                email TEXT,
-                role TEXT NOT NULL DEFAULT 'staff',
-                avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                bio TEXT DEFAULT 'کارمەندی دارایی',
-                created_at TEXT NOT NULL
-            )
-        """)
-
-        # ٢. خشتەی قەرزەکان لەگەڵ قیست و جۆری دراو
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS debts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_name TEXT NOT NULL,
-                phone TEXT,
-                total_amount REAL NOT NULL,
-                currency TEXT NOT NULL DEFAULT 'IQD', -- IQD یان USD
-                exchange_rate REAL DEFAULT 1500,
-                debt_date TEXT NOT NULL,
-                due_date TEXT NOT NULL,
-                note TEXT,
-                is_installment INTEGER DEFAULT 0,
-                installment_count INTEGER DEFAULT 1,
-                status TEXT NOT NULL DEFAULT 'pending',
-                created_by TEXT,
-                created_at TEXT NOT NULL
-            )
-        """)
-
-        # ٣. خشتەی قیستەکان
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS installments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                debt_id INTEGER NOT NULL,
-                installment_no INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                due_date TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                paid_date TEXT,
-                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٤. خشتەی وەسڵ و پارەدانەوەکان
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                debt_id INTEGER NOT NULL,
-                receipt_no TEXT UNIQUE NOT NULL,
-                amount_paid REAL NOT NULL,
-                payment_date TEXT NOT NULL,
-                note TEXT,
-                received_by TEXT,
-                FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
-            )
-        """)
-
-        # ٥. لۆگی چاودێری (Audit Logs)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
-                action TEXT NOT NULL,
-                details TEXT,
-                created_at TEXT NOT NULL
-            )
-        """)
-
-        # دروستکردنی ئەدمینی سەرەکی
-        admin = cursor.execute("SELECT * FROM users WHERE username = 'admin'").fetchone()
-        if not admin:
-            cursor.execute("""
-                INSERT INTO users (username, password_hash, full_name, email, role, avatar, bio, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                "admin",
-                generate_password_hash("admin123"),
-                "دانیال ئیسماعیل",
-                "admin@danyal.app",
-                "admin",
-                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
-                "بەڕێوەبەری سیستەمی دارایی",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ))
-        conn.commit()
-
-init_db()
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if "user" not in session:
-            return jsonify({"status": "error", "message": "تکایە سەرەتا بچۆ ژوورەوە"}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def update_debt_status(conn, debt_id):
-    debt = conn.execute("SELECT total_amount, due_date FROM debts WHERE id = ?", (debt_id,)).fetchone()
-    if not debt:
-        return
-
-    paid_sum = conn.execute(
-        "SELECT COALESCE(SUM(amount_paid), 0) as total FROM payments WHERE debt_id = ?", (debt_id,)
-    ).fetchone()["total"]
-
-    remaining = debt["total_amount"] - paid_sum
-    today = date.today().isoformat()
-
-    if remaining <= 0:
-        status = "paid"
-    elif debt["due_date"] and debt["due_date"] < today:
-        status = "overdue"
-    elif paid_sum > 0:
-        status = "partial"
-    else:
-        status = "pending"
-
-    conn.execute("UPDATE debts SET status = ? WHERE id = ?", (status, debt_id))
-    conn.commit()
-
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-# --- Auth Endpoints ---
-@app.route("/api/auth/login", methods=["POST"])
-def api_login():
-    data = request.get_json() or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "").strip()
-
-    with get_db() as conn:
-        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-        if not user or not user["password_hash"] or not check_password_hash(user["password_hash"], password):
-            return jsonify({"status": "error", "message": "ناوی بەکارهێنەر یان وشەی نهێنی هەڵەیە!"}), 401
-
-        session["user"] = {
-            "id": user["id"],
-            "username": user["username"],
-            "full_name": user["full_name"],
-            "role": user["role"],
-            "avatar": user["avatar"],
-            "bio": user["bio"]
+    <style>
+        :root {
+            --bg-dark: #07090e;
+            --surface: rgba(15, 20, 32, 0.85);
+            --surface-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --accent-blue: #0070f3;
+            --accent-purple: #7928ca;
+            --accent-danger: #ef4444;
+            --accent-success: #10b981;
+            --accent-whatsapp: #25d366;
+            --text-main: #ffffff;
+            --text-muted: #9ba1b0;
+            --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        log_audit(conn, user["username"], "LOGIN", "چوونەژوورەوەی ئاسایی بە سەرکەوتوویی")
-        conn.commit()
 
-    return jsonify({"status": "success", "user": session["user"]})
-
-
-@app.route("/api/auth/google", methods=["POST"])
-def google_auth():
-    data = request.get_json() or {}
-    credential = data.get("credential")
-    if not credential:
-        return jsonify({"status": "error", "message": "بڕوانامەی گووگڵ نەدۆزرایەوە"}), 400
-
-    try:
-        parts = credential.split(".")
-        payload_b64 = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
-        google_data = json.loads(base64.urlsafe_b64decode(payload_b64).decode("utf-8"))
-
-        email = google_data.get("email")
-        full_name = google_data.get("name", "بەکارهێنەری گووگڵ")
-        avatar = google_data.get("picture", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150")
-        username = email.split("@")[0]
-    except Exception:
-        return jsonify({"status": "error", "message": "شیکردنەوەی زانیارییەکانی گووگڵ سەرکەوتوو نەبوو"}), 400
-
-    with get_db() as conn:
-        user = conn.execute("SELECT * FROM users WHERE email = ? OR username = ?", (email, username)).fetchone()
-        if not user:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO users (username, full_name, email, role, avatar, bio, created_at)
-                VALUES (?, ?, ?, 'staff', ?, 'هەژماری پەیوەستکراوی گووگڵ', ?)
-            """, (username, full_name, email, avatar, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            user_id = cursor.lastrowid
-            role, bio = "staff", "هەژماری پەیوەستکراوی گووگڵ"
-        else:
-            user_id, role, bio = user["id"], user["role"], user["bio"]
-            conn.execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, user_id))
-
-        session["user"] = {
-            "id": user_id,
-            "username": username,
-            "full_name": full_name,
-            "email": email,
-            "role": role,
-            "avatar": avatar,
-            "bio": bio
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Vazirmatn', sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-        log_audit(conn, username, "GOOGLE_LOGIN", f"چوونەژوورەوە لە ڕێگەی ئیمەیڵی {email}")
-        conn.commit()
 
-    return jsonify({"status": "success", "user": session["user"]})
-
-
-@app.route("/api/auth/logout", methods=["POST"])
-def api_logout():
-    if "user" in session:
-        with get_db() as conn:
-            log_audit(conn, session["user"]["username"], "LOGOUT", "دەرچوون لە سیستەم")
-            conn.commit()
-    session.clear()
-    return jsonify({"status": "success"})
-
-
-@app.route("/api/auth/me", methods=["GET"])
-def api_me():
-    if "user" in session:
-        return jsonify({"logged_in": True, "user": session["user"]})
-    return jsonify({"logged_in": False})
-
-
-# --- Dashboard Stats & Charts Analytics ---
-@app.route("/api/dashboard/analytics", methods=["GET"])
-@login_required
-def dashboard_analytics():
-    today = date.today().isoformat()
-    with get_db() as conn:
-        # نوێکردنەوەی هەموو دۆخەکان
-        for d in conn.execute("SELECT id FROM debts").fetchall():
-            update_debt_status(conn, d["id"])
-
-        # کۆی گشتی بەپێی دراوەکان (IQD و USD)
-        iqd_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts WHERE currency = 'IQD'").fetchone()["s"]
-        iqd_paid = conn.execute("""
-            SELECT COALESCE(SUM(p.amount_paid), 0) as s 
-            FROM payments p JOIN debts d ON p.debt_id = d.id WHERE d.currency = 'IQD'
-        """).fetchone()["s"]
-
-        usd_debt = conn.execute("SELECT COALESCE(SUM(total_amount), 0) as s FROM debts WHERE currency = 'USD'").fetchone()["s"]
-        usd_paid = conn.execute("""
-            SELECT COALESCE(SUM(p.amount_paid), 0) as s 
-            FROM payments p JOIN debts d ON p.debt_id = d.id WHERE d.currency = 'USD'
-        """).fetchone()["s"]
-
-        overdue_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE status = 'overdue'").fetchone()["c"]
-        due_today_count = conn.execute("SELECT COUNT(*) as c FROM debts WHERE due_date = ? AND status != 'paid'", (today,)).fetchone()["c"]
-
-        # پێنج گەورەترین قەرزدارەکان بۆ هێڵکاری (Top 5 Debtors)
-        top_debtors_raw = conn.execute("""
-            SELECT d.customer_name, d.currency,
-                   (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining
-            FROM debts d LEFT JOIN payments p ON d.id = p.debt_id
-            GROUP BY d.id
-            HAVING remaining > 0
-            ORDER BY remaining DESC LIMIT 5
-        """).fetchall()
-
-        # هێڵکاری مانگانەی واسڵکراوەکان (کۆی ٦ مانگی ڕابردوو)
-        monthly_payments = conn.execute("""
-            SELECT strftime('%Y-%m', payment_date) as month, SUM(amount_paid) as total
-            FROM payments
-            GROUP BY month ORDER BY month DESC LIMIT 6
-        """).fetchall()
-
-    return jsonify({
-        "iqd": {"debt": iqd_debt, "paid": iqd_paid, "remaining": max(0.0, iqd_debt - iqd_paid)},
-        "usd": {"debt": usd_debt, "paid": usd_paid, "remaining": max(0.0, usd_debt - usd_paid)},
-        "overdue_count": overdue_count,
-        "due_today_count": due_today_count,
-        "top_debtors": [dict(r) for r in top_debtors_raw],
-        "monthly_chart": [dict(m) for m in reversed(monthly_payments)]
-    })
-
-
-# --- Debts & Installments Management ---
-@app.route("/api/debts", methods=["GET"])
-@login_required
-def get_debts():
-    search = request.args.get("search", "").strip()
-    status_filter = request.args.get("status", "").strip()
-
-    query = """
-        SELECT d.id, d.customer_name, d.phone, d.total_amount, d.currency, d.exchange_rate,
-               d.debt_date, d.due_date, d.status, d.is_installment, d.installment_count, d.note,
-               COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-               (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining_amount
-        FROM debts d
-        LEFT JOIN payments p ON d.id = p.debt_id
-        WHERE 1=1
-    """
-    params = []
-    if search:
-        query += " AND (d.customer_name LIKE ? OR d.phone LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
-    if status_filter:
-        query += " AND d.status = ?"
-        params.append(status_filter)
-
-    query += " GROUP BY d.id ORDER BY d.id DESC"
-
-    with get_db() as conn:
-        rows = conn.execute(query, params).fetchall()
-
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/api/debts", methods=["POST"])
-@login_required
-def create_debt():
-    data = request.get_json() or {}
-    name = data.get("customer_name", "").strip()
-    phone = data.get("phone", "").strip()
-    amount = data.get("total_amount")
-    currency = data.get("currency", "IQD")
-    rate = float(data.get("exchange_rate", 1500))
-    debt_date = data.get("debt_date") or date.today().isoformat()
-    due_date = data.get("due_date")
-    note = data.get("note", "").strip()
-    is_installment = 1 if data.get("is_installment") else 0
-    installments_count = int(data.get("installment_count", 1))
-
-    if not name or not amount or not due_date:
-        return jsonify({"status": "error", "message": "تکایە خانە مەرجدارەکان پڕبکەرەوە"}), 400
-
-    try:
-        amount = float(amount)
-        if amount <= 0:
-            raise ValueError()
-    except ValueError:
-        return jsonify({"status": "error", "message": "بڕی پارە نادروستە"}), 400
-
-    status = "overdue" if due_date < date.today().isoformat() else "pending"
-
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO debts (customer_name, phone, total_amount, currency, exchange_rate, debt_date, due_date, note, is_installment, installment_count, status, created_by, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (name, phone, amount, currency, rate, debt_date, due_date, note, is_installment, installments_count, status, session["user"]["username"], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        debt_id = cursor.lastrowid
-
-        # ئەگەر سیستەمی قیست هەڵبژێردرا، قیستە مانگانەکان خشتەبەندی بکە
-        if is_installment and installments_count > 1:
-            part_amount = round(amount / installments_count, 2)
-            base_date = datetime.strptime(debt_date, "%Y-%m-%d")
-            for i in range(1, installments_count + 1):
-                inst_due = (base_date + timedelta(days=30 * i)).strftime("%Y-%m-%d")
-                cursor.execute("""
-                    INSERT INTO installments (debt_id, installment_no, amount, due_date, status)
-                    VALUES (?, ?, ?, ?, 'pending')
-                """, (debt_id, i, part_amount, inst_due))
-
-        log_audit(conn, session["user"]["username"], "ADD_DEBT", f"قەرزی نوێ بۆ {name} بە بڕی {amount} {currency}")
-        conn.commit()
-
-    return jsonify({"status": "success", "message": "قەرزەکە بە سەرکەوتوویی تۆمارکرا"})
-
-
-# --- Payments & Thermal Receipt Generation ---
-@app.route("/api/debts/<int:debt_id>/payments", methods=["POST"])
-@login_required
-def make_payment(debt_id):
-    data = request.get_json() or {}
-    amount = float(data.get("amount", 0))
-    note = data.get("note", "").strip()
-
-    if amount <= 0:
-        return jsonify({"status": "error", "message": "بڕی پارەی دراو دەبێت لە سفر گەورەتر بێت"}), 400
-
-    with get_db() as conn:
-        debt = conn.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)).fetchone()
-        if not debt:
-            return jsonify({"status": "error", "message": "قەرزەکە نەدۆزرایەوە"}), 404
-
-        current_paid = conn.execute(
-            "SELECT COALESCE(SUM(amount_paid), 0) as s FROM payments WHERE debt_id = ?", (debt_id,)
-        ).fetchone()["s"]
-
-        remaining_before = debt["total_amount"] - current_paid
-        if amount > remaining_before:
-            return jsonify({"status": "error", "message": f"بڕی دراو زۆرترە لە ماوە! ({remaining_before:,.0f} {debt['currency']})"}), 400
-
-        # ژمارەی وەسڵی فەرمی
-        receipt_no = f"REC-{datetime.now().strftime('%y%m%d')}-{debt_id}-{int(datetime.now().timestamp()) % 1000}"
-
-        conn.execute("""
-            INSERT INTO payments (debt_id, receipt_no, amount_paid, payment_date, note, received_by)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (debt_id, receipt_no, amount, datetime.now().strftime("%Y-%m-%d %H:%M"), note, session["user"]["username"]))
-
-        # ئەگەر قیست بوو، نزیکترین قیست بکە بە paid
-        if debt["is_installment"]:
-            conn.execute("""
-                UPDATE installments SET status = 'paid', paid_date = ?
-                WHERE id = (SELECT id FROM installments WHERE debt_id = ? AND status = 'pending' ORDER BY installment_no ASC LIMIT 1)
-            """, (datetime.now().strftime("%Y-%m-%d"), debt_id))
-
-        update_debt_status(conn, debt_id)
-        log_audit(conn, session["user"]["username"], "PAYMENT", f"وەرگرتنی {amount} {debt['currency']} بۆ وەسڵی #{receipt_no}")
-        conn.commit()
-
-        remaining_after = remaining_before - amount
-
-    return jsonify({
-        "status": "success",
-        "receipt": {
-            "receipt_no": receipt_no,
-            "customer_name": debt["customer_name"],
-            "phone": debt["phone"],
-            "amount_paid": amount,
-            "currency": debt["currency"],
-            "remaining": remaining_after,
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "received_by": session["user"]["full_name"],
-            "note": note
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
-    })
 
+        /* ١. پەڕەی سینەمایی دەستپێک (Splash) */
+        #splashScreen {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
 
-@app.route("/api/debts/<int:debt_id>", methods=["DELETE"])
-@login_required
-def delete_debt(debt_id):
-    with get_db() as conn:
-        debt = conn.execute("SELECT customer_name, total_amount FROM debts WHERE id = ?", (debt_id,)).fetchone()
-        conn.execute("DELETE FROM installments WHERE debt_id = ?", (debt_id,))
-        conn.execute("DELETE FROM payments WHERE debt_id = ?", (debt_id,))
-        conn.execute("DELETE FROM debts WHERE id = ?", (debt_id,))
-        if debt:
-            log_audit(conn, session["user"]["username"], "DELETE_DEBT", f"سڕینەوەی قەرزی {debt['customer_name']}")
-        conn.commit()
-    return jsonify({"status": "success"})
+        .splash-video {
+            position: absolute;
+            top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            filter: brightness(0.35) contrast(1.2);
+        }
 
+        .splash-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            animation: popIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
 
-# --- Customers & Autocomplete ---
-@app.route("/api/customers/suggestions", methods=["GET"])
-@login_required
-def get_customer_suggestions():
-    with get_db() as conn:
-        rows = conn.execute("SELECT DISTINCT customer_name, phone FROM debts ORDER BY customer_name ASC").fetchall()
-    return jsonify([{"name": r["customer_name"], "phone": r["phone"] or ""} for r in rows])
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.8) translateY(30px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
 
+        .splash-logo {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 46px;
+            box-shadow: 0 0 50px rgba(0, 112, 243, 0.8);
+        }
 
-# --- Audit Logs View ---
-@app.route("/api/audit-logs", methods=["GET"])
-@login_required
-def get_audit_logs():
-    with get_db() as conn:
-        logs = conn.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 50").fetchall()
-    return jsonify([dict(l) for l in logs])
+        /* ٢. پەڕەی چوونەژوورەوە */
+        .login-wrapper {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            background: url('https://images.unsplash.com/photo-1518770660439-4636190af475?w=1800') center/cover no-repeat;
+        }
 
+        .login-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(11, 15, 25, 0.75) 0%, rgba(7, 9, 14, 0.95) 100%);
+            backdrop-filter: blur(8px);
+        }
 
-# --- Database Backup Download ---
-@app.route("/api/admin/backup", methods=["GET"])
-@login_required
-def download_backup():
-    if os.path.exists(DB_NAME):
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return send_file(DB_NAME, as_attachment=True, download_name=f"danyal_debt_backup_{stamp}.db")
-    return jsonify({"status": "error"}), 404
+        .login-card {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 440px;
+            padding: 40px 34px;
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 28px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            text-align: center;
+        }
 
+        .btn-google {
+            width: 100%;
+            padding: 13px;
+            background: #fff;
+            color: #222;
+            border-radius: 14px;
+            border: none;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 20px;
+        }
 
-@app.route("/api/reports/export-excel", methods=["GET"])
-@login_required
-def export_excel():
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT d.id, d.customer_name, d.phone, d.total_amount, d.currency,
-                   COALESCE(SUM(p.amount_paid), 0) as paid_amount,
-                   (d.total_amount - COALESCE(SUM(p.amount_paid), 0)) as remaining,
-                   d.due_date, d.status, d.is_installment
-            FROM debts d LEFT JOIN payments p ON d.id = p.debt_id
-            GROUP BY d.id ORDER BY d.id DESC
-        """).fetchall()
+        .btn-google:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.25); }
 
-    output = io.StringIO()
-    output.write('\ufeff')
-    writer = csv.writer(output)
-    writer.writerow(["کۆد", "ناوی کڕیار", "مۆبایل", "کۆی قەرز", "دراو", "ماوە", "دراو", "بەرواری دانەوە", "دۆخ", "قیستە؟"])
-    for r in rows:
-        writer.writerow([
-            r["id"], r["customer_name"], r["phone"] or "-",
-            f"{r['total_amount']:,.0f}", f"{r['paid_amount']:,.0f}", f"{r['remaining']:,.0f}",
-            r["currency"], r["due_date"], r["status"], "بەڵێ" if r["is_installment"] else "نەخێر"
-        ])
+        /* ٣. داشبۆرد و ناوەوەی سیستم */
+        .app-view {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
 
-    response = Response(output.getvalue(), mimetype="text/csv; charset=utf-8")
-    response.headers["Content-Disposition"] = f"attachment; filename=debts_{date.today().isoformat()}.csv"
-    return response
+        .navbar {
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
 
+        .main-container {
+            max-width: 1300px;
+            width: 100%;
+            margin: 26px auto;
+            padding: 0 20px;
+            flex: 1;
+        }
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+        /* کارتەکانی ئامار بە دوو دراو */
+        .currency-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 26px;
+        }
+
+        .stat-card-currency {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card-currency::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; width: 6px; height: 100%;
+        }
+
+        .card-iqd::before { background: var(--accent-blue); }
+        .card-usd::before { background: var(--accent-success); }
+
+        .currency-title {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .currency-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13.5px;
+        }
+
+        /* هێڵکارییەکان (Charts Panel) */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 26px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-row { grid-template-columns: 1fr; }
+        }
+
+        .chart-box {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 20px;
+        }
+
+        .chart-box h3 {
+            font-size: 15px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* خشتە و دوگمەکان */
+        .controls-row {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn-action {
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: none;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: #fff;
+        }
+
+        .btn-whatsapp {
+            background: rgba(37, 211, 102, 0.15);
+            color: var(--accent-whatsapp);
+            border: 1px solid rgba(37, 211, 102, 0.3);
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-whatsapp:hover {
+            background: var(--accent-whatsapp);
+            color: #fff;
+        }
+
+        .table-panel {
+            background: var(--surface);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: right;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 15px 18px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        th { background: rgba(0,0,0,0.3); color: var(--text-muted); }
+
+        /* مۆداڵەکان */
+        .modal-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 16px;
+        }
+
+        .modal-body {
+            background: #101422;
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 500px;
+            padding: 26px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 11px 14px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            font-size: 13px;
+        }
+
+        /* دیزاینی تایبەتی وەسڵی چاپی گەرمیی (Thermal Receipt 80mm) */
+        #thermalReceipt {
+            display: none;
+            width: 80mm;
+            padding: 15px;
+            background: #fff;
+            color: #000;
+            font-family: monospace, 'Vazirmatn';
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #thermalReceipt, #thermalReceipt * { visibility: visible; }
+            #thermalReceipt {
+                display: block !important;
+                position: absolute;
+                left: 0; top: 0; width: 80mm; margin: 0; padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- دەنگی ئاگادارکردنەوە لە ڕێگەی Web Audio API -->
+    <script>
+        function playChime() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.45);
+            } catch(e){}
+        }
+    </script>
+
+    <!-- ١. پەڕەی دەستپێکی سینەمایی (Video Splash) -->
+    <div id="splashScreen">
+        <video class="splash-video" autoplay muted loop playsinline>
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-graphs-and-data-31913-large.mp4" type="video/mp4">
+        </video>
+        <div class="splash-content">
+            <div class="splash-logo">
+                <i class="fa-solid fa-cube" style="color: #fff;"></i>
+            </div>
+            <h1 style="font-size: 30px; font-weight: 900; margin-bottom: 8px;">سیستەمی دانیال</h1>
+            <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 24px;">بەڕێوەبردنی قەرز، قیستی مانگانە و حساباتی پێشکەوتوو</p>
+            <button class="btn-action btn-gradient" onclick="finishSplash()">
+                دەستپێکردن <i class="fa-solid fa-arrow-left"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ٢. پەڕەی چوونەژوورەوە -->
+    <div class="login-wrapper" id="loginWrapper">
+        <div class="login-overlay"></div>
+        <div class="login-card">
+            <div style="font-size: 34px; color: var(--accent-blue); margin-bottom: 12px;">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+            </div>
+            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px;">چوونەژوورەوە</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 22px;">تکایە هەژمارەکەت هەڵبژێرە</p>
+
+            <button class="btn-google" onclick="triggerGoogleSignIn()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" alt="Google">
+                <span>چوونەژوورەوە لە ڕێگەی Google</span>
+            </button>
+
+            <div style="display: flex; align-items: center; margin-bottom: 20px; color: var(--text-muted); font-size: 12px;">
+                <span style="flex:1; border-bottom:1px solid var(--border-glass);"></span>
+                <span style="padding: 0 10px;">یان بە بەکارهێنەر</span>
+                <span style="flex:1; border-bottom:1px solid var(--border-glass);"></span>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>ناوی بەکارهێنەر</label>
+                    <input type="text" id="loginUser" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label>وشەی نهێنی</label>
+                    <input type="password" id="loginPass" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-action btn-gradient" style="width: 100%; justify-content: center; padding: 12px;">
+                    چوونەژوورەوە
+                </button>
+            </form>
+            <p id="loginErr" style="color: var(--accent-danger); font-size: 13px; margin-top: 12px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- ٣. داشبۆردی سەرەکی -->
+    <div class="app-view" id="appView">
+        <header class="navbar">
+            <div style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px;">
+                <i class="fa-solid fa-cube" style="color: var(--accent-blue);"></i>
+                سیستەمی دارایی و قەرزی دانیال
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <button class="btn-action" style="background: rgba(255,255,255,0.06); color: #fff;" onclick="openAuditModal()">
+                    <i class="fa-solid fa-shield-halved"></i> لۆگی چاودێری
+                </button>
+                <div style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: var(--surface-glass); border-radius: 30px;">
+                    <img src="" id="userAvatar" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-blue);">
+                    <span id="userName" style="font-weight: 700; font-size: 13px;"></span>
+                </div>
+                <button class="btn-action" style="background: rgba(239,68,68,0.15); color: var(--accent-danger);" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <!-- ئاگاداری بەرواری دانەوە -->
+            <div id="overdueAlertBanner" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); padding: 14px 20px; border-radius: 16px; margin-bottom: 22px; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 22px; color: var(--accent-danger);"></i>
+                    <span id="overdueText" style="font-weight: 600; font-size: 13.5px;"></span>
+                </div>
+                <button class="btn-action" style="background: var(--accent-danger); color: #fff; font-size: 12px; padding: 6px 14px;" onclick="playChime()">
+                    بیستنی دەنگ
+                </button>
+            </div>
+
+            <!-- کارتەکانی ئامار: دینار و دۆلار -->
+            <div class="currency-stats-grid">
+                <div class="stat-card-currency card-iqd">
+                    <div class="currency-title">
+                        <span><i class="fa-solid fa-money-bill-wave"></i> باڵانسی دینار (IQD)</span>
+                        <strong style="color: var(--accent-blue);">عێراقی</strong>
+                    </div>
+                    <div class="currency-row"><span>کۆی قەرز:</span><strong id="iqdTotalDebt">0 د.ع</strong></div>
+                    <div class="currency-row"><span>واسڵکراو:</span><strong style="color: var(--accent-success);" id="iqdTotalPaid">0 د.ع</strong></div>
+                    <div class="currency-row" style="font-size: 15px; font-weight: 800; margin-top: 10px; border-top: 1px solid var(--border-glass); padding-top: 8px;">
+                        <span>ماوەی گشتی:</span><strong style="color: var(--accent-danger);" id="iqdRemaining">0 د.ع</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card-currency card-usd">
+                    <div class="currency-title">
+                        <span><i class="fa-solid fa-dollar-sign"></i> باڵانسی دۆلار (USD)</span>
+                        <strong style="color: var(--accent-success);">$ ئەمریکی</strong>
+                    </div>
+                    <div class="currency-row"><span>کۆی قەرز:</span><strong id="usdTotalDebt">$0</strong></div>
+                    <div class="currency-row"><span>واسڵکراو:</span><strong style="color: var(--accent-success);" id="usdTotalPaid">$0</strong></div>
+                    <div class="currency-row" style="font-size: 15px; font-weight: 800; margin-top: 10px; border-top: 1px solid var(--border-glass); padding-top: 8px;">
+                        <span>ماوەی گشتی:</span><strong style="color: var(--accent-danger);" id="usdRemaining">$0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- هێڵکارییە داراییەکان (Charts) -->
+            <div class="charts-row">
+                <div class="chart-box">
+                    <h3><i class="fa-solid fa-chart-column" style="color: var(--accent-blue);"></i> جوڵەی مانگانەی واسڵکراوەکان</h3>
+                    <div style="height: 220px;"><canvas id="monthlyChart"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <h3><i class="fa-solid fa-chart-pie" style="color: var(--accent-purple);"></i> قەرزدارترین کەسەکان</h3>
+                    <div style="height: 220px;"><canvas id="debtorsChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- کۆنترۆڵەکان -->
+            <div class="controls-row">
+                <div style="position: relative; min-width: 280px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="text" id="searchInput" placeholder="گەڕان بەپێی ناوی کەس یان مۆبایل..." oninput="loadDebts()"
+                           style="width: 100%; padding: 10px 40px 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; color: #fff;">
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-action btn-gradient" onclick="openAddDebtModal()">
+                        <i class="fa-solid fa-plus"></i> تۆمارکردنی قەرز / قیست
+                    </button>
+                    <button class="btn-action" style="background: var(--surface-glass); border: 1px solid var(--border-glass); color: #fff;" onclick="location.href='/api/reports/export-excel'">
+                        <i class="fa-solid fa-file-excel"></i> هەناردە بۆ Excel
+                    </button>
+                    <button class="btn-action" style="background: var(--surface-glass); border: 1px solid var(--border-glass); color: #fff;" onclick="location.href='/api/admin/backup'">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> باکئەپ (.db)
+                    </button>
+                </div>
+            </div>
+
+            <!-- خشتەی داتاکان -->
+            <div class="table-panel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>کۆد</th>
+                            <th>ناوی کڕیار</th>
+                            <th>واتسئاپ / مۆبایل</th>
+                            <th>جۆری دراو</th>
+                            <th>کۆی قەرز</th>
+                            <th>دراو</th>
+                            <th>ماوە</th>
+                            <th>قیستە؟</th>
+                            <th>بەرواری دانەوە</th>
+                            <th>دۆخ</th>
+                            <th>کردارەکان</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debtsBody"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- مۆداڵی زیادکردنی قەرز و قیست -->
+    <div class="modal-screen" id="debtModal">
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <h3 style="font-size: 16px;">تۆمارکردنی قەرزی نوێ</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('debtModal')"></i>
+            </div>
+            <form id="debtForm">
+                <div class="form-group">
+                    <label>ناوی کەسی قەرزدار *</label>
+                    <input type="text" id="custName" list="custSuggestions" required placeholder="ناوی کڕیار بنووسە...">
+                    <datalist id="custSuggestions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>ژمارەی مۆبایل (واتسئاپ)</label>
+                    <input type="text" id="custPhone" placeholder="0750 000 0000">
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label>بڕی قەرز *</label>
+                        <input type="number" step="any" id="custAmount" required placeholder="100000">
+                    </div>
+                    <div class="form-group">
+                        <label>دراو</label>
+                        <select id="custCurrency">
+                            <option value="IQD">دینار (IQD)</option>
+                            <option value="USD">دۆلار (USD $)</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label>بەرواری قەرز</label>
+                        <input type="date" id="custDebtDate">
+                    </div>
+                    <div class="form-group">
+                        <label>بەرواری دانەوە (Due Date) *</label>
+                        <input type="date" id="custDueDate" required>
+                    </div>
+                </div>
+
+                <!-- سیستەمی قیستی مانگانە -->
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-glass);">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="isInstallmentCheckbox" onchange="toggleInstallmentInput()">
+                        <span style="font-weight: 700; font-size: 13px;">دابەشکردن بەسەر قیستی مانگانەدا</span>
+                    </label>
+                    <div id="installmentCountWrap" style="display: none; margin-top: 10px;">
+                        <label style="font-size: 12px; color: var(--text-muted);">ژمارەی قیستەکان (مانگ):</label>
+                        <input type="number" id="custInstallmentCount" value="3" min="2" max="60" style="padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); color: #fff; width: 100%;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>تێبینی</label>
+                    <textarea id="custNote" rows="2" placeholder="کەلوپەل، هۆکار..."></textarea>
+                </div>
+                <button type="submit" class="btn-action btn-gradient" style="width: 100%; justify-content: center; padding: 12px;">تۆمارکردن</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مۆداڵی واسڵکردن -->
+    <div class="modal-screen" id="payModal">
+        <div class="modal-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 id="payTitle" style="font-size: 16px;">واڵسکردنی پارە</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('payModal')"></i>
+            </div>
+            <p id="payRemainingText" style="font-size: 14px; font-weight: 700; color: var(--accent-danger); margin-bottom: 14px;"></p>
+            <form id="payForm">
+                <input type="hidden" id="payDebtId">
+                <div class="form-group">
+                    <label>بڕی واسڵکراو *</label>
+                    <input type="number" step="any" id="payAmount" required>
+                </div>
+                <div class="form-group">
+                    <label>تێبینی وەسڵ</label>
+                    <input type="text" id="payNote" placeholder="وەسڵی کاش، هتد...">
+                </div>
+                <button type="submit" class="btn-action" style="width: 100%; justify-content: center; background: var(--accent-success); color: #fff; padding: 12px;">
+                    وەرگرتن و دەرکردنی وەسڵ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- مۆداڵی لۆگی چاودێری کارمەندان (Audit Logs) -->
+    <div class="modal-screen" id="auditModal">
+        <div class="modal-body" style="max-width: 650px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 16px;"><i class="fa-solid fa-shield-halved"></i> لۆگی چاودێریی کارمەندان</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeModal('auditModal')"></i>
+            </div>
+            <div id="auditLogsContainer" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- پێکهاتەی وەسڵی گەرمیی بۆ چاپ (Thermal POS Receipt 80mm) -->
+    <div id="thermalReceipt">
+        <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+            <h2 style="font-size: 16px; margin: 0;">سیستەمی دانیال</h2>
+            <p style="font-size: 11px; margin: 2px 0;">وەسڵی وەرگرتنی پارە (کاش)</p>
+            <p id="recNo" style="font-size: 10px; margin: 0;"></p>
+            <p id="recDate" style="font-size: 10px; margin: 0;"></p>
+        </div>
+        <div style="font-size: 11px; margin-bottom: 8px;">
+            <p><strong>کڕیار:</strong> <span id="recCustomer"></span></p>
+            <p><strong>مۆبایل:</strong> <span id="recPhone"></span></p>
+            <p><strong>وەرگیرا لەلایەن:</strong> <span id="recUser"></span></p>
+        </div>
+        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 6px 0; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
+                <span>بڕی پارەی دراو:</span>
+                <span id="recPaid"></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
+                <span>ماوەی قەرز:</span>
+                <span id="recRem"></span>
+            </div>
+        </div>
+        <div style="text-align: center; font-size: 10px; margin-top: 10px;">
+            <p>سوپاس بۆ مامەڵەکەتان</p>
+            <p>نەرمەکاڵای دانیال بۆ حسابات</p>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let customerSuggestions = [];
+        let monthlyChartInstance = null;
+        let debtorsChartInstance = null;
+
+        // ١. لۆجیکی دەستپێک و لۆگین
+        let splashTimer = setTimeout(finishSplash, 3000);
+
+        function finishSplash() {
+            clearTimeout(splashTimer);
+            const splash = document.getElementById('splashScreen');
+            splash.style.opacity = '0';
+            setTimeout(() => {
+                splash.style.display = 'none';
+                checkAuth();
+            }, 700);
+        }
+
+        async function checkAuth() {
+            const res = await fetch('/api/auth/me');
+            const data = await res.json();
+            if (data.logged_in) {
+                currentUser = data.user;
+                initApp();
+            } else {
+                document.getElementById('loginWrapper').style.display = 'flex';
+                document.getElementById('appView').style.display = 'none';
+            }
+        }
+
+        function initApp() {
+            document.getElementById('loginWrapper').style.display = 'none';
+            document.getElementById('appView').style.display = 'flex';
+            document.getElementById('userName').textContent = currentUser.full_name;
+            document.getElementById('userAvatar').src = currentUser.avatar;
+            document.getElementById('custDebtDate').value = new Date().toISOString().split('T')[0];
+
+            loadDashboardAnalytics();
+            loadDebts();
+            loadCustomerSuggestions();
+        }
+
+        // ٢. چوونەژوورەوە
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('loginUser').value.trim(),
+                    password: document.getElementById('loginPass').value.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentUser = data.user;
+                initApp();
+            } else {
+                const err = document.getElementById('loginErr');
+                err.textContent = data.message;
+                err.style.display = 'block';
+            }
+        });
+
+        function triggerGoogleSignIn() {
+            const mock = btoa(JSON.stringify({
+                email: "danyal@google.com",
+                name: "Danyal User",
+                picture: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
+            }));
+            fetch('/api/auth/google', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ credential: `h.${mock}.s` })
+            }).then(r => r.json()).then(d => {
+                if (d.status === 'success') {
+                    currentUser = d.user;
+                    initApp();
+                }
+            });
+        }
+
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            location.reload();
+        }
+
+        // ٣. ئامار و هێڵکارییەکان (Analytics & Chart.js)
+        async function loadDashboardAnalytics() {
+            const res = await fetch('/api/dashboard/analytics');
+            const data = await res.json();
+
+            // IQD
+            document.getElementById('iqdTotalDebt').textContent = Number(data.iqd.debt).toLocaleString() + " د.ع";
+            document.getElementById('iqdTotalPaid').textContent = Number(data.iqd.paid).toLocaleString() + " د.ع";
+            document.getElementById('iqdRemaining').textContent = Number(data.iqd.remaining).toLocaleString() + " د.ع";
+
+            // USD
+            document.getElementById('usdTotalDebt').textContent = "$" + Number(data.usd.debt).toLocaleString();
+            document.getElementById('usdTotalPaid').textContent = "$" + Number(data.usd.paid).toLocaleString();
+            document.getElementById('usdRemaining').textContent = "$" + Number(data.usd.remaining).toLocaleString();
+
+            // ئاگاداری قەرزی دواکەوتوو
+            if (data.overdue_count > 0 || data.due_today_count > 0) {
+                const banner = document.getElementById('overdueAlertBanner');
+                banner.style.display = 'flex';
+                document.getElementById('overdueText').textContent = 
+                    `ئاگاداری: (${data.due_today_count}) قەرز ئەمڕۆ کاتی هاتووە، و (${data.overdue_count}) قەرزی دواکەوتوو هەیە!`;
+                playChime();
+            }
+
+            renderCharts(data.monthly_chart, data.top_debtors);
+        }
+
+        function renderCharts(monthlyData, topDebtors) {
+            // هێڵکاری مانگانە
+            const ctx1 = document.getElementById('monthlyChart').getContext('2d');
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+            monthlyChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: monthlyData.map(m => m.month),
+                    datasets: [{
+                        label: 'پارەی وەرگیراو',
+                        data: monthlyData.map(m => m.total),
+                        backgroundColor: '#0070f3',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // هێڵکاری ٥ گەورەترین قەرزدارەکان
+            const ctx2 = document.getElementById('debtorsChart').getContext('2d');
+            if (debtorsChartInstance) debtorsChartInstance.destroy();
+            debtorsChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: topDebtors.map(d => d.customer_name),
+                    datasets: [{
+                        data: topDebtors.map(d => d.remaining),
+                        backgroundColor: ['#ef4444', '#f59e0b', '#7928ca', '#0070f3', '#10b981']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // ٤. خشتە و دروستکردنی نامەی واتسئاپ
+        async function loadDebts() {
+            const search = document.getElementById('searchInput').value;
+            const res = await fetch(`/api/debts?search=${encodeURIComponent(search)}`);
+            const debts = await res.json();
+            const tbody = document.getElementById('debtsBody');
+            tbody.innerHTML = '';
+
+            debts.forEach(d => {
+                // دروستکردنی لینکی نامەی فەرمی واتسئاپ
+                let cleanPhone = (d.phone || '').replace(/[^0-9]/g, '');
+                if (cleanPhone.startsWith('07')) cleanPhone = '964' + cleanPhone.substring(1);
+                const waMessage = encodeURIComponent(
+                    `سڵاو بەڕێز ${d.customer_name}،\nئاگادارتان دەکەینەوە لە سیستەمی دانیال کە بڕی (${Number(d.remaining_amount).toLocaleString()} ${d.currency}) قەرزت ماوە کە بەرواری دانەوەی (${d.due_date})یە.\nسوپاس بۆ مامەڵەکەت.`
+                );
+                const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waMessage}` : '#';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color: var(--text-muted);">#${d.id}</td>
+                    <td style="font-weight: 800;">${d.customer_name}</td>
+                    <td>
+                        ${cleanPhone ? `
+                            <a href="${waLink}" target="_blank" class="btn-whatsapp" title="ناردنی نامەی کوردی">
+                                <i class="fa-brands fa-whatsapp"></i> ${d.phone}
+                            </a>
+                        ` : '-'}
+                    </td>
+                    <td><strong style="color: ${d.currency === 'USD' ? 'var(--accent-success)' : 'var(--accent-blue)'};">${d.currency}</strong></td>
+                    <td>${Number(d.total_amount).toLocaleString()}</td>
+                    <td style="color: var(--accent-success);">${Number(d.paid_amount).toLocaleString()}</td>
+                    <td style="color: var(--accent-danger); font-weight: 800;">${Number(d.remaining_amount).toLocaleString()}</td>
+                    <td>${d.is_installment ? `<span style="color: var(--accent-purple); font-weight: 700;">${d.installment_count} قیست</span>` : 'نەخێر'}</td>
+                    <td>${d.due_date}</td>
+                    <td>
+                        <span style="padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: ${d.status==='paid'?'rgba(16,185,129,0.15)':d.status==='overdue'?'rgba(239,68,68,0.15)':'rgba(0,112,243,0.15)'}; color: ${d.status==='paid'?'#10b981':d.status==='overdue'?'#ef4444':'#0070f3'};">
+                            ${d.status}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 6px;">
+                            ${d.remaining_amount > 0 ? `
+                                <button class="btn-action" style="padding: 4px 8px; font-size: 11px; background: var(--accent-success); color: #fff;" onclick="openPayModal(${d.id}, '${d.customer_name}', ${d.remaining_amount}, '${d.currency}')">
+                                    واسڵکردن
+                                </button>
+                            ` : ''}
+                            <button class="btn-action" style="padding: 4px 8px; font-size: 11px; background: rgba(239,68,68,0.15); color: var(--accent-danger);" onclick="deleteDebt(${d.id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ٥. زیادکردنی قەرز
+        document.getElementById('debtForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/debts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    customer_name: document.getElementById('custName').value.trim(),
+                    phone: document.getElementById('custPhone').value.trim(),
+                    total_amount: document.getElementById('custAmount').value,
+                    currency: document.getElementById('custCurrency').value,
+                    debt_date: document.getElementById('custDebtDate').value,
+                    due_date: document.getElementById('custDueDate').value,
+                    note: document.getElementById('custNote').value.trim(),
+                    is_installment: document.getElementById('isInstallmentCheckbox').checked,
+                    installment_count: document.getElementById('custInstallmentCount').value
+                })
+            });
+            if (res.ok) {
+                closeModal('debtModal');
+                document.getElementById('debtForm').reset();
+                loadDashboardAnalytics();
+                loadDebts();
+                loadCustomerSuggestions();
+            }
+        });
+
+        // ٦. واسڵکردن و چاپی وەسڵ (Thermal 80mm)
+        function openPayModal(id, name, remaining, currency) {
+            document.getElementById('payDebtId').value = id;
+            document.getElementById('payTitle').textContent = `واسڵکردنی پارە بۆ: ${name}`;
+            document.getElementById('payRemainingText').textContent = `ماوەی قەرز: ${Number(remaining).toLocaleString()} ${currency}`;
+            document.getElementById('payAmount').max = remaining;
+            document.getElementById('payModal').style.display = 'flex';
+        }
+
+        document.getElementById('payForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const debtId = document.getElementById('payDebtId').value;
+            const res = await fetch(`/api/debts/${debtId}/payments`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    amount: document.getElementById('payAmount').value,
+                    note: document.getElementById('payNote').value.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeModal('payModal');
+                loadDashboardAnalytics();
+                loadDebts();
+
+                // ڕێکخستنی وەسڵی گەرمیی و فەرمانی چاپ
+                const rec = data.receipt;
+                document.getElementById('recNo').textContent = `وەسڵ: ${rec.receipt_no}`;
+                document.getElementById('recDate').textContent = `بەروار: ${rec.date}`;
+                document.getElementById('recCustomer').textContent = rec.customer_name;
+                document.getElementById('recPhone').textContent = rec.phone || '-';
+                document.getElementById('recUser').textContent = rec.received_by;
+                document.getElementById('recPaid').textContent = `${Number(rec.amount_paid).toLocaleString()} ${rec.currency}`;
+                document.getElementById('recRem').textContent = `${Number(rec.remaining).toLocaleString()} ${rec.currency}`;
+
+                if (confirm('پارەکە واسڵکرا! ئایا وەسڵی چاپی گەرمیی (Thermal Receipt) چاپ دەکەیت؟')) {
+                    window.print();
+                }
+            } else {
+                alert(data.message);
+            }
+        });
+
+        // ٧. پێشنیاری ناوی کڕیاران
+        async function loadCustomerSuggestions() {
+            const res = await fetch('/api/customers/suggestions');
+            customerSuggestions = await res.json();
+            const dl = document.getElementById('custSuggestions');
+            dl.innerHTML = '';
+            customerSuggestions.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                dl.appendChild(opt);
+            });
+        }
+
+        document.getElementById('custName').addEventListener('input', (e) => {
+            const match = customerSuggestions.find(c => c.name.toLowerCase() === e.target.value.toLowerCase());
+            if (match && match.phone) document.getElementById('custPhone').value = match.phone;
+        });
+
+        // ٨. لۆگی چاودێری
+        async function openAuditModal() {
+            const res = await fetch('/api/audit-logs');
+            const logs = await res.json();
+            const cont = document.getElementById('auditLogsContainer');
+            cont.innerHTML = '';
+            logs.forEach(l => {
+                cont.innerHTML += `
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; font-size: 12.5px;">
+                        <div style="display: flex; justify-content: space-between; font-weight: 700;">
+                            <span style="color: var(--accent-blue);">${l.username} (${l.action})</span>
+                            <span style="color: var(--text-muted); font-size: 11px;">${l.created_at}</span>
+                        </div>
+                        <p style="color: #cbd5e1; margin-top: 4px;">${l.details}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('auditModal').style.display = 'flex';
+        }
+
+        function toggleInstallmentInput() {
+            const chk = document.getElementById('isInstallmentCheckbox');
+            document.getElementById('installmentCountWrap').style.display = chk.checked ? 'block' : 'none';
+        }
+
+        async function deleteDebt(id) {
+            if (confirm('دڵنیایت لە سڕینەوەی ئەم قەرزە و سەرجەم مێژووەکەی؟')) {
+                await fetch(`/api/debts/${id}`, { method: 'DELETE' });
+                loadDashboardAnalytics();
+                loadDebts();
+            }
+        }
+
+        function openAddDebtModal() { document.getElementById('debtModal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
