@@ -3,123 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Premium Login & Register UI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <title>Danyal - Instagram UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="home.css">
 </head>
 <body>
 
-  <div class="container">
+  <div class="app-container">
     
-    <div class="lamp-wire"></div>
-    <div class="robot-lamp">
-      <div class="robot-face">
-        <div class="eyes">
-          <span>^</span>
-          <span>^</span>
-        </div>
-        <div class="mouth"></div>
+    <header class="top-header">
+      <div class="icon-box">
+        <i class="fa-solid fa-plus"></i>
       </div>
-    </div>
+      <div class="logo-container">
+        <h1 class="logo">Danyal</h1>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+      <div class="icon-box transparent">
+        <i class="fa-regular fa-heart"></i>
+      </div>
+    </header>
 
-    <div class="pull-cord" id="pullCord">
-      <div class="cord-line"></div>
-      <div class="cord-knob"></div>
-    </div>
-
-    <div class="form-box">
+    <main class="main-feed">
       
-      <div class="form-container" id="loginForm">
-        <div class="header">
-          <h2>Welcome Back</h2>
-          <p>Sign in to continue</p>
-        </div>
-
-        <div class="input-group">
-          <label>USERNAME OR EMAIL</label>
-          <div class="input-wrapper">
-            <input type="text" placeholder="Enter username or email">
-            <i class="fa-solid fa-user"></i>
+      <div class="stories-container">
+        <div class="story">
+          <div class="story-ring my-story">
+            <img src="https://i.pravatar.cc/150?img=11" alt="Your Story">
+            <div class="plus-badge"><i class="fa-solid fa-plus"></i></div>
           </div>
+          <span class="story-name text-muted">Your story</span>
         </div>
-
-        <div class="input-group">
-          <label>PASSWORD</label>
-          <div class="input-wrapper">
-            <input type="password" placeholder="••••••••">
-            <i class="fa-solid fa-lock"></i>
-          </div>
+        
+        <div class="story">
+          <div class="story-ring active"><img src="https://i.pravatar.cc/150?img=32" alt="User"></div>
+          <span class="story-name">with.love.khawla</span>
         </div>
-
-        <button class="btn-main" onclick="window.location.href='home.html'">
-          SIGN IN <i class="fa-solid fa-arrow-right"></i>
-        </button>
-
-        <div class="divider"><span>OR CONTINUE WITH</span></div>
-
-        <div class="social-login">
-          <button class="btn-social google" onclick="window.location.href='home.html'"><i class="fa-brands fa-google"></i></button>
-          <button class="btn-social apple" onclick="window.location.href='home.html'"><i class="fa-brands fa-apple"></i></button>
-          <button class="btn-social facebook" onclick="window.location.href='home.html'"><i class="fa-brands fa-facebook-f"></i></button>
+        <div class="story">
+          <div class="story-ring active"><img src="https://i.pravatar.cc/150?img=5" alt="User"></div>
+          <span class="story-name">the_pharmacist_re...</span>
         </div>
-
-        <p class="switch-text">
-          Don't have an account? <span onclick="toggleForm()">Sign up here</span>
-        </p>
+        <div class="story">
+          <div class="story-ring active"><img src="https://i.pravatar.cc/150?img=8" alt="User"></div>
+          <span class="story-name">paymangay_s...</span>
+        </div>
       </div>
 
+      <div class="divider"></div>
 
-      <div class="form-container hidden" id="registerForm">
-        <div class="header">
-          <h2>Create Account</h2>
-          <p>Join us today!</p>
-        </div>
-
-        <div class="input-group">
-          <label>USERNAME</label>
-          <div class="input-wrapper">
-            <input type="text" placeholder="Choose a username">
-            <i class="fa-solid fa-user-plus"></i>
+      <div class="post">
+        <div class="post-header">
+          <div class="user-info">
+            <img src="https://ui-avatars.com/api/?name=Scoop&background=c1121f&color=fff" alt="Profile" class="post-profile-pic">
+            <span class="username">scoop.krd</span>
+            <i class="fa-solid fa-circle-check verified-badge"></i>
           </div>
+          <i class="fa-solid fa-ellipsis"></i>
         </div>
-
-        <div class="input-group">
-          <label>EMAIL</label>
-          <div class="input-wrapper">
-            <input type="email" placeholder="Enter your email">
-            <i class="fa-solid fa-envelope"></i>
+        
+        <div class="post-image">
+          <img src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?q=80&w=1000&auto=format&fit=crop" alt="News Post">
+        </div>
+        
+        <div class="post-actions">
+          <div class="left-actions">
+            <i class="fa-regular fa-heart"></i>
+            <i class="fa-regular fa-comment"></i>
+            <i class="fa-regular fa-paper-plane"></i>
           </div>
+          <i class="fa-regular fa-bookmark"></i>
         </div>
-
-        <div class="input-group">
-          <label>PASSWORD</label>
-          <div class="input-wrapper">
-            <input type="password" placeholder="Create a password">
-            <i class="fa-solid fa-lock"></i>
-          </div>
+        
+        <div class="post-details">
+          <p class="likes">1,402 likes</p>
+          <p class="caption">
+            <span class="username">scoop.krd</span> عەلی زەیدی 27 ملیار دینار لە عالیە نوسەیف دەسەنێتەوە... <span class="more">more</span>
+          </p>
         </div>
-
-        <button class="btn-main" onclick="window.location.href='home.html'">
-          SIGN UP <i class="fa-solid fa-arrow-right"></i>
-        </button>
-
-        <div class="divider"><span>OR SIGN UP WITH</span></div>
-
-        <div class="social-login">
-          <button class="btn-social google" onclick="window.location.href='home.html'"><i class="fa-brands fa-google"></i></button>
-          <button class="btn-social apple" onclick="window.location.href='home.html'"><i class="fa-brands fa-apple"></i></button>
-          <button class="btn-social facebook" onclick="window.location.href='home.html'"><i class="fa-brands fa-facebook-f"></i></button>
-        </div>
-
-        <p class="switch-text">
-          Already have an account? <span onclick="toggleForm()">Sign in</span>
-        </p>
       </div>
+      
+    </main>
 
-    </div>
+    <nav class="bottom-nav">
+      <a href="#" class="nav-item active">
+        <div class="active-bubble">
+          <i class="fa-solid fa-house"></i>
+        </div>
+      </a>
+      <a href="#" class="nav-item"><i class="fa-solid fa-magnifying-glass"></i></a>
+      <a href="#" class="nav-item"><i class="fa-brands fa-instagram"></i></a>
+      <a href="#" class="nav-item"><i class="fa-brands fa-youtube"></i></a>
+      <a href="#" class="nav-item profile-pic"><img src="https://i.pravatar.cc/150?img=11" alt="Profile"></a>
+    </nav>
+
   </div>
 
-  <script src="script.js"></script>
 </body>
 </html>
