@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Lamp Login</title>
-  <!-- فۆنتی مۆدێرن -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- ئایکۆنەکانی FontAwesome بۆ کێڵگەکان -->
+  <title>Premium Lamp Login UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+  
   <style>
+    :root {
+      --neon-green: #00f59b;
+      --dark-bg: #030608;
+      --glass-bg: rgba(15, 22, 28, 0.45);
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -18,425 +23,350 @@
     }
 
     body {
-      background-color: #070a0d;
+      background-color: var(--dark-bg);
       min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
-      position: relative;
-      transition: background 0.5s ease;
+      transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* پاشبنەمای ژوور کاتێک ڕووناک دەبێتەوە */
     body.light-on {
-      background: radial-gradient(circle at 35% 40%, #0d1e1c 0%, #070a0d 80%);
+      background: radial-gradient(circle at 50% 25%, #0a261c 0%, var(--dark-bg) 70%);
     }
 
-    /* دیزاینی گشتی لاپەڕە */
-    .page-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 60px;
-      width: 100%;
-      max-width: 950px;
-      padding: 20px;
-    }
-
-    /* بەشی گڵۆپ و پەتەکە */
-    .lamp-container {
+    .container {
       position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: -60px;
+      width: 100%;
+      max-width: 400px;
     }
 
-    /* تێلی گڵۆپەکە لە سەرەوە */
+    /* --- بەشی گڵۆپ و ڕۆبۆت --- */
     .lamp-wire {
-      width: 4px;
-      height: 140px;
-      background: #232d38;
-      border-radius: 2px;
+      width: 3px;
+      height: 80px;
+      background: linear-gradient(to bottom, #111, #333);
+      position: absolute;
+      top: -150px;
     }
 
-    /* کڵاوی گڵۆپەکە */
-    .lamp-cap {
-      width: 70px;
-      height: 25px;
-      background: #18222c;
-      border-radius: 12px 12px 4px 4px;
-      border: 1px solid #2d3b4a;
-    }
-
-    /* سەری ڕۆبۆت / گڵۆپی سەرەکی */
-    .lamp-bulb {
-      width: 110px;
-      height: 110px;
-      background: #121920;
+    .robot-lamp {
+      width: 90px;
+      height: 90px;
+      background: #0a0f12;
       border-radius: 50%;
-      margin-top: -5px;
+      position: absolute;
+      top: -70px;
+      border: 2px solid #1a252f;
       display: flex;
       justify-content: center;
       align-items: center;
-      position: relative;
-      border: 2px solid #233140;
-      transition: all 0.4s ease;
-      z-index: 2;
+      z-index: 10;
+      transition: all 0.5s ease;
+      box-shadow: inset 0 -10px 20px rgba(0,0,0,0.8);
     }
 
-    /* ڕووخساری ناو گڵۆپەکە */
     .robot-face {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      opacity: 0.2;
-      transition: opacity 0.4s ease, filter 0.4s ease;
+      gap: 6px;
+      opacity: 0.15;
+      transition: all 0.5s ease;
     }
 
     .eyes {
       display: flex;
-      gap: 24px;
-    }
-
-    .eye {
-      font-size: 20px;
-      font-weight: 700;
-      color: #00f59b;
-      line-height: 1;
+      gap: 16px;
+      color: var(--neon-green);
+      font-weight: 600;
+      font-size: 18px;
     }
 
     .mouth {
-      width: 24px;
-      height: 10px;
-      border-bottom: 3.5px solid #00f59b;
-      border-radius: 0 0 16px 16px;
+      width: 18px;
+      height: 8px;
+      border-bottom: 3px solid var(--neon-green);
+      border-radius: 0 0 10px 10px;
     }
 
-    /* ڕووناکبوونەوەی گڵۆپەکە کاتێک داگیرسا */
-    .light-on .lamp-bulb {
-      background: #002d20;
-      border-color: #00f59b;
-      box-shadow: 0 0 35px #00f59b, inset 0 0 25px #00f59b;
+    /* کاریگەری ڕووناکبوونەوەی گڵۆپ */
+    body.light-on .robot-lamp {
+      background: #002216;
+      border-color: var(--neon-green);
+      box-shadow: 0 0 50px rgba(0, 245, 155, 0.4), inset 0 0 25px rgba(0, 245, 155, 0.5);
     }
 
-    .light-on .robot-face {
+    body.light-on .robot-face {
       opacity: 1;
-      filter: drop-shadow(0 0 8px #00f59b);
+      filter: drop-shadow(0 0 8px var(--neon-green));
     }
 
-    /* تیشکی ڕووناکی */
-    .light-beam {
+    /* --- پەتی ڕاکێشان --- */
+    .pull-cord {
       position: absolute;
-      top: 200px;
-      width: 450px;
-      height: 450px;
-      background: radial-gradient(circle, rgba(0, 245, 155, 0.12) 0%, transparent 70%);
-      border-radius: 50%;
-      pointer-events: none;
-      opacity: 0;
-      transform: scale(0.6);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-      z-index: 1;
-    }
-
-    .light-on .light-beam {
-      opacity: 1;
-      transform: scale(1.1);
-    }
-
-    /* پەتی ڕاکێشان (Cord) */
-    .pull-cord-wrapper {
-      position: absolute;
-      top: 155px;
-      right: -25px;
+      top: -15px;
+      right: 90px;
       display: flex;
       flex-direction: column;
       align-items: center;
       cursor: pointer;
-      z-index: 10;
-      transition: transform 0.15s ease;
+      z-index: 20;
     }
 
-    .cord-string {
+    .cord-line {
       width: 2px;
-      height: 75px;
-      background: #475a6c;
+      height: 50px;
+      background: #444;
+      transition: height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .cord-handle {
+    .cord-knob {
       width: 14px;
-      height: 18px;
-      background: #00f59b;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 245, 155, 0.6);
-      transition: transform 0.2s ease;
+      height: 20px;
+      background: var(--neon-green);
+      border-radius: 4px;
+      box-shadow: 0 0 10px rgba(0, 245, 155, 0.3);
+      transition: transform 0.2s;
     }
 
-    .pull-cord-wrapper:hover .cord-handle {
-      transform: scale(1.15);
+    .pull-cord:hover .cord-knob {
+      transform: scale(1.1);
     }
 
-    /* ئەنیمەیشنی ڕاکێشانی پەتەکە */
-    .pull-cord-wrapper.pulled {
-      transform: translateY(22px);
+    .pull-cord.pulled .cord-line {
+      height: 70px;
     }
 
-    /* سندوقی فۆڕمی Login */
-    .login-container {
-      background: rgba(16, 23, 30, 0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 20px;
-      padding: 40px;
-      width: 380px;
-      color: #fff;
-      opacity: 0.15;
-      filter: blur(2px);
+    /* --- فۆڕمی چوونەژوورەوە (Glassmorphism) --- */
+    .login-box {
+      margin-top: 50px;
+      width: 100%;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      padding: 40px 35px;
+      border-radius: 24px;
+      opacity: 0.1;
+      transform: translateY(30px) scale(0.95);
       pointer-events: none;
-      transform: translateY(15px);
-      transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* کاتێک ڕووناک دەبێتەوە */
-    .light-on .login-container {
+    body.light-on .login-box {
       opacity: 1;
-      filter: blur(0);
+      transform: translateY(0) scale(1);
       pointer-events: all;
-      transform: translateY(0);
-      border-color: rgba(0, 245, 155, 0.25);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 245, 155, 0.1);
+      border-color: rgba(0, 245, 155, 0.2);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 40px rgba(0, 245, 155, 0.05);
     }
 
-    .login-header h2 {
-      font-size: 26px;
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h2 {
+      color: #fff;
+      font-size: 24px;
       font-weight: 600;
-      margin-bottom: 4px;
-      color: #00f59b;
+      letter-spacing: 0.5px;
     }
 
-    .login-header p {
-      font-size: 13px;
-      color: #8b9bb0;
-      margin-bottom: 25px;
+    .header p {
+      color: #7a8c9e;
+      font-size: 12px;
+      margin-top: 4px;
     }
 
+    /* --- کێڵگەکانی فۆڕم --- */
     .input-group {
-      margin-bottom: 18px;
-      text-align: left;
+      margin-bottom: 20px;
+      position: relative;
     }
 
     .input-group label {
       display: block;
       font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      color: #63778d;
-      margin-bottom: 6px;
+      color: #7a8c9e;
+      margin-bottom: 8px;
+      font-weight: 500;
+      letter-spacing: 1px;
     }
 
-    .input-box {
+    .input-wrapper {
       position: relative;
-      display: flex;
-      align-items: center;
     }
 
-    .input-box i {
+    .input-wrapper i {
       position: absolute;
-      left: 14px;
-      color: #495a6c;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #556a7f;
       font-size: 14px;
-      transition: color 0.3s;
+      transition: 0.3s;
     }
 
-    .input-box input {
+    .input-wrapper input {
       width: 100%;
-      padding: 12px 14px 12px 42px;
-      background: #0d1217;
-      border: 1px solid #1e2833;
-      border-radius: 10px;
+      padding: 14px 14px 14px 45px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
       color: #fff;
       font-size: 14px;
       outline: none;
       transition: all 0.3s ease;
     }
 
-    .input-box input:focus {
-      border-color: #00f59b;
-      box-shadow: 0 0 12px rgba(0, 245, 155, 0.2);
+    .input-wrapper input::placeholder {
+      color: #4a5c6f;
     }
 
-    .input-box input:focus + i {
-      color: #00f59b;
+    .input-wrapper input:focus {
+      border-color: var(--neon-green);
+      background: rgba(0, 245, 155, 0.03);
     }
 
-    /* دوگمەی سەرەکی چوونەژوورەوە */
-    .sign-in-btn {
+    .input-wrapper input:focus + i {
+      color: var(--neon-green);
+    }
+
+    /* --- دوگمەکان --- */
+    .btn-login {
       width: 100%;
-      padding: 13px;
-      margin-top: 10px;
-      background: linear-gradient(90deg, #00d282, #00f59b);
+      padding: 14px;
+      background: linear-gradient(135deg, var(--neon-green), #00d282);
       border: none;
-      border-radius: 10px;
-      color: #070a0d;
+      border-radius: 12px;
+      color: #030608;
       font-size: 14px;
       font-weight: 600;
-      letter-spacing: 0.5px;
       cursor: pointer;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       gap: 10px;
+      margin-top: 10px;
       transition: all 0.3s ease;
     }
 
-    .sign-in-btn:hover {
-      box-shadow: 0 0 20px rgba(0, 245, 155, 0.45);
+    .btn-login:hover {
       transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 245, 155, 0.3);
     }
 
-    /* دوگمەکانی Social Login */
-    .social-section {
+    .social-login {
       display: flex;
-      gap: 12px;
+      gap: 15px;
       margin-top: 20px;
     }
 
-    .social-btn {
+    .btn-social {
       flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px;
-      background: #0d1217;
-      border: 1px solid #1e2833;
-      border-radius: 8px;
-      color: #9cb1c9;
-      font-size: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #a1b4c7;
+      font-size: 13px;
       cursor: pointer;
-      transition: all 0.3s;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
     }
 
-    .social-btn:hover {
-      background: #141b22;
-      border-color: #314253;
+    .btn-social:hover {
+      background: rgba(255, 255, 255, 0.08);
       color: #fff;
     }
 
-    /* هێڵی خوارەوە */
-    .signup-text {
-      margin-top: 22px;
-      font-size: 12px;
-      color: #63778d;
-      text-align: center;
-    }
-
-    .signup-text a {
-      color: #00f59b;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .signup-text a:hover {
-      text-decoration: underline;
-    }
   </style>
 </head>
 <body>
 
-  <div class="page-wrapper">
-    <!-- بەشی گڵۆپە ڕۆبۆتییەکە لەگەڵ پەتەکەی -->
-    <div class="lamp-container">
-      <div class="lamp-wire"></div>
-      <div class="lamp-cap"></div>
-      
-      <!-- ڕووخساری ڕۆبۆتەکە -->
-      <div class="lamp-bulb" id="lampBulb">
-        <div class="robot-face">
-          <div class="eyes">
-            <span class="eye">^</span>
-            <span class="eye">^</span>
-          </div>
-          <div class="mouth"></div>
+  <div class="container">
+    
+    <div class="lamp-wire"></div>
+    <div class="robot-lamp">
+      <div class="robot-face">
+        <div class="eyes">
+          <span>^</span>
+          <span>^</span>
         </div>
-      </div>
-
-      <!-- تیشکی ڕووناکی کە بڵاودەبێتەوە -->
-      <div class="light-beam"></div>
-
-      <!-- پەتی ڕاکێشان (Pull Cord) -->
-      <div class="pull-cord-wrapper" id="pullCord" title="Pull me!">
-        <div class="cord-string"></div>
-        <div class="cord-handle"></div>
+        <div class="mouth"></div>
       </div>
     </div>
 
-    <!-- فۆڕمی چوونەژوورەوەی Login -->
-    <div class="login-container">
-      <div class="login-header">
-        <h2>Welcome Back.</h2>
+    <div class="pull-cord" id="pullCord">
+      <div class="cord-line"></div>
+      <div class="cord-knob"></div>
+    </div>
+
+    <div class="login-box">
+      <div class="header">
+        <h2>Welcome Back</h2>
         <p>Pull the cord to illuminate your path</p>
       </div>
 
-      <form onsubmit="event.preventDefault();">
-        <div class="input-group">
-          <label>USERNAME</label>
-          <div class="input-box">
-            <input type="text" placeholder="Enter your username" required>
-            <i class="fa-solid fa-user"></i>
-          </div>
+      <div class="input-group">
+        <label>USERNAME</label>
+        <div class="input-wrapper">
+          <input type="text" placeholder="Enter username">
+          <i class="fa-solid fa-user"></i>
         </div>
+      </div>
 
-        <div class="input-group">
-          <label>PASSWORD</label>
-          <div class="input-box">
-            <input type="password" placeholder="••••••••" required>
-            <i class="fa-solid fa-lock"></i>
-          </div>
+      <div class="input-group">
+        <label>PASSWORD</label>
+        <div class="input-wrapper">
+          <input type="password" placeholder="••••••••">
+          <i class="fa-solid fa-lock"></i>
         </div>
+      </div>
 
-        <button type="submit" class="sign-in-btn">
-          SIGN IN <i class="fa-solid fa-arrow-right"></i>
-        </button>
+      <button class="btn-login">
+        SIGN IN <i class="fa-solid fa-arrow-right"></i>
+      </button>
 
-        <div class="social-section">
-          <button type="button" class="social-btn">
-            <i class="fa-brands fa-google"></i> Google
-          </button>
-          <button type="button" class="social-btn">
-            <i class="fa-brands fa-github"></i> GitHub
-          </button>
-        </div>
-
-        <div class="signup-text">
-          Don't have an account? <a href="#">Sign up</a>
-        </div>
-      </form>
+      <div class="social-login">
+        <button class="btn-social"><i class="fa-brands fa-google"></i> Google</button>
+        <button class="btn-social"><i class="fa-brands fa-github"></i> GitHub</button>
+      </div>
     </div>
+
   </div>
 
-  <!-- کۆدی کارلێککردن (JavaScript) -->
   <script>
-    const pullCord = document.getElementById('pullCord');
+    const cord = document.getElementById('pullCord');
     let isLightOn = false;
 
-    pullCord.addEventListener('click', () => {
-      // ئەنیمەیشنی ڕاکێشانی پەتەکە بەرەو خوارەوە
-      pullCord.classList.add('pulled');
-
+    cord.addEventListener('click', () => {
+      // ئەنیمەیشنی ڕاکێشان
+      cord.classList.add('pulled');
+      
       setTimeout(() => {
-        // گەڕاندنەوەی پەتەکە بۆ شوێنی خۆی
-        pullCord.classList.remove('pulled');
+        cord.classList.remove('pulled');
         
-        // هەڵکردن و کوژاندنەوەی ڕووناکییەکە
+        // داگیرساندن یان کوژاندنەوە
         isLightOn = !isLightOn;
-        document.body.classList.toggle('light-on', isLightOn);
-      }, 180);
+        if(isLightOn) {
+          document.body.classList.add('light-on');
+        } else {
+          document.body.classList.remove('light-on');
+        }
+      }, 200); // دوای 0.2 چرکە پەتەکە دەگەڕێتەوە
     });
   </script>
+
 </body>
 </html>
