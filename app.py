@@ -1,292 +1,163 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const KurdGramApp());
 }
 
-body {
-  background-color: #fafafa;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+class KurdGramApp extends StatelessWidget {
+  const KurdGramApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'KurdGram',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0A0E17),
+      ),
+      home: const LoginScreen(),
+    );
+  }
 }
 
-/* شاشەی مۆبایلەکە */
-.app-container {
-  width: 100%;
-  max-width: 414px;
-  height: 100vh;
-  max-height: 896px;
-  background-color: #ffffff;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 20px rgba(0,0,0,0.1);
-}
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
 
-/* --- بەشی سەرەوە (Header) --- */
-.top-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  background-color: #ffffff;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(),
+              // KurdGram Logo
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE94057).withOpacity(0.4),
+                        blurRadius: 25,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, size: 42, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Center(
+                child: Text(
+                  'KurdGram',
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const Center(
+                child: Text(
+                  'Share Your World',
+                  style: TextStyle(color: Color(0xFF8B9BB4), fontSize: 14),
+                ),
+              ),
+              const Spacer(),
+              // Username Input
+              _buildInputField(
+                hint: 'Username or Email',
+                icon: Icons.person_outline,
+                obscure: false,
+              ),
+              const SizedBox(height: 16),
+              // Password Input
+              _buildInputField(
+                hint: 'Password',
+                icon: Icons.lock_outline,
+                obscure: true,
+              ),
+              const SizedBox(height: 24),
+              // Login Button
+              Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE94057).withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () {},
+                  child: const Text('Log In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Center(
+                child: Text(
+                  'Forgot Password?',
+                  style: TextStyle(color: Color(0xFF8B9BB4), fontSize: 13),
+                ),
+              ),
+              const Spacer(),
+              // Sign Up Link
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Text("Don't have an account? ", style: TextStyle(color: Color(0xFF8B9BB4), fontSize: 13)),
+                  Text("Sign Up", style: TextStyle(color: Color(0xFFE94057), fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-.logo-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.logo {
-  font-family: 'Grand Hotel', cursive;
-  font-size: 32px;
-  color: #000;
-  font-weight: 400;
-}
-
-.logo-container i {
-  font-size: 14px;
-  color: #000;
-  margin-top: 5px;
-}
-
-.icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background-color: #f0f0f0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 20px;
-  color: #000;
-  cursor: pointer;
-}
-
-.icon-box.transparent {
-  background-color: transparent;
-  font-size: 26px;
-}
-
-/* --- بەشی ناوەڕاست (Feed) --- */
-.main-feed {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding-bottom: 70px; /* بۆشایی بۆ مێنیوی خوارەوە */
-}
-
-.main-feed::-webkit-scrollbar {
-  display: none;
-}
-
-/* --- ستۆرییەکان --- */
-.stories-container {
-  display: flex;
-  gap: 15px;
-  padding: 12px 15px;
-  overflow-x: auto;
-  border-bottom: 1px solid #efefef;
-}
-
-.stories-container::-webkit-scrollbar {
-  display: none;
-}
-
-.story {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-/* بازنەی ڕەنگاوڕەنگی ستۆری */
-.story-ring {
-  width: 74px;
-  height: 74px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-
-.story-ring.active {
-  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-}
-
-.story-ring.my-story {
-  background: transparent;
-}
-
-.story-ring img {
-  width: 66px;
-  height: 66px;
-  border-radius: 50%;
-  border: 3px solid #ffffff;
-  object-fit: cover;
-}
-
-.plus-badge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  background: #0095f6;
-  color: #fff;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 12px;
-  border: 2px solid #ffffff;
-}
-
-.story-name {
-  color: #000;
-  font-size: 11px;
-  max-width: 74px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.story-name.text-muted {
-  color: #737373;
-}
-
-/* --- پۆستەکان --- */
-.post {
-  margin-bottom: 15px;
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.post-profile-pic {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.user-info .username {
-  color: #000;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.verified-badge {
-  color: #0095f6;
-  font-size: 14px;
-}
-
-.post-image img {
-  width: 100%;
-  height: auto;
-  max-height: 500px;
-  object-fit: cover;
-}
-
-.post-actions {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 15px;
-}
-
-.left-actions {
-  display: flex;
-  gap: 18px;
-}
-
-.post-actions i {
-  color: #000;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.post-details {
-  padding: 0 15px;
-}
-
-.post-details .likes {
-  font-weight: 600;
-  font-size: 14px;
-  color: #000;
-  margin-bottom: 4px;
-}
-
-.post-details .caption {
-  font-size: 14px;
-  color: #000;
-  line-height: 1.4;
-}
-
-.post-details .more {
-  color: #737373;
-  cursor: pointer;
-}
-
-/* --- بەشی خوارەوە (Bottom Navigation) --- */
-.bottom-nav {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 10px 0;
-  background-color: #ffffff;
-  border-top: 1px solid #efefef;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  height: 65px;
-  z-index: 10;
-}
-
-.nav-item {
-  color: #000;
-  font-size: 24px;
-  text-decoration: none;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* شێوازی بازنە ڕەشەکەی خوارەوە بۆ هۆم وەک وێنەکە */
-.active-bubble {
-  background-color: #000;
-  color: #fff;
-  width: 50px;
-  height: 35px;
-  border-radius: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.profile-pic img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid #dbdbdb;
-  object-fit: cover;
+  Widget _buildInputField({required String hint, required IconData icon, required bool obscure}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: TextField(
+        obscureText: obscure,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: const Color(0xFF8B9BB4)),
+          hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFF556A7F), fontSize: 14),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
 }
