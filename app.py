@@ -1,83 +1,243 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Danyal - Home</title>
-  <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="home.css">
-</head>
-<body>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
 
-  <div class="app-container">
-    
-    <header class="top-header">
-      <h1 class="logo">Danyal</h1>
-      <div class="top-icons">
-        <i class="fa-regular fa-square-plus"></i> <i class="fa-regular fa-heart"></i> </div>
-    </header>
+body {
+  background-color: #000; /* باکگراوندی ڕەش بۆ تەواوی شاشەکە */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
 
-    <main class="main-feed">
-      
-      <div class="stories-container">
-        <div class="story">
-          <div class="story-ring add-story">
-            <img src="https://i.pravatar.cc/150?img=11" alt="Your Story">
-            <span class="plus-badge"><i class="fa-solid fa-plus"></i></span>
-          </div>
-          <span class="story-name">Your Story</span>
-        </div>
-        <div class="story">
-          <div class="story-ring"><img src="https://i.pravatar.cc/150?img=32" alt="User"></div>
-          <span class="story-name">ahmad_99</span>
-        </div>
-        <div class="story">
-          <div class="story-ring"><img src="https://i.pravatar.cc/150?img=12" alt="User"></div>
-          <span class="story-name">sara.kurd</span>
-        </div>
-        <div class="story">
-          <div class="story-ring"><img src="https://i.pravatar.cc/150?img=33" alt="User"></div>
-          <span class="story-name">dlshad_x</span>
-        </div>
-        <div class="story">
-          <div class="story-ring"><img src="https://i.pravatar.cc/150?img=47" alt="User"></div>
-          <span class="story-name">nma_z</span>
-        </div>
-      </div>
+/* دروستکردنی شێوەی مۆبایلێک لەناو شاشەدا */
+.app-container {
+  width: 100%;
+  max-width: 414px; /* قەبارەی شاشەی مۆبایل */
+  height: 100vh;
+  max-height: 896px;
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
+}
 
-      <div class="divider"></div>
+/* --- بەشی سەرەوە (Header) --- */
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid #262626;
+  background-color: #000;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
-      <div class="post">
-        <div class="post-header">
-          <div class="user-info">
-            <img src="https://i.pravatar.cc/150?img=32" alt="User">
-            <span class="username">ahmad_99</span>
-          </div>
-          <i class="fa-solid fa-ellipsis"></i>
-        </div>
-        <div class="post-image">
-          <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop" alt="Post">
-        </div>
-        <div class="post-actions">
-          <div class="left-actions">
-            <i class="fa-regular fa-heart"></i>
-            <i class="fa-regular fa-comment"></i>
-            <i class="fa-regular fa-paper-plane"></i>
-          </div>
-          <i class="fa-regular fa-bookmark"></i>
-        </div>
-        <div class="post-likes">
-          <p>Liked by <strong>sara.kurd</strong> and <strong>1,204 others</strong></p>
-        </div>
-      </div>
+.logo {
+  font-family: 'Grand Hotel', cursive; /* فۆنتێکی جوان بۆ لۆگۆی Danyal */
+  font-size: 32px;
+  color: #fff;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
 
-    </main>
+.top-icons {
+  display: flex;
+  gap: 20px;
+}
 
-    <nav class="bottom-nav">
-      <a href="#" class="nav-item active"><i class="fa-solid fa-house"></i></a> <a href="#" class="nav-item"><i class="fa-solid fa-magnifying-glass"></i></a> <a href="#" class="nav-item"><i class="fa-solid fa-clapperboard"></i></a> <a href="#" class="nav-item"><i class="fa-brands fa-facebook-messenger"></i></a> <a href="#" class="nav-item profile-pic"><img src="https://i.pravatar.cc/150?img=11" alt="Profile"></a> </nav>
+.top-icons i {
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
 
-  </div>
+/* --- بەشی ناوەڕاست (Feed) --- */
+.main-feed {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-bottom: 60px; /* جێهێشتنی بۆشایی بۆ مێنیوی خوارەوە */
+}
 
-</body>
-</html>
+.main-feed::-webkit-scrollbar {
+  display: none; /* شاردنەوەی سکڕۆڵباڕ */
+}
+
+/* --- ستۆرییەکان --- */
+.stories-container {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  overflow-x: auto;
+}
+
+.stories-container::-webkit-scrollbar {
+  display: none;
+}
+
+.story {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.story-ring {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.story-ring img {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 3px solid #000;
+  object-fit: cover;
+}
+
+.add-story {
+  background: none; /* سڕینەوەی ڕەنگی ستۆری بۆ هەژماری خۆت */
+}
+
+.plus-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #0095f6;
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  border: 2px solid #000;
+}
+
+.story-name {
+  color: #fff;
+  font-size: 11px;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  background-color: #262626;
+}
+
+/* --- پۆستەکان --- */
+.post {
+  margin-bottom: 20px;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-info img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.user-info .username {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.post-header i {
+  color: #fff;
+}
+
+.post-image img {
+  width: 100%;
+  height: auto;
+}
+
+.post-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 15px;
+}
+
+.left-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.post-actions i {
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.post-actions i:hover {
+  color: #888;
+}
+
+.post-likes {
+  padding: 0 15px;
+  color: #fff;
+  font-size: 13px;
+}
+
+/* --- بەشی خوارەوە (Bottom Navigation) --- */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0;
+  background-color: #000;
+  border-top: 1px solid #262626;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 50px;
+}
+
+.nav-item {
+  color: #fff;
+  font-size: 24px;
+  text-decoration: none;
+  transition: transform 0.2s;
+}
+
+.nav-item:active {
+  transform: scale(0.9);
+}
+
+.profile-pic img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #fff;
+}
