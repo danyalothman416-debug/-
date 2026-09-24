@@ -1,243 +1,125 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Poppins', sans-serif;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Login & Register UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-body {
-  background-color: #000; /* باکگراوندی ڕەش بۆ تەواوی شاشەکە */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-}
+  <div class="container">
+    
+    <div class="lamp-wire"></div>
+    <div class="robot-lamp">
+      <div class="robot-face">
+        <div class="eyes">
+          <span>^</span>
+          <span>^</span>
+        </div>
+        <div class="mouth"></div>
+      </div>
+    </div>
 
-/* دروستکردنی شێوەی مۆبایلێک لەناو شاشەدا */
-.app-container {
-  width: 100%;
-  max-width: 414px; /* قەبارەی شاشەی مۆبایل */
-  height: 100vh;
-  max-height: 896px;
-  background-color: #000;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid #222;
-  border-right: 1px solid #222;
-}
+    <div class="pull-cord" id="pullCord">
+      <div class="cord-line"></div>
+      <div class="cord-knob"></div>
+    </div>
 
-/* --- بەشی سەرەوە (Header) --- */
-.top-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  border-bottom: 1px solid #262626;
-  background-color: #000;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
+    <div class="form-box">
+      
+      <div class="form-container" id="loginForm">
+        <div class="header">
+          <h2>Welcome Back</h2>
+          <p>Sign in to continue</p>
+        </div>
 
-.logo {
-  font-family: 'Grand Hotel', cursive; /* فۆنتێکی جوان بۆ لۆگۆی Danyal */
-  font-size: 32px;
-  color: #fff;
-  font-weight: 400;
-  letter-spacing: 1px;
-}
+        <div class="input-group">
+          <label>USERNAME OR EMAIL</label>
+          <div class="input-wrapper">
+            <input type="text" placeholder="Enter username or email">
+            <i class="fa-solid fa-user"></i>
+          </div>
+        </div>
 
-.top-icons {
-  display: flex;
-  gap: 20px;
-}
+        <div class="input-group">
+          <label>PASSWORD</label>
+          <div class="input-wrapper">
+            <input type="password" placeholder="••••••••">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+        </div>
 
-.top-icons i {
-  color: #fff;
-  font-size: 24px;
-  cursor: pointer;
-}
+        <button class="btn-main" onclick="window.location.href='home.html'">
+          SIGN IN <i class="fa-solid fa-arrow-right"></i>
+        </button>
 
-/* --- بەشی ناوەڕاست (Feed) --- */
-.main-feed {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding-bottom: 60px; /* جێهێشتنی بۆشایی بۆ مێنیوی خوارەوە */
-}
+        <div class="divider"><span>OR CONTINUE WITH</span></div>
 
-.main-feed::-webkit-scrollbar {
-  display: none; /* شاردنەوەی سکڕۆڵباڕ */
-}
+        <div class="social-login">
+          <button class="btn-social google" onclick="window.location.href='home.html'"><i class="fa-brands fa-google"></i></button>
+          <button class="btn-social apple" onclick="window.location.href='home.html'"><i class="fa-brands fa-apple"></i></button>
+          <button class="btn-social facebook" onclick="window.location.href='home.html'"><i class="fa-brands fa-facebook-f"></i></button>
+        </div>
 
-/* --- ستۆرییەکان --- */
-.stories-container {
-  display: flex;
-  gap: 15px;
-  padding: 15px;
-  overflow-x: auto;
-}
+        <p class="switch-text">
+          Don't have an account? <span onclick="toggleForm()">Sign up here</span>
+        </p>
+      </div>
 
-.stories-container::-webkit-scrollbar {
-  display: none;
-}
 
-.story {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-}
+      <div class="form-container hidden" id="registerForm">
+        <div class="header">
+          <h2>Create Account</h2>
+          <p>Join us today!</p>
+        </div>
 
-.story-ring {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
+        <div class="input-group">
+          <label>USERNAME</label>
+          <div class="input-wrapper">
+            <input type="text" placeholder="Choose a username">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+        </div>
 
-.story-ring img {
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  border: 3px solid #000;
-  object-fit: cover;
-}
+        <div class="input-group">
+          <label>EMAIL</label>
+          <div class="input-wrapper">
+            <input type="email" placeholder="Enter your email">
+            <i class="fa-solid fa-envelope"></i>
+          </div>
+        </div>
 
-.add-story {
-  background: none; /* سڕینەوەی ڕەنگی ستۆری بۆ هەژماری خۆت */
-}
+        <div class="input-group">
+          <label>PASSWORD</label>
+          <div class="input-wrapper">
+            <input type="password" placeholder="Create a password">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+        </div>
 
-.plus-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background: #0095f6;
-  color: #fff;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 10px;
-  border: 2px solid #000;
-}
+        <button class="btn-main" onclick="window.location.href='home.html'">
+          SIGN UP <i class="fa-solid fa-arrow-right"></i>
+        </button>
 
-.story-name {
-  color: #fff;
-  font-size: 11px;
-  max-width: 68px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+        <div class="divider"><span>OR SIGN UP WITH</span></div>
 
-.divider {
-  height: 1px;
-  background-color: #262626;
-}
+        <div class="social-login">
+          <button class="btn-social google" onclick="window.location.href='home.html'"><i class="fa-brands fa-google"></i></button>
+          <button class="btn-social apple" onclick="window.location.href='home.html'"><i class="fa-brands fa-apple"></i></button>
+          <button class="btn-social facebook" onclick="window.location.href='home.html'"><i class="fa-brands fa-facebook-f"></i></button>
+        </div>
 
-/* --- پۆستەکان --- */
-.post {
-  margin-bottom: 20px;
-}
+        <p class="switch-text">
+          Already have an account? <span onclick="toggleForm()">Sign in</span>
+        </p>
+      </div>
 
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-}
+    </div>
+  </div>
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-info img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-}
-
-.user-info .username {
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.post-header i {
-  color: #fff;
-}
-
-.post-image img {
-  width: 100%;
-  height: auto;
-}
-
-.post-actions {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 15px;
-}
-
-.left-actions {
-  display: flex;
-  gap: 16px;
-}
-
-.post-actions i {
-  color: #fff;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.post-actions i:hover {
-  color: #888;
-}
-
-.post-likes {
-  padding: 0 15px;
-  color: #fff;
-  font-size: 13px;
-}
-
-/* --- بەشی خوارەوە (Bottom Navigation) --- */
-.bottom-nav {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 10px 0;
-  background-color: #000;
-  border-top: 1px solid #262626;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  height: 50px;
-}
-
-.nav-item {
-  color: #fff;
-  font-size: 24px;
-  text-decoration: none;
-  transition: transform 0.2s;
-}
-
-.nav-item:active {
-  transform: scale(0.9);
-}
-
-.profile-pic img {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid #fff;
-}
+  <script src="script.js"></script>
+</body>
+</html>
