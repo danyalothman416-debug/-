@@ -47,7 +47,10 @@ export default function App() {
   }, [language]);
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  
+  // 🚨 قفڵەکە لێرەدا شکێنرا: true کرا بە false 🚨
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+  
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('dr_danyal_theme');
     return saved ? saved === 'dark' : true;
